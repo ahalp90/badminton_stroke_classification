@@ -1,0 +1,18 @@
+# --- ML & Data ---
+torch
+torchvision
+numpy
+pandas
+matplotlib
+scikit-learn
+mediapipe
+
+# --- Backend API ---
+fastapi
+uvicorn  # The server that runs FastAPI
+python-multipart  # Required for file upload endpoints
+
+# --- Testing & Infrastructure ---
+pytest
+httpx  # Required by FastAPI TestClient
+mlflow  # Experiment tracking
