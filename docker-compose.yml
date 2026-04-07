@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: badminton-dev
+    working_dir: /app
+    volumes:
+      - .:/app
+      - ./data:/app/data
+      - pip-cache:/root/.cache/pip
+    ports:
+      - "8000:8000"  # FastAPI
+      - "5000:5000"  # MLflow
+    stdin_open: true
+    tty: true
+
+volumes:
+  pip-cache:
