@@ -71,8 +71,8 @@ Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) in the browser.
 
 ### 5. BST Stroke Classifier (`src/bst_refactor/`)
 
-  The BST subproject has its own tightly pinned dependencies (three separate venvs) that are **not** covered by the root `requirements.txt`.
-   Do not add its packages globally — the MMPose stack requires numpy < 2.0, which conflicts with the main project.
+The BST subproject has its own tightly pinned dependencies (three separate venvs) that are **not** covered by the root `requirements.txt`. 
+Do not add its packages globally — the MMPose stack requires numpy < 2.0, which conflicts with the main project.
 
   See
   [`src/bst_refactor/data_pipeline_to_model_train.md`](src/bst_refactor/data_pipeline_to_model_train.md#quick-start-end-to-end-execution)
@@ -81,3 +81,4 @@ Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) in the browser.
   - Full execution order from video download through model training
   - Requirements files: `pipeline/requirements.txt`, `stroke_classification/preparing_data/requirements.txt`,
   `stroke_classification/requirements.txt`
+  (detailed pipeline-only README.md in the relevant subdir)
