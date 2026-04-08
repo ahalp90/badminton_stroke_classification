@@ -1,5 +1,10 @@
+import { Button } from '../components'
+
 export default function Home() {
     return (
-        <div>Home</div>
+        <>
+          <div>Home</div>
+           <Button>Test Button</Button>
+         </>
     )
 }
