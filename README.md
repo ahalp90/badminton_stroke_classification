@@ -5,6 +5,7 @@ Badminton Stroke Classification using AI Computer Vision (Contribution to long-t
 ## Project Structure
 
 - `src/`: Core application code (data loading, models, training, API)
+- `src/bst_refactor/`: Standalone data pipeline and refactored BST stroke classifier — has its own pinned environments
 - `tests/`: Pytest test suite
 - `notebooks/`: Jupyter notebooks for EDA and experimentation
 - `configs/`: Hyperparameter and pipeline configurations
@@ -67,3 +68,16 @@ uvicorn src.api.main:app --reload
 ```
 
 Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) in the browser.
+
+### 5. BST Stroke Classifier (`src/bst_refactor/`)
+
+  The BST subproject has its own tightly pinned dependencies (three separate venvs) that are **not** covered by the root `requirements.txt`.
+   Do not add its packages globally — the MMPose stack requires numpy < 2.0, which conflicts with the main project.
+
+  See
+  [`src/bst_refactor/data_pipeline_to_model_train.md`](src/bst_refactor/data_pipeline_to_model_train.md#quick-start-end-to-end-execution)
+  for:
+  - Three-venv setup (pipeline, MMPose, BST training)
+  - Full execution order from video download through model training
+  - Requirements files: `pipeline/requirements.txt`, `stroke_classification/preparing_data/requirements.txt`,
+  `stroke_classification/requirements.txt`
