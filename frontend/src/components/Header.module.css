@@ -1,7 +1,5 @@
 header {
-    font-size: 2.5rem;
     padding: 1rem;
     background-color: #000000;
-    color: #FFFFFF;
-    font-weight: bolder;
+    display: flex;
 }
