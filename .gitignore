@@ -24,3 +24,4 @@ mlflow.db
 .venv
 src/bst_refactor/ShuttleSet/raw_video
 src/bst_refactor/ShuttleSet/clips
+src/bst_refactor/ShuttleSet/shuttle_npy
