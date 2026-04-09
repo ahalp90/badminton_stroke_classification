@@ -1,0 +1,25 @@
+# Python
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Pytest
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# MLflow experiment data (local only)
+mlruns/
+mlflow.db
+
+# OS
+.DS_Store
+
+#IDE
+.idea
+
+#local
+.venvsrc/bst_refactor/ShuttleSet/raw_video
+src/bst_refactor/ShuttleSet/clips
