@@ -82,3 +82,33 @@ See [`src/bst_refactor/data_pipeline_to_model_train.md`](src/bst_refactor/data_p
   `stroke_classification/requirements.txt`
   
 (detailed pipeline-only README.md in the relevant subdir)
+
+### 6. HPC Data Storage (engelbart)
+
+Video data and generated datasets are too large for home directories (40GB quota). On engelbart, these directories should be symlinked to `/scratch` before running the pipeline.
+
+**One-time setup:**
+
+```bash
+# Create shared data directories on scratch
+mkdir -p /scratch/comp320a/ShuttleSet/raw_video
+mkdir -p /scratch/comp320a/ShuttleSet/clips
+mkdir -p /scratch/comp320a/ShuttleSet/shuttle_npy
+
+# Symlink from your project into scratch
+cd ~/badminton_stroke_classifier/src/bst_refactor/ShuttleSet
+ln -s /scratch/comp320a/ShuttleSet/raw_video raw_video
+ln -s /scratch/comp320a/ShuttleSet/clips clips
+ln -s /scratch/comp320a/ShuttleSet/shuttle_npy shuttle_npy
+```
+
+Everyone shares the same `/scratch` data, so videos only need to be downloaded once. Make sure permissions are open after downloading:
+
+```bash
+chmod -R 775 /scratch/comp320a/ShuttleSet
+```
+
+**Important notes:**
+- `/scratch` is **not backed up** and is **local to each HPC host** — data on engelbart's scratch is not visible from bourbaki.
+- Do not store videos or clips in your home directory — they will exceed your quota.
+- These symlinks are tracked in git. They will be broken on non-HPC machines — this is expected. The symlinks only need to work on engelbart.

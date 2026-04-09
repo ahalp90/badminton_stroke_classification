@@ -21,5 +21,6 @@ mlflow.db
 .idea
 
 #local
-.venvsrc/bst_refactor/ShuttleSet/raw_video
+.venv
+src/bst_refactor/ShuttleSet/raw_video
 src/bst_refactor/ShuttleSet/clips
