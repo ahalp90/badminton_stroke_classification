@@ -17,8 +17,11 @@ ssh -Y engelbart
 
 ```bash
 mkdir -p /scratch/comp320a/badminton-stroke-classifier/{repo,data/raw,data/processed,data/checkpoints,data/logs}
+chmod -R o+rX /scratch/comp320a/badminton-stroke-classifier/your_dir
 ```
-
+*The chmod is currently open because it looks like we don't have a group set-up. Please correct this if this is not the case/changes.
+Suggested others read/selective execute only.
+If you really need to give full RWX, temporarily assign chmod -R 777.* 
 ---
 
 ## 3. Clone repository
@@ -110,3 +113,13 @@ Use `/scratch` for all large files:
 - GPU nodes use a different OS (Rocky Linux)
 - `/scratch` is fast but isn't backed up
 - Avoid storing large data in your home directory
+- After creating or modifying files in /scratch, run chmod -R o+rX on them so teammates can access them (no shared group is configured)   
+- You can create local symlinks to /scratch paths for convenience, but do not commit them to the repo — they contain your user-specific   
+paths and won't work for others
+
+## 10. BST subproject setup
+
+The BST subproject (src/bst_refactor/) requires Python 3.11.x and multiple separate venvs due to numpy version conflicts between MMPose 
+and the training stack.                                                                                                                   
+
+See src/bst_refactor/data_pipeline_to_model_train.md for full setup instructions.
