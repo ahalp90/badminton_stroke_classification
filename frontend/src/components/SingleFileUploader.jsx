@@ -5,15 +5,18 @@ import style from './SingleFileUploader.module.css'
 
 const SingleFileUploader = () => {
     const [file, setFile] = useState(null)
+    const [status, setStatus] = useState('initial')
     
     const handleFileChange = (e) => {
         if (e.target.files) {
+            setStatus('initial')
             setFile(e.target.files[0])
         }
     }
         
     const handleUpload = async () => {
         if (file) {
+            setStatus('uploading')
             console.log('Uploading file...')
             
             const formData = new FormData()
@@ -28,8 +31,10 @@ const SingleFileUploader = () => {
             const data = await result.json()
 
             console.log(data)
+            setStatus('success')
             } catch (error) {
                 console.error(error)
+                setStatus('fail')
             }
         }
 
@@ -57,8 +62,21 @@ const SingleFileUploader = () => {
         className={style.submit}
         >Upload a file</button>
         )}
+        <Result status={status} />
     </>
   )
+}
+
+const Result = ({ status }) => {
+    if (status === 'success') {
+        return <p>✅ File uploaded successfully!</p>
+    } else if (status === 'fail') {
+        return <p>❌ File upload failed!</p>
+    } else if (status === 'uploading') {
+        return <p>⏳ Uploading selected file...</p>;
+    } else {
+        return null
+  }
 }
 
 export default SingleFileUploader
