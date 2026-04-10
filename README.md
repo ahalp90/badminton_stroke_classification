@@ -11,61 +11,124 @@ Badminton Stroke Classification using AI Computer Vision (Contribution to long-t
 - `configs/`: Hyperparameter and pipeline configurations
 - `scripts/`: Utility scripts
 - `scratch/`: Team notes and temporary files
+- `data/`: Local dataset storage (`raw/`, `processed/`, `checkpoints/`, `logs/`)
+
+---
 
 ## Local Setup Instructions
 
-> **Environment setup (Docker, venv, HPC) is owned by Ethan** — see his documentation once available.
+This project uses Docker to ensure a consistent environment across the team.
 
-### 1. Install Dependencies
+### 1. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Verify Setup
+### 2. Build and run
 
-Run the base test suite to ensure all dependencies are installed and importing correctly:
+```bash
+docker compose up --build
+```
+
+### 3. Enter container
+
+```bash
+docker exec -it badminton-dev bash
+```
+
+### 4. Verify setup
 
 ```bash
 pytest tests/
 ```
 
-If the tests pass, your environment is ready to go!
+If the tests pass, your environment is ready to go.
 
-### 3. Experiment Tracking (MLflow)
+---
 
-MLflow runs fully locally — no account or server setup needed. After installing dependencies:
+## Run API & view in browser
+
+Inside the container:
 
 ```bash
-# Run the example script to verify MLflow is working
-python scripts/example_mlflow_run.py
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-# Open the experiment dashboard
+Open:
+http://127.0.0.1:8000/docs
+
+---
+
+## Experiment Tracking (MLflow)
+
+Inside the container:
+
+```bash
+python scripts/example_mlflow_run.py
 mlflow ui
 ```
 
-Then open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
+Open:
+http://127.0.0.1:5000
 
-When writing training code, log experiments like this:
+MLflow will automatically create an `mlruns/` directory.
 
-```python
-import mlflow
+---
 
-with mlflow.start_run():
-    mlflow.log_params({"learning_rate": 0.001, "batch_size": 32})
-    mlflow.log_metric("train_loss", loss, step=epoch)
-    mlflow.log_metric("val_accuracy", acc, step=epoch)
-```
+## Verify Environment
 
-MLflow will auto-create an `mlruns/` directory to store results locally.
+The project includes a base environment test:
 
-### 4. Run API & View in browser
+- `tests/test_environment.py`
 
-From the root directory, run:
+Optional manual checks:
 
 ```bash
-uvicorn src.api.main:app --reload
+python -c "import torch; print(torch.__version__)"
+python -c "import mediapipe as mp; print('mediapipe ok')"
+python -c "import fastapi; print('fastapi ok')"
+python -c "import mlflow; print('mlflow ok')"
 ```
+
+---
+
+## Data Directory
+
+```text
+data/
+├── raw/
+├── processed/
+├── checkpoints/
+└── logs/
+```
+
+Create it with:
+
+```bash
+bash scripts/setup_data.sh
+```
+
+---
+
+## UNE HPC Setup
+
+- Project guide: `scratch/hpc_quickstart.md`
+- GPU notes: `scratch/gpu-access.md`
+
+Notes:
+
+- Use GPU hosts (e.g. `engelbart`) for training
+- Build environments on the GPU host (not just `turing`)
+- Store data in `/scratch`, not your home directory
+
+---
+
+## Notes
+
+- Docker is the --only supported local development environment--
+- HPC is used for GPU training workloads
+- Keep large files out of the repository
 
 Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) in the browser.
 
