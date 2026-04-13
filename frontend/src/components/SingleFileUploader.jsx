@@ -27,6 +27,8 @@ const SingleFileUploader = () => {
                     method: 'POST',
                     body: formData,
                 })
+
+            if (!result.ok) throw new Error(`Upload failed: ${result.status}`);
             
             const data = await result.json()
 
