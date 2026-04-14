@@ -1,0 +1,5 @@
+import sys
+from pathlib import Path
+
+# Allow imports like `from pipeline.config import ...` used inside bst_refactor. Keeps tests in tests dir
+sys.path.insert(0, str(Path(__file__).parent / "src" / "bst_refactor"))
