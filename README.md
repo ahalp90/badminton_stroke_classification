@@ -150,20 +150,37 @@ See [`src/bst_refactor/data_pipeline_to_model_train.md`](src/bst_refactor/data_p
 
 Video data and generated datasets are too large for home directories (40GB quota). On engelbart, these directories should be symlinked to `/scratch` before running the pipeline.
 
-**One-time setup:**
+**One-time setup (pipeline data):**
 
 ```bash
 # Create shared data directories on scratch
 mkdir -p /scratch/comp320a/ShuttleSet/raw_video
 mkdir -p /scratch/comp320a/ShuttleSet/clips
+mkdir -p /scratch/comp320a/ShuttleSet/shuttle_csv
 mkdir -p /scratch/comp320a/ShuttleSet/shuttle_npy
 
 # Symlink from your project into scratch
 cd ~/badminton_stroke_classifier/src/bst_refactor/ShuttleSet
 ln -s /scratch/comp320a/ShuttleSet/raw_video raw_video
 ln -s /scratch/comp320a/ShuttleSet/clips clips
+ln -s /scratch/comp320a/ShuttleSet/shuttle_csv shuttle_csv
 ln -s /scratch/comp320a/ShuttleSet/shuttle_npy shuttle_npy
 ```
+
+**One-time setup (pose estimation output):**
+
+MMPose saves per-clip `.npy` files under a taxonomy-specific directory (`ShuttleSet_data_{taxonomy}/`). The script auto-creates this directory and all subdirectories, but on engelbart you want the data on scratch, so symlink first:
+
+```bash
+# Create the taxonomy output dir on scratch (replace taxonomy name as needed)
+mkdir -p /scratch/comp320a/ShuttleSet_data_une_merge_v1
+
+# Symlink into the preparing_data dir where the script expects it
+cd ~/badminton_stroke_classifier/src/bst_refactor/stroke_classification/preparing_data
+ln -s /scratch/comp320a/ShuttleSet_data_une_merge_v1 ShuttleSet_data_une_merge_v1
+```
+
+**Note on taxonomy and pose data:** Pose data is physically taxonomy-independent -- the same clip produces byte-identical keypoints regardless of which taxonomy it's organized under. Clip filenames (`{vid}_{set}_{rally}_{ball}`) are physical identifiers, so pose results from one taxonomy can in principle be reused by another via filename matching. The taxonomy folder only determines which stroke-type subdirectories the `.npy` files land in.
 
 Everyone shares the same `/scratch` data, so videos only need to be downloaded once. Make sure permissions are open after downloading:
 
