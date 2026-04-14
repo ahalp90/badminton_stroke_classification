@@ -13,7 +13,7 @@ from src.bst_refactor.stroke_classification.preparing_data.shuttleset_dataset im
 
 def test_dataloader_batch_shapes():
     # Create fake data that looks like real data (4 samples)
-    n, t, m, J, d = 4, 30, 2, 17, 2  # 4 clips, 30 frames, 2 players, 17 joints, x/y
+    n, t, m, J, d = 4, 100, 2, 17, 2  # 4 clips, 100 frames, 2 players, 17 joints, x/y
 
     with tempfile.TemporaryDirectory() as tmp:
         split_dir = Path(tmp) / "train"
