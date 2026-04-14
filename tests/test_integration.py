@@ -63,23 +63,51 @@ BST_DATA_DIR = os.environ.get("BST_DATA_DIR")
     ),
 )
 def test_pipeline_dataloader_to_model_forward_pass():
+    # -------------------------------------------------------------------------
+    # UPSTREAM STEPS (not tested here — require HPC, real videos, MMPose, TrackNetV3)
+    # -------------------------------------------------------------------------
+    # Step 1: Parse raw ShuttleSet CSV annotations
+    #   Owner: Jared
+    #   Script: pipeline/clip_generator.py -> generate_all_clips()
+    #
+    # Step 2: Class collapse and split assignment
+    #   Owner: Jared
+    #   Script: pipeline/clip_generator.py -> apply_class_merge()
+    #
+    # Step 3: Pose extraction (MMPose) and shuttle extraction (TrackNetV3) -> npy files
+    #   Owner: Ariel
+    #   Script: stroke_classification/preparing_data/prepare_train_on_shuttleset.py
+    #
+    # Once the above are complete, point BST_DATA_DIR at the dataset_npy_collated
+    # directory and the steps below will validate the full downstream pipeline.
+    # -------------------------------------------------------------------------
+
     n_classes = TAXONOMIES[DEFAULT_TAXONOMY].n_classes
 
+    # Step 4: Load npy dataset
     dataset = Dataset_npy_collated(Path(BST_DATA_DIR), "test")
+    assert len(dataset) > 0, (
+        "Dataset is empty — check BST_DATA_DIR points to the correct "
+        "dataset_npy_collated directory and that the test/ split exists."
+    )
+
+    # Step 5: Batch via DataLoader
     loader = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=0)
-
     (human_pose, pos, shuttle), video_len, labels = next(iter(loader))
+    assert human_pose.ndim == 5, (
+        f"Expected human_pose to have 5 dims (batch, frames, players, joints, xy), "
+        f"got shape {human_pose.shape} — preprocessing output may be malformed."
+    )
 
-    # Flatten the last two dims (joints/bones, xy) into one feature dim.
-    # This mirrors bst_train.py:101 — the model expects (b, t, n, in_dim),
-    # not (b, t, n, joints, xy).
+    # Step 6: Flatten joints/bones into feature dim (mirrors bst_train.py:101)
     human_pose = human_pose.view(*human_pose.shape[:-2], -1)
-
-    # Derive in_dim and seq_len from the actual data so this test doesn't
-    # hardcode assumptions about pose_style or joint count.
     in_dim = human_pose.shape[-1]
     seq_len = human_pose.shape[1]
+    assert in_dim > 0, (
+        f"Flattened in_dim is {in_dim} — something is wrong with the pose tensor shape."
+    )
 
+    # Step 7: Instantiate BST_0 and run forward pass
     model = BST_0(in_dim=in_dim, seq_len=seq_len, n_class=n_classes, d_model=100)
     model.eval()
 
@@ -87,5 +115,6 @@ def test_pipeline_dataloader_to_model_forward_pass():
         output = model(human_pose, shuttle, pos, video_len)
 
     assert output.shape == (4, n_classes), (
-        f"Expected output shape (4, {n_classes}), got {output.shape}"
+        f"Expected output shape (4, {n_classes}), got {output.shape} — "
+        f"check n_classes matches the taxonomy used during preprocessing."
     )
