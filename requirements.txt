@@ -6,6 +6,8 @@ pandas
 matplotlib
 scikit-learn
 mediapipe
+positional-encodings  # Positional encoding layers used by BST transformer model (bst_refactor/stroke_classification/model/)
+torchinfo             # Model summary utility used by tempose.py in the BST model module
 
 
 # --- Backend API ---
