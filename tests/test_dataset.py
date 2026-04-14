@@ -22,7 +22,7 @@ def test_dataloader_batch_shapes():
         np.save(split_dir / "J_only.npy", np.zeros((n, t, m, J, d), dtype=np.float32))
         np.save(split_dir / "pos.npy", np.zeros((n, t, m, 2), dtype=np.float32))
         np.save(split_dir / "shuttle.npy", np.zeros((n, t, 2), dtype=np.float32))
-        np.save(split_dir / "videos_len.npy", np.full(n, 30, dtype=np.int64))
+        np.save(split_dir / "videos_len.npy", np.full(n, 100, dtype=np.int64))
         np.save(split_dir / "labels.npy", np.zeros(n, dtype=np.int64))
 
         dataset = Dataset_npy_collated(Path(tmp), "train")
@@ -31,20 +31,20 @@ def test_dataloader_batch_shapes():
         (human_pose, pos, shuttle), videos_len, labels = next(iter(loader))
 
         # Print shapes to verify they match expected dimensions - redundant but meets the requirement of "prints shapes"
-        print("human_pose shape:", human_pose.shape)  # (2, 30, 2, 17, 2)
-        print("pos shape:       ", pos.shape)  # (2, 30, 2, 2)
-        print("shuttle shape:   ", shuttle.shape)  # (2, 30, 2)
+        print("human_pose shape:", human_pose.shape)  # (2, 100, 2, 17, 2)
+        print("pos shape:       ", pos.shape)  # (2, 100, 2, 2)
+        print("shuttle shape:   ", shuttle.shape)  # (2, 100, 2)
         print("videos_len shape:", videos_len.shape)  # (2,)
         print("labels shape:    ", labels.shape)  # (2,)
 
         assert human_pose.shape == (
             2,
-            30,
+            100,
             2,
             17,
             2,
         )  # (batch, frames, players, joints, xy)
-        assert pos.shape == (2, 30, 2, 2)  # (batch, frames, players, xy)
-        assert shuttle.shape == (2, 30, 2)  # (batch, frames, xy)
+        assert pos.shape == (2, 100, 2, 2)  # (batch, frames, players, xy)
+        assert shuttle.shape == (2, 100, 2)  # (batch, frames, xy)
         assert videos_len.shape == (2,)  # (batch,)
         assert labels.shape == (2,)  # (batch,)
