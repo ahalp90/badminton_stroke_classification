@@ -1,0 +1,10 @@
+[tool.ruff]
+exclude = ["notebooks/", "**/deprecated/", "src/bst_refactor/TrackNetV3/"]
+
+[tool.ruff.lint]
+ignore = [
+    "F541",  # f-string without placeholders
+    "E401",  # multiple imports on one line
+    "E731",  # lambda assignment
+    "E702",  # multiple statements on one line (semicolon)
+]
