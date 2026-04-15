@@ -23,7 +23,10 @@ mlflow.db
 #local
 .venv
 venv/
+#symlinks
 src/bst_refactor/ShuttleSet/raw_video
 src/bst_refactor/ShuttleSet/clips
 src/bst_refactor/ShuttleSet/shuttle_csv
 src/bst_refactor/ShuttleSet/shuttle_npy
+#wildcard for various taxonomies--could cause a problem if you unluckily picked this root name
+src/bst_refactor/stroke_classification/preparing_data/ShuttleSet_data_*
