@@ -30,3 +30,5 @@ src/bst_refactor/ShuttleSet/shuttle_csv
 src/bst_refactor/ShuttleSet/shuttle_npy
 #wildcard for various taxonomies--could cause a problem if you unluckily picked this root name
 src/bst_refactor/stroke_classification/preparing_data/ShuttleSet_data_*
+src/bst_refactor/stroke_classification/main_on_shuttleset/tmp/
+src/bst_refactor/stroke_classification/main_on_shuttleset/preparing_data
