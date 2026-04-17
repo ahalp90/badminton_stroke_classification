@@ -32,3 +32,8 @@ src/bst_refactor/ShuttleSet/shuttle_npy
 src/bst_refactor/stroke_classification/preparing_data/ShuttleSet_data_*
 src/bst_refactor/stroke_classification/main_on_shuttleset/tmp/
 src/bst_refactor/stroke_classification/main_on_shuttleset/preparing_data
+
+#model weights
+#bst runs 1 and 3 are good, but #2 slightly edged them out
+/src/bst_refactor/stroke_classification/main_on_shuttleset/weight/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_1.pt
+/src/bst_refactor/stroke_classification/main_on_shuttleset/weight/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_3.pt
