@@ -191,6 +191,27 @@ lands will also shape the window logic for (3) above.
 
 ---
 
+## Cleanup backlog
+
+### Dedup `bst_train.py` and `bst_infer.py` scaffolding
+
+`bst_infer.py` and `bst_train.py` both carry their own copy of the
+`MODELS` dict, a `Task` class with `get_network_architecture`, the
+`pose_style` + `in_dim` arithmetic, and the dataloader setup from
+`preparing_data.shuttleset_dataset`. The genuinely different parts are
+small: `bst_infer.py` does argmax-only predictions with no metrics, and
+its Task has a `load_weight` instead of the cache-or-train
+`seek_network_weights`.
+
+Two entry points is few enough that I'm leaving it for now. When a third
+arrives (Gradio backend, ONNX export, or the Arch 1 fusion pipeline once
+X3D-S lands), the right move is a `bst_common.py` holding `MODELS`, a
+base `Task`, and the shared dataloader helpers, with `bst_train.py` and
+`bst_infer.py` importing from it. A mirror TODO is pinned at the top of
+`bst_infer.py`.
+
+---
+
 ## Cross-references
 
 - `src/bst_refactor/stroke_classification/model/bst.py`: model defaults
