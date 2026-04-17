@@ -21,6 +21,8 @@ mlflow.db
 .idea
 
 #local
+.worktrees/
+.env
 .venv
 venv/
 #symlinks
