@@ -10,23 +10,60 @@
 a quarter of the cosine curve runs across the full budget, so the LR barely
 decays.
 
-Our runs converge around epoch 60 and early-stopping fires long before the
-schedule's long tail matters. The LR sits close to its peak when training
-ends, so most of the scheduled decay never happens. I want to compress the
-active decay into the window the model trains in. Three variants I'd try:
+Our runs converge around epoch 60 and early-stopping fires around epoch 360, so the scheduler never really has time to 
+significantly lower the learning rate. Things to try to squeeze more lr decay into the real train window:
 
-- Cut `n_epochs` to 200–400 and keep `num_cycles=0.25`. Same curve shape,
-  running inside the window we use.
-- Hold `n_epochs` and push `num_cycles` to 0.5 or 1.0, so more of the cosine
-  curve lands before early-stopping catches us.
-- Switch to a one-cycle schedule, or cosine with warm restarts spaced
-  around the observed convergence epoch. Warm restarts in particular let
-  the optimiser re-explore after the ~epoch 60 plateau.
+- Cut `n_epochs` to 200–400 and keep `num_cycles=0.25`. Speeds up decay so it sits in the epochs we actually use.
+- Push `num_cycles` to 0.5, so more of the cosine curve lands before early-stop.
+- Worth considering warm restarts with super low learning rate, though more effort.
 
-Risk across all three: over-annealing. Freeze the LR too hard and the
-model settles in a worse minimum than the current gentle decay finds. Any
-schedule change needs a held-out F1 check against the current baseline
-before I trust it.
+
+#### Outcome (2026-04-17): retune beats paper and prior best on every test metric
+
+Compressed `n_epochs` to match the real convergence timeframe & bumped up `num_cycles` so the cosine curve 
+actually hits zero. 
+`Apr17_13-04-35` run showed: best F1 macro 0.8311 at epoch 41 (out of 1600), val loss peaked by epoch 27, 
+early-stop at 341. So at peak, the LR was basically still at full speed.
+
+Active settings now (old values preserved commented in `bst_train.py`):
+
+| param | was | now |
+|---|---|---|
+| `n_epochs` | 1600 | 120 |
+| `warm_up_step` | 400 | 100 |
+| `early_stop_n_epochs` | 300 | 40 |
+| `num_cycles` | 0.25 | 0.5 |
+
+Run `run_20260417_191851` (commit 2cb78b8), 3 serials on merged_25, test set
+(num_strokes 3486):
+
+| | F1 macro | F1 min | Accuracy | Top-2 |
+|---|---|---|---|---|
+| BST paper (published) | 0.8097 | 0.5762 | 0.8322 | — |
+| Prior best (commit 8810e95, old schedule) | 0.823 | 0.585 | 0.841 | 0.963 |
+| **Retune serial 1 (winner)** | **0.830** | **0.627** | **0.844** | **0.964** |
+| Retune serial 2 | 0.822 | 0.610 | 0.841 | 0.963 |
+| Retune serial 3 | 0.827 | 0.585 | 0.841 | 0.963 |
+
+All three serials beat the paper on every metric, so it's not just a lucky random seed. 
+Huge jump on F1 min (+4.2 points vs prior best, +5.1 vs paper). Harder classes get a massive benefit.
+
+The val-vs-test direction flipped too: the old run had val macro 0.8311
+but test macro 0.823; the retune's winner had val macro 0.816 but test
+macro 0.830.
+
+We might be hitting a data quality cap soon though. 3% are 'unknown', which is just a catch-all garbage class. 
+Another 3% have known bad labels. 
+And then 25% of the majority class (smash) have serious problems with over strict frame zeroing by mmpose (probably fixable).
+
+Winning weight kept at
+`main_on_shuttleset/weight/run_20260417_191851/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25.pt`
+and is tracked via an `!` override in `.gitignore`. Numbers above are
+verified from `test_logs/test_20260417_191851.log`.
+
+Next dial to experiment with, if we want more: nudge `n_epochs` up to
+~150-180 and re-test. F1 min on the winning val curve was still climbing
+at the final epoch, so there might be a tiny bit more juice to squeeze.
 
 ---
 
@@ -96,27 +133,22 @@ anneal-in especially won't have time to reach its target weight.
 
 ### Model choice: X3D-S
 
-X3D-S is the model I'm going with for the racket-crop branch. The decision
-came down to one constraint: I need a video CNN small enough to bolt onto
-BST *and* fine-tune comprehensively in the time available. The X3D family
-is the only one that fits both.
+X3D-S is the model I'm going with for the racket-crop branch. This fits two constraints:
+- Easily available with weights, and
+- small enough (params) to fine-tune end-to-end in the short time we have--on a v100 16gb.
 
 There are other strong, low-param models, MoViNet for example, but none
-ship prebuilt weights that integrate cleanly. X3D would probably do even better
-with SSv2 pretraining (fine hand motions are exactly what I need), but the
-SSv2 weights only exist as an unofficial TensorFlow port, and the buggy
-interface isn't worth the time cost. Starting from SSv2 would be ideal;
-realistic on a V100 16GB with our timeline, it isn't.
+with prebuilt appropriate weights and easy model zoo integration. X3D would probably do even better
+with SSv2 pretraining (fine hand motions), but the
+SSv2 weights only exist as an unofficial TensorFlow port, and interface bugs will probably eat more time than the engineering.
 
 Within the X3D family I picked S over XS and the larger variants:
 
 - **vs XS.** XS expects 4 frames × stride=12, too coarse for granular
   badminton racket motion.
 - **vs M / L / XL.** They only drop stride to 5, perform not-that-much
-  better, and parameters grow fast. Not worth it for the compute and
-  memory I have.
-- **X3D-S.** Strong accuracy at a low parameter count. Crucially its
-  starting weights fit our task better than XS's. Expected input is 13
+  better, and way more params.
+- **X3D-S.** Strong accuracy at a low parameter count. Expected input is 13
   frames × stride=6.
 
 ### Target input shape: frames=39, stride=1
@@ -155,9 +187,7 @@ Three things I still need to pin down:
 1. **Fine-tuning and end-to-end schedule.** What's the right sequence for
    fine-tuning X3D-S on badminton video first, then co-training it
    end-to-end with the rest of Arch 1? Length of each phase, learning
-   rates, what to freeze when. I almost certainly need differential LRs
-   between the pretrained X3D-S backbone and the fusion/classification
-   head.
+   rates, what to freeze when. 
 2. **Temporal cut-in of X3D-S feedback.** The reported stroke racket
    contact times are noisy. I need to pick where the X3D-S input window
    sits relative to the reported contact time so the feature stays
@@ -166,14 +196,11 @@ Three things I still need to pin down:
    offset, or a slightly wider window that lets X3D-S self-align.
 3. **Juggling MMPose drops.** MMPose periodically drops frames, sometimes
    with alarming frequency for certain stroke categories. The X3D-S
-   window has to cope with that. Gapped input, interpolation across
-   drops, or different window logic per-category, all on the table.
-   Especially ugly when drops cluster near the reported contact time,
-   which is exactly where X3D-S most needs signal.
+   window has to cope with that. First check to see if loosening the MMPose frame zeroing helps.  Otherwise, probably handle through interpolation (one euro filter?). Worst case: pin the camera to the shuttle velocity reversal position.
 
 ### MMPose frame-zeroing rules
 
-Question 3 above feeds straight into a broader concern: I suspect the
+Question 3 above feeds straight into a broader concern: I think the
 current MMPose frame-zeroing rules are excessively strict, and I want to
 check that before I build racket-anchoring heuristics on top of them.
 

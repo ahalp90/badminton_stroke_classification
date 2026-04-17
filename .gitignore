@@ -34,7 +34,16 @@ src/bst_refactor/stroke_classification/main_on_shuttleset/tmp/
 src/bst_refactor/stroke_classification/main_on_shuttleset/preparing_data
 
 #model weights
-#keep serial 2, the best bst_cg_ap base settings build, tracked
-!/src/bst_refactor/stroke_classification/main_on_shuttleset/weight/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2.pt
-#per-run weight subfolders created by bst_train.py (timestamped)
+
+#per-run weight subfolders created by bst_train.py (timestamped) -- ignored by default
 src/bst_refactor/stroke_classification/main_on_shuttleset/weight/run_*/
+
+#best base bst_cg_ap
+src/bst_refactor/stroke_classification/main_on_shuttleset/weight/bst_cg_ap_base_17_04_2026/*
+!src/bst_refactor/stroke_classification/main_on_shuttleset/weight/bst_cg_ap_base_17_04_2026/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2.pt
+
+#best bst_cg_ap model (lower learning rate)
+#tactical unignore
+!src/bst_refactor/stroke_classification/main_on_shuttleset/weight/run_20260417_191851/
+src/bst_refactor/stroke_classification/main_on_shuttleset/weight/run_20260417_191851/*
+!src/bst_refactor/stroke_classification/main_on_shuttleset/weight/run_20260417_191851/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25.pt
