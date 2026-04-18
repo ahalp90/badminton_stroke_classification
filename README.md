@@ -5,7 +5,7 @@ Badminton Stroke Classification using AI Computer Vision (Contribution to long-t
 ## Project Structure
 
 - `src/`: Core application code (data loading, models, training, API)
-- `src/bst_refactor/`: Standalone data pipeline and refactored BST stroke classifier — has its own pinned environments
+- `src/bst_refactor/`: Standalone data pipeline and refactored BST stroke classifier; has its own pinned environments
 - `tests/`: Pytest test suite
 - `notebooks/`: Jupyter notebooks for EDA and experimentation
 - `configs/`: Hyperparameter and pipeline configurations
@@ -17,7 +17,7 @@ Badminton Stroke Classification using AI Computer Vision (Contribution to long-t
 
 ## Local Setup Instructions
 
-This project uses Docker to ensure a consistent environment across the team.
+Dev currently runs in Python venvs; see subproject READMEs for the pinned environments. The Docker setup below is a work-in-progress target for deployment.
 
 ### 1. Install dependencies
 
@@ -60,19 +60,13 @@ http://127.0.0.1:8000/docs
 
 ---
 
-## Experiment Tracking (MLflow)
+## Experiment Tracking
 
-Inside the container:
+BST training runs log through `src/bst_refactor/run_tracker.py`. Each run writes a manifest, per-serial metrics, and TensorBoard events under `src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/<run_id>/`.
 
-```bash
-python scripts/example_mlflow_run.py
-mlflow ui
-```
+Optional Aim UI (from `main_on_shuttleset/`): `python ../../aim_backfill.py` (one-shot, idempotent), then `aim up`. Details in [`src/bst_refactor/run_tracker.md`](src/bst_refactor/run_tracker.md).
 
-Open:
-http://127.0.0.1:5000
-
-MLflow will automatically create an `mlruns/` directory.
+There's also a partial MLflow setup in `scripts/example_mlflow_run.py` if someone wants to plug in, but it's probably more than this project needs; the manifest tracker above integrates with Aim at near-zero effort.
 
 ---
 
@@ -86,9 +80,7 @@ Optional manual checks:
 
 ```bash
 python -c "import torch; print(torch.__version__)"
-python -c "import mediapipe as mp; print('mediapipe ok')"
 python -c "import fastapi; print('fastapi ok')"
-python -c "import mlflow; print('mlflow ok')"
 ```
 
 ---
@@ -121,18 +113,16 @@ Notes:
 - Use GPU hosts (e.g. `engelbart`) for training
 - Build environments on the GPU host (not just `turing`)
 - Store data in `/scratch`, not your home directory
+- Run long training jobs inside `tmux` so they survive SSH drops
 
 ---
 
 ## Notes
 
-- Docker is the --only supported local development environment--
 - HPC is used for GPU training workloads
 - Keep large files out of the repository
 
-Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) in the browser.
-
-### 5. BST Stroke Classifier (`src/bst_refactor/`)
+## BST Stroke Classifier (`src/bst_refactor/`)
 
 The BST subproject has its own tightly pinned dependencies (three separate venvs) that are **not** covered by the root `requirements.txt`. 
 Do not add its packages globally — the MMPose stack requires numpy < 2.0, which conflicts with the main project.
@@ -146,7 +136,7 @@ See [`src/bst_refactor/data_pipeline_to_model_train.md`](src/bst_refactor/data_p
   
 (detailed pipeline-only README.md in the relevant subdir)
 
-### 6. HPC Data Storage (engelbart)
+## HPC Data Storage (engelbart)
 
 Video data and generated datasets are too large for home directories (40GB quota). On engelbart, these directories should be symlinked to `/scratch` before running the pipeline.
 
