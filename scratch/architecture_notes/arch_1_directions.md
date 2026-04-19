@@ -10,7 +10,7 @@
 a quarter of the cosine curve runs across the full budget, so the LR barely
 decays.
 
-Our runs converge around epoch 60 and early-stopping fires around epoch 360, so the scheduler never really has time to 
+BST-default setting runs converge around epoch 60 and early-stopping happens around epoch 360, so the scheduler never really has time to 
 significantly lower the learning rate. Things to try to squeeze more lr decay into the real train window:
 
 - Cut `n_epochs` to 200–400 and keep `num_cycles=0.25`. Speeds up decay so it sits in the epochs we actually use.
@@ -103,14 +103,18 @@ training run, see the `use_cg`/`use_ap` branches in `bst.py`. The BST paper
 shows both modules improve accuracy over the bare transformer, so they're
 pulling real weight.
 
-My hypothesis: their strongest role is as a **warm-start prior**, not as a
-permanent fixture. Early in training the transformers haven't yet learnt
+My hypothesis: their strongest role is as a **warm-start prior**. 
+Early in training the transformers haven't yet learnt
 robust shuttle- or player-aware representations, so the hand-crafted CG/AP
-interactions look like useful inductive bias in that regime. Later, once
+interactions could be useful inductive bias in that regime. Later, once
 the transformers have learnt their own (analogous, potentially richer)
 interactions, a fixed CG/AP contribution could start to constrain the
 model, pinning it to the hand-crafted formulation instead of letting it
-find something better.
+find something better. If it outgrows the heuristics without annealing, 
+then it means the following layers probably learned to down-tune their feedback 
+while also imperfectly reconstructing and using the original signal that was 
+downsampled and filtered through the CG and AP modules.
+
 
 The experiment: add a scalar weight on the CG subtraction and on the AP
 weighting in `bst.py`'s forward, and have `bst_train.py` pass in an
@@ -119,13 +123,38 @@ epoch-indexed schedule that sets it. Three configurations to compare:
 - **Constant**: current behaviour, baseline.
 - **Annealed out**: weight starts at 1.0, decays to 0. Directly tests the
   warm-start hypothesis.
-- **Annealed in**: weight starts at 0, grows to 1.0. Tests the opposite,
-  that CG/AP help most once the transformers have stabilised.
+- **CG/AP off**: already demonstrated in the original paper, but worth checking now that LR has been tweaked.
 
-This couples to Q4. Any annealing schedule has to finish inside the
+Per Q4, any annealing schedule has to finish inside the
 effective training window (~epoch 60 before early-stop fires), same
-compressed-window concern as the LR schedule. Without the LR fix first,
-anneal-in especially won't have time to reach its target weight.
+compressed-window concern as the LR schedule.
+
+#### Outcome (2026-04-19): three ablation studies (annealed, always-on, always-off)
+
+Three matched 5-serial runs under the retuned LR schedule (`n_epochs=80`,
+`num_cycles=0.5`, `lr=5e-4`, `warm_up_step=100`, `early_stop_n_epochs=40`,
+`batch_size=128`). Only the CG/AP schedule varies.
+
+| Arm | aux_factor over epochs | Run | Mean macro F1 | Best serial (macro F1, acc, min F1) |
+|---|---|---|---|---|
+| Annealed out | 1.0 at ep. 1, cosine to 0.0 by ep. 15, then 0 | `run_20260418_151139` | 0.829 | S2: 0.831, 0.850, 0.600 |
+| Always on | 1.0 for all 80 epochs | `run_20260418_174238` (Run A) | 0.826 | S3: 0.828, 0.844, 0.603 |
+| Always off | 0.0 for all 80 epochs | `run_20260418_234822` (Run B) | 0.822 | S2: 0.830, 0.842, 0.586 |
+
+Annealed to always on to always off all show small bug consistent performance gaps.
+Peak performance, particularly accuracy, suggests that the CG and AP models limit the model's performance 
+at the top end when there are lots of samples available (likely the accuracy-macro F1 divergence).
+Though this deserves a run with precise class result reportings to confirm.
+
+Broadly, the CG and AP models offer a demonstrably useful warm start inductive bias. The tuned LR explains most of the 
+difference from the original BST stats. And it's possible that a perfectly tuned and even slower LR might allow the 
+model to naturally settle into the same minimum. Barring that, CG/AP are an objectively useful nudge in the right direction. 
+And they seem particularly helpful in lifting performance for minimally represented classes.
+
+Pointers for the raw numbers: per-serial metrics in each run's
+`experiments/run_.../manifest.yaml` and the Serial blocks in
+`test_logs/test_20260418_151139.log`, `test_20260418_174238.log`,
+`test_20260418_234822.log`.
 
 ---
 
