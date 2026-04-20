@@ -38,11 +38,14 @@ This runs all tests except the HPC integration test, which auto-skips when `BST_
 
 - **Prerequisites:** Preprocessed npy dataset (output of `prepare_train_on_shuttleset.py`)
 
-To run, point `BST_DATA_DIR` at the `dataset_npy_collated` directory (should contain `train/`, `val/`, `test/` subdirectories):
+To run, point `BST_DATA_DIR` at an ablation-tagged `npy_[3d_][seq{N}_]{ablation_id}` directory (should contain `train/`, `val/`, `test/` subdirectories). Prefix tags (`3d_`, `seq{N}_`) appear only for non-default configs. Ablation_id encodes the (taxonomy, split, drop_unknown) tuple so multiple ablations coexist:
 
 ```bash
-BST_DATA_DIR=/path/to/dataset_npy_collated pytest tests/test_integration.py -v
+BST_DATA_DIR=/scratch/.../npy_une_merge_v1_split_v2_dropunk \
+    pytest tests/test_integration.py -v
 ```
+
+Historical note: pre-2026-04-21 collated dirs used a longer prefix (`dataset_npy_collated_between_2_hits_with_max_limits_seq_100_..._{ablation_id}`). V3 and V4 on engelbart still live under the old name; everything going forward uses the shorter `npy_...` form.
 
 Without `BST_DATA_DIR` set, this test auto-skips.
 

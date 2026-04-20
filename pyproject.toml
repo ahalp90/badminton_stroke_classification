@@ -8,3 +8,6 @@ ignore = [
     "E731",  # lambda assignment
     "E702",  # multiple statements on one line (semicolon)
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
