@@ -136,6 +136,23 @@ See [`src/bst_refactor/data_pipeline_to_model_train.md`](src/bst_refactor/data_p
   
 (detailed pipeline-only README.md in the relevant subdir)
 
+### Inspecting available clips (`pipeline.data_access`)
+
+One-shot CLI + Python API for "give me all clips for `split=X` and class=`Y`, paired with their shuttle + mmpose files", driven by `notebooks/clips_master.csv` under the active taxonomy:
+
+```bash
+# Per-split / per-class counts across clips, shuttle, and mmpose
+PYTHONPATH=src/bst_refactor python -m pipeline.data_access --summary
+
+# TSV of clip / shuttle / mmpose paths for a filter
+PYTHONPATH=src/bst_refactor python -m pipeline.data_access --split val --class Top_smash
+
+# Interactive TUI (no flags)
+PYTHONPATH=src/bst_refactor python -m pipeline.data_access
+```
+
+Machine-specific paths go in a local `.env` (copy from [`.env.example`](.env.example); gitignored). Full API + CLI reference: [`src/bst_refactor/pipeline/README.md`](src/bst_refactor/pipeline/README.md#higher-level-access-pipelinedata_accesspy).
+
 ## HPC Data Storage (engelbart)
 
 Video data and generated datasets are too large for home directories (40GB quota). On engelbart, these directories should be symlinked to `/scratch` before running the pipeline.

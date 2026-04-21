@@ -1,121 +1,180 @@
-"""Tests for pipeline.data_access — filtering clips/shuttle/mmpose by split and class.
+"""Tests for pipeline.data_access -- CSV-driven filtering of clips/shuttle/mmpose.
 
-Tests use a temporary fake filesystem that mirrors the real on-disk layout:
-  clips_dir/{split}/{class}/{match}_{set}_{rally}_{ball}.mp4
-  shuttle_npy_dir/{split}/{class}/{match}_{set}_{rally}_{ball}.npy
-  mmpose_npy_dir/{split}/{class}/{match}_{set}_{rally}_{ball}_joints.npy  (optional)
-  mmpose_npy_dir/{split}/{class}/{match}_{set}_{rally}_{ball}_pos.npy     (optional)
+Fake filesystem layout (matches post-Phase-2 reality):
+  clips_dir/{split}/{folder_name}/{clip_stem}.mp4   -- still nested.
+  shuttle_npy_dir/{clip_stem}.npy                    -- flat (Phase 2.2).
+  mmpose_npy_dir/{clip_stem}_joints.npy              -- flat (Phase 2.1).
+  mmpose_npy_dir/{clip_stem}_pos.npy                 -- flat (Phase 2.1).
+
+Split + taxonomy-class assignment comes from a synthetic clips_master.csv
+fixture rather than the folder structure. Each test builds its own fake CSV
++ tree via ``_make_fake_dataset``.
 """
-import pytest
+import csv
 import tempfile
 from pathlib import Path
 
-from pipeline.data_access import (
-    DataPaths,
-    ClipRecord,
-    get_clip_records,
-    summarise,
-    _class_dirs,
+import pytest
+
+from pipeline.config import (
+    DEFAULT_TAXONOMY,
+    TAXONOMIES,
+    TAXONOMY_UNE_MERGE_V1,
 )
-from pipeline.config import TAXONOMY_UNE_MERGE_V1
+from pipeline.data_access import (
+    ClipRecord,
+    DataPaths,
+    _derive_class_label,
+    get_clip_records,
+    interactive,
+    summarise,
+    _menu,
+)
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Fake dataset + CSV builders
 # ---------------------------------------------------------------------------
+
+CSV_COLUMNS = (
+    'clip_stem', 'raw_type_en', 'player_side',
+    'split_bst_baseline', 'split_v2',
+)
+
+
+def _write_clips_csv(csv_path: Path, rows: list[dict]) -> None:
+    """Write a synthetic clips_master.csv at ``csv_path``.
+
+    :param csv_path: Destination path.
+    :param rows: Each dict must contain every column in ``CSV_COLUMNS``.
+    """
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(csv_path, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=list(CSV_COLUMNS))
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({c: row.get(c, '') for c in CSV_COLUMNS})
+
 
 def _make_fake_dataset(
     tmp: Path,
-    structure: dict[str, dict[str, list[str]]],
+    rows: list[dict],
+    taxonomy_name: str = DEFAULT_TAXONOMY,
     with_shuttle: bool = True,
     with_mmpose: bool = False,
+    with_clips: bool = True,
 ) -> DataPaths:
-    """Create a fake data directory tree and return DataPaths pointing to it.
+    """Build a fake on-disk dataset + synthetic clips_master.csv.
+
+    The clips tree mirrors the real nested layout so
+    ``build_clip_path_index`` can walk it; shuttle and mmpose dirs are flat.
 
     :param tmp: Base temp directory.
-    :param structure: {split: {class_name: [clip_stem, ...]}}
-    :param with_shuttle: Create matching shuttle .npy files.
-    :param with_mmpose: Create matching mmpose _joints.npy and _pos.npy files.
-    :return: DataPaths configured to the fake tree.
+    :param rows: Per-clip dicts with CSV_COLUMNS fields. The folder name in
+        the nested clips tree is derived via the taxonomy's label rules so
+        the fixture matches what the live pipeline would lay down.
+    :param taxonomy_name: Used to derive the folder_name for nested clip
+        placement.
+    :param with_shuttle: Create matching flat shuttle .npy files.
+    :param with_mmpose: Create matching flat mmpose _joints.npy + _pos.npy.
+    :param with_clips: Create the .mp4 stub files; disable to test the
+        missing-clip codepath.
+    :return: DataPaths wired to the fake tree.
     """
     clips_dir = tmp / 'clips'
-    shuttle_dir = tmp / 'shuttle_npy'
-    mmpose_dir = tmp / 'mmpose_npy' if with_mmpose else None
+    shuttle_dir = tmp / 'shuttle_npy_flat'
+    mmpose_dir = tmp / 'mmpose_npy_flat' if with_mmpose else None
+    csv_path = tmp / 'clips_master.csv'
 
-    for split, classes in structure.items():
-        for cls, stems in classes.items():
-            (clips_dir / split / cls).mkdir(parents=True, exist_ok=True)
-            if with_shuttle:
-                (shuttle_dir / split / cls).mkdir(parents=True, exist_ok=True)
-            if with_mmpose:
-                (mmpose_dir / split / cls).mkdir(parents=True, exist_ok=True)
+    taxonomy = TAXONOMIES[taxonomy_name]
+    if with_clips:
+        clips_dir.mkdir(parents=True, exist_ok=True)
+    if with_shuttle:
+        shuttle_dir.mkdir(parents=True, exist_ok=True)
+    if with_mmpose:
+        mmpose_dir.mkdir(parents=True, exist_ok=True)
 
-            for stem in stems:
-                (clips_dir / split / cls / f'{stem}.mp4').touch()
-                if with_shuttle:
-                    (shuttle_dir / split / cls / f'{stem}.npy').touch()
-                if with_mmpose:
-                    (mmpose_dir / split / cls / f'{stem}_joints.npy').touch()
-                    (mmpose_dir / split / cls / f'{stem}_pos.npy').touch()
+    for row in rows:
+        stem = row['clip_stem']
+        if with_clips:
+            folder_name = _derive_class_label(
+                row['raw_type_en'], row['player_side'], taxonomy,
+            )
+            nested = clips_dir / row['split_bst_baseline'] / folder_name
+            nested.mkdir(parents=True, exist_ok=True)
+            (nested / f'{stem}.mp4').touch()
+        if with_shuttle:
+            (shuttle_dir / f'{stem}.npy').touch()
+        if with_mmpose:
+            (mmpose_dir / f'{stem}_joints.npy').touch()
+            (mmpose_dir / f'{stem}_pos.npy').touch()
+
+    _write_clips_csv(csv_path, rows)
 
     return DataPaths(
         clips_dir=clips_dir,
         shuttle_npy_dir=shuttle_dir,
         mmpose_npy_dir=mmpose_dir,
+        clips_csv=csv_path,
     )
 
 
-SIMPLE_STRUCTURE = {
-    'train': {
-        'Top_smash': ['1_1_1_1', '1_1_2_1'],
-        'Bottom_smash': ['1_1_3_1'],
-        'unknown': ['1_2_1_1'],
-    },
-    'val': {
-        'Top_smash': ['35_1_1_1'],
-        'Bottom_lob': ['35_1_2_1'],
-    },
-    'test': {
-        'Top_smash': ['39_1_1_1'],
-    },
-}
+# Shared fixture rows. Seven clips across three splits plus a couple of
+# rows where split_v2 disagrees with split_bst_baseline, so the split_column
+# switching tests have something to bite on.
+SIMPLE_ROWS = [
+    {'clip_stem': '1_1_1_1', 'raw_type_en': 'smash',
+     'player_side': 'Top', 'split_bst_baseline': 'train', 'split_v2': 'train'},
+    {'clip_stem': '1_1_2_1', 'raw_type_en': 'smash',
+     'player_side': 'Top', 'split_bst_baseline': 'train', 'split_v2': 'val'},
+    {'clip_stem': '1_1_3_1', 'raw_type_en': 'smash',
+     'player_side': 'Bottom', 'split_bst_baseline': 'train', 'split_v2': 'train'},
+    {'clip_stem': '1_2_1_1', 'raw_type_en': 'unknown',
+     'player_side': 'Top', 'split_bst_baseline': 'train', 'split_v2': 'train'},
+    {'clip_stem': '35_1_1_1', 'raw_type_en': 'smash',
+     'player_side': 'Top', 'split_bst_baseline': 'val', 'split_v2': 'val'},
+    {'clip_stem': '35_1_2_1', 'raw_type_en': 'lob',
+     'player_side': 'Bottom', 'split_bst_baseline': 'val', 'split_v2': 'val'},
+    {'clip_stem': '39_1_1_1', 'raw_type_en': 'smash',
+     'player_side': 'Top', 'split_bst_baseline': 'test', 'split_v2': 'test'},
+]
 
 
 # ---------------------------------------------------------------------------
-# _class_dirs
+# _derive_class_label
 # ---------------------------------------------------------------------------
 
-def test_class_dirs_returns_sorted_dirs():
+def test_derive_class_label_prefixes_with_player_side():
+    assert _derive_class_label('smash', 'Top', TAXONOMY_UNE_MERGE_V1) == 'Top_smash'
+    assert _derive_class_label('smash', 'Bottom', TAXONOMY_UNE_MERGE_V1) == 'Bottom_smash'
+
+
+def test_derive_class_label_applies_merge_map():
+    # une_merge_v1 merges back_court_drive -> drive.
+    assert _derive_class_label(
+        'back_court_drive', 'Top', TAXONOMY_UNE_MERGE_V1,
+    ) == 'Top_drive'
+
+
+def test_derive_class_label_standalone_is_unprefixed():
+    assert _derive_class_label('unknown', 'Top', TAXONOMY_UNE_MERGE_V1) == 'unknown'
+
+
+# ---------------------------------------------------------------------------
+# get_clip_records -- basic filtering
+# ---------------------------------------------------------------------------
+
+def test_no_filter_returns_all_rows():
     with tempfile.TemporaryDirectory() as tmp:
-        base = Path(tmp)
-        (base / 'b_class').mkdir()
-        (base / 'a_class').mkdir()
-        (base / 'not_a_dir.txt').touch()
-        names = [d.name for d in _class_dirs(base)]
-    assert names == ['a_class', 'b_class']
-
-
-def test_class_dirs_missing_dir_yields_nothing():
-    result = list(_class_dirs(Path('/nonexistent/path/xyz')))
-    assert result == []
-
-
-# ---------------------------------------------------------------------------
-# get_clip_records — basic filtering
-# ---------------------------------------------------------------------------
-
-def test_no_filter_returns_all_clips():
-    with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
         records = get_clip_records(paths)
-    # 2 + 1 + 1 + 1 + 1 + 1 = 7 clips total
-    assert len(records) == 7
+    assert len(records) == len(SIMPLE_ROWS)
     assert all(isinstance(r, ClipRecord) for r in records)
 
 
 def test_split_filter_restricts_to_split():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
         records = get_clip_records(paths, split='val')
     assert all(r.split == 'val' for r in records)
     assert len(records) == 2
@@ -123,17 +182,19 @@ def test_split_filter_restricts_to_split():
 
 def test_class_filter_restricts_to_class():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
         records = get_clip_records(paths, taxonomy_class='Top_smash')
     assert all(r.taxonomy_class == 'Top_smash' for r in records)
-    # train=2, val=1, test=1
+    # Top+smash occurrences across the fixture: 1_1_1_1, 1_1_2_1, 35_1_1_1, 39_1_1_1.
     assert len(records) == 4
 
 
 def test_split_and_class_filter_combined():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
-        records = get_clip_records(paths, split='train', taxonomy_class='Top_smash')
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
+        records = get_clip_records(
+            paths, split='train', taxonomy_class='Top_smash',
+        )
     assert len(records) == 2
     assert all(r.split == 'train' for r in records)
     assert all(r.taxonomy_class == 'Top_smash' for r in records)
@@ -141,102 +202,159 @@ def test_split_and_class_filter_combined():
 
 def test_filter_returns_empty_when_no_match():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
-        records = get_clip_records(paths, split='test', taxonomy_class='Bottom_lob')
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
+        records = get_clip_records(
+            paths, split='test', taxonomy_class='Bottom_lob',
+        )
     assert records == []
 
 
+def test_split_column_switch_changes_assignment():
+    # 1_1_2_1 is 'train' under split_bst_baseline but 'val' under split_v2.
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
+        baseline_train = get_clip_records(
+            paths, split='train', split_column='split_bst_baseline',
+        )
+        v2_val = get_clip_records(
+            paths, split='val', split_column='split_v2',
+        )
+    baseline_stems = {r.clip_stem for r in baseline_train}
+    v2_val_stems = {r.clip_stem for r in v2_val}
+    assert '1_1_2_1' in baseline_stems
+    assert '1_1_2_1' in v2_val_stems
+
+
+def test_drop_unknown_removes_unknown_rows():
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
+        with_unknown = get_clip_records(paths)
+        without_unknown = get_clip_records(paths, drop_unknown=True)
+    assert any(r.taxonomy_class == 'unknown' for r in with_unknown)
+    assert not any(r.taxonomy_class == 'unknown' for r in without_unknown)
+    assert len(without_unknown) == len(with_unknown) - 1
+
+
 # ---------------------------------------------------------------------------
-# get_clip_records — record contents
+# get_clip_records -- record contents
 # ---------------------------------------------------------------------------
 
-def test_clip_path_exists():
+def test_clip_path_resolved_from_nested_tree():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
-        records = get_clip_records(paths, split='train', taxonomy_class='Top_smash')
-        assert all(r.clip.exists() for r in records)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
+        records = get_clip_records(
+            paths, split='train', taxonomy_class='Top_smash',
+        )
+        assert all(r.clip is not None and r.clip.exists() for r in records)
         assert all(r.clip.suffix == '.mp4' for r in records)
+        assert all(r.clip.stem == r.clip_stem for r in records)
 
 
-def test_shuttle_npy_resolved_when_present():
+def test_clip_path_is_none_when_mp4_missing():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE, with_shuttle=True)
-        records = get_clip_records(paths, split='train', taxonomy_class='Top_smash')
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS, with_clips=False)
+        records = get_clip_records(paths)
+    assert all(r.clip is None for r in records)
+
+
+def test_shuttle_npy_resolved_flat_when_present():
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS, with_shuttle=True)
+        records = get_clip_records(
+            paths, split='train', taxonomy_class='Top_smash',
+        )
         assert all(r.shuttle_npy is not None for r in records)
         assert all(r.shuttle_npy.exists() for r in records)
+        # Flat layout: shuttle sits directly under shuttle_npy_dir.
+        assert all(r.shuttle_npy.parent == paths.shuttle_npy_dir for r in records)
 
 
 def test_shuttle_npy_is_none_when_missing():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE, with_shuttle=False)
-        records = get_clip_records(paths, split='train', taxonomy_class='Top_smash')
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS, with_shuttle=False)
+        records = get_clip_records(
+            paths, split='train', taxonomy_class='Top_smash',
+        )
     assert all(r.shuttle_npy is None for r in records)
 
 
 def test_mmpose_none_when_dir_not_set():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE, with_mmpose=False)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS, with_mmpose=False)
         assert paths.mmpose_npy_dir is None
         records = get_clip_records(paths)
     assert all(r.mmpose_joints is None for r in records)
     assert all(r.mmpose_pos is None for r in records)
 
 
-def test_mmpose_resolved_when_present():
+def test_mmpose_resolved_flat_when_present():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE, with_mmpose=True)
-        records = get_clip_records(paths, split='train', taxonomy_class='Top_smash')
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS, with_mmpose=True)
+        records = get_clip_records(
+            paths, split='train', taxonomy_class='Top_smash',
+        )
         assert all(r.mmpose_joints is not None for r in records)
         assert all(r.mmpose_pos is not None for r in records)
         assert all(r.mmpose_joints.exists() for r in records)
+        assert all(
+            r.mmpose_joints.parent == paths.mmpose_npy_dir for r in records
+        )
 
 
-def test_record_stem_matches_across_clip_and_shuttle():
+def test_record_stem_matches_clip_and_shuttle():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
-        records = get_clip_records(paths, split='train', taxonomy_class='Top_smash')
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
+        records = get_clip_records(
+            paths, split='train', taxonomy_class='Top_smash',
+        )
     for r in records:
-        assert r.clip.stem == r.shuttle_npy.stem
+        assert r.clip.stem == r.clip_stem
+        assert r.shuttle_npy.stem == r.clip_stem
 
 
 # ---------------------------------------------------------------------------
-# get_clip_records — validation errors
+# get_clip_records -- validation errors
 # ---------------------------------------------------------------------------
 
 def test_invalid_split_raises():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
         with pytest.raises(ValueError, match='split must be one of'):
             get_clip_records(paths, split='holdout')
 
 
-def test_invalid_taxonomy_class_raises_when_taxonomy_provided():
+def test_invalid_taxonomy_class_raises():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
         with pytest.raises(ValueError, match='not a class in taxonomy'):
             get_clip_records(
                 paths,
                 taxonomy_class='Top_nonexistent_stroke',
-                taxonomy=TAXONOMY_UNE_MERGE_V1,
+                taxonomy_name='une_merge_v1',
             )
 
 
-def test_unknown_class_without_taxonomy_does_not_raise():
-    """taxonomy_class is not validated if no Taxonomy object is passed."""
+def test_invalid_taxonomy_name_raises():
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
-        # Should not raise — just return empty results
-        records = get_clip_records(paths, taxonomy_class='Top_nonexistent_stroke')
-    assert records == []
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
+        with pytest.raises(KeyError, match='taxonomy_name'):
+            get_clip_records(paths, taxonomy_name='does_not_exist')
+
+
+def test_missing_split_column_raises():
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
+        with pytest.raises(KeyError, match='split_column'):
+            get_clip_records(paths, split_column='split_not_in_csv')
 
 
 # ---------------------------------------------------------------------------
-# summarise — smoke test (just checks it runs without error)
+# summarise -- smoke tests
 # ---------------------------------------------------------------------------
 
 def test_summarise_runs_without_error(capsys):
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
         summarise(paths)
     captured = capsys.readouterr()
     assert 'train' in captured.out
@@ -245,7 +363,7 @@ def test_summarise_runs_without_error(capsys):
 
 def test_summarise_split_filter(capsys):
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
         summarise(paths, split='val')
     captured = capsys.readouterr()
     assert 'val' in captured.out
@@ -254,7 +372,7 @@ def test_summarise_split_filter(capsys):
 
 def test_summarise_shows_mmpose_column_when_dir_set(capsys):
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE, with_mmpose=True)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS, with_mmpose=True)
         summarise(paths)
     captured = capsys.readouterr()
     assert 'mmpose=' in captured.out
@@ -262,7 +380,7 @@ def test_summarise_shows_mmpose_column_when_dir_set(capsys):
 
 def test_summarise_hides_mmpose_column_when_dir_not_set(capsys):
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE, with_mmpose=False)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS, with_mmpose=False)
         summarise(paths)
     captured = capsys.readouterr()
     assert 'mmpose=' not in captured.out
@@ -271,9 +389,6 @@ def test_summarise_hides_mmpose_column_when_dir_not_set(capsys):
 # ---------------------------------------------------------------------------
 # _menu and interactive
 # ---------------------------------------------------------------------------
-
-from pipeline.data_access import _menu, interactive  # noqa: E402
-
 
 def test_menu_returns_selected_option(monkeypatch):
     monkeypatch.setattr('builtins.input', lambda _: '2')
@@ -290,21 +405,23 @@ def test_menu_rejects_out_of_range_then_accepts(monkeypatch, capsys):
 
 
 def test_interactive_summary(monkeypatch, capsys):
-    # Choices: split=all(1), class=all(1), output=summary table(1)
-    responses = iter(['1', '1', '1'])
+    # split_column=split_bst_baseline(1), taxonomy=merged_25(1)[first],
+    # split=all(1), class=all(1), drop_unknown=no(1), output=summary(1)
+    responses = iter(['1', '1', '1', '1', '1', '1'])
     monkeypatch.setattr('builtins.input', lambda _: next(responses))
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
         interactive(paths)
     assert 'clips=' in capsys.readouterr().out
 
 
 def test_interactive_file_paths(monkeypatch, capsys):
-    # Choices: split=train(2), class=all(1), output=file paths(2)
-    responses = iter(['2', '1', '2'])
+    # split_column=split_bst_baseline(1), taxonomy=merged_25(1),
+    # split=train(2), class=all(1), drop_unknown=no(1), output=file paths(2)
+    responses = iter(['1', '1', '2', '1', '1', '2'])
     monkeypatch.setattr('builtins.input', lambda _: next(responses))
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_STRUCTURE)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
         interactive(paths)
     out = capsys.readouterr().out
     assert 'train' in out
