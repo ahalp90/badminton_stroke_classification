@@ -1,11 +1,12 @@
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / 'src' / 'bst_refactor'))
 
-import pandas as pd
-from pipeline.clip_index import build_clip_path_index
+from pipeline.clip_index import build_clip_path_index  # noqa: E402
 
 clips_dir = Path('/scratch/comp320a/ShuttleSet/clips')
 idx = build_clip_path_index(clips_dir)

@@ -38,7 +38,7 @@ import argparse
 import hashlib
 import sys
 from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import pandas as pd
