@@ -314,7 +314,7 @@ Specific files:
 - `preparing_data/keypoints_schema.md` (77-81). Minor — retention note is layout-agnostic.
 - `tests/testing_guide.md` (40-44). Update BST_DATA_DIR example path to the ablation-tagged collated dir name.
 
-Add a forward pointer to `scripts/dir_flatten_refactor.md` from `pipeline/README.md` and `data_pipeline_to_model_train.md`.
+Add a forward pointer to `scratch/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` from `pipeline/README.md` and `data_pipeline_to_model_train.md`.
 
 ## Phase 3 (deferred) — flatten the `.mp4` clips dir
 

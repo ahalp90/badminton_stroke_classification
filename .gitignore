@@ -25,6 +25,9 @@ mlflow.db
 .env
 .venv
 venv/
+# Local mirror of the engelbart raw-extract output (rsync'd per-clip *_raw_*.npy files).
+# Multi-GB depending on how many clips are pulled; never worth committing.
+scratch/raw_extract_local/
 #symlinks
 src/bst_refactor/ShuttleSet/raw_video
 src/bst_refactor/ShuttleSet/clips
