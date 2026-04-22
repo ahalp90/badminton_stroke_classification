@@ -45,6 +45,9 @@ Phase 1 raw extraction executed. Phase 2 structure is unaffected; Phase 1 scope 
 - `set/` and `video_metadata.csv` are committed to git under `src/bst_refactor/ShuttleSet/` on both local and engelbart; they are NOT symlinked out to `/scratch` like `clips/` / `raw_video/` / `shuttle_csv/` / `shuttle_npy/`.
 
 **Still to do for Phase 1 (revised next-session kickoff):**
+
+> [Items 1-4 and 7 complete as of the Phase 1 execution completion revisions below. Items 5 and 6 are the current next steps; see that section for the renumbered tactical list.]
+
 1. sticky_anchor design revisit driven by the ndet findings and the fully-zeroed-clip inspection. Selector is likely to lean on bbox area + horizontal centre distance with score as a filter / tiebreaker, rather than score-weighted proximity as currently written. Design-in-flight; see next Phase 1 session.
 2. `apply_heuristic.py` + `heuristics/` package (`current` byte-identity gate + `sticky_anchor`).
 3. `current` variant's byte-identity gate on the overlap between the 1,716-clip hit-zone set and the committed filtered extract.
@@ -59,6 +62,91 @@ Phase 1 raw extraction executed. Phase 2 structure is unaffected; Phase 1 scope 
 - No modifications to `prepare_train_on_shuttleset.py` / `collate_npy` / `pipeline/`.
 - Phase 2 structure, decision gate, success criteria.
 - Geometric rationale for hip-projection rejection, carry-forward rejection, continuity-check rejection, etc.
+
+## Revisions 2026-04-22 (Phase 1 execution completion)
+
+Scaffolded the heuristic dispatch, gated it on byte-identity, implemented sticky_anchor, ran it on the full 1,716-clip raw extract, and inspected a random sample visually. Phase 2 structure unaffected. Next session picks up at the symlink-merged flat dir plus collate plus retrain sequence.
+
+### Byte-identity gate
+
+`failsafe_bst_mmpose_zeroing_check_equivalence.py` passed 50/50 on a deterministic every-nth-of-1716 sample, bit-exact on `_pos` and `_joints` (max abs diff = 0), exact on `_failed`. One bug surfaced: `heuristics/current.py` needed `center_align=True` at the `normalize_joints` call site to match the committed extract. The function signature default is `False`, but the BST-canonical pipeline in `main()` of `prepare_train_on_shuttleset.py` passes `True`. Both the flip and the rationale are recorded in the `normalize_joints` docstring so the mismatch can't resurface quietly.
+
+### sticky_anchor run on the full 1,716-clip raw extract
+
+`apply_heuristic --heuristic sticky_anchor` completed on engelbart in 54 seconds against the N=16 raw extract. Output at `_flat_h_sticky_anchor/`.
+
+**Headline: 1,631 of the 1,716 sticky_anchor-processed clips (95.05%) are now perfectly clean (zero zeroed frames).** The other 85 clips still have some residual zeroing; breakdown below.
+
+Whole-clip zeroing-rate distribution on the 1,716 sticky_anchor-processed clips:
+
+| Whole-clip zeroing rate | Clips |
+|---|---|
+| 0% (perfectly clean) | 1,631 |
+| 0 < rate <= 10% | 7 |
+| 10% < rate <= 25% | 9 |
+| 25% < rate <= 50% | 38 |
+| 50% < rate <= 75% | 25 |
+| > 75% | 6 |
+
+Hit-zone (+/-10 frame window around the stroke hit) busted-clip count under the `fail_rate > 0.50` threshold dropped from 1,716 to 61. The 61 residual stems live at `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/busted_hit_zone_after_sticky_anchor.txt`. The gap between the 31 clips with whole-clip rate > 50% and the 61 clips with hit-zone rate > 50% is ~30 clips where zeroing clusters specifically around the stroke moment (net-crossover plays, cutaway transitions at the hit, or similar); those are the clips most worth investigating for further heuristic work.
+
+Per-split reduction in hit-zone busted-clip count (against the earlier Phase 0 whole-clip counts for reference):
+
+| Split | Before | After | Rel. drop |
+|---|---|---|---|
+| train | 110 | 47 | 57% |
+| val | 49 | 6 | 88% |
+| test | 33 | 8 | 76% |
+
+Val and test reductions are dramatic, which matters for the mixed re-train signal.
+
+### Visual inspection
+
+Rendered 10 random previously-busted clips and 10 random still-busted residuals via the new `render_sticky_anchor_overlays.py`. Previously-busted samples all picked Top and Bottom cleanly, including on airborne smash frames where the old filter zeroed. 9 of 10 still-busted samples are genuinely irrecoverable (extreme close-ups, side-on framings, cutaways with no useful in-court candidates), consistent with the existing "irrecoverable clips stay in the denominator" stance.
+
+### Net-crossover zeroing (new known mode)
+
+One still-busted sample (19_2_10_7) revealed a zeroing mode the spec hadn't explicitly called out. Diagnostic counts on that clip: 57 frames, MMPose detected 3+ people on every frame, 12 frames zeroed, 12/12 of the zeroed frames had `ndet >= 2`. So the zeroing wasn't a detection failure; it was sticky_anchor's own filters firing.
+
+Root cause: the closer-to-own-anchor Voronoi rule fires on net-crossover plays. When a real Top player has crossed to the net and their projected bottom-centre lands at e.g. (0.5, 0.52), `D(Top_player, BOT_anchor) = 0.23 < D(Top_player, TOP_anchor) = 0.27`, so the rule drops that candidate from the TOP pool. No other detection is closer to TOP than to BOT, so TOP zeros. BOT still picks the real Bottom player cleanly, which is exactly the pattern the overlays show: blue bbox on Bottom, nothing on Top.
+
+This is the deliberate trade-off the rule was designed for (cross-half capture prevention). The cross-half guard is still correct; the net-crossover cost just wasn't previously documented as a side-effect.
+
+Scope:
+- At the clip level this can be extreme: 19_2_10_7 shows 21% of its own frames zeroed via this mode alone.
+- At the full-busted-set level it contributes to at most ~3.5% residuals (bounded by 61/1716).
+- Across the full 33k corpus the impact is much smaller because net rallies are a minority of frames.
+
+Accepted for Phase 1. Options if a later pass wants to squeeze the residual:
+- Relax the rule when the other slot has no candidates in its pool (re-introduces some cross-half capture risk).
+- Add a net-proximity exception that bypasses the rule within a y-band around the net line.
+- One-Euro filter as the already-reserved Phase 2 stall fallback.
+
+None of these are scoped in now.
+
+### New artefacts from this pass
+
+- `src/bst_refactor/stroke_classification/preparing_data/apply_heuristic.py` (CLI + `run` library entry point).
+- `src/bst_refactor/stroke_classification/preparing_data/failsafe_bst_mmpose_zeroing_check_equivalence.py` (byte-identity gate).
+- `src/bst_refactor/stroke_classification/preparing_data/heuristics/` package: `__init__.py`, `base.py`, `current.py`, `sticky_anchor.py`.
+- `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/render_sticky_anchor_overlays.py`.
+- `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/busted_hit_zone_after_sticky_anchor.txt` (61 stems, still-busted residual after sticky_anchor).
+- `normalize_joints` docstring note in `prepare_train_on_shuttleset.py` pinning `center_align=True` / `v_height=None` as the canonical pipeline invariants.
+
+### Still to do for Phase 1 (renumbered, current tactical list)
+
+Items 1-7 of the earlier "Ordered task list for the next session" are all done. What remains:
+
+1. Write `scripts/symlink_merge_phase1.py` to build `$BST_MMPOSE_NPY_DIR/../dataset_npy_between_2_hits_with_max_limits_flat_h_sticky_anchor_phase1_merged/`. For each stem in `clips_master.csv` with `split_v2 in (train, val, test)`: if the stem is in `busted_hit_zone_clips_phase1.txt`, symlink the three files from `_flat_h_sticky_anchor/`; otherwise symlink from `$BST_MMPOSE_NPY_DIR`.
+2. Collate: `python -m preparing_data.prepare_train_on_shuttleset --skip-trajectory --skip-pose --clip-npy-dir <merged>` with ablation_id `npy_une_merge_v1_split_v2_dropunk_h_sticky_anchor`.
+3. Retrain V4, 5 serials, same hyperparameters as committed V4 (`run_20260420_171101/`).
+4. Apply the decision gate: target-class min-F1 lift >= 0.02 AND non-target classes within 5% relative regression AND macro/accuracy within noise.
+
+### What did NOT change from the 2026-04-22 execution-log revisions
+
+- Phase 2 structure, success criteria, decision gate definitions.
+- sticky_anchor spec (matches the finalised 2026-04-22 design; implementation follows it).
+- No modifications to `prepare_train_on_shuttleset.py`, `collate_npy`, or `pipeline/` beyond the `normalize_joints` docstring note.
 
 ## Court-space geometry and buffer sizing (2026-04-22)
 

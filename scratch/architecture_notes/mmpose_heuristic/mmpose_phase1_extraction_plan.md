@@ -1,6 +1,6 @@
 # Phase 1 Execution Plan: Identify Busted Clips + Decoupled Raw MMPose Extract
 
-> **Status (2026-04-22):** Phase 1 raw extraction executed. Canonical busted set has moved from the originally-planned 222 whole-clip-fail stems to a 1,716-clip hit-zone-fail set. N_max bumped 8 -> 16. See the "Execution log (2026-04-22)" section at the bottom for the full divergence record and current next steps. Earlier sections below are the plan as-written pre-execution; read them for context but treat the execution log as the source of truth for current state.
+> **Status (2026-04-22):** Phase 1 raw extraction + apply_heuristic + sticky_anchor + byte-identity gate all done. 1,716 -> 61 residual busted clips after sticky_anchor (96.4% reduction). Next work is symlink-merge + collate + V4 retrain; see `mmpose_heuristic_investigation.md` section "Revisions 2026-04-22 (Phase 1 execution completion)" for the tactical list and findings. Earlier sections below are the plan as-written pre-execution; read them for context but treat the execution log as the source of truth for current state.
 
 Target session: originally 2026-04-21. Scope: identify the ~222 busted clips and run raw MMPose extraction on them, saving everything we'll need for later heuristic iteration. Heuristic application (`apply_heuristic.py`, `sticky_anchor` variant) is explicitly out of scope and will follow once raw outputs land on disk.
 
@@ -398,6 +398,8 @@ Scratch-dir extracts on engelbart:
 Raw extract also synced to local for heuristic iteration (path is per-machine; not canonical).
 
 ### Next steps
+
+> [Items 1-4 and 7 complete as of the Phase 1 execution completion (see `mmpose_heuristic_investigation.md` > "Revisions 2026-04-22 (Phase 1 execution completion)"). Items 5 and 6 are the active next steps; current canonical list lives in the parent doc's renumbered "Still to do for Phase 1" block.]
 
 1. **Revisit sticky_anchor design** with the ndet findings as input. The score-alone-is-not-discriminative observation and the player-size/centrality dominance change the selector weighting. Design discussion is in-flight with Ariel; do not pre-empt.
 2. Write `apply_heuristic.py` + `heuristics/` package (`current` + `sticky_anchor`).
