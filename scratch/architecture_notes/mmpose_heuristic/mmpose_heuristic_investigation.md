@@ -21,7 +21,7 @@ Phase 1 raw extraction executed. Phase 2 structure is unaffected; Phase 1 scope 
 
 **Scope change: Phase 1 now operates on the 1,716-clip hit-zone-fail set, not the 222-clip whole-clip-fail set.**
 - Criterion switched from "whole-clip `fail_rate > 0.50`" to "hit-zone `fail_rate > 0.50`" (+/-10 frames around the hit frame; matches the `hit_zone_heatmap` filter in `validate_zeroed_frames.py`).
-- Canonical list: `scratch/architecture_notes/busted_hit_zone_clips_phase1.txt` (1,716 stems). The 222-stem whole-clip list is preserved as a historical artefact at `scratch/architecture_notes/busted_clips_phase1.txt`.
+- Canonical list: `scratch/architecture_notes/busted_hit_zone_clips_phase1.txt` (1,716 stems). The 222-stem whole-clip list is preserved as a historical artefact at `scratch/architecture_notes/busted_whole_clips_phase1.txt`.
 - Storage estimate: hit-zone set at N_max=16 fits in under 1 GB. Phase 2 full 33k estimate needs a re-measure once Phase 1 runs through; the 5.3 GB figure in the original output-format section is for N_max=8 and will be higher at N=16.
 
 **N_max bumped 8 -> 16.**
@@ -248,6 +248,7 @@ Under the same `ShuttleSet_data_merged_25/` parent on engelbart, the per-clip fl
   dataset_npy_between_2_hits_with_max_limits_flat/                  # primary committed, read-only (= $BST_MMPOSE_NPY_DIR)
   dataset_npy_between_2_hits_with_max_limits_flat_raw_phase1/       # raw N=16 extract, read-only
   dataset_npy_between_2_hits_with_max_limits_flat_raw_phase1_n8/    # historical N=8 raw, read-only
+  dataset_npy_between_2_hits_with_max_limits_flat_failsafe_gate/    # byte-identity gate output, scratch
   dataset_npy_between_2_hits_with_max_limits_flat_h_sticky_anchor/  # new, written by apply_heuristic
 ```
 
@@ -279,6 +280,80 @@ Where `{parent_dir}` is the directory portion of `BST_MMPOSE_NPY_DIR` (`/scratch
 - `src/bst_refactor/stroke_classification/preparing_data/heuristics/__init__.py`: name-based dispatch registry.
 - `src/bst_refactor/stroke_classification/preparing_data/heuristics/sticky_anchor.py`: the spec above.
 - `src/bst_refactor/stroke_classification/preparing_data/failsafe_bst_mmpose_zeroing_check_equivalence.py`: byte-identity gate.
+
+### Execution checklist (pointers into the rest of this doc and the repo)
+
+Bridges the finalised design above to the practical details scattered across other sections and the existing codebase. Skim before implementing `apply_heuristic.py`; each entry is a concrete dependency or cross-reference a fresh session would otherwise have to hunt for.
+
+**Raw extract file schema** (per clip, input to `apply_heuristic.py`). Full detail in `## Approach > Output format` below. Summary:
+
+- `{stem}_raw_kps.npy` : `(F, N_max, 17, 2)` float32, NaN-padded beyond `ndet[f]`.
+- `{stem}_raw_bboxes.npy` : `(F, N_max, 4)` float32, NaN-padded.
+- `{stem}_raw_scores.npy` : `(F, N_max)` float32, NaN-padded.
+- `{stem}_raw_kp_scores.npy` : `(F, N_max, 17)` float32, NaN-padded.
+- `{stem}_raw_ndet.npy` : `(F,)` int8 detection count per frame; also the resume marker saved last by `raw_extract.py`.
+
+Canonical Phase 1 raw-extract directory on engelbart: `$BST_MMPOSE_NPY_DIR/../dataset_npy_between_2_hits_with_max_limits_flat_raw_phase1/`. `N_max = 16` in the committed extract.
+
+**Projection helpers**: reuse `pipeline.court_utils`. Do not reimplement.
+
+```python
+from pipeline.court_utils import get_court_info, to_court_coordinate, normalize_position
+court = get_court_info(homo_df, vid)                                    # once per video
+court_raw  = to_court_coordinate(pixel_xy_2xN, vid, all_court_info, res_df)
+court_norm = normalize_position(court_raw, court)                        # normalised [0,1] coords
+```
+
+`halfcourt_centre[s]` derives directly from `court['border_L'/R'/U'/D']`. Bbox bottom-centre is `((x1+x2)/2, y2)` in pixel space, then passed through the two calls above.
+
+**Joint normalisation**: reuse `normalize_joints(keypoints, bbox)` from `stroke_classification.preparing_data.prepare_train_on_shuttleset`. Unchanged from the committed extract path, so `_joints.npy` outputs produced by the `current` variant will be byte-identical to the committed extract.
+
+**Byte-identity gate protocol** (run BEFORE trusting any `sticky_anchor` output):
+
+- Sample: 50 clip stems from `scratch/architecture_notes/busted_hit_zone_clips_phase1.txt` (the 1,716 hit-zone list). Lex-sort, take every `len // 50`-th stem. Deterministic, no seeding; spreads across video IDs. Draws from the busted list rather than clips_master.csv because raw extracts only exist for those 1,716 stems; sampling from clips_master would shrink the comparable set to the intersection regardless.
+- Run `apply_heuristic.py --heuristic current` on those stems against the raw extract, writing to `..._flat_failsafe_gate/` (never the committed flat dir).
+- For each stem's three output arrays, compare against the matching arrays at `$BST_MMPOSE_NPY_DIR`:
+  - `np.array_equal` on `_failed.npy` (bool).
+  - `np.allclose(rtol=0, atol=1e-5)` on `_pos.npy` and `_joints.npy` (float; the tolerance absorbs float32 projection-chain non-associativity between the two code paths).
+- On any mismatch: stop and investigate the plumbing BEFORE trusting `sticky_anchor`. Usual suspects: keypoint-index ordering, bbox row order when multiple on-court people exist, `normalize_joints` vs `normalize_position` step order, resolution-scale application.
+
+Canonical gate command (engelbart paths; run from `src/bst_refactor/stroke_classification/`):
+
+```
+python -m preparing_data.failsafe_bst_mmpose_zeroing_check_equivalence \
+    --raw-dir /scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat_raw_phase1 \
+    --busted-stems-file scratch/architecture_notes/busted_hit_zone_clips_phase1.txt \
+    --clips-csv notebooks/clips_master.csv \
+    --scratch-output-dir /scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat_failsafe_gate
+```
+
+`--committed-dir` is auto-detected from `$BST_MMPOSE_NPY_DIR` when unset. `apply_heuristic` side-effect-imports `pipeline.data_access`, which auto-loads repo-root `.env`, so the collision guards fire without a prior shell export.
+
+**Mixed retrain plumbing** (after `sticky_anchor` runs on the full 1,716 clips):
+
+- Build a symlink-merged flat dir at `$BST_MMPOSE_NPY_DIR/../dataset_npy_between_2_hits_with_max_limits_flat_h_sticky_anchor_phase1_merged/`.
+- For each stem in `clips_master.csv` with `split_v2 in ('train','val','test')`:
+  - If stem is in `busted_hit_zone_clips_phase1.txt`: symlink the three `sticky_anchor` outputs from the `..._flat_h_sticky_anchor/` dir into the merged dir.
+  - Otherwise: symlink from `$BST_MMPOSE_NPY_DIR` (the primary committed flat dir).
+- Collate via `python -m preparing_data.prepare_train_on_shuttleset --skip-trajectory --skip-pose --clip-npy-dir <merged_dir>` with the Phase 1 ablation_id (`npy_une_merge_v1_split_v2_dropunk_h_sticky_anchor` under `ShuttleSet_data_une_merge_v1/`).
+- Retrain V4 via `bst_train.py` pointing at the new collated dir. 5 serials, same hyperparameters as the committed V4 run.
+
+**Decision gate** (unchanged from `## Phase 1 > ### Decision gate` below): conjunction of (a) >25% relative reduction in zeroing rate on target classes, (b) no >5% relative regression on non-target classes, (c) >=0.02 min-F1 lift on target-class aggregate OR >=0.005 macro-F1 lift overall. All measured against committed V4.
+
+**Target ablation**: Phase 1 retrains the V4-analog only (`une_merge_v1` + `split_v2` + `dropunk`). V3-analog (`merged_25` + `split_bst_baseline` + `keepunk`) is deferred to Phase 2 unless the V4 signal is ambiguous and a V3 cross-check is needed. Committed V4 baseline manifest: `src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260420_171101/`.
+
+**Ordered task list for the next session**:
+
+1. Commit the current state (scripts + plan docs) so the fresh session starts from a clean `main`.
+2. Scaffold `heuristics/__init__.py` and `heuristics/current.py` (the byte-identity-gate variant).
+3. Scaffold `apply_heuristic.py` CLI, wired to dispatch to `current` and (stub) `sticky_anchor`.
+4. Scaffold `failsafe_bst_mmpose_zeroing_check_equivalence.py`.
+5. Run the byte-identity gate on the 50-clip sample. Iterate on plumbing until it passes exactly.
+6. Implement `heuristics/sticky_anchor.py` per the "Per-frame algorithm" spec above.
+7. Run `apply_heuristic.py --heuristic sticky_anchor` against the full 1,716-clip raw extract.
+8. Build the symlink-merged flat dir and collate.
+9. Retrain V4-analog (5 serials).
+10. Compare against the committed V4 baseline manifest. Apply decision gate.
 
 ### Design rationale and decision log (for report context)
 
@@ -461,7 +536,7 @@ The existing contract: `_pos.npy`, `_joints.npy`, `_failed.npy`. Same shapes as 
 ## Phase 0: baseline diagnostic
 
 1. Write `scripts/find_busted_clips.py` (~30-40 lines): walks the flat dir, reads each clip's `*_failed.npy`, computes the fraction of True, filters by threshold (default 0.50), writes stems to an output text file. Takes optional taxonomy/split filter via `clips_master.csv` + `--taxonomy` + `--split-column`.
-2. Run on engelbart against the current flat dir. Output: `scratch/architecture_notes/busted_clips_phase1.txt` with ~222 stems.
+2. Run on engelbart against the current flat dir. Output: `scratch/architecture_notes/busted_whole_clips_phase1.txt` with ~222 stems.
 3. Rsync the list to local for review.
 4. Spot-check by downloading 12 clips via SFTP and watching them locally. Non-blocking; handled separately.
 
@@ -639,7 +714,7 @@ Each heuristic dir keeps the same per-clip file schema as the primary dir, so `c
   - `current.py`: reference gate.
   - `sticky_anchor.py`: primary variant.
 - `scripts/find_busted_clips.py`: scanner for busted clips, ~30-40 lines.
-- `scratch/architecture_notes/busted_clips_phase1.txt`: materialized during Phase 0, one stem per line.
+- `scratch/architecture_notes/busted_whole_clips_phase1.txt`: materialized during Phase 0, one stem per line.
 
 ### No modification
 
@@ -729,7 +804,7 @@ Starting state: `main` at current commit (post data_access merge). Plan doc + `m
 Phase 0 to open with:
 
 1. Confirm engelbart `main` matches local: `git log --oneline -1`.
-2. Write `scripts/find_busted_clips.py` (~30-40 lines). Run on engelbart against the current flat dir. Output: `scratch/architecture_notes/busted_clips_phase1.txt` with 222 stems.
+2. Write `scripts/find_busted_clips.py` (~30-40 lines). Run on engelbart against the current flat dir. Output: `scratch/architecture_notes/busted_whole_clips_phase1.txt` with 222 stems.
 3. Rsync the list to local for review.
 4. Spot-check 12 clips by SFTP download + local viewing (non-blocking; handled separately).
 
