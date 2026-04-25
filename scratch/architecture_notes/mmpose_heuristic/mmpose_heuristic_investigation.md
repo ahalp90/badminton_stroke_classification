@@ -29,7 +29,7 @@ The heuristic runs on the raw MMPose output stored on disk; the expensive MMPose
 
 ## Current status (2026-04-25)
 
-Phase 0 and Phase 1 raw extract are complete. The heuristic has been implemented, run end-to-end, gated, and visually inspected. Phase 1 mixed retrain is the remaining piece.
+Phase 0, Phase 1 raw extract, heuristic implementation, and Phase 1 mixed retrain are all complete. The decision gate failed; a per-class frame-zeroing audit then ruled out the data-quality-bottleneck hypothesis empirically. Phase 2 is deprioritised (not killed). Focal loss is the next experiment under `arch_1_directions.md` rather than this doc.
 
 - **Raw extract** (1,716 hit-zone-busted clips, `N_max = 16`) at `_flat_raw_phase1/`. 0.79% of frames hit the cap; sufficient.
 - **`sticky_anchor` implemented and run** on the full 1,716. Output at `_flat_h_sticky_anchor/`. Wall time 54 s on engelbart.
@@ -39,13 +39,9 @@ Phase 0 and Phase 1 raw extract are complete. The heuristic has been implemented
 - **Visual inspection**: 9/10 still-busted residuals are genuinely irrecoverable (extreme close-ups, side-on framings, cutaways with no useful in-court candidates).
 - **One residual investigated in detail (19_2_10_7)**: cause is upstream MMPose detection-layer gap under heavy occlusion, not Voronoi crossover. Per-frame replay + image inspection on 2026-04-25; details in the Failure modes section.
 - **Net-crossover zeroing is a mathematically possible failure, but unobserved**: no clip in the inspected residuals actually exhibits Voronoi-induced zeroing. The 3.5% upper-bound estimate in earlier writeups assumed this was the cause on 19_2_10_7; that attribution was wrong.
+- **Phase 1 mixed retrain done** (`run_20260425_150548`): decision gate failed on `Top_wrist_smash` (-0.057 mean vs V4 baseline) while macro / acc / top-2 each lifted by ~0.007. Best S3 macro 0.755, min 0.352, acc 0.780.
+- **Per-class frame-zeroing audit done** (`src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/zeroed_frames_class_audit.py`, output at `analysis_outputs/zeroed_frames_class_audit__run_20260425_150548.{txt,csv}`): the F1-bottom classes are not the heavily-zeroed ones; the worst-zeroed class has near-perfect F1. The data-quality-bottleneck hypothesis for the F1 floor is empirically dead.
 - **Recovery routes parked for Phase 2**: gap-fill post-processing (interpolate over MMPose detection gaps) and homography-fail X3D-S-only rescue (independent stream when court coords are unusable). Neither is currently scoped.
-
-What's left for Phase 1:
-1. Symlink-merge the 1,716 sticky_anchor outputs into a flat dir alongside the unchanged 32k clips.
-2. Collate to a new ablation_id (`npy_une_merge_v1_split_v2_dropunk_h_sticky_anchor`).
-3. Retrain V4-analog (5 serials, same hyperparameters as the committed `run_20260420_171101/`).
-4. Apply the decision gate: target-class min-F1 lift >= 0.02 AND non-target classes within 5% relative regression AND macro/accuracy within noise.
 
 ## Decoupling: raw extract plus post-processing
 
@@ -499,9 +495,11 @@ Revisit in Phase 2 after per-class residuals are in. Justified only if worst-cla
 
 ## Phase 2 plan and success criteria
 
-If the Phase 1 decision gate passes:
+**Status note (2026-04-25)**: Phase 1 mixed retrain failed the decision gate, and the per-class frame-zeroing audit (`analysis_outputs/zeroed_frames_class_audit__run_20260425_150548.txt`) confirmed the F1-bottom classes aren't the heavily-zeroed ones. The data-quality-bottleneck motivation for Phase 2 is no longer empirically supported. The decoupled `raw_extract` is also a lot faster per clip than the original committed pipeline (the GPU run on 1,716 clips landed at ~20 min, extrapolating to ~6 hr for the remaining ~31k rather than the ~50 hr estimate against the old in-line code path), so Phase 2 isn't expensive enough to be ruled out forever. But it's no longer the priority. Focal loss + data augmentation + X3D-S have stronger structural arguments for the wrist_smash floor.
 
-1. Re-run Step 2 raw across the full 33k clips. Wall time ~50 hr on V100. Output: `dataset_npy_between_2_hits_with_max_limits_flat_raw/`.
+The original Phase 2 plan and criteria below remain valid if a fresh motivation surfaces (e.g. an audit on a future run shows residual data-quality drag on a class the model is otherwise well-positioned for):
+
+1. Re-run Step 2 raw across the full 33k clips. Output: `dataset_npy_between_2_hits_with_max_limits_flat_raw/`.
 2. Run `apply_heuristic --heuristic sticky_anchor` against the full raw extract. Output: `..._flat_h_sticky_anchor/`.
 3. Collate once per ablation (V3 + V4 split columns) with `--clip-npy-dir ..._flat_h_sticky_anchor/`. New ablation_id suffix to tag the heuristic: `une_merge_v1_split_v2_dropunk_h_sticky_anchor` (V4-analog), `merged_25_split_bst_baseline_keepunk_h_sticky_anchor` (V3-analog).
 4. Re-train V3 and V4 with 5 serials each. Document via the existing run_tracker pattern.
@@ -512,8 +510,6 @@ Success criteria (committed only after Phase 2 validates both axes):
 - Zeroing rate on the target-class aggregate drops by >= 25% relative on each of (train, val, test) partitions.
 - Retrained V4 best-serial min-F1 lifts by >= 0.04 vs committed V4's 0.432 (matching or exceeding V3's 0.381 + the V3 to V4 +0.04 min-F1 gain, so >= 0.47 net).
 - Retrained V4 best-serial macro and accuracy do not drop by more than the noise margin across the 5 serials (~0.005).
-
-If Phase 2 achieves the zeroing-rate target but fails the min-F1 target, the bottleneck on smash classes is not primarily data quality. Escalate to arch work rather than continuing the data-fix track.
 
 ## Amateur generalisation notes (for next trimester)
 

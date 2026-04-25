@@ -7,15 +7,17 @@ Arch 1 is the BST + X3D-S wrist crop fusion architecture. This doc tracks the li
 - **BST LR-schedule retune (Q4)**: done. Compressed schedule beats the paper on every test metric (macro F1, min F1, accuracy, top-2). Active settings in `bst_train.py`. Numbers in "LR schedule retune" below.
 - **CG/AP annealing (Q3)**: done. Three matched 5-serial runs. Annealed-out best (mean macro F1 0.829), always-on close behind, always-off trails. Annealed kept as the active config.
 - **Attention head geometry sweep (Q5)**: open, not started. Secondary priority.
-- **X3D-S racket crop fusion**: model + input shape decided; fusion depth, training schedule, temporal cut-in, and MMPose-drop handling all open. Primary current research focus.
-- **MMPose extraction quality**: now its own track. Phase 1 sticky_anchor heuristic shipped (95.05% of 1,716 busted clips perfectly clean). Mixed retrain pending. Full state in `scratch/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md`.
+- **X3D-S racket crop fusion**: model + input shape decided; fusion depth, training schedule, temporal cut-in, and MMPose-drop handling all open. Primary research direction; build slated for late next week.
+- **Focal loss ablation**: next experiment. Drop-in loss-fn change on the existing sticky_anchor data, targets the wrist_smash floor's representational instability rather than data quality. Spec in "Next: focal loss" below.
+- **Data augmentation**: probable intermediate step after focal loss, before X3D-S. Particulars TBD.
+- **MMPose extraction quality**: Phase 1 sticky_anchor heuristic shipped (95.05% of 1,716 busted clips perfectly clean). Phase 1 mixed retrain (`run_20260425_150548`) failed the decision gate on `Top_wrist_smash` (-0.057 mean) while macro/acc/top-2 lifted ~0.007 each. The per-class frame-zeroing audit then showed the F1-bottom classes aren't the heavily-zeroed ones; the data-quality-bottleneck hypothesis is empirically dead. Phase 2 deprioritised but not killed: the decoupled `raw_extract` is faster per clip than the original pipeline, so re-running ~31k clips is more affordable than the original ~50 hr V100 estimate. Full state in `scratch/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md`.
 - **bst_train / bst_infer dedup**: deferred until a third entry point arrives.
 
 ## MMPose extraction context (sticky_anchor TLDR)
 
 The BST original zeroed an entire frame whenever a player's ankle midpoint projected outside the soft court rectangle (`eps = 0.01`) or fewer than 2 people were detected. Airborne smashes were the worst-affected class: jump geometry pushes projected feet ~0.17-0.24 normalised units off court (Padel paper `H_z * tan(θ)`), so the model saw zeros at the most informative moment.
 
-`sticky_anchor` replaces that filter with per-slot tracking. Each slot has an anchor at its court half-centre (75% fixed, 25% running EMA of recent picks). The closest-to-anchor detection wins; off-court picks are still output but don't update the EMA. Bottom picks first; a closer-to-own-anchor Voronoi pre-filter blocks cross-half capture; a bbox-area + sitting-pose tiebreaker handles ambiguous frames. On the 1,716 hit-zone-busted clips: 95.05% perfectly clean post-fix; residual 61 are mostly irrecoverable framings (closeup, side-on, cutaway). Phase 1 mixed retrain pending. Full design + decision log in `scratch/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md`.
+`sticky_anchor` replaces that filter with per-slot tracking. Each slot has an anchor at its court half-centre (75% fixed, 25% running EMA of recent picks). The closest-to-anchor detection wins; off-court picks are still output but don't update the EMA. Bottom picks first; a closer-to-own-anchor Voronoi pre-filter blocks cross-half capture; a bbox-area + sitting-pose tiebreaker handles ambiguous frames. On the 1,716 hit-zone-busted clips: 95.05% perfectly clean post-fix; residual 61 are mostly irrecoverable framings (closeup, side-on, cutaway). Phase 1 mixed retrain done (`run_20260425_150548`); decision gate failed and a per-class frame-zeroing audit then ruled out the data-quality-bottleneck hypothesis for the F1 floor (full status in the heuristic doc). Full design + decision log in `scratch/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md`.
 
 Methodologically this is a small novel contribution in its own right: reframes per-frame player identification from eligibility-filter ("zero the frame if either player projects off-court") to tracking-by-anchor ("each slot picks its own closest in-court candidate, with a Voronoi guard against cross-half capture"). The eligibility-filter formulation fails catastrophically on airborne strokes because the most informative frames are also the ones most likely to be filtered out; the tracking formulation keeps those frames usable.
 
@@ -73,6 +75,23 @@ Two recovery routes for residual MMPose-extraction failures, both relevant to Ar
 
 - **Homography-fail X3D-S-only rescue (Phase 2 candidate)**. For clips where the court homography itself doesn't fit (so no court coords are possible at all). Pixel-space fallback picker (largest bbox per screen-half, torso-diagonal crop sizing per question 3 above) could feed the X3D-S stream while BST inputs stay zeroed. Needs a new metadata flag in the extract output. Parked until per-class Phase 1 residuals show whether it's worth building. Full writeup under "Homography-fail frames: crop-only recovery" in `scratch/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md`.
 - **Gap-fill for partial-success frames (could fit this trimester, else Phase 2)**. Linear interpolation of `pos` and `joints` across short MMPose detection gaps when one slot picked cleanly and the other zeroed. Bounded to ~15-frame gaps, gated on endpoint-proximity. Explicitly NOT a fallback to sticky_anchor-rejected raw bboxes; those margins are generous enough that a rejection is diagnostic of upstream failure. New post-processing module that runs after sticky_anchor and preserves the byte-identity chain. Full design under "Gap-fill post-processing (proposed, 2026-04-25)" in the heuristic doc.
+
+## Next: focal loss for the wrist_smash floor
+
+The Phase 1 sticky_anchor retrain (`run_20260425_150548`) failed the decision gate: `Top_wrist_smash` mean -0.057 vs V4 baseline, even though macro / acc / top-2 each lifted by ~0.007. Cleaner data shifted the smash / wrist_smash boundary toward smash, not toward the floor. The per-class frame-zeroing audit (`src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/zeroed_frames_class_audit__run_20260425_150548.txt`) confirmed it: the F1-bottom classes aren't the heavily-zeroed ones, and the worst-zeroed class has near-perfect F1. So the wrist_smash bottleneck is structural (representation / boundary allocation), not data quality.
+
+**Focal loss ablation (~2 hr V100).** Replace `nn.CrossEntropyLoss(label_smoothing=0.1)` at `bst_train.py:379` with multiclass focal loss `(1 - p_y)^gamma * CE`. Focal explicitly upweights misclassified borderline cases, which is where the wrist_smash variance comes from. No data-pipeline change; same flat dir, same collated dir (just retag the `ablation_id`). Compare against `run_20260425_150548` (the sticky_anchor run, not V4 baseline) so the loss change is isolated from the data-quality change.
+
+Implementation sketch (4 edits in `bst_train.py`):
+
+1. Add a small `FocalLoss(nn.Module)` class wrapping `F.cross_entropy(..., reduction='none')` with `(1-p_y)^gamma` reweighting.
+2. Add `focal_gamma` to the `Hyp` namedtuple; set `focal_gamma=1.5` and tag `ablation_id` with `_focal15` in the active hyp block.
+3. Branch loss construction at `bst_train.py:379` to use `FocalLoss(gamma=hyp.focal_gamma, label_smoothing=0.0)` when `focal_gamma > 0`. Drop label smoothing in the focal path; smoothing and focal are both confidence regularisers and stack weirdly.
+4. No collator change.
+
+Practical notes: gamma=1.5 is the conservative starting point (Lin et al. used 2.0 on much harsher imbalance). Aux-schedule fade is still active during epochs 1-15, so the focal run stacks two regularisers shifting at once; tolerable for a first try, set `use_aux_schedule=False` for a perfectly clean ablation.
+
+If focal lifts the wrist_smash floor, data augmentation is the natural intermediate step before X3D-S. If it doesn't, jump to X3D-S directly. X3D-S is the principled long-term solution either way, since it adds racket-pixel information that pose-only can't see.
 
 ## Completed experiments
 
