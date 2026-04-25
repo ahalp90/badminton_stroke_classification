@@ -43,3 +43,6 @@ src/bst_refactor/stroke_classification/main_on_shuttleset/preparing_data
 # tactical unignores for best checkpoints) live in
 # src/bst_refactor/stroke_classification/.gitignore so this file doesn't
 # get swamped as more runs pile up.
+
+# one-off large sanity check/inspection files
+scratch/sticky_anchor_inspection
