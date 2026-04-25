@@ -11,6 +11,7 @@ Arch 1 is the BST + X3D-S wrist crop fusion architecture. This doc tracks the li
 - **Focal loss ablation**: next experiment. Drop-in loss-fn change on the existing sticky_anchor data, targets the wrist_smash floor's representational instability rather than data quality. Spec in "Next: focal loss" below.
 - **Data augmentation**: probable intermediate step after focal loss, before X3D-S. Particulars TBD.
 - **MMPose extraction quality**: Phase 1 sticky_anchor heuristic shipped (95.05% of 1,716 busted clips perfectly clean). Phase 1 mixed retrain (`run_20260425_150548`) failed the decision gate on `Top_wrist_smash` (-0.057 mean) while macro/acc/top-2 lifted ~0.007 each. The per-class frame-zeroing audit then showed the F1-bottom classes aren't the heavily-zeroed ones; the data-quality-bottleneck hypothesis is empirically dead. Phase 2 deprioritised but not killed: the decoupled `raw_extract` is faster per clip than the original pipeline, so re-running ~31k clips is more affordable than the original ~50 hr V100 estimate. Full state in `scratch/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md`.
+- **Collapsed-classes ablation** (`run_20260425_185421`): 28 classes to 14, dropping the Top_/Bottom_ side prefix on the sticky_anchor data. Rare-class seed variance halved, but absolute metrics within noise of V4 baseline -- doubled per-class N stabilised wrist_smash without lifting it. Next step before bolting on the 3dcnn is augmentation (per Isiah's writeup) and class weighting / focal loss. Full writeup under "Completed experiments".
 - **bst_train / bst_infer dedup**: deferred until a third entry point arrives.
 
 ## MMPose extraction context (sticky_anchor TLDR)
@@ -147,6 +148,46 @@ Annealed > always-on > always-off, with small but consistent gaps. Peak performa
 Broadly, CG and AP offer a demonstrably useful warm-start inductive bias. The tuned LR explains most of the difference from the original BST stats. A perfectly tuned and even slower LR might let the model naturally settle into the same minimum, but barring that, CG/AP are an objectively useful nudge in the right direction. Particularly helpful in lifting performance for minimally represented classes.
 
 Pointers for the raw numbers: per-serial metrics in each run's `experiments/run_.../manifest.yaml` and the Serial blocks in `test_logs/test_20260418_151139.log`, `test_20260418_174238.log`, `test_20260418_234822.log`.
+
+### Sticky_anchor mixed retrain — 2026-04-25
+
+Reran the V4 baseline (`run_20260420_171101`) with the 1,716 hit-zone-busted clips swapped in for their sticky_anchor-cleaned versions, everything else unchanged. The decision gate from the heuristic doc wanted a +0.02 target-class min-F1 lift; this run failed it.
+
+Mean across 5 serials, vs V4 baseline:
+
+| | sticky mean | V4 mean | Δ |
+|---|---|---|---|
+| macro F1 | 0.748 | 0.741 | +0.007 |
+| min F1 | 0.333 | 0.389 | -0.056 |
+| accuracy | 0.774 | 0.766 | +0.008 |
+| top-2 | 0.942 | 0.936 | +0.006 |
+
+Top_wrist_smash mean dropped 0.057. Top_smash gained almost exactly what wrist_smash lost (+0.020), which fits the boundary-allocation tradeoff: cleaner data made the smash family easier and the model spent the gain on the easier head class instead of the rare tail.
+
+Per-class frame-zeroing audit (`zeroed_frames_class_audit.py`) followed. F1-bottom classes weren't the heavily-zeroed ones, and the worst-zeroed class hit near-perfect F1. So data quality isn't the floor bottleneck. Phase 2 deprioritised on that finding (full writeup in the heuristic doc).
+
+Run + manifest at `experiments/run_20260425_150548/`; best S3.
+
+### Collapsed classes ablation — 2026-04-25
+
+Same data as the run above. Only the label space changes: 28 classes to 14 by dropping the Top_/Bottom_ side prefix (new taxonomy `une_merge_v1_nosides`). Hypothesis: Top_X and Bottom_X are essentially the same shot mirrored across the net; forcing them to be separate classes halves per-class N and asks the model to learn a redundant distinction.
+
+Mean across 5 serials:
+
+| | nosides mean | sticky mean | V4 mean |
+|---|---|---|---|
+| macro F1 | 0.743 | 0.748 | 0.741 |
+| min F1 | 0.397 | 0.333 | 0.389 |
+| accuracy | 0.766 | 0.774 | 0.766 |
+| top-2 | 0.938 | 0.942 | 0.936 |
+
+vs V4 every metric is within ±0.008 (noise band). Absolute ceiling didn't move.
+
+What did move was rare-class stability. Per-seed test-min range dropped from 0.124 (sticky) to 0.074 (nosides), and worst-seed min lifted from 0.235 to 0.350. The 14-class wrist_smash F1 (~0.42 mean) is close to the support-weighted mean of the old 28-class Top_wrist_smash (0.33) and Bottom_wrist_smash (0.45) -- so the model isn't actually distinguishing smash from wrist_smash any better, the metric just stopped flipping between two thin slots.
+
+Doubled per-class N reduced the seed lottery on rare classes; absolute performance didn't change. Next step before bolting on the 3dcnn is augmentation (per Isiah's writeup at `scratch/research/Augmentation.pdf`) and class weighting / focal loss.
+
+Run + manifest at `experiments/run_20260425_185421/`; best S1 (top min, top top-2).
 
 ## Cleanup backlog
 
