@@ -15,11 +15,9 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from src.bst_refactor.stroke_classification.preparing_data.heuristics.base import (
     ClipContext,
-    HeuristicOutput,
     RawClip,
 )
 from src.bst_refactor.stroke_classification.preparing_data.heuristics.sticky_anchor import (
@@ -200,11 +198,9 @@ def test_sitting_tiebreaker_prefers_standing_then_falls_back():
     # Both Top-side candidates at near-identical anchor distance, large bboxes.
     bbox_sitting = _bbox_for(0.50, 0.25, half_w=40.0, half_h=70.0)
     bbox_standing = _bbox_for(0.495, 0.255, half_w=40.0, half_h=70.0)
-    bbox_far_top = _bbox_for(0.50, 0.10)  # placeholder Top neither candidate
 
     sitting_kps = _sitting_kps_for_bbox(bbox_sitting)
     standing_kps = _standing_kps_for_bbox(bbox_standing)
-    far_kps = _standing_kps_for_bbox(bbox_far_top)
 
     # Single Top-side frame: sitting cand at index 0, standing at index 1.
     # Add a Bottom-side cand so the heuristic doesn't reject the frame.
@@ -282,8 +278,8 @@ def test_full_frame_failure_resets_ema():
     raw = _build_raw_clip([frame_0, frame_1])
     output, ema_history = _run_clip(raw, ctx, _identity_normalize_joints, _params())
 
-    assert output.failed[0] == False  # frame 0 picks both slots
-    assert output.failed[1] == True   # frame 1 zero detections
+    assert not output.failed[0]  # frame 0 picks both slots
+    assert output.failed[1]  # frame 1 zero detections
 
     # Frame 0 EMA must have moved off the centres (alpha=0.1, target slightly off-centre).
     halfcourt = np.array([[0.5, 0.25], [0.5, 0.75]])
@@ -321,7 +317,7 @@ def test_mixed_pick_resets_only_unpicked_slot():
     assert not np.allclose(ema_history[1, SLOT_BOTTOM], halfcourt[SLOT_BOTTOM]), \
         "Bottom EMA should keep advancing when Bottom is picked"
     # Frame 1 marked as a partial failure.
-    assert output.failed[1] == True
+    assert output.failed[1]
 
 
 # -- Test 7: update_gate_eps blocks EMA updates from off-court picks ---------

@@ -143,20 +143,32 @@ See [`src/bst_refactor/data_pipeline_to_model_train.md`](src/bst_refactor/data_p
 
 ### Inspecting available clips (`pipeline.data_access`)
 
-One-shot CLI + Python API for "give me all clips for `split=X` and class=`Y`, paired with their shuttle + mmpose files", driven by `notebooks/clips_master.csv` under the active taxonomy:
+Lists clips for a given `split` + `class` filter, paired with their shuttle and mmpose files. Reads from `notebooks/clips_master.csv` under the active taxonomy (default `une_merge_v1`). Three modes:
 
 ```bash
-# Per-split / per-class counts across clips, shuttle, and mmpose
-PYTHONPATH=src/bst_refactor python -m pipeline.data_access --summary
+# Run from the repo root. Set PYTHONPATH once for the session, or prepend
+# PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification to each
+# command instead.
+export PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification
 
-# TSV of clip / shuttle / mmpose paths for a filter
-PYTHONPATH=src/bst_refactor python -m pipeline.data_access --split val --class Top_smash
+# 1. Counts: how many clips per split/class, how many on disk, how many
+#    have shuttle/mmpose files. Quick health check on what's available.
+python -m pipeline.data_access --summary
 
-# Interactive TUI (no flags)
-PYTHONPATH=src/bst_refactor python -m pipeline.data_access
+# 2. List of paths: one tab-separated row per matching clip
+#    (split, class, clip_stem, clip_path, shuttle_path, mmpose_path).
+#    Save it (>file.tsv) or pipe it to another script that needs the paths.
+python -m pipeline.data_access --split val --class Top_smash
+
+# 3. Walk-through (no flags): six numbered prompts ask for split column,
+#    taxonomy, split, class, drop-unknown, and summary-vs-paths in turn.
+#    Useful when you don't remember the flag names.
+python -m pipeline.data_access
 ```
 
-Machine-specific paths go in a local `.env` (copy from [`.env.example`](.env.example); gitignored). Full API + CLI reference: [`src/bst_refactor/pipeline/README.md`](src/bst_refactor/pipeline/README.md#higher-level-access-pipelinedata_accesspy).
+Paths differ between machines (local vs engelbart); keep them in a local/remote `.env` file. Copy [`.env.example`](.env.example) to `.env` and fill in your paths; the `.env` is gitignored so each person's paths stay local.
+
+Full CLI flag list and Python API: [`src/bst_refactor/pipeline/README.md`](src/bst_refactor/pipeline/README.md#higher-level-access-pipelinedata_accesspy).
 
 ## HPC Data Storage (engelbart)
 
@@ -172,7 +184,7 @@ mkdir -p /scratch/comp320a/ShuttleSet/shuttle_csv
 mkdir -p /scratch/comp320a/ShuttleSet/shuttle_npy
 
 # Symlink from your project into scratch
-cd ~/badminton_stroke_classifier/src/bst_refactor/ShuttleSet
+cd ~/badminton_stroke_classification/src/bst_refactor/ShuttleSet
 ln -s /scratch/comp320a/ShuttleSet/raw_video raw_video
 ln -s /scratch/comp320a/ShuttleSet/clips clips
 ln -s /scratch/comp320a/ShuttleSet/shuttle_csv shuttle_csv
@@ -188,7 +200,7 @@ MMPose saves per-clip `.npy` files under a taxonomy-specific directory (`Shuttle
 mkdir -p /scratch/comp320a/ShuttleSet_data_une_merge_v1
 
 # Symlink into the preparing_data dir where the script expects it
-cd ~/badminton_stroke_classifier/src/bst_refactor/stroke_classification/preparing_data
+cd ~/badminton_stroke_classification/src/bst_refactor/stroke_classification/preparing_data
 ln -s /scratch/comp320a/ShuttleSet_data_une_merge_v1 ShuttleSet_data_une_merge_v1
 ```
 

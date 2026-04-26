@@ -1,14 +1,17 @@
 # Pre-Phase-2 Tidy: refactor record + reviewer brief
 
-**Branch:** `pre-phase-2-tidy` (origin tip: `88ee24e` at time of writing).
+**Status:** Merged to `main` as `e0ffeec` on 2026-04-26 via `git merge --no-ff` after a memory-isolated three-agent review returned READY_TO_MERGE with zero blockers. The pre-merge doc-fix commit `4b43546` and the merge commit `e0ffeec` are the closing entries on this work.
+**Branch:** `pre-phase-2-tidy` (final tip: `4b43546`; merge commit on `main`: `e0ffeec`).
 **Cut from:** `main` at `d4fd644` ("Ablation collapsing top/bottom classes…").
-**Diff vs main:** 28 commits, 68 files changed, +3,425 / −1,497 LOC.
+**Diff vs main:** 29 commits, 68 files changed, +3,585 / −1,499 LOC.
 **Source-and-test diff vs main:** 29 .py files, +447 / −6,673 LOC (most of the deletions are dead-code excision that landed in step 5; new code is small).
 **Date of latest revision:** 2026-04-26.
 
 ---
 
 ## 0. Reviewer brief — READ THIS FIRST
+
+> **Closed 2026-04-26.** The three-agent review ran, returned READY_TO_MERGE with zero blockers, and the branch merged to `main` as `e0ffeec`. The brief below is preserved verbatim as the historical record of how the review was framed.
 
 You are one of a parallel team of agents brought in to give this branch a final, memory-isolated review before merge. The user (Ariel) and the in-session author have already done substantial internal verification (see §2 below); this review is the independent check that a fresh reader would catch what we missed.
 
@@ -96,6 +99,9 @@ Steps 1–10 (planned) + step P (proper-packages refactor) + step Q (lint-debt c
 | P | `fd12cd8` | Proper-packages refactor: 3 new `__init__.py`, 7 `sys.path.append` blocks dropped, 3 imports converted to package-style. New invocation: `PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification python -m main_on_shuttleset.bst_train`. |
 | Q | `c29e97c` | Lint-debt cleanup: explicit `load_repo_dotenv()`, narrowed two `BLE001` excepts, lifted two PLC0415 imports to module top, kept two with justifying comments. |
 | docs | `e9a1c7d`, `ee664e5`, `7daa319`, `04f0ecb`, `4e5cb3a`, `e811ffa`, `88ee24e` | Plan-doc updates and a two-pass post-refactor doc-drift sweep across user-facing markdown. |
+| review | `dc73653` | Top-load `pre_phase_2_tidy_plan.md` with the reviewer brief for the memory-isolated three-agent merge-readiness review. |
+| review | `4b43546` | Pre-merge doc fixes from the parallel-agent review: surface `test_sticky_anchor.py` + `test_data_access.py` in the user-facing test docs, add `une_merge_v1_nosides` to the `data_pipeline` taxonomy choice lists, surface the `Task`-class lift in §3 deferred items. |
+| merge | `e0ffeec` | `git merge --no-ff pre-phase-2-tidy` onto `main`. Headline summary in the merge commit body. |
 
 Net: −6,673 LOC of source/tests deleted, +447 LOC of source/tests added (mostly `tests/test_sticky_anchor.py` and `bst_common.py`). Roughly −5,500 LOC of historical content + scripts moved into `scratch/project_history/` and `scripts/archive/`.
 
@@ -119,10 +125,10 @@ What pytest does NOT cover: full multi-epoch training loop, MMPose runtime path 
 
 ## 3. Open items going into the next phase
 
-These were explicitly deferred during the refactor. The reviewer (especially GOALS_AUDITOR) should assess whether any of them should actually move *before* merge.
+These were explicitly deferred during the refactor. Now that the branch has merged to `main` as `e0ffeec`, this list is the carry-over backlog for the next substantive piece of project work (the X3D-S wrist-crop layer or the path/IO sweep that precedes it).
 
-- **Branch destination decision.** Three options on the table: open a PR for team review then merge; merge directly; sit on the branch as the working trunk and let X3D-S work branch off this. No push to main, no PR, no merge to main without explicit user go-ahead.
-- **Path/IO abstraction** (focus area 5 in the original review). Reserved for after-X3D-S.
+- **Branch destination decision.** Resolved 2026-04-26: merged to `main` as `e0ffeec` via `git merge --no-ff` after the three-agent review returned READY_TO_MERGE.
+- **Path/IO abstraction** (focus area 5 in the original review). Reserved for after-X3D-S. Folded into this: collapse three near-duplicate root constants into one source of truth. The repo currently has `bst_train.py:44 REPO_ROOT = Path(__file__).resolve().parents[4]` (actual repo root, used at `:45` for `notebooks/clips_master.csv`), `pipeline/config.py:15 PROJECT_ROOT = Path(__file__).resolve().parent.parent` (intentionally `src/bst_refactor/`, anchoring `ShuttleSet/` data dirs at `config.py:17-23`), and `pipeline/data_access.py:151 _PROJECT_ROOT = Path(__file__).resolve().parents[3]` (actual repo root, used for `.env` and `notebooks/clips_master.csv`). Aliasing `pipeline.config.PROJECT_ROOT` as `REPO_ROOT` would break `clips_master.csv` resolution because `PROJECT_ROOT` is `src/bst_refactor/`, not the repo root. Correct fix: add `REPO_ROOT = Path(__file__).resolve().parents[2]` to `pipeline/config.py` (parents[2] from `src/bst_refactor/pipeline/config.py` is the actual repo root); then `from pipeline.config import REPO_ROOT` in `bst_train.py:44` (drops the magic `parents[4]`) and replace `_PROJECT_ROOT` in `data_access.py:151` with the same import. Defer the code change until X3D-S forces the broader path/IO sweep.
 - **`Task`-class lift into `bst_common.py`.** Original review action 1 named `Task` as part of the lift; `MODELS` / `Tee` / `build_bst_network` / `compute_data_provenance` landed in step 5c, but `Task` stayed split between `bst_train.py:438` (references module-level `hyp` at `:444,462,479`) and `bst_infer.py:49` (a much-simpler stand-in). Defer until X3D-S's `Task` shape is visible — the lift can take that into account.
 - **`prepare_train_on_shuttleset.py` full module split** into `mmpose_extract.py` + `homography.py` + `collate.py`. Light tidy landed in step 5b; the structural split is reserved for after X3D-S.
 - **Validation script triplet shared core** (focus area 6, site 5).
@@ -193,18 +199,13 @@ All 12 planned commits + steps P and Q land on `pre-phase-2-tidy`. Refactor veri
 
 ### Branch destination
 
-Decision still pending. Options on the table:
-1. Open a PR for team review, then merge to main.
-2. Merge to main directly.
-3. Sit on the branch as the working trunk; X3D-S work branches off this.
-
-This is the only open thread before phase 2 starts. Pick one when ready; no push to main, no PR, no merge happens without explicit go-ahead.
+Resolved 2026-04-26: option 2, merged to `main` directly as `e0ffeec` via `git merge --no-ff`. Three-agent review (REGRESSION_HUNTER / GOALS_AUDITOR / DOC_COVERAGE_AUDITOR) returned READY_TO_MERGE with zero blockers; two `SHOULD_FIX` doc items were closed pre-merge in `4b43546` (test inventory + taxonomy choice list + `Task`-lift surfaced in §3). Push to `origin/main` was performed manually by the user.
 
 ---
 
 ## Branch destination (history)
 
-**Original stance during execution:** sit on the `pre-phase-2-tidy` branch until local tests pass, then engelbart tests, then user decides. No push, no PR, no merge to main without explicit go-ahead. (Followed verbatim through steps 1–Q. Branch was pushed to origin once the user authorised it for engelbart pulls.)
+**Original stance during execution:** sit on the `pre-phase-2-tidy` branch until local tests pass, then engelbart tests, then user decides. No push, no PR, no merge to main without explicit go-ahead. (Followed verbatim through steps 1–Q. Branch was pushed to origin once the user authorised it for engelbart pulls. Merged to `main` as `e0ffeec` on 2026-04-26.)
 
 ## X3D-S wire-in invariant
 

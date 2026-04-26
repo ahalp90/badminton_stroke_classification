@@ -1,5 +1,5 @@
 [tool.ruff]
-exclude = ["notebooks/", "**/deprecated/", "src/bst_refactor/TrackNetV3/"]
+exclude = ["notebooks/", "**/deprecated/", "src/bst_refactor/TrackNetV3/", "scratch/project_history/"]
 
 [tool.ruff.lint]
 ignore = [
