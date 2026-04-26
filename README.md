@@ -66,15 +66,20 @@ BST training runs log through `src/bst_refactor/run_tracker.py`. Each run writes
 
 Optional Aim UI (from `main_on_shuttleset/`): `python ../../aim_backfill.py` (one-shot, idempotent), then `aim up`. Details in [`src/bst_refactor/run_tracker.md`](src/bst_refactor/run_tracker.md).
 
-There's also a partial MLflow setup in `scripts/example_mlflow_run.py` if someone wants to plug in, but it's probably more than this project needs; the manifest tracker above integrates with Aim at near-zero effort.
+There's also a partial MLflow setup in `scripts/example_mlflow_run.py` if someone wants to plug in, but it's probably more than this project needs; the manifest tracker above integrates with Aim at near-zero effort. The MLflow stub will be deleted before delivery if Scott has not picked it up by then.
 
 ---
 
 ## Verify Environment
 
-The project includes a base environment test:
+The project's pytest suite covers environment, data access, dataset, API, sticky_anchor heuristic invariants, and an integration smoke (auto-skipped without `BST_DATA_DIR`):
 
 - `tests/test_environment.py`
+- `tests/test_data_access.py`
+- `tests/test_dataset.py`
+- `tests/test_api.py`
+- `tests/test_sticky_anchor.py`
+- `tests/test_integration.py`
 
 Optional manual checks:
 

@@ -11,7 +11,7 @@ The result feeds ``prepare_train_on_shuttleset``'s collation step. After
 collation, ``bst_train`` reads the merged dataset under the
 ``ablation_id``-tagged collated dir name.
 
-Run from the repo root or from ``src/bst_refactor/stroke_classification/``.
+Run from the repo root.
 
 Examples:
 

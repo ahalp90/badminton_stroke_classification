@@ -81,24 +81,28 @@ Two recovery routes for residual MMPose-extraction failures, both relevant to Ar
 
 The Phase 1 sticky_anchor retrain (`run_20260425_150548`) failed the decision gate: `Top_wrist_smash` mean -0.057 vs V4 baseline, even though macro / acc / top-2 each lifted by ~0.007. Cleaner data shifted the smash / wrist_smash boundary toward smash, not toward the floor. The per-class frame-zeroing audit (`src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/zeroed_frames_class_audit__run_20260425_150548.txt`) confirmed it: the F1-bottom classes aren't the heavily-zeroed ones, and the worst-zeroed class has near-perfect F1. So the wrist_smash bottleneck is structural (representation / boundary allocation), not data quality.
 
-**Focal loss ablation (~2 hr V100).** Replace `nn.CrossEntropyLoss(label_smoothing=0.1)` at `bst_train.py:379` with multiclass focal loss `(1 - p_y)^gamma * CE`. Focal explicitly upweights misclassified borderline cases, which is where the wrist_smash variance comes from. No data-pipeline change; same flat dir, same collated dir (just retag the `ablation_id`). Compare against `run_20260425_150548` (the sticky_anchor run, not V4 baseline) so the loss change is isolated from the data-quality change.
+**Focal loss ablation (~2 hr V100).** Replace `nn.CrossEntropyLoss(label_smoothing=0.1)` at `bst_train.py:301` with multiclass focal loss `(1 - p_y)^gamma * CE`. Focal explicitly upweights misclassified borderline cases, which is where the wrist_smash variance comes from. No data-pipeline change; same flat dir, same collated dir (just retag the `ablation_id`). Compare against `run_20260425_150548` (the sticky_anchor run, not V4 baseline) so the loss change is isolated from the data-quality change.
 
 Implementation sketch (4 edits in `bst_train.py`):
 
 1. Add a small `FocalLoss(nn.Module)` class wrapping `F.cross_entropy(..., reduction='none')` with `(1-p_y)^gamma` reweighting.
 2. Add `focal_gamma` to the `Hyp` namedtuple; set `focal_gamma=1.5` and tag `ablation_id` with `_focal15` in the active hyp block.
-3. Branch loss construction at `bst_train.py:379` to use `FocalLoss(gamma=hyp.focal_gamma, label_smoothing=0.0)` when `focal_gamma > 0`. Drop label smoothing in the focal path; smoothing and focal are both confidence regularisers and stack weirdly.
+3. Branch loss construction at `bst_train.py:301` to use `FocalLoss(gamma=hyp.focal_gamma, label_smoothing=0.0)` when `focal_gamma > 0`. Drop label smoothing in the focal path; smoothing and focal are both confidence regularisers and stack weirdly.
 4. No collator change.
 
 Practical notes: gamma=1.5 is the conservative starting point (Lin et al. used 2.0 on much harsher imbalance). Aux-schedule fade is still active during epochs 1-15, so the focal run stacks two regularisers shifting at once; tolerable for a first try, set `use_aux_schedule=False` for a perfectly clean ablation.
 
 If focal lifts the wrist_smash floor, data augmentation is the natural intermediate step before X3D-S. If it doesn't, jump to X3D-S directly. X3D-S is the principled long-term solution either way, since it adds racket-pixel information that pose-only can't see.
 
+## Current LR + aux schedule
+
+Active settings (`bst_train.py:62-79` plus the cosine call at `:308-314`): `n_epochs=80`, `early_stop_n_epochs=40`, `batch_size=128`, `lr=5e-4`, `warm_up_step=100`, `num_cycles=0.5`, `use_aux_schedule=True`, `aux_fade_end_epoch=15`. Compressed warm-start-then-finetune schedule paired with the CG/AP cosine fade: ~4 epochs warmup, ~15 epochs of CG/AP warm-start tapering to 0, then ~65 epochs of pure-backbone training under cooling LR. The BST paper's defaults (`n_epochs=1600`, `warm_up_step=400`, `early_stop_n_epochs=300`, `num_cycles=0.25`, `aux_fade_end_epoch=60`) and the dated retune rationale are captured in `scratch/architecture_notes/historical_bst.md` section 3 for reproduction work.
+
 ## Completed experiments
 
 ### LR schedule retune (Q4) — 2026-04-17
 
-`bst_train.py:255` originally passed `num_cycles=0.25` into `get_cosine_schedule_with_warmup`, alongside `n_epochs=1600`, `warm_up_step=400`, and `early_stop_n_epochs=300`. At `num_cycles=0.25` only a quarter of the cosine curve runs across the full budget, so the LR barely decays. BST-default runs converge around epoch 60 and early-stopping fires around epoch 360, so the scheduler never actually had time to lower the rate.
+`bst_train.py:308-314` calls `get_cosine_schedule_with_warmup`. The original BST recipe passed `num_cycles=0.25` alongside `n_epochs=1600`, `warm_up_step=400`, and `early_stop_n_epochs=300`. At `num_cycles=0.25` only a quarter of the cosine curve runs across the full budget, so the LR barely decays. BST-default runs converge around epoch 60 and early-stopping fires around epoch 360, so the scheduler never actually had time to lower the rate.
 
 Compressed `n_epochs` to match the real convergence timeframe and bumped `num_cycles` so the cosine curve actually hits zero. `Apr17_13-04-35` showed best F1 macro 0.8311 at epoch 41 (out of 1600), val loss peaked by epoch 27, early-stop at 341.
 
@@ -127,7 +131,7 @@ The val-vs-test direction flipped too: the old run had val macro 0.8311 but test
 
 We might be hitting a data quality cap soon. 3% are 'unknown', a catch-all garbage class. Another 3% have known bad labels. And 25% of the majority class (smash) have serious problems with over-strict frame zeroing by mmpose, the bulk of which sticky_anchor now repairs.
 
-Winning weight kept at `main_on_shuttleset/weight/run_20260417_191851/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25.pt` and tracked via an `!` override in `.gitignore`. Numbers verified from `test_logs/test_20260417_191851.log`.
+Winning weight kept at `main_on_shuttleset/experiments/run_20260417_191851/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25.pt` and tracked via an `!` override in `.gitignore`. Numbers verified from `test_logs/test_20260417_191851.log`.
 
 ### CG/AP annealing ablations (Q3) — 2026-04-19
 

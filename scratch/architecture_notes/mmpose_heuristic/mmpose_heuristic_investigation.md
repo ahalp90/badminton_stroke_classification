@@ -111,26 +111,28 @@ Existing flat dirs on scratch already match the current naming convention. The n
   - `np.allclose(rtol=0, atol=1e-5)` on `_pos.npy` and `_joints.npy` (float; tolerance absorbs float32 projection-chain non-associativity).
 - On any mismatch: stop and investigate plumbing before trusting `sticky_anchor`. Usual suspects: keypoint-index ordering, bbox row order when multiple on-court people exist, `normalize_joints` vs `normalize_position` step order, resolution-scale application.
 
-Canonical gate command (run from `src/bst_refactor/stroke_classification/`):
+Canonical gate command (run from the repo root with both package roots on PYTHONPATH; same pair `conftest.py` uses for tests):
 
 ```
-python -m preparing_data.failsafe_bst_mmpose_zeroing_check_equivalence \
-    --raw-dir /scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat_raw_phase1 \
-    --busted-stems-file scratch/architecture_notes/busted_hit_zone_clips_phase1.txt \
-    --clips-csv notebooks/clips_master.csv \
-    --scratch-output-dir /scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat_failsafe_gate
+PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+    python -m preparing_data.failsafe_bst_mmpose_zeroing_check_equivalence \
+        --raw-dir /scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat_raw_phase1 \
+        --busted-stems-file scratch/architecture_notes/busted_hit_zone_clips_phase1.txt \
+        --clips-csv notebooks/clips_master.csv \
+        --scratch-output-dir /scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat_failsafe_gate
 ```
 
-`--committed-dir` is auto-detected from `$BST_MMPOSE_NPY_DIR` when unset. `apply_heuristic` side-effect-imports `pipeline.data_access`, which auto-loads the repo-root `.env`, so the collision guards fire without a prior shell export.
+`--committed-dir` is auto-detected from `$BST_MMPOSE_NPY_DIR` when unset. `apply_heuristic` calls `pipeline.data_access.load_repo_dotenv()` at module load, which loads the repo-root `.env`, so the collision guards fire without a prior shell export. (The original opaque side-effect-import was lifted to an explicit call by step Q; behaviour is the same.)
 
 ### Apply heuristic (canonical run)
 
 ```
-python -m preparing_data.apply_heuristic \
-    --raw-dir /scratch/comp320a/.../dataset_npy_..._flat_raw_phase1 \
-    --output-dir /scratch/comp320a/.../dataset_npy_..._flat_h_sticky_anchor \
-    --heuristic sticky_anchor \
-    --clips-csv notebooks/clips_master.csv
+PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+    python -m preparing_data.apply_heuristic \
+        --raw-dir /scratch/comp320a/.../dataset_npy_..._flat_raw_phase1 \
+        --output-dir /scratch/comp320a/.../dataset_npy_..._flat_h_sticky_anchor \
+        --heuristic sticky_anchor \
+        --clips-csv notebooks/clips_master.csv
 ```
 
 Hyperparameters expose as CLI args; defaults in the Hyperparameters section below.
