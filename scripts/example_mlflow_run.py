@@ -1,8 +1,13 @@
 """
 Example MLflow training run.
 
-Demonstrates how Ariel & Scott should log experiments during model training.
-Run this script to verify MLflow is working, then view results with:
+TODO: delete before delivery if Scott has not picked up MLflow integration.
+Stub from 2026-04-08; the project settled on Aim + run_tracker for experiment
+tracking (see ``src/bst_refactor/run_tracker.md``). Kept around because Scott
+may still wire MLflow in for Architecture 2.
+
+Demonstrates how to log experiments with MLflow. Run this script to verify
+MLflow is working, then view results with:
 
     mlflow ui
 

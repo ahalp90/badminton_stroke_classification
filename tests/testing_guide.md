@@ -13,9 +13,19 @@ This runs all tests except the HPC integration test, which auto-skips when `BST_
 ## Test files
 
 ### `test_environment.py`
-**Environment sanity check.** Imports core dependencies (torch, torchvision, numpy, pandas, matplotlib, sklearn, mediapipe) and fails if any are missing. Useful after setting up a new venv.
+**Environment sanity check.** Imports core dependencies (torch, torchvision, numpy, pandas, matplotlib, sklearn) and fails if any are missing. Useful after setting up a new venv.
 
 - **Prerequisites:** Project dependencies installed (`pip install -r requirements.txt`)
+
+### `test_data_access.py`
+**`pipeline.data_access` filtering tests.** Builds a synthetic `clips_master.csv` plus a fake clips/shuttle/mmpose tree (matching post-Phase-2 layout: nested clips, flat npy) and verifies CSV-driven `get_clip_records`, `_derive_class_label`, `summarise`, and the interactive menu helpers behave correctly across taxonomies and splits.
+
+- **Prerequisites:** Project dependencies
+
+### `test_sticky_anchor.py`
+**Sticky_anchor heuristic invariant tests.** Seven pinning tests for the per-slot Voronoi + EMA tracker (`src/bst_refactor/stroke_classification/preparing_data/heuristics/sticky_anchor.py`). Synthetic-only — uses an identity-homography court at 1280x720 so picking and EMA-reset behaviour can be verified deterministically. The X3D-S wrist-crop layer will consume the same per-slot pose stream, so these invariants are pinned before that work lands.
+
+- **Prerequisites:** Project dependencies
 
 ### `test_dataset.py`
 **DataLoader batch shape validation.** Creates synthetic npy data matching the real dataset format (4 clips, 100 frames, 2 players, 17 joints) and verifies that `Dataset_npy_collated` and PyTorch `DataLoader` produce tensors with the expected shapes.
@@ -59,5 +69,7 @@ GitHub Actions runs `pytest` on every push and PR (`.github/workflows/ci.yml`). 
 
 The root `conftest.py` adds two entries to `sys.path` so that imports used inside `bst_refactor` work from the test directory:
 
-- `src/bst_refactor` — allows `from pipeline.config import ...`
-- `src/bst_refactor/stroke_classification` — allows `from model.tempose import ...`
+- `src/bst_refactor` — allows `from pipeline.config import ...`, `from run_tracker import ...`
+- `src/bst_refactor/stroke_classification` — allows `from preparing_data.shuttleset_dataset import ...`, `from main_on_shuttleset.bst_common import ...`, `from model.tempose import ...`
+
+The same pair is the documented PYTHONPATH for non-test invocation post-step-P (`PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification python -m main_on_shuttleset.bst_train`), so tests and production share one resolution layout.

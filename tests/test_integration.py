@@ -89,8 +89,22 @@ def test_pipeline_dataloader_to_model_forward_pass():
 
     n_classes = TAXONOMIES[DEFAULT_TAXONOMY].n_classes
 
-    # Step 4: Load npy dataset
-    dataset = Dataset_npy_collated(Path(BST_DATA_DIR), "test")
+    # Step 4: Load npy dataset.
+    # Active configs only collate one pose_style at a time (J_only / JnB_bone /
+    # JnB_interp / Jn2B). Pick whichever is present in the test split rather
+    # than hard-coding the default; lets the test pass against any collated
+    # ablation without manual setup.
+    test_dir = Path(BST_DATA_DIR) / "test"
+    candidate_styles = ("JnB_bone", "Jn2B", "JnB_interp", "J_only")
+    pose_style = next(
+        (s for s in candidate_styles if (test_dir / f"{s}.npy").exists()),
+        None,
+    )
+    assert pose_style is not None, (
+        f"No pose_style file (one of {candidate_styles}) found in {test_dir}. "
+        f"Re-run prepare_train_on_shuttleset with --pose-styles before this test."
+    )
+    dataset = Dataset_npy_collated(Path(BST_DATA_DIR), "test", pose_style=pose_style)
     assert len(dataset) > 0, (
         "Dataset is empty — check BST_DATA_DIR points to the correct "
         "npy_{ablation_id} directory and that the test/ split exists."

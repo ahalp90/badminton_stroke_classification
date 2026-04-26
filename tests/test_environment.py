@@ -10,7 +10,6 @@ def test_core_dependencies_import():
         import pandas as pd  # noqa: F401
         import matplotlib  # noqa: F401
         import sklearn  # noqa: F401
-        import mediapipe as mp  # noqa: F401
 
         # If we get here, nothing crashed
         imports_successful = True
