@@ -1,19 +1,37 @@
-version: "3.9"
-
 services:
-  app:
+  backend:
     build: .
-    container_name: badminton-dev
+    container_name: badminton-backend
     working_dir: /app
     volumes:
       - .:/app
-      - ./data:/app/data
       - pip-cache:/root/.cache/pip
+      # Uncomment when inference is wired up and you need to test against real data:
+      # - /srv/dev-disk-by-uuid-2d4dc55c-51cd-46ae-a477-544cf0f76bb5/320_cosc594_data:/data/cosc594:ro
     ports:
-      - "8000:8000"  # FastAPI
-      - "5000:5000"  # MLflow
-    stdin_open: true
-    tty: true
+      - "24082:8000"
+      # MLflow port commented out for now. Aim is currently being used for experiment
+      # tracking (see src/bst_refactor/run_tracker.py). If the team decides to use MLflow,
+      # uncomment this and add an mlflow service to this compose file.
+      # - "5000:5000"
+    environment:
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:24082
+
+  frontend:
+    image: node:20-alpine
+    container_name: badminton-frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - node-modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_TARGET=http://backend:8000
+    command: sh -c "npm install && npm run dev -- --host"
+    depends_on:
+      - backend
 
 volumes:
   pip-cache:
+  node-modules:
