@@ -1,0 +1,27 @@
+# Exclude version control - large and not needed in the image
+.git
+
+# Exclude Python cache - gets regenerated
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Exclude secrets
+.env
+
+# Exclude virtual envs
+.venv
+venv/
+
+# Exclude frontend build artefacts and deps - these are built inside the container
+frontend/node_modules/
+frontend/dist/
+
+# Exclude data - mounted as a volume at runtime, not baked into the image
+data/
+
+# Exclude notebooks and scratch notes - not needed for serving
+notebooks/
+scratch/
