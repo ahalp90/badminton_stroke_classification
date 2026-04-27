@@ -22,6 +22,8 @@ services:
     volumes:
       # Mount data directory read-only for inference
       - /srv/dev-disk-by-uuid-2d4dc55c-51cd-46ae-a477-544cf0f76bb5/320_cosc594_data:/data/cosc594:ro
+      # Named volume for uploads so files survive container restarts
+      - uploads:/app/uploads
     environment:
       # In prod, same-origin requests through nginx so CORS is not needed,
       # but set to * as a safety net in case anything calls the API directly.
@@ -44,3 +46,5 @@ services:
     depends_on:
       - backend
 
+volumes:
+  uploads:
