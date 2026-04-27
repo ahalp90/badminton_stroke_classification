@@ -17,46 +17,30 @@ Badminton Stroke Classification using AI Computer Vision (Contribution to long-t
 
 ## Local Setup Instructions
 
-Dev currently runs in Python venvs; see subproject READMEs for the pinned environments. The Docker setup below is a work-in-progress target for deployment.
+The project runs in Docker. See `src/bst_refactor/` subproject READMEs for the separate HPC training environments.
 
-### 1. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Build and run
+### 1. Build and run
 
 ```bash
 docker compose up --build
 ```
 
-### 3. Enter container
+Backend API: http://localhost:24082/docs
+Frontend: http://localhost:5173
+
+### 2. Enter the backend container
 
 ```bash
-docker exec -it badminton-dev bash
+docker exec -it badminton-backend bash
 ```
 
-### 4. Verify setup
+### 3. Verify setup
 
 ```bash
 pytest tests/
 ```
 
 If the tests pass, your environment is ready to go.
-
----
-
-## Run API & view in browser
-
-Inside the container:
-
-```bash
-uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Open:
-http://127.0.0.1:8000/docs
 
 ---
 
