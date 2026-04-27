@@ -3,6 +3,10 @@ services:
     build: .
     container_name: badminton-backend
     working_dir: /app
+    # Run as the host user so bind-mounted files are readable/writable by the container
+    # process. UID/GID come from the shell environment (bash sets these automatically).
+    # If hot-reload has permission errors, run: export UID GID && docker compose up
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - .:/app
       - pip-cache:/root/.cache/pip

@@ -33,6 +33,14 @@ RUN pip install --upgrade pip && \
 
 COPY . .
 
+# Run as a non-root user. No fixed UID so the image is portable across team members.
+# Dev compose overrides this with the host user's UID/GID (see docker-compose.yml).
+# Prod uses this user directly since there is no bind mount to worry about.
+RUN useradd -m appuser && \
+    mkdir -p /app/uploads && \
+    chown appuser:appuser /app/uploads
+USER appuser
+
 # Dev default: --reload watches for file changes (code is bind-mounted in docker-compose.yml).
 # Prod overrides this with --workers 2 and no --reload (see docker-compose.prod.yml).
 CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
