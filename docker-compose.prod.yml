@@ -1,0 +1,46 @@
+# Production compose file, used on the server for the demo.
+# Run with: docker compose -f docker-compose.prod.yml up --build -d
+#
+# Architecture:
+#   backend:  FastAPI (no --reload, 2 workers for stability)
+#   frontend: builds the React app and serves it via nginx.
+#             nginx also proxies /api/* to the backend so everything
+#             is on a single port (26138), which cloudflared then tunnels.
+#
+# Inference environment note:
+#   The original pipeline requires 3 separate venvs (pipeline, MMPose, BST) due to
+#   MMPose's numpy < 2.0 constraint. One option under consideration is using mediapipe
+#   as the pose estimator instead. It has no numpy conflict and could run in the same
+#   env as BST, collapsing this to a single container. Pending discussion with the ML
+#   team on whether mediapipe keypoints are compatible with BST's input schema (17 COCO joints).
+
+services:
+  backend:
+    build: .
+    container_name: badminton-backend
+    working_dir: /app
+    volumes:
+      # Mount data directory read-only for inference
+      - /srv/dev-disk-by-uuid-2d4dc55c-51cd-46ae-a477-544cf0f76bb5/320_cosc594_data:/data/cosc594:ro
+    environment:
+      # In prod, same-origin requests through nginx so CORS is not needed,
+      # but set to * as a safety net in case anything calls the API directly.
+      - CORS_ORIGINS=*
+      - DATA_DIR=/data/cosc594
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 2
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: badminton-frontend
+    ports:
+      # Using a non-standard port as the server runs many services and common ports are likely taken.
+      # Cloudflare Tunnel points at this port; change it here if it conflicts with something else.
+      - "26138:80"
+    volumes:
+      # Mount the nginx config so routing rules live in the repo, not the image
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+
