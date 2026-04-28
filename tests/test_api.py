@@ -30,6 +30,22 @@ def test_upload_rejects_unknown_model():
     assert response.status_code == 400
 
 
+def test_upload_rejects_partial_spatial_crop():
+    dummy = ("clip.mp4", io.BytesIO(b"fake video content"), "video/mp4")
+    response = client.post("/api/upload", files={"file": dummy}, params={"crop_x": 10, "crop_y": 10})
+    assert response.status_code == 400
+
+
+def test_upload_rejects_invalid_temporal_crop():
+    dummy = ("clip.mp4", io.BytesIO(b"fake video content"), "video/mp4")
+    response = client.post(
+        "/api/upload",
+        files={"file": dummy},
+        params={"start_sec": 10.0, "end_sec": 5.0},
+    )
+    assert response.status_code == 400
+
+
 def test_status_unknown_job_returns_404():
     response = client.get("/api/status/does-not-exist")
     assert response.status_code == 404
@@ -37,6 +53,11 @@ def test_status_unknown_job_returns_404():
 
 def test_results_unknown_job_returns_404():
     response = client.get("/api/results/does-not-exist")
+    assert response.status_code == 404
+
+
+def test_delete_unknown_job_returns_404():
+    response = client.delete("/api/jobs/does-not-exist")
     assert response.status_code == 404
 
 
@@ -64,6 +85,12 @@ def test_full_job_lifecycle():
     assert "strokes" in body
     assert "rally_summary" in body
     assert len(body["strokes"]) > 0
+
+    deleted = client.delete(f"/api/jobs/{job_id}")
+    assert deleted.status_code == 200
+    assert deleted.json()["deleted"] is True
+
+    assert client.get(f"/api/status/{job_id}").status_code == 404
 
 
 def test_get_models_returns_list():
