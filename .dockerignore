@@ -19,8 +19,9 @@ venv/
 frontend/node_modules/
 frontend/dist/
 
-# Exclude data - mounted as a volume at runtime, not baked into the image
+# Exclude data and runtime uploads - both are mounted as volumes at runtime
 data/
+uploads/
 
 # Exclude notebooks and scratch notes - not needed for serving
 notebooks/
