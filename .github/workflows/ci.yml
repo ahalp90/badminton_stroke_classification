@@ -44,4 +44,6 @@ jobs:
       - name: Run tests
         env:
           UPLOAD_DIR: /tmp/test_uploads
-        run: pytest
+        run: |
+          mkdir -p /tmp/test_uploads
+          pytest
