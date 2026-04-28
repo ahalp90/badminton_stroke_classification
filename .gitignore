@@ -47,3 +47,6 @@ src/bst_refactor/stroke_classification/main_on_shuttleset/preparing_data
 scratch/sticky_anchor_inspection
 # Jupyter lab virtual docs
 .virtual_documents/
+
+# Video uploads — runtime artefact, not tracked
+uploads/
