@@ -52,6 +52,7 @@ async def _cleanup_loop():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     task = asyncio.create_task(_cleanup_loop())
     log.info(
         "startup: cleanup task started (TTL=%ds, interval=%ds)",
