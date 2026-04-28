@@ -42,4 +42,8 @@ jobs:
           pip install pytest
 
       - name: Run tests
-        run: pytest
+        env:
+          UPLOAD_DIR: /tmp/test_uploads
+        run: |
+          mkdir -p /tmp/test_uploads
+          pytest

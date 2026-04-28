@@ -2,17 +2,10 @@
 # Run with: docker compose -f docker-compose.prod.yml up --build -d
 #
 # Architecture:
-#   backend:  FastAPI (no --reload, 2 workers for stability)
+#   backend:  FastAPI (single worker - in-memory job store is not shared across processes)
 #   frontend: builds the React app and serves it via nginx.
 #             nginx also proxies /api/* to the backend so everything
 #             is on a single port (26138), which cloudflared then tunnels.
-#
-# Inference environment note:
-#   The original pipeline requires 3 separate venvs (pipeline, MMPose, BST) due to
-#   MMPose's numpy < 2.0 constraint. One option under consideration is using mediapipe
-#   as the pose estimator instead. It has no numpy conflict and could run in the same
-#   env as BST, collapsing this to a single container. Pending discussion with the ML
-#   team on whether mediapipe keypoints are compatible with BST's input schema (17 COCO joints).
 
 services:
   backend:
@@ -29,7 +22,7 @@ services:
       # but set to * as a safety net in case anything calls the API directly.
       - CORS_ORIGINS=*
       - DATA_DIR=/data/cosc594
-    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 2
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 1
 
   frontend:
     build:
