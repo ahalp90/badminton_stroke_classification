@@ -241,9 +241,12 @@ async def get_models():
     if not EXPERIMENTS_DIR.exists():
         return {"models": []}
 
+    seen = set()
     models = []
     for pt_file in sorted(EXPERIMENTS_DIR.rglob("*.pt")):
-        run = pt_file.parts[-3]
-        models.append({"run": run, "name": pt_file.stem})
+        if pt_file.stem not in seen:
+            seen.add(pt_file.stem)
+            run = pt_file.parts[-3]
+            models.append({"run": run, "name": pt_file.stem})
 
     return {"models": models}
