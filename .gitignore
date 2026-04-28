@@ -48,5 +48,6 @@ scratch/sticky_anchor_inspection
 # Jupyter lab virtual docs
 .virtual_documents/
 
-# Video uploads — runtime artefact, not tracked
-uploads/
+# Video uploads — contents are runtime artefacts, not tracked. Directory is tracked via .gitkeep.
+uploads/*
+!uploads/.gitkeep
