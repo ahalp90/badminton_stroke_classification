@@ -27,9 +27,29 @@ The heuristic runs on the raw MMPose output stored on disk; the expensive MMPose
 
 **Terminology note**: throughout this doc, "foot position" / "projected feet" / "projected ground position" all refer to the **bbox bottom-centre** ((x1+x2)/2, y2 of the detection's bounding box), projected through the homography. This differs from the BST original's `detect_players_2d`, which projects the COCO ankle-midpoint (joints 15 and 16). See "Projection anchor: bbox bottom-centre, not ankle midpoint" in the Design rationale for the divergence and the asymmetric trade-off it implies.
 
-## Current status (2026-04-25)
+## Current status (2026-04-29)
 
-Phase 0, Phase 1 raw extract, heuristic implementation, and Phase 1 mixed retrain are all complete. The decision gate failed; a per-class frame-zeroing audit then ruled out the data-quality-bottleneck hypothesis empirically. Phase 2 is deprioritised (not killed). Focal loss is the next experiment under `arch_1_directions.md` rather than this doc.
+Phase 2 raw extract is now done. The full 32,203-stem unified raw dir lives at `/scratch/comp320a/ShuttleSet_keypoints_raw/` on both bourbaki and engelbart, byte-identical across nodes. Composition: 30,487 freshly extracted on the A100 + V100 across two shards (over ~20 hours wall) plus the 1,716 Phase-1 backfill rsynced in from engelbart's old `_flat_raw_phase1` dir. Verification: file counts match expected (32,203 stems × 5 files = 161,015 npys), `rsync -avn --delete --checksum` clean cross-node, failsafe gate on the 1,716 overlap passed 50/50 with max abs diff 0.000e+00 on `_pos`/`_joints`. Post-extract `ndet` distribution captured at `src/bst_refactor/validation_scripts/raw_ndet_stats_outputs/baseline_2026-04-29.md`: 0% `ndet=0`, 0.53% `ndet=1` floor (irreducible per-frame failure rate for any two-player heuristic), 1.12% `ndet=16` cap exercise, modal `ndet=10`.
+
+Next: `apply_heuristic.py --heuristic sticky_anchor` over the unified raw dir → `/scratch/comp320a/ShuttleSet_keypoints_clean/`, then `validate_zeroed_frames.py` for comparison vs Phase-1 numbers, then collation + sanity train. The motivating decision-gate failure from Phase 1 (mixed retrain didn't lift `Top_wrist_smash`) still holds; the value of doing Phase 2 now is whether removing the heuristic-frame-drop bug from the full training set lifts the wrist_smash floor enough to justify the new clean dir as the canonical training source.
+
+**Update later 2026-04-29:** sticky_anchor now run over the full 32,203-stem unified raw dir; output at `/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor/`, mirrored byte-identical to engelbart. Three `validate_zeroed_frames.py` reports landed (the three active taxonomy + split combos). Direct Phase-1 vs Phase-2 comparison written up at `phase1_vs_phase2_2026-04-29.md` in this dir. Headline: overall fail rate 5.38% -> 0.93%, hit-zone fail rate near hit 5.98% -> 0.58% (the gradient sign flipped, near-hit is now the cleanest zone), per-stroke gains 19x to 76x on the strokes Phase-1 was failing hardest on. Collation + sanity train is the next gate.
+
+**Update even-later 2026-04-29:** collation done for all three active (taxonomy, split) combos; trees at `/scratch/comp320a/ShuttleSet_data_<tax>/npy_<tax>_<split>_dropunk/`, mirrored bourbaki, cross-node byte-identical, per-split clip counts cross-verified by `src/bst_refactor/validation_scripts/verify_collated_counts.py`. `BST_MMPOSE_NPY_DIR` flipped to the new clean dir (`.env.bak.2026-04-29` is the rollback). The pipeline is now end-to-end ready for a sanity-train against the new extract. Decision gate: does `Top_wrist_smash` clear the V4 baseline floor that Phase-1's mixed retrain failed to clear?
+
+### Reproducibility caveat for the legacy nested dirs
+
+The old `/scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat/` (committed Phase-1 filtered extract) and its `_flat_raw_phase1` sibling are the only way to bit-exactly reproduce the V4 / Phase-1 baseline numbers. Once we flip `BST_MMPOSE_NPY_DIR` to the new clean dir and start training against it, those legacy dirs become dead weight from a pipeline-input perspective. They can be deleted to free `/scratch` quota, but if we do we lose exact reproducibility for V4.
+
+Realistically the new extract is a strict improvement: heuristic-frame-drop bug removed across the full set, `N_max=16` consistently applied, sticky_anchor about to run over all 32,203 stems instead of the 1,716 hit-zone subset. Future runs should never come out worse on the same metric. The only thing we'd lose is the ability to re-derive the historical baseline number itself. Keep the legacy dirs around at least until the Phase-2 sanity-train numbers are in and the writeup cites whichever baseline we settle on.
+
+### Unknown class has no pose data
+
+The 1,278 `raw_type_en == 'unknown'` clips were excluded from the Phase-2 extract by `scripts/build_extract_stems.py` because every active taxonomy uses `--drop-unknown`. They have shuttle data but no pose data. If we ever want to use them (most likely as a noise / distractor class for a robustness ablation, since they're literally the garbage bucket), we'd need a sibling extract. Suggested layout: `/scratch/comp320a/ShuttleSet_keypoints_raw_unknown/` with the same five-file-per-stem schema, kept clearly separate from the canonical raw dir so it can never accidentally enter the training set via a permissive glob. Roughly 17 hours single-process at the observed bourbaki rate. Not blocking anything currently scoped.
+
+## Earlier status (2026-04-25)
+
+Phase 0, Phase 1 raw extract, heuristic implementation, and Phase 1 mixed retrain are all complete. The decision gate failed; a per-class frame-zeroing audit then ruled out the data-quality-bottleneck hypothesis empirically. Phase 2 was deprioritised (not killed) at this point. Focal loss is the next experiment under `arch_1_directions.md` rather than this doc.
 
 - **Raw extract** (1,716 hit-zone-busted clips, `N_max = 16`) at `_flat_raw_phase1/`. 0.79% of frames hit the cap; sufficient.
 - **`sticky_anchor` implemented and run** on the full 1,716. Output at `_flat_h_sticky_anchor/`. Wall time 54 s on engelbart.
