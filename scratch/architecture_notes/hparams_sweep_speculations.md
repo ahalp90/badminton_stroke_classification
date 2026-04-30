@@ -106,35 +106,71 @@ pre-flight scripts)**:
   support count, so 600-sample classes lose more than 2,400-sample
   classes to the same smoothing constant.
 
-**Implications for the runbook**:
+**Implications for the runbook (revised 2026-05-01 after the LS=0.0
+cell landed)**:
 
-- **Label smoothing sweep is now the highest-priority loss-side
-  experiment**, ahead of focal. Cheaper to test and the failure
-  profile matches its predicted effect more directly.
-- **Run LS sweep on combo A first** (`une_merge_v1_nosides`),
-  not combo B. Combo A's collapsed-classes structure already
-  pools the gradient signal between would-be-Top and would-be-
-  Bottom mirror classes, so LS reduction sharpens a boundary
-  that's already trained on the pooled data with no risk of
-  side-conditional overfit. Combo B requires pairing LS with
-  horizontal-flip augmentation (with COCO left/right joint-pair
-  index swap) to defuse that overfit risk and provide 2x effective
-  training data for the small-support classes. Run combo A first
-  to get a clean LS signal; only port to combo B if combo A lifts.
-- **Mask-channel arm demoted**. Variant 2 design still works but
-  would help services / clears / lobs (already at 0.95+ F1)
+- **The LS-as-rare-class-tax hypothesis is disproved on combo A
+  nosides.** Cell 1 ran LS=0.0 vs the LS=0.1 baseline
+  `run_20260430_170325` and lifted nothing: head metrics flat
+  (+0.001 macro / +0.001 acc / +0.001 top-2), mean wrist_smash
+  dropped 1.6 pp (0.375 to 0.359), best-of-run wrist_smash dropped
+  5.5 pp (0.459 LS=0.1 S5 to 0.404 LS=0.0 S2). Variance tightened
+  on wrist_smash (range 0.069 vs 0.159) but the band shifted
+  lower, not higher. LS=0.1 was either neutral or slightly helping
+  the rare class on this taxonomy, not hurting it. Cell 2 LS=0.15
+  is in flight as the second axis point; if it doesn't lift mean
+  wrist_smash above ~0.40, the LS axis is closed and downstream
+  cells use LS=0.1.
+- **Class weighting is now the next gate, not focal.** The count-
+  vs-difficulty decoupling on combo A (wrist_smash is 5th-rarest
+  by count but bottom by F1; long_service is rarest by count but
+  at F1 0.99) means standard count-based reweighting schemes
+  (inverse-freq, inverse-sqrt, effective-number) barely upweight
+  wrist_smash itself — they upweight long_service and rush, which
+  are at saturation. Manual pair-balanced weights on the
+  wrist_smash + smash confusion pair (both at 2.0) is the direct
+  smoke test of "can loss reweighting move the bottleneck at
+  all". Code branch landed in `bst_train.py:79-, :301-`; activation
+  is one line in the active hyp block. Combo A first (same
+  taxonomy as the LS arc, clean comparison against
+  `run_20260430_170325`).
+- **Focal loss now gated on the class-weighting result.** If
+  pair-balanced weighting moves wrist_smash F1, manually-alpha
+  focal (same pair, `(1-p_t)^gamma` on top) is the natural
+  refinement. If it doesn't move, vanilla focal is unlikely to
+  either; pivot to augmentation. Vanilla focal at gamma=1.0 is
+  the conservative starting point given the 979-sample wrist_smash
+  + ShuttleSet annotation-noise context (focal at higher gamma is
+  known to amplify label noise; Wang et al. 2019, Sinha et al.
+  2022).
+- **Class-F1-driven adaptive focal queued as a research arm.**
+  CDB-loss (Sinha et al. 2022 CVIU), Seesaw loss (Wang et al.
+  CVPR 2021), EQL v2 (Tan et al. CVPR 2021). The count-vs-
+  difficulty decoupling here makes per-class-F1-driven alpha
+  conceptually the best-targeted form of class-balanced focal,
+  but it isn't a drop-in pytorch primitive. Self-contained
+  exploration prompt at
+  `scratch/architecture_notes/class_f1_focal_exploration_prompt.md`.
+- **Mask-channel arm still demoted.** Variant 2 design still works
+  but would help services / clears / lobs (already at 0.95+ F1)
   rather than rescuing the bottleneck classes.
 - **Trajectory extrapolation flagged as a future direction** for
   the 11-60 frame off-screen-arc gaps, but not near-term because
   the bottleneck isn't on the high-arc classes.
 
-**Highest-priority near-term experiments**, in order: LS sweep on
-combo A nosides [0.0, 0.05] (cheapest test of the confirmed
-loss-side diagnosis, no aug change), if-lifts → LS+x-flip joint
-sweep on combo B (rescues the un-pooled 28-class case), focal loss
-(already specced), weight decay sweep, augmentation tighten/off,
-`depth_inter=1 → 2` cell. Lower-priority items deferred until the
-training-side knobs settle.
+**Highest-priority near-term experiments (revised 2026-05-01)**,
+in order: LS=0.15 cell finishes (in flight, second LS axis point);
+class-weighting smoke test on combo A nosides
+(`{'wrist_smash': 2.0, 'smash': 2.0}`, prepped); focal loss arm
+gated on class-weighting (vanilla sample-based at gamma=1.0 if
+class weighting failed, manually-alpha focal at gamma=1.0 with the
+same 2.0/2.0 pair if class weighting succeeded); class-F1-driven
+adaptive focal as the research-arm refinement; horizontal-flip
+augmentation with COCO joint-pair swap (gated on loss-side knobs
+proving exhausted, or run anyway as the natural intermediate
+before X3D-S); weight decay sweep; `depth_inter=1 → 2` cell.
+Lower-priority items deferred until the training-side knobs
+settle.
 
 ## Inherited-vs-tuned audit
 
