@@ -724,6 +724,16 @@ we see whether the residual confusion shows up in the smoke run.
 
 ---
 
+## Alternatives ruled out
+
+Logged here so the rejected branches don't get reanalysed. Scoped out of the loss-side design pass:
+
+- **Count-based per-class weighting** (inverse-frequency, inverse-sqrt, Cui et al. effective-number) — count and difficulty are decoupled on combo A; rejected in §2.
+- **Soft-F1 / Dice / Tversky standalone losses** — different axis (replace CE entirely rather than reweight it).
+- **Sample-level curriculum, mixup, cutmix, OHEM** — data/sample side, not loss side.
+- **Optimiser, LR schedule, architectural changes** — outside the loss-side axis under investigation.
+- **Anything requiring labelled metadata beyond the class label** — only have the class label.
+
 ## Final recommendation
 
 **Implement after Cell 1 (class-weighting smoke test) and Cell 2

@@ -114,6 +114,8 @@ def main() -> int:
         seq_len=seq_len,
         in_channels=in_channels,
         taxonomy=taxonomy,
+        n_active_classes=taxonomy.n_classes,
+        active_class_list=taxonomy.class_list(),
     )
     task.load_weight(weight_path)
     preds = task.infer()

@@ -106,71 +106,72 @@ pre-flight scripts)**:
   support count, so 600-sample classes lose more than 2,400-sample
   classes to the same smoothing constant.
 
-**Implications for the runbook (revised 2026-05-01 after the LS=0.0
-cell landed)**:
+**Implications for the runbook (revised 2026-05-01 after the LS arc
+closed and the class-weighting smoke test landed)**:
 
-- **The LS-as-rare-class-tax hypothesis is disproved on combo A
-  nosides.** Cell 1 ran LS=0.0 vs the LS=0.1 baseline
-  `run_20260430_170325` and lifted nothing: head metrics flat
-  (+0.001 macro / +0.001 acc / +0.001 top-2), mean wrist_smash
-  dropped 1.6 pp (0.375 to 0.359), best-of-run wrist_smash dropped
-  5.5 pp (0.459 LS=0.1 S5 to 0.404 LS=0.0 S2). Variance tightened
-  on wrist_smash (range 0.069 vs 0.159) but the band shifted
-  lower, not higher. LS=0.1 was either neutral or slightly helping
-  the rare class on this taxonomy, not hurting it. Cell 2 LS=0.15
-  is in flight as the second axis point; if it doesn't lift mean
-  wrist_smash above ~0.40, the LS axis is closed and downstream
-  cells use LS=0.1.
-- **Class weighting is now the next gate, not focal.** The count-
-  vs-difficulty decoupling on combo A (wrist_smash is 5th-rarest
-  by count but bottom by F1; long_service is rarest by count but
-  at F1 0.99) means standard count-based reweighting schemes
-  (inverse-freq, inverse-sqrt, effective-number) barely upweight
-  wrist_smash itself — they upweight long_service and rush, which
-  are at saturation. Manual pair-balanced weights on the
-  wrist_smash + smash confusion pair (both at 2.0) is the direct
-  smoke test of "can loss reweighting move the bottleneck at
-  all". Code branch landed in `bst_train.py:79-, :301-`; activation
-  is one line in the active hyp block. Combo A first (same
-  taxonomy as the LS arc, clean comparison against
-  `run_20260430_170325`).
-- **Focal loss now gated on the class-weighting result.** If
-  pair-balanced weighting moves wrist_smash F1, manually-alpha
-  focal (same pair, `(1-p_t)^gamma` on top) is the natural
-  refinement. If it doesn't move, vanilla focal is unlikely to
-  either; pivot to augmentation. Vanilla focal at gamma=1.0 is
-  the conservative starting point given the 979-sample wrist_smash
-  + ShuttleSet annotation-noise context (focal at higher gamma is
-  known to amplify label noise; Wang et al. 2019, Sinha et al.
-  2022).
-- **Class-F1-driven adaptive focal queued as a research arm.**
-  CDB-loss (Sinha et al. 2022 CVIU), Seesaw loss (Wang et al.
-  CVPR 2021), EQL v2 (Tan et al. CVPR 2021). The count-vs-
-  difficulty decoupling here makes per-class-F1-driven alpha
-  conceptually the best-targeted form of class-balanced focal,
-  but it isn't a drop-in pytorch primitive. Self-contained
-  exploration prompt at
-  `scratch/architecture_notes/class_f1_focal_exploration_prompt.md`.
-- **Mask-channel arm still demoted.** Variant 2 design still works
-  but would help services / clears / lobs (already at 0.95+ F1)
-  rather than rescuing the bottleneck classes.
+- **LS arc closed; LS=0.15 won.** Three cells run on combo A
+  nosides. LS=0.0 disproved the rare-class-tax hypothesis (mean
+  wrist_smash -1.6 pp vs LS=0.1 baseline). LS=0.15
+  (`run_20260501_073430`) lifted mean wrist_smash 0.375 → 0.417
+  (+4.2 pp) with head metrics flat and the wrist_smash range
+  tightening 0.159 → 0.066. **LS=0.15 kept active for downstream
+  cells.** LS=0.05 skipped (two bracketing data points enough);
+  LS=0.2 deferred behind the focal arm.
+- **Class-weighting smoke test landed without a mean shift but
+  with a new ceiling.** `run_20260501_110525` (combo A nosides +
+  LS=0.15 + `class_weights={'wrist_smash': 2.0, 'smash': 2.0}`)
+  added essentially zero on the central tendency past LS=0.15
+  alone (+0.005 mean wrist_smash, inside seed variance). But the
+  upper end of the achievable distribution shifted clearly: S2
+  hit wrist_smash 0.518 — first nosides serial to clear 0.50, and
+  a +6 pp project-wide ceiling break (prior best 0.46 LS=0.1 S5).
+  S4 of the same run set new ceilings on macro 0.756, acc 0.777,
+  and drive 0.66. **Bimodal seed distribution**: one seed found a
+  wrist_smash basin no prior nosides serial accessed, three
+  others stayed in the LS=0.1-baseline range around 0.37-0.40.
+  Diagnosis: static loss reweighting moves the *ceiling* but not
+  the *mean*; the loss-side axis is not exhausted, the issue is
+  consistency across seeds.
+- **Basic focal skipped per project decision.** Vanilla focal
+  `(1-p_t)^γ * -log(p_t)` and manually-alpha focal `α[c] *
+  (1-p_t)^γ * -log(p_t)` are the same lever as class-weighted CE,
+  just gated by per-sample confidence. Adding `(1-p_t)^γ` on top
+  of pair-balanced 2.0/2.0 alpha would hit the same central-
+  tendency ceiling that the smoke test already hit. Skipping the
+  intermediate cells.
+- **Class-F1-driven adaptive focal (CDB-F1) is the immediate
+  next loss-side cell.** Per-class alpha = `(1 - F1_c)^τ` with
+  EMA-smoothed running per-class train F1, optionally composed
+  with focal `(1-p_t)^γ`. Targets the bimodal failure mode:
+  persistently-low-F1 classes get escalated alpha, which can
+  push bad seeds toward the wrist_smash basin S2 found. Design
+  doc verified against the ACCV 2020 paper at
+  `scratch/architecture_notes/class_f1_focal_design.md`.
+  Implementation surface ~120-line module + ~25 lines across 6
+  edits in `bst_train.py`.
+- **Pair-aware Seesaw-F1 held as second arm.** Design at
+  `scratch/architecture_notes/seesaw_f1_focal_design.md` (verified
+  against the CVPR 2021 paper). Larger code surface (~180 lines +
+  custom logsumexp forward) and not invoked unless CDB-F1 lifts
+  wrist_smash mean but at smash's expense.
+- **Mask-channel arm still demoted.** Variant 2 design still
+  works but would help services / clears / lobs (already at
+  0.95+ F1) rather than rescuing the bottleneck classes.
 - **Trajectory extrapolation flagged as a future direction** for
   the 11-60 frame off-screen-arc gaps, but not near-term because
   the bottleneck isn't on the high-arc classes.
 
 **Highest-priority near-term experiments (revised 2026-05-01)**,
-in order: LS=0.15 cell finishes (in flight, second LS axis point);
-class-weighting smoke test on combo A nosides
-(`{'wrist_smash': 2.0, 'smash': 2.0}`, prepped); focal loss arm
-gated on class-weighting (vanilla sample-based at gamma=1.0 if
-class weighting failed, manually-alpha focal at gamma=1.0 with the
-same 2.0/2.0 pair if class weighting succeeded); class-F1-driven
-adaptive focal as the research-arm refinement; horizontal-flip
-augmentation with COCO joint-pair swap (gated on loss-side knobs
-proving exhausted, or run anyway as the natural intermediate
-before X3D-S); weight decay sweep; `depth_inter=1 → 2` cell.
-Lower-priority items deferred until the training-side knobs
-settle.
+in order: CDB-F1 implementation + first cell on combo A nosides
+(LS=0 forced in the focal branch; comparison vs LS=0.1 baseline
+and vs the run_20260501_110525 class-weighted cell that produced
+the S2 ceiling); dynamic-τ CDB-F1 follow-up if fixed τ partially
+lifts; Seesaw-F1 only if CDB-F1 lifts wrist_smash but smash drops;
+horizontal-flip augmentation with COCO joint-pair swap (gated on
+loss-side knobs proving exhausted, or run anyway as the natural
+intermediate before X3D-S); weight decay sweep; `depth_inter=1 →
+2` cell. Lower-priority items deferred until the loss-side arc
+settles.
 
 ## Inherited-vs-tuned audit
 
