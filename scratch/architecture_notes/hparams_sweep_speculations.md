@@ -8,7 +8,7 @@ detectable.*
 
 This doc speculates on which static defaults are worth exploring
 once the focal-loss / class-weighting / label-smoothing / augmentation
-arc completes. The framing is: what do these knobs actually do,
+runs settle. The framing is: what do these knobs actually do,
 which are likely to move the needle, and what would a defensible
 sweep budget look like? It also walks through the frame-zeroing
 question raised on 2026-04-30, with the real Phase-2 numbers from
@@ -27,8 +27,8 @@ flipping). All BST-paper defaults; neither BST nor TemPose swept
 any of these knobs (TemPose did sweep depth and `(DL, DA)`, BST
 did neither).
 
-**Likeliest single-knob lever after the loss/class-weighting arc
-finishes**: weight decay. Cheapest-of-all to test because it's a
+**Likeliest single-knob lever after the loss / class-weighting
+work finishes**: weight decay. Cheapest-of-all to test because it's a
 one-line config swap with no code change. Sane sweep [0.0, 0.05,
 0.1] vs the AdamW default 0.01.
 
@@ -77,8 +77,8 @@ If focal loss specifically targets tail performance, BST-AP-only
 under focal is worth a re-check. (3) 2D pose beats 3D pose for
 badminton on every metric; rules out the 3D pose direction.
 
-**Run-budget total**: ~105-140 A100-hours including the existing
-focal/LS/aug arc. Roughly two weeks of overnight runs at one combo
+**Run-budget total**: ~105-140 A100-hours including the focal /
+LS / aug work. Roughly two weeks of overnight runs at one combo
 per night.
 
 **Shuttle-missing diagnosis (verified 2026-04-30 via the three
@@ -106,17 +106,18 @@ pre-flight scripts)**:
   support count, so 600-sample classes lose more than 2,400-sample
   classes to the same smoothing constant.
 
-**Implications for the runbook (revised 2026-05-01 after the LS arc
-closed and the class-weighting smoke test landed)**:
+**Implications for the runbook (revised 2026-05-02 after the
+loss-side experiments closed and capacity-bottleneck research
+landed)**:
 
-- **LS arc closed; LS=0.15 won.** Three cells run on combo A
+- **LS sweep wrapped; LS=0.15 won.** Three runs on combo A
   nosides. LS=0.0 disproved the rare-class-tax hypothesis (mean
   wrist_smash -1.6 pp vs LS=0.1 baseline). LS=0.15
   (`run_20260501_073430`) lifted mean wrist_smash 0.375 → 0.417
   (+4.2 pp) with head metrics flat and the wrist_smash range
   tightening 0.159 → 0.066. **LS=0.15 kept active for downstream
-  cells.** LS=0.05 skipped (two bracketing data points enough);
-  LS=0.2 deferred behind the focal arm.
+  runs.** LS=0.05 skipped (two bracketing data points enough);
+  LS=0.2 deferred.
 - **Class-weighting smoke test landed without a mean shift but
   with a new ceiling.** `run_20260501_110525` (combo A nosides +
   LS=0.15 + `class_weights={'wrist_smash': 2.0, 'smash': 2.0}`)
@@ -130,30 +131,47 @@ closed and the class-weighting smoke test landed)**:
   wrist_smash basin no prior nosides serial accessed, three
   others stayed in the LS=0.1-baseline range around 0.37-0.40.
   Diagnosis: static loss reweighting moves the *ceiling* but not
-  the *mean*; the loss-side axis is not exhausted, the issue is
-  consistency across seeds.
+  the *mean*.
 - **Basic focal skipped per project decision.** Vanilla focal
   `(1-p_t)^γ * -log(p_t)` and manually-alpha focal `α[c] *
   (1-p_t)^γ * -log(p_t)` are the same lever as class-weighted CE,
   just gated by per-sample confidence. Adding `(1-p_t)^γ` on top
   of pair-balanced 2.0/2.0 alpha would hit the same central-
-  tendency ceiling that the smoke test already hit. Skipping the
-  intermediate cells.
-- **Class-F1-driven adaptive focal (CDB-F1) is the immediate
-  next loss-side cell.** Per-class alpha = `(1 - F1_c)^τ` with
-  EMA-smoothed running per-class train F1, optionally composed
-  with focal `(1-p_t)^γ`. Targets the bimodal failure mode:
-  persistently-low-F1 classes get escalated alpha, which can
-  push bad seeds toward the wrist_smash basin S2 found. Design
-  doc verified against the ACCV 2020 paper at
-  `scratch/architecture_notes/class_f1_focal_design.md`.
-  Implementation surface ~120-line module + ~25 lines across 6
-  edits in `bst_train.py`.
-- **Pair-aware Seesaw-F1 held as second arm.** Design at
+  tendency ceiling that the smoke test already hit. Skipped.
+- **CDB-F1 fully explored; ceiling firmly mapped.** Per-class
+  alpha = `(1 - F1_c)^τ` with EMA-smoothed running per-class
+  train F1, composed with focal `(1-p_t)^γ`. Design verified
+  against the ACCV 2020 paper at
+  `scratch/architecture_notes/class_f1_focal_design.md`. First
+  run `run_20260501_164658` (tau=1, gamma=1) lifted mean
+  wrist_smash +8.7 pp on the LS=0.1 baseline; push +6.7 picked
+  up automatically; bimodal-seed problem solved (range 0.140 →
+  0.073). Cost: smash -5.5 (pair-confusion), small symmetric
+  drops on rush / drive / drop / services. Four follow-ups —
+  gamma=0 (`run_20260501_192113`), tau=0.5
+  (`run_20260501_192519`), pair-cap (`run_20260501_230252`,
+  ratio=0.7 between alpha[smash] and alpha[wrist_smash]), and
+  gamma=2 (`run_20260502_075808`) — all traded ws back for smash
+  without macro moving. The first run is the floor-lift sweet
+  spot; smash pair-confusion is structural and scalar-per-class
+  alpha can't resolve it. No CDB run breaks the val/test plateau
+  at 0.74-0.75 macro.
+- **Capacity-bottleneck research done (2026-05-02).** Writeup at
+  `scratch/architecture_notes/model_capacity_bottleneck_question.md`
+  argues the plateau is data-bound and signal-bound rather than
+  capacity-bound. BST at 1.85M params on 32K clips sits in the
+  converged 1-3M zone for skeleton-AR. Famous from-scratch video
+  AR baselines (X3D-M 3.76M, MoViNet-A0 3.1M) are 1.5-2x BST;
+  flagship transformers (Video Swin-T) need ImageNet pretraining.
+  Pure widening expected 0-2 pp on test macro. Two cheap
+  capacity bumps queued for confirmation: `mlp_head` 400 → 768
+  and `d_model` 100 → 128 with `d_head` trim 128 → 32 (the
+  Voita-style head trim pairs with the residual-stream widen).
+- **Pair-aware Seesaw-F1 held.** Design at
   `scratch/architecture_notes/seesaw_f1_focal_design.md` (verified
-  against the CVPR 2021 paper). Larger code surface (~180 lines +
-  custom logsumexp forward) and not invoked unless CDB-F1 lifts
-  wrist_smash mean but at smash's expense.
+  against the CVPR 2021 paper). Held as a targeted second
+  loss-side arm only if a future signal-side gain reopens the
+  smash↔ws pair-confusion question.
 - **Mask-channel arm still demoted.** Variant 2 design still
   works but would help services / clears / lobs (already at
   0.95+ F1) rather than rescuing the bottleneck classes.
@@ -161,17 +179,15 @@ closed and the class-weighting smoke test landed)**:
   the 11-60 frame off-screen-arc gaps, but not near-term because
   the bottleneck isn't on the high-arc classes.
 
-**Highest-priority near-term experiments (revised 2026-05-01)**,
-in order: CDB-F1 implementation + first cell on combo A nosides
-(LS=0 forced in the focal branch; comparison vs LS=0.1 baseline
-and vs the run_20260501_110525 class-weighted cell that produced
-the S2 ceiling); dynamic-τ CDB-F1 follow-up if fixed τ partially
-lifts; Seesaw-F1 only if CDB-F1 lifts wrist_smash but smash drops;
-horizontal-flip augmentation with COCO joint-pair swap (gated on
-loss-side knobs proving exhausted, or run anyway as the natural
-intermediate before X3D-S); weight decay sweep; `depth_inter=1 →
-2` cell. Lower-priority items deferred until the loss-side arc
-settles.
+**Highest-priority near-term experiments (revised 2026-05-02)**,
+in order: capacity-bump confirmation runs (`mlp_head` 400 → 768
+then `d_model` 100 → 128 with `d_head` trim, both vs
+`run_20260501_164658`); horizontal-flip augmentation with COCO
+joint-pair swap (the natural intermediate before X3D-S, useful
+regardless of capacity-bump outcome); X3D-S fusion build (long-term
+primary direction; the lever capacity research argues actually
+addresses the data/signal bottleneck); weight decay sweep;
+`depth_inter=1 → 2` run.
 
 ## Inherited-vs-tuned audit
 
@@ -255,7 +271,7 @@ results. Most useful constraints fall into five buckets.
    so 3D-projected joints "exhibit a broader range of poses than
    those specific to badminton players", with explicit visual
    evidence (Fig. C) of the 3D pose mis-estimating the player's
-   facing direction. **This rules out the MotionBERT / 3D pose arc
+   facing direction. **This rules out MotionBERT / 3D pose
    as a useful direction unless we get a badminton-specific 3D
    model.** Already aligned with the project's `use_3d_pose=False`
    default; the speculation has empirical backing.
@@ -325,7 +341,7 @@ results. Most useful constraints fall into five buckets.
    pulling the centre of the distribution up. Combining CG and AP
    *helps the head and hurts the tail* in this table. This is buried
    and not commented on by the authors. If our focal-loss /
-   class-weighting arc lifts tail performance specifically, **the
+   class-weighting work lifts tail performance specifically, **the
    paired CG-AP module set may need re-evaluation against AP-only
    under the new loss**; it's possible the CG denoising step that
    helps overall accuracy is also denoising signal that the focal
@@ -1364,43 +1380,36 @@ plan the rest as informed-by-results.
     most needed; bottleneck is on the classifier side. See "Why is
     the shuttle missing rate so high?" subsection above.
 
-1. **Label smoothing sweep on combo A nosides first [0.0, 0.05]
-   (no aug change required)**. Tests the verified loss-side
-   diagnosis on the combo where the side-pooling concern (point 1a
-   below) is structurally defused. One-line config swap. 2 cells
-   × 5 serials = 10 serials, ~10-15 hours on A100. Combo A's
-   wrist_smash floor is already at ~0.40 mean (collapse-rescue
-   pooled the gradient signal across what would have been
-   Top_wrist_smash and Bottom_wrist_smash); LS reduction here
-   sharpens a boundary that's already trained on the pooled data,
-   no risk of side-conditional overfitting. If lift is visible
-   here, promote to step 1a; if flat, pivot to focal at step 2.
-1a. **LS sweep + horizontal-flip augmentation on combo B** (gated
-    on step 1 showing lift). For the 28-class une_merge_v1
-    taxonomy, where the wrist_smash gate failure is most visible
-    (combo B mean min 0.317, S4 wrist_smash 0.245). LS reduction
-    alone risks sharpening side-conditional overfit boundaries on
-    the 600-sample classes (the y-coord literally distinguishes
-    Top from Bottom; LS=0 lets the model lean on it harder).
-    X-flip aug at prob 0.3 with COCO left/right joint-pair index
-    swap addresses this two ways: (a) doubles effective training
-    data per small-support class without changing labels, (b)
-    forces left-right invariance in the learnt features, reducing
-    the model's reliance on absolute x-position cues. Combo B is
-    the right test bed because combo A's side-pooling is already
-    structural, so the aug only adds a marginal data-doubling
-    effect there. Implementation: ~30 min to author a
-    `RandomHorizontalFlip_batch` sibling to the existing
-    `RandomTranslation_batch` in `shuttleset_dataset.py:121`,
-    including the COCO_FLIP_PAIRS permutation. 4 cells (2 LS
-    values × with/without flip) × 5 serials = 20 serials,
-    ~20-25 hr on A100.
-2. **Focal loss**: already specced. Test third, after LS settles.
-   Same target as LS (the tail of the F1 distribution) but with a
-   different mechanism (per-sample weighting rather than per-class
-   confidence tax).
+1. **Label smoothing sweep on combo A nosides** — **DONE
+   (2026-05-01)**. Three runs landed; LS=0.15 won (+4.2 pp on
+   mean wrist_smash vs LS=0.1 baseline; head metrics flat; range
+   tightens 0.159 → 0.066). LS=0.0 disproved the rare-class-tax
+   hypothesis. LS=0.05 skipped (two bracketing data points
+   enough); LS=0.2 deferred. Full numbers in `arch_1_directions.md`.
+1a. **LS sweep + horizontal-flip augmentation on combo B**
+    (originally gated on step 1 showing lift). Held: combo A
+    LS sweep wrapped without combo B re-test being needed for
+    the immediate next step. Re-evaluate when augmentation work
+    starts as a standalone arm.
+2. **Focal loss / CDB-F1** — **DONE (2026-05-02)**. Class-F1-
+   driven adaptive focal fully explored (5 runs); first run
+   tau=1 / gamma=1 was the floor-lift sweet spot at +8.7 pp
+   wrist_smash on LS=0.1 baseline. All four follow-ups (gamma=0,
+   tau=0.5, pair-cap, gamma=2) traded ws back for smash without
+   macro moving. No CDB run breaks the val/test plateau at
+   0.74-0.75 macro. Loss-side ceiling firmly mapped. Full
+   numbers in `arch_1_directions.md`.
+2a. **Capacity-bump confirmation runs** — **NEW PRIORITY
+    (2026-05-02)**, ahead of the items below. Capacity-bottleneck
+    research at `scratch/architecture_notes/model_capacity_bottleneck_question.md`
+    argues the plateau is data-bound and signal-bound. Two cheap
+    confirmatory runs while compute is around: `mlp_head` hidden
+    400 → 768 (surgical, classifier-side only), then `d_model`
+    100 → 128 with `d_head` trim 128 → 32 (residual-stream widen
+    paired with Voita-style head trim). Both vs `run_20260501_164658`.
+    Expected gain 0-2 pp on test macro.
 3. **Weight decay sweep [0.0, 0.05, 0.1]**: single-arm, cheapest
-   architectural-side win after the loss-side knobs settle.
+   architectural-side win after the capacity-bump runs settle.
 4. **Augmentation magnitude sweep** (tighten / off): clarifies
    how aggressive the existing shift aug actually is. Skip if
    step 1a's flip-aug already settled the augmentation regime.

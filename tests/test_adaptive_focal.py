@@ -1,6 +1,6 @@
 """Tests for the class-F1-driven adaptive focal loss.
 
-Covers six sections matching the implementation surface in
+Covers eight sections matching the implementation surface in
 ``scratch/architecture_notes/class_f1_focal_design.md``:
 
 1. ``per_class_f1_from_counts`` numerical correctness.
@@ -13,6 +13,9 @@ Covers six sections matching the implementation surface in
 5. Forward/backward gradient flow + per-class gradient scaling.
 6. State persistence via ``state_dict`` / ``.to(device)`` and constructor
    validation.
+7. End-to-end mini training loop covering warm-up gate + alpha freshness.
+8. Pair caps: bump math, no-op when above ratio, mean preservation,
+   redistribution, multi-pair, and validation.
 
 CPU-only. Run from repo root::
 
@@ -590,3 +593,175 @@ def test_end_to_end_mini_loop():
     assert (loss_fn.f1_running < 1.0).all()
     # Epoch counter advanced exactly four times.
     assert loss_fn.epoch == 4
+
+
+# ---------------------------------------------------------------------------
+# Section 8: Pair caps
+# ---------------------------------------------------------------------------
+
+def test_pair_cap_below_threshold_bumps_to_ratio():
+    """When alpha[numer]/alpha[denom] < ratio, alpha[numer] is lifted to
+    ratio * alpha[denom] and the bump is subtracted from the other classes."""
+    # tau=1, momentum=0 makes alpha closed-form: (1-F1) renormalised to mean 1.
+    # F1=[0.9, 0.5, 0.1] -> (1-F1)=[0.1, 0.5, 0.9] -> alpha=[0.2, 1.0, 1.8].
+    # Cap (numer='a', denom='c', ratio=0.5): target alpha[a] = 0.5 * 1.8 = 0.9.
+    # bump = 0.9 - 0.2 = 0.7, redistributed over n_other=1 (only 'b').
+    # Expected final alpha: [0.9, 0.3, 1.8], mean=1.0.
+    loss_fn = AdaptiveFocalLoss(
+        n_classes=3, class_names=['a', 'b', 'c'],
+        tau=1.0, momentum=0.0, warm_up_epochs=0,
+        pair_caps=[{'numer': 'a', 'denom': 'c', 'ratio': 0.5}],
+    )
+    loss_fn.update_alpha(torch.tensor([0.9, 0.5, 0.1]))
+    assert torch.allclose(
+        loss_fn.alpha,
+        torch.tensor([0.9, 0.3, 1.8]),
+        atol=1e-6,
+    )
+    assert torch.isclose(loss_fn.alpha.mean(), torch.tensor(1.0), atol=1e-6)
+    # Cap exactly held.
+    ratio = (loss_fn.alpha[0] / loss_fn.alpha[2]).item()
+    assert ratio == pytest.approx(0.5, abs=1e-6)
+
+
+def test_pair_cap_above_threshold_no_op():
+    """When the cap is already satisfied, alpha is unchanged."""
+    # Same alpha=[0.2, 1.0, 1.8] but ratio=0.05; 0.2/1.8 = 0.111 >= 0.05.
+    loss_fn = AdaptiveFocalLoss(
+        n_classes=3, class_names=['a', 'b', 'c'],
+        tau=1.0, momentum=0.0, warm_up_epochs=0,
+        pair_caps=[{'numer': 'a', 'denom': 'c', 'ratio': 0.05}],
+    )
+    loss_fn.update_alpha(torch.tensor([0.9, 0.5, 0.1]))
+    assert torch.allclose(
+        loss_fn.alpha,
+        torch.tensor([0.2, 1.0, 1.8]),
+        atol=1e-6,
+    )
+
+
+def test_pair_cap_preserves_mean_one():
+    """Random F1 vectors with cap engaged: mean alpha stays 1.0."""
+    g = torch.Generator().manual_seed(11)
+    loss_fn = AdaptiveFocalLoss(
+        n_classes=14, class_names=[f'c{i}' for i in range(14)],
+        tau=1.0, momentum=0.5, warm_up_epochs=0,
+        pair_caps=[{'numer': 'c0', 'denom': 'c13', 'ratio': 0.7}],
+    )
+    for _ in range(10):
+        f1 = torch.rand(14, generator=g)
+        loss_fn.update_alpha(f1)
+        assert torch.isclose(loss_fn.alpha.mean(), torch.tensor(1.0), atol=1e-6)
+
+
+def test_pair_cap_redistribution_uniform_on_others():
+    """The bump cost is split equally across the n - 2 'other' classes."""
+    # F1=[0.95, 0.5, 0.5, 0.5, 0.05]; (1-F1)=[0.05, 0.5, 0.5, 0.5, 0.95].
+    # sum=2.5, n=5 -> alpha=[0.1, 1.0, 1.0, 1.0, 1.9].
+    # Cap (numer='a', denom='e', ratio=0.5): target alpha[a]=0.95.
+    # bump=0.85, n_other=3, each of {b, c, d} loses 0.85/3 ≈ 0.2833.
+    # alpha[b]=alpha[c]=alpha[d] = 1.0 - 0.2833 = 0.7167.
+    loss_fn = AdaptiveFocalLoss(
+        n_classes=5, class_names=['a', 'b', 'c', 'd', 'e'],
+        tau=1.0, momentum=0.0, warm_up_epochs=0,
+        pair_caps=[{'numer': 'a', 'denom': 'e', 'ratio': 0.5}],
+    )
+    loss_fn.update_alpha(torch.tensor([0.95, 0.5, 0.5, 0.5, 0.05]))
+    expected = torch.tensor(
+        [0.95, 1.0 - 0.85 / 3, 1.0 - 0.85 / 3, 1.0 - 0.85 / 3, 1.9]
+    )
+    assert torch.allclose(loss_fn.alpha, expected, atol=1e-5)
+    # The three "other" classes share the bump cost identically.
+    assert torch.isclose(loss_fn.alpha[1], loss_fn.alpha[2], atol=1e-6)
+    assert torch.isclose(loss_fn.alpha[2], loss_fn.alpha[3], atol=1e-6)
+    # alpha[denom] is untouched by this cap, only the bump on numer + the
+    # subtractive correction on the off-pair classes runs.
+    assert torch.isclose(loss_fn.alpha[4], torch.tensor(1.9), atol=1e-6)
+
+
+def test_pair_cap_multi_pair_both_engage():
+    """Two non-overlapping caps both fire and the mean stays 1.0.
+
+    Pairs share no class, but the redistribution still bleeds across them
+    (cap2 subtracts from members of cap1's pair via the n_other split). The
+    later cap holds exactly; the earlier cap holds approximately. We assert
+    both bumps were positive, the most recently applied cap is exact, and
+    mean alpha is unchanged.
+    """
+    loss_fn = AdaptiveFocalLoss(
+        n_classes=5, class_names=['a', 'b', 'c', 'd', 'e'],
+        tau=1.0, momentum=0.0, warm_up_epochs=0,
+        pair_caps=[
+            {'numer': 'a', 'denom': 'b', 'ratio': 0.5},  # alpha[a]=0.2, alpha[b]=1.8
+            {'numer': 'c', 'denom': 'd', 'ratio': 0.5},  # alpha[c]=0.4, alpha[d]=1.6
+        ],
+    )
+    # F1=[0.9, 0.1, 0.8, 0.2, 0.5] -> (1-F1)=[0.1, 0.9, 0.2, 0.8, 0.5].
+    # sum=2.5, alpha=[0.2, 1.8, 0.4, 1.6, 1.0].
+    loss_fn.update_alpha(torch.tensor([0.9, 0.1, 0.8, 0.2, 0.5]))
+    # Both numer alphas lifted from their natural CDB values.
+    assert loss_fn.alpha[0] > 0.2  # 'a' bumped
+    assert loss_fn.alpha[2] > 0.4  # 'c' bumped
+    # Mean preserved.
+    assert torch.isclose(loss_fn.alpha.mean(), torch.tensor(1.0), atol=1e-6)
+    # The *last* cap (c, d) holds exactly; the first cap (a, b) is partially
+    # eroded by the second cap's subtractive correction on 'a' and 'b'.
+    last_ratio = (loss_fn.alpha[2] / loss_fn.alpha[3]).item()
+    assert last_ratio == pytest.approx(0.5, abs=1e-6)
+
+
+def test_pair_cap_unknown_class_name_raises():
+    with pytest.raises(ValueError, match="numer 'banana'"):
+        AdaptiveFocalLoss(
+            n_classes=3, class_names=['a', 'b', 'c'],
+            pair_caps=[{'numer': 'banana', 'denom': 'a', 'ratio': 0.5}],
+        )
+    with pytest.raises(ValueError, match="denom 'kiwi'"):
+        AdaptiveFocalLoss(
+            n_classes=3, class_names=['a', 'b', 'c'],
+            pair_caps=[{'numer': 'a', 'denom': 'kiwi', 'ratio': 0.5}],
+        )
+
+
+def test_pair_cap_invalid_ratio_raises():
+    for bad_ratio in [0.0, -0.1, 1.5]:
+        with pytest.raises(ValueError, match='ratio'):
+            AdaptiveFocalLoss(
+                n_classes=3, class_names=['a', 'b', 'c'],
+                pair_caps=[{'numer': 'a', 'denom': 'c', 'ratio': bad_ratio}],
+            )
+
+
+def test_pair_cap_numer_equals_denom_raises():
+    with pytest.raises(ValueError, match='must differ'):
+        AdaptiveFocalLoss(
+            n_classes=3, class_names=['a', 'b', 'c'],
+            pair_caps=[{'numer': 'a', 'denom': 'a', 'ratio': 0.5}],
+        )
+
+
+def test_pair_cap_none_matches_no_cap_path():
+    """pair_caps=None and pair_caps=[] should produce alpha identical to
+    a fresh instance with no pair-cap config."""
+    f1 = torch.tensor([0.9, 0.5, 0.1])
+
+    plain = AdaptiveFocalLoss(
+        n_classes=3, class_names=['a', 'b', 'c'],
+        tau=1.0, momentum=0.0, warm_up_epochs=0,
+    )
+    none_cap = AdaptiveFocalLoss(
+        n_classes=3, class_names=['a', 'b', 'c'],
+        tau=1.0, momentum=0.0, warm_up_epochs=0,
+        pair_caps=None,
+    )
+    empty_cap = AdaptiveFocalLoss(
+        n_classes=3, class_names=['a', 'b', 'c'],
+        tau=1.0, momentum=0.0, warm_up_epochs=0,
+        pair_caps=[],
+    )
+
+    for fn in (plain, none_cap, empty_cap):
+        fn.update_alpha(f1.clone())
+
+    assert torch.allclose(plain.alpha, none_cap.alpha, atol=1e-7)
+    assert torch.allclose(plain.alpha, empty_cap.alpha, atol=1e-7)
