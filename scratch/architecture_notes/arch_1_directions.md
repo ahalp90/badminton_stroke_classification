@@ -2,6 +2,16 @@
 
 Arch 1 is the BST + X3D-S wrist crop fusion architecture. This doc tracks the live research arms and decision-making for it. Two novel contributions live here: the X3D-S fusion (primary) and the `sticky_anchor` per-slot player-identification heuristic (secondary but semi-significant in its own right — a data-quality fix that materially repaired the upstream MMPose extraction; see the TLDR section below). Everything else tweaks the inherited BST scaffolding (Q3-Q5).
 
+## Status (2026-05-03)
+
+- **Capacity-bump Run 1 landed (mlp_head hidden 400 → 1200), `run_20260503_104300`.** One-line swap at `bst.py:199` from `d_model * mlp_d_scale` to `head_dim * mlp_d_scale`, so the head's expansion ratio matches the FFN blocks' 4x. Previous 400 was `d_model * mlp_d_scale = 100 * 4` applied to a `3 * d_model = 300` head input (1.33x expansion while every FFN runs 4x); the swap reapplies the 4x rule consistently. CG/AP path goes 400 → 1200; AP-without-CG would go 400 → 800. Param cost on the head MLP ~127k → ~377k, encoder untouched. y1t1 hparams otherwise (combo A nosides + LS=0.0 + adaptive_focal{tau=1, gamma=1, momentum=0.9, warm_up_epochs=5, f1_floor=0}); direct parity test vs `run_20260501_164658`. Settled on 1200 over the earlier 768 candidate because 1200 = 4x the head's actual input has architectural meaning, where 768 was just a round transformer-friendly number.
+  - **Mean across 5**: macro 0.7414, min 0.4138, acc 0.7604, top-2 0.9320. **Best S1 by ws** (0.4449 / macro 0.7434 / acc 0.7570 / top-2 0.9365).
+  - **Vs y1t1 `run_20260501_164658` mean** (0.7432 / 0.4621 / 0.7617 / 0.9351): macro -0.2, min -4.8, acc -0.1, top-2 -0.3. Head metrics flat; ws cost 4.8 pp on the mean. S1 ws sits below y1t1 mean ws (0.4622), so even the best seed doesn't reach y1t1's average.
+  - **Per-class shifts vs y1t1 mean (pp)**: smash +1.4, passive_drop +1.9, ccn_shot +1.6, long_service +1.2; ws -4.8, push -3.6, drive -1.3. Net_shot, return_net, lob, clear, drop, rush, short_service all within 0.7 pp. Bigger head traded ws and push down for smash up: same pair-confusion direction as the pair-cap (`run_20260501_230252`) and gamma=2 (`run_20260502_075808`) follow-ups, larger on ws than either.
+  - **Wrist_smash range**: 0.396-0.445 (range 0.050) vs y1t1's 0.413-0.486 (range 0.073). Range tightens but the whole distribution shifted down. Smash range here 0.580-0.642 (range 0.062), slightly wider than y1t1's 0.045.
+  - **Read.** Bigger head doesn't move the head metrics and costs ws. Lines up with the capacity-bottleneck research read at `scratch/architecture_notes/model_capacity_bottleneck_question.md`: plateau is data-bound and signal-bound, not capacity-bound. The earlier scrapped `run_20260503_063338` (gamma=2 leaked from a stale bourbaki checkout) gave the same flat-head-metrics + ws-cost shape against gamma=2 as this gives against y1t1, so the capacity flat-line repeats across two adjacent loss configs.
+  - **Next.** Run 2 (d_model 100 → 192 + d_head trim 128 → 32) still planned for full coverage; prior on it lifting the plateau weakens further after this. After Run 2, X3D-S fusion is the active primary direction.
+
 ## Status (2026-05-02)
 
 - **CDB-F1 fully explored; loss-side ceiling firmly mapped (2026-05-02).** Two more follow-ups on the first CDB-F1 (`run_20260501_164658`) landed since the 2026-05-01 update. Pair-cap (`run_20260501_230252`, S4 best) capped `alpha[smash] / alpha[wrist_smash] >= 0.7` after the standard renormalisation. Smash recovered 1.2 of the 5.5 it lost in the first run, but ws gave back 5.2 of its +4 lift. Macro and accuracy stayed flat because the trade cancelled out. Gamma=2 (`run_20260502_075808`, S3 best, the focal-literature default from RetinaNet) traded 4.1 of ws for 1.3 of smash with macro -0.7 and acc -0.6 vs the first run. Same trade sign, different mechanism. Together with the earlier gamma=0 and tau=0.5 follow-ups, every CDB knob has now been run. The original tau=1 + gamma=1 combo is the floor-lift sweet spot in this neighbourhood (mean ws 0.4621, +8.7 pp vs LS=0.1 baseline); the smash drop is structural pair-confusion that scalar-per-class alpha can't resolve regardless of how its tau or gamma get tuned. No CDB run breaks the val/test plateau at 0.74-0.75 macro. Full per-class trajectory at `scratch/architecture_notes/train_val_test_split_analysis.md`.
@@ -120,23 +130,31 @@ Worth doing on a future generalisation-focused architecture or as a reporting ad
 
 Loss-side experiments are settled (see 2026-05-02 status above). Capacity research at `scratch/architecture_notes/model_capacity_bottleneck_question.md` argues the plateau is data-bound and signal-bound rather than capacity-bound. Pure widening should land somewhere in 0-2 pp on test macro. That's still worth two confirmatory runs while the compute is around — and a small chance one of them surprises.
 
-### Run 1: `mlp_head` hidden 400 → 768
+### Run 1: `mlp_head` hidden 400 → 1200 — done 2026-05-03 (`run_20260503_104300`)
 
-Surgical, classifier-side only. The encoder is untouched; only the per-player MLP that maps the 100-dim conclusion to logits widens. Param cost on the head MLP ~127k → ~310k. The most direct test of whether the classifier head specifically is the local bottleneck — Kang-flavoured surgery without the full two-stage cRT/LWS protocol.
+Surgical, classifier-side only. The encoder was untouched; only the head MLP widened. Mechanism: one-line swap at `bst.py:199` from `d_model * mlp_d_scale` to `head_dim * mlp_d_scale`, applying the FFN-block 4x ratio to the actual head input (300 on the CG/AP path) rather than to d_model. Hidden went 400 → 1200; param cost on the head MLP ~127k → ~377k. Settled on 1200 over the earlier 768 candidate for FFN-ratio consistency.
 
-Config: combo A nosides + LS=0.0 + CDB-F1 (tau=1, gamma=1, momentum=0.9, warm_up_epochs=5, f1_floor=0); only `mlp_head` hidden width changes. Direct comparison vs `run_20260501_164658`.
+Config: combo A nosides + LS=0.0 + CDB-F1 (tau=1, gamma=1, momentum=0.9, warm_up_epochs=5, f1_floor=0). Direct parity test vs `run_20260501_164658`.
 
-### Run 2: `d_model` 100 → 128 with `d_head` trim 128 → 32
+Result: flat head metrics (mean macro -0.2 pp vs y1t1), wrist_smash mean -4.8 pp, smash-up / ws-down pair-confusion trade. Bigger head doesn't lift the plateau and costs ws. Full read in the 2026-05-03 status block above.
 
-Tests the "residual width is the cap" hypothesis. `d_model` rises from 100 to 128 (+28% on the residual stream); `d_head` trims from 128 to 32 in the same change so the 7.68x d_head:d_model over-provisioning doesn't propagate further. Voita's WMT pruning result (38/48 heads removable for 0.15 BLEU drop) says the existing per-head allocation is over-provisioned; trimming d_head while widening d_model rebalances toward d_model carrying more.
+**The mlp_head swap has been reverted at `bst.py:202` back to `d_model * mlp_d_scale`.** This keeps the baseline clean for Run 2 and any subsequent capacity work; revisit the override path (e.g. an explicit `head_hidden_dim` kwarg on `BST.__init__`) when there's a reason to set head hidden independent of d_model.
 
-The d_model bump propagates through TCN, cross-transformer, interactional transformer, and PPF; that coupling is real and the param accounting compounds. d_head trim eats some of it back. Net should still be a modest param bump.
+### Run 2: `d_model` 100 → 192 with `d_head` trim 128 → 32
 
-Config: same as Run 1 plus the d_model and d_head changes. Direct comparison vs `run_20260501_164658`.
+Encoder-side widening. `d_model` rises from 100 to 192 (+92% on the residual stream); `d_head` trims from 128 to 32 in the same change so the 7.68x d_head:d_model over-provisioning doesn't propagate further. Voita's WMT pruning result (38/48 heads removable for 0.15 BLEU drop) says the existing per-head allocation is over-provisioned; trimming d_head while widening d_model rebalances toward d_model carrying more.
+
+Run 1's flat result weakens but doesn't void the prior here: encoder-side capacity is a structurally different intervention from head-side. The pair-confusion failure mode is representation-bound (the encoder isn't separating smash from wrist_smash), and a wider head couldn't fix it (Run 1 confirmed). Run 2 is at least topologically positioned to address pair-confusion more directly because it widens the representation that's failing to separate the pair. Whether 1.92x is enough to actually move separation is the open question.
+
+The d_model bump propagates through TCN, cross-transformer, interactional transformer, and FFN; that coupling is real and the param accounting compounds. d_head trim eats some of it back. Per-epoch wall-time ballpark: +30-60% vs y1t1.
+
+Config: same loss config as Run 1 plus the d_model and d_head changes. Direct comparison vs `run_20260501_164658`.
+
+Implementation surface, verifications-before-launch, and LR-schedule notes in `scratch/architecture_notes/transformer_widening_hparam_changes.md`.
 
 ### After this
 
-If either bump lifts macro 1+ pp without burning ws, capacity has a small lever and we follow with a joint d_model + mlp_head run on combo B for cross-taxonomy validation. If both come in inside seed noise, the capacity question is empirically answered as well as theoretically: data and signal are the bottleneck, and X3D-S fusion is the right next thing.
+If Run 2 lifts macro 1+ pp without burning ws, capacity has a small lever and we follow with a joint d_model + mlp_head run on combo B for cross-taxonomy validation. If Run 2 also flat-lines (the prior after Run 1), the capacity question is empirically answered as well as theoretically: data and signal are the bottleneck, and X3D-S fusion is the right next thing.
 
 X3D-S remains the long-term primary direction: racket-pixel information pose-only can't see. Augmentation (horizontal-flip + COCO joint-pair swap, per Isiah's writeup at `scratch/research/Augmentation.pdf`) is the natural intermediate. Seesaw-F1 (paper-verified design at `scratch/architecture_notes/seesaw_f1_focal_design.md`) is held as a targeted second loss-side arm only if a future signal-side gain reopens the smash↔ws pair-confusion question.
 

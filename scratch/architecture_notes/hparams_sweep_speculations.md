@@ -10,9 +10,10 @@ This doc speculates on which static defaults are worth exploring
 once the focal-loss / class-weighting / label-smoothing / augmentation
 runs settle. The framing is: what do these knobs actually do,
 which are likely to move the needle, and what would a defensible
-sweep budget look like? It also walks through the frame-zeroing
-question raised on 2026-04-30, with the real Phase-2 numbers from
-`validation_scripts/zeroed_frames_analysis_outputs/analysis_merged25_bstbaseline_20260429_1906.txt`.
+sweep budget look like? The frame-zeroing redesign that this doc
+originally covered now lives in
+[`frame_zeroing.md`](frame_zeroing.md); a stub remains here as a
+research-direction pointer.
 
 ## TL;DR
 
@@ -48,24 +49,19 @@ cell that overfit on Bad OL). Depth-wise, BST inherits `(LT=2,
 LN=1)` but TemPose's depth sweep favours `(LT=2, LN=2)` by 0.7%, so
 flipping `depth_inter=1 → 2` is a single high-confidence cell.
 
-**Frame-zeroing redesign**: the system currently zeros shuttle on
-any pose-fail frame even when TrackNet had a perfectly good shuttle
-detection (~14k frames affected). Decoupling that policy is cheap
-(re-collation only, one config flag). The real-data numbers say
-shuttle fails 7x more often than pose post-sticky-anchor (6.34%
-vs 0.93%), so most "frame is partially good" frames involve good
-pose with bad shuttle, which the current policy already handles
-correctly (no zeroing of pose). The marginal improvement from
-decoupling shows up on pose-fail frames where shuttle was OK,
-which is small per-frame but clip-clustered.
-
-**Mask channel design (revised after looking at the real per-class
-failure rates)**: two channels, not three. `shuttle_missing` at
-6.34% positive rate is comfortably learnable. Combined
-`pose_missing_either_slot` at 0.93% is borderline per-frame but
-rescued by clip-clustering and stroke-correlation. Splitting into
-separate Top vs Bottom pose masks halves each rate to
-sub-learnability; collapse them.
+**Frame-zeroing redesign**: extracted to
+[`frame_zeroing.md`](frame_zeroing.md). Two live items: drop the
+asymmetric shuttle-on-pose-fail wipe in collation (~14k frames
+recovered), and add variant-2 mask channels (combined
+`pose_missing_either_slot` + `shuttle_missing`) to replace the
+implicit "(0, 0) means missing" overload on the 6.25%
+TrackNet-visibility=0 frames. Re-promoted from "demoted" on
+2026-05-03: per-clip re-cut showed smash and wrist_smash have
+asymmetric mid-clip zeroing (whole-clip mean 13.7% / 8.5%, 1.6x
+ratio), so the redesign plausibly bites on the bottleneck pair,
+not just the head of the F1 distribution. Run after the
+capacity-bump confirmations land, framed as a disambiguation
+between coarse-class-prior and shuttle-data-quality mechanisms.
 
 **BST paper inferences worth acting on**: (1) variable-length
 clipping lifts min-F1 by ~5.7 percentage points over fixed-width;
@@ -172,12 +168,14 @@ landed)**:
   against the CVPR 2021 paper). Held as a targeted second
   loss-side arm only if a future signal-side gain reopens the
   smash↔ws pair-confusion question.
-- **Mask-channel arm still demoted.** Variant 2 design still
-  works but would help services / clears / lobs (already at
-  0.95+ F1) rather than rescuing the bottleneck classes.
-- **Trajectory extrapolation flagged as a future direction** for
-  the 11-60 frame off-screen-arc gaps, but not near-term because
-  the bottleneck isn't on the high-arc classes.
+- **Frame-zeroing redesign re-promoted (2026-05-03).** Initial
+  demotion was on the +-10-of-hit framing (shuttle present on
+  bottleneck classes). The per-clip re-cut showed smash and
+  wrist_smash have asymmetric mid-clip zeroing (whole-clip mean
+  13.7% / 8.5%, 1.6x ratio); the redesign plausibly bites on the
+  pair-confused bottleneck pair, not just the head. Run after
+  the capacity-bump confirmations. Detail in
+  [`frame_zeroing.md`](frame_zeroing.md).
 
 **Highest-priority near-term experiments (revised 2026-05-02)**,
 in order: capacity-bump confirmation runs (`mlp_head` 400 → 768
@@ -400,14 +398,14 @@ ablation:
   below).
 - Loss function (cross-entropy + label smoothing 0.1): set, not
   swept. Open for focal / class weighting.
-- Frame-zeroing policy: paper text mentions "If there were less
-  than two people in the court, we cleared the information (poses
-  and shuttlecock trajectory) of that frame to zero, since that
-  frame was definitely not in a standard camera perspective."
-  (Supplementary E.) That's the exact OR-zeroing behaviour
-  documented in our frame-zeroing redesign section. **Paper-side
-  validation that the current zeroing is unexamined inheritance,
-  not a deliberately tuned choice.**
+- Frame-zeroing policy: paper text says "If there were less than
+  two people in the court, we cleared the information (poses and
+  shuttlecock trajectory) of that frame to zero" (Supplementary
+  E.). That's an OR-zero of pose AND shuttle; our refactor only
+  does the shuttle-on-pose-fail half (asymmetric, picked-slot
+  pose flows through, shuttle wiped whenever any slot is
+  unpicked). Unexamined inheritance, not a tuned choice. Detail
+  and redesign target in [`frame_zeroing.md`](frame_zeroing.md).
 
 So our sweep candidates are real gaps, not "things the authors
 already ruled out". The BST contribution is architectural (CG/AP
@@ -718,533 +716,34 @@ edge of useful for stroke-arc summarisation.
 
 ## Frame zeroing redesign
 
-This is the section with the most direct questions on it. Code trace
-and real numbers pulled from
-`validation_scripts/zeroed_frames_analysis_outputs/analysis_merged25_bstbaseline_20260429_1906.txt`
-to ground the discussion.
-
-### What the code is actually doing
-
-`sticky_anchor.py:303-323` (per-frame loop in `_run_clip`):
-
-- For each frame, `_pick_one_frame` returns either `None` (entire
-  frame failed) or `(picks, ...)` where `picks` is a length-2 list
-  with `-1` in any unpicked slot.
-- For the unpicked slot(s), the per-slot pose stays at the
-  initialised zero (lines 284-285) and the slot's EMA resets.
-- The frame's `failed` flag is `frame_has_zero` (line 320), i.e.
-  `True if either slot is unpicked, else False`. **Single-player
-  frames are flagged as failed, even though half the pose data is
-  real.**
-
-Then at collation (`prepare_train_on_shuttleset.py:864-867`):
-
-- `if np.any(failed): shuttle[failed, :] = 0`
-- So shuttle gets zeroed on every frame where `failed[t]` is True,
-  including single-player frames where the picked player's pose
-  is real.
-
-The asymmetry: the **picked player's pose stays non-zero** on a
-single-player frame (because `pos[f, s] = cbp` and `joints[f, s] =
-normalize_joints(...)` actually write the real values for the
-picked slot), but **shuttle is wiped** as if the whole frame had
-collapsed. Which is what your instinct flagged.
-
-### TrackNet visibility=0 frames
-
-Looking at `prepare_train_on_shuttleset.py:489`:
-`df = df.set_index("Frame").drop(columns="Visibility")`. The
-TrackNet CSV contains a `Visibility` column that is 0 on frames
-where TrackNet did not detect the shuttle, with X=Y=0 in those
-rows. The pipeline drops the visibility column and uses the (X, Y)
-directly, normalising via `arr[:, 0] / v_width, arr[:, 1] /
-v_height`. So a "shuttle missing" frame becomes literal (0, 0) in
-the input array, **indistinguishable from a real shuttle position
-in the top-left corner**. There is no shuttle-missing flag
-preserved anywhere downstream.
-
-### Real-data numbers (Phase-2, 32,203-clip extract)
-
-From the merged_25 / split_bst_baseline analysis:
-
-| Cohort | Frames | % of 1,719,627 |
-| --- | --- | --- |
-| Both pose and shuttle OK | 1,596,251 | 92.83% |
-| MMPose only fail | 14,411 | 0.84% |
-| Shuttle only fail | 107,520 | 6.25% |
-| Both fail | 1,445 | 0.08% |
-
-So shuttle "fails" (visibility=0 from TrackNet) on **~7x more frames
-than mmpose**. Both-fail is rare (0.08%). The current zeroing policy
-nukes the shuttle on the 0.84% MMPose-only-fail frames *and*
-implicitly leaves the 6.25% shuttle-only-fail frames at literal
-(0,0) without a flag.
-
-Per-stroke shuttle miss rates (from the same analysis, for
-context): long_service 10.51%, clear 5.90%, lob 2.61%, smash 1.81%
-near the hit. Heaviest on slow service strokes where the shuttle
-crosses near-stationary in space and TrackNetV3 loses it; lightest
-on fast classes (drive, drop, return_net, push, cross_court) where
-the shuttle stays inside the visible court.
-
-### Why is the shuttle missing rate so high?
-
-The 6.34% rate is striking given two facts that should be pushing
-it down: (a) the sticky_anchor heuristic is now well-tuned and only
-zeros pose on frames where the homography projection genuinely
-fails or fewer than two players are in court (0.93% mmpose
-post-heuristic), and (b) we're using TrackNetV3 *with* the inpaint
-rectification module (the qaz812345 fork, the "accidental"
-inpaint that beat the BST authors' attention-only build, per
-`run_20260417_191851/best_model_id.txt`). So 6.34% is the rate
-*after* per-frame interpolation across short missing-detection
-gaps. The raw rate without inpaint would be higher.
-
-Decomposing by hit-zone position (from the same validation analysis):
-
-| Zone | Frames | Shuttle missing | Rate |
-|---|---|---|---|
-| Within ±10 frames of any hit ("near hit") | 672,637 | 10,584 | 1.57% |
-| Other frames ("away from hit") | 1,046,918 | 98,381 | 9.40% |
-
-Most of the shuttle-missing problem is **between-hit frames, not
-the hit moment**. The away-from-hit rate is 6x the near-hit rate.
-That rules out contact-moment detection failure as the dominant
-mechanism; it's a flight-phase tracking failure.
-
-Per-stroke pattern, sorted by miss rate near hit:
-
-| Stroke | Miss rate near hit | Trajectory profile |
-|---|---|---|
-| long_service | 10.51% | Held → high arc to back court |
-| clear | 5.90% | High deep shot, peak above court |
-| rush | 2.98% | Fast net attack, possible blur |
-| lob | 2.61% | High arc |
-| smash | 1.81% | Setup is incoming high lob |
-| short_service | 1.14% | Held → low across net |
-| drive | 0.85% | Flat, mid-height |
-| return_net | 0.54% | Low at net |
-| drop | 0.52% | Slow descending |
-| net_shot | 0.26% | At-net, low |
-| push | 0.23% | Flat near net |
-| cross_court_net_shot | 0.11% | At-net, low diagonal |
-
-Strong gradient: stroke types that send the shuttle high or far
-back have 5-50x the miss rate of net-bound shots. The cleanest
-controlled comparison is **long_service vs short_service** (both
-involve a held shuttle into a service hit; only the post-contact
-trajectory differs): 10.51% vs 1.14%, an order of magnitude.
-Held-shuttle detection isn't the differentiator; trajectory altitude
-is.
-
-**Likely causes, ranked.** All of these are inferences from the
-per-stroke aggregate stats, not from clip-by-clip inspection.
-Verification scripts described in the runbook below.
-
-1. **Shuttle exits the broadcast frame on high arcs** (most likely
-   primary cause). ShuttleSet videos come from BWF TV broadcasts,
-   which frame the visible court but typically cut off well below
-   the lighting rig and ceiling. A long_service or clear arc at
-   peak altitude is genuinely above the camera's vertical FOV.
-   Once the shuttle exits the frame, no detector can recover it,
-   including TrackNetV3 with inpaint. The inpaint can interpolate
-   *between* valid endpoints, but it can't synthesise frames where
-   the shuttle is physically not in the image. Fits the per-stroke
-   pattern: long_service / clear / lob / rush at the top, net-bound
-   shots at the bottom.
-2. **Inpaint window limits.** The rectification module interpolates
-   across short missing-detection gaps but has a maximum gap size.
-   A long off-screen excursion (15-30 frames of "shuttle not in
-   any pixel") exceeds the inpaint window, so those frames stay at
-   (0, 0). Consistent with the 9.40% away-from-hit rate: long
-   flight phases are exactly when sustained off-screen stretches
-   happen.
-3. **Motion blur at peak velocity** (minor at most). If blur were
-   dominant, fast contact strokes (smash, drive, push) would have
-   the highest miss rates. They're at the bottom of the table.
-   Blur probably contributes a small constant background, not the
-   per-stroke gradient.
-4. **Held-shuttle ambiguity** (minor on long_service). A held
-   shuttle against a player's body or busy background is harder
-   to detect, but the long_service / short_service gap eats this
-   as the primary cause: both have a held-shuttle pre-serve frame
-   and only one is at 10.51%.
-5. **Net-line occlusion** (negligible). If net occlusion mattered,
-   net_shot / cross_court_net_shot / push would be elevated.
-   They're at the bottom (0.11-0.26%).
-
-**Why this matters for the mask design.** The missing-shuttle
-signal is highly *structured*, more so than the 6.34% raw rate
-suggests:
-
-- **Spatially structured**: gaps cluster at high altitudes /
-  off-court regions, which correlates with stroke type.
-- **Temporally structured**: long sustained absences during high
-  arcs, not random per-frame dropouts. Gaps are 5-30-frame
-  contiguous blocks, not isolated noise.
-- **Class-conditional**: a `shuttle_missing` mask channel is partly
-  a stroke-class hint (high miss density → likely service / clear
-  / lob).
-
-This was originally framed as reinforcing the variant-2 mask
-recommendation. **The verified 0c result reinterprets it**: the
-high-miss classes are the high-F1 classes, so a `shuttle_missing`
-mask channel mostly conditions on stroke-class identity (which the
-model already gets right from pose alone). The mask is real signal,
-just not pointed at the bottleneck classes. See "Verified findings
-(2026-04-30)" subsection below for the diagnostic update.
-
-### Verified findings (2026-04-30, scripts 0a / 0b / 0c)
-
-The three pre-flight scripts ran on the full 32,203-stem extract
-(unknowns dropped via `clips_master.csv`). The off-screen-high
-hypothesis is **confirmed**, but the diagnostic implications differ
-substantially from the original framing.
-
-**0a (`shuttle_gap_y_distribution.py`): boundary y-coords cluster
-hard at the top of the frame.**
-
-Combined pre-gap last-valid + post-gap first-valid y-coords (n=13,902,
-y=0 is top, y=1 is bottom):
-
-- **61.6% in [0.0, 0.1)** (top 10% of frame)
-- 5.6% in [0.1, 0.2)
-- 24.6% combined in [0.3, 0.5) (mid-court secondary mode)
-- <2% in [0.6, 1.0]
-- median y = 0.017, mean = 0.155
-
-Pre-gap last-valid: 53.0% in top decile (mean 0.191, median 0.044).
-Post-gap first-valid: **72.3% in top decile** (mean 0.110, median
-0.009). Distribution is bimodal: a dominant off-screen-top mode and a
-smaller mid-court mode (probably motion blur / background contrast /
-net-line occlusion).
-
-The pre-gap mid-court secondary mode sits at y ~ 0.4-0.5 (player
-contact level); post-gap mid-court mode sits at y ~ 0.3-0.4
-(slightly higher / more back-court). Reads as the shuttle moving
-upward from contact, going off-screen, and re-entering at a
-slightly higher / further-back position. Consistent with ballistic
-arcs.
-
-**0b (`shuttle_gap_length_distribution.py`): inpaint window is not
-exceeded; the problem is mid-length off-screen arcs.**
-
-32,203 clips scanned, 24 clips with no shuttle detections at all
-(0.07%, negligible), 7,299 clips with at least one gap, 24,880
-clips with no gaps at all (77.3%, very robust).
-
-8,466 total gaps across 108,673 missing frames. Gap-length stats:
-median 8 frames, p99 45 frames. Distribution by class:
-
-| Length class | Gaps | % of gaps | Frames | % of frames |
-|---|---|---|---|---|
-| 1-2 (single-event blip) | 2,477 | 29.26% | 3,320 | 3.06% |
-| 3-5 (motion-blur band) | 1,152 | 13.61% | 4,385 | 4.04% |
-| 6-10 (brief occlusion) | 998 | 11.79% | 7,738 | 7.12% |
-| **11-30 (off-screen-arc band)** | **2,884** | **34.07%** | **57,984** | **53.36%** |
-| **31-60 (sustained absence)** | **954** | **11.27%** | **35,181** | **32.37%** |
-| 61+ (inpaint window exceeded) | 1 | 0.01% | 65 | 0.06% |
-
-The 11-60 frame band accounts for **85% of all missing-shuttle
-frames**. Only 1 gap in the entire 32k-clip set exceeds 60 frames.
-Implications:
-
-- Inpaint is succeeding at the short end (1-10 frames = 55% of gaps,
-  14% of frames). Doing useful work where it can.
-- Inpaint **isn't being exceeded** at the long end. Essentially zero
-  gaps past the typical inpaint window size.
-- The 11-60 frame range is "shuttle is genuinely not in any pixel of
-  these frames", which no detection-based system can recover. Arc
-  duration matches typical badminton flight times for high lobs /
-  clears.
-
-**0c (`perclass_shuttle_miss_vs_f1.py`): shuttle-miss rate is
-*positively* correlated with per-class F1, opposite of the
-hypothesis.**
-
-Run 3 nosides manifest joined against the nosides analysis txt,
-14 classes joined of 14, F1 metric, no-collapse-sides:
-
-- Pearson r: **+0.516**
-- Spearman r: **+0.415**
-
-Sorted (high miss → low miss):
-
-| Class | Miss% | Median F1 |
-|---|---|---|
-| long_service | 10.51 | 0.987 |
-| clear | 5.90 | 0.954 |
-| rush | 2.98 | 0.746 |
-| lob | 2.61 | 0.780 |
-| smash | 2.24 | 0.662 |
-| **wrist_smash** | **1.17** | **0.360** |
-| short_service | 1.14 | 0.986 |
-| drive | 0.84 | 0.604 |
-| drop | 0.73 | 0.668 |
-| return_net | 0.54 | 0.813 |
-| net_shot | 0.26 | 0.906 |
-| push | 0.23 | 0.596 |
-| passive_drop | 0.17 | 0.644 |
-| cross_court_net_shot | 0.11 | 0.683 |
-
-The high-shuttle-miss classes (long_service, clear, lob) are exactly
-the **pose-distinctive** strokes the model classifies confidently
-from skeleton alone. The bottleneck classes (wrist_smash, push,
-drive, cross_court_net_shot) sit at sub-1% miss rates because their
-shuttle trajectories are short and stay in frame.
-
-**The shuttle stream IS available where it's most needed**; the
-model just isn't using it well enough on the bottleneck classes.
-
-### Diagnostic conclusion from 0a / 0b / 0c
-
-The three results combine to firm up the diagnosis:
-
-1. **Off-screen-high is real and structured** (0a): the gap pattern
-   is a sensor-level / camera-framing limitation, not a model
-   limitation, not a heuristic limitation, not a TrackNetV3
-   limitation.
-2. **Inpaint is not the bottleneck** (0b): the rectification module
-   covers what it can; the missing data is genuinely missing pixels.
-3. **Shuttle data is available on the bottleneck classes** (0c): the
-   model has the inputs it needs to disambiguate wrist_smash / drive
-   / push / cross_court_net_shot but doesn't use them well.
-
-Combined with run 2's wrist_smash gate failure pattern (cleaner
-data hurt the rare-support class while helping the head of the
-distribution), this triangulates onto a **classifier-side problem**,
-specifically how the loss budget is being spent across classes:
-
-- Mean macro / accuracy / top-2 hold or improve with cleaner data
-  (head of the distribution wins).
-- Min F1 collapses on the small-support classes (tail loses).
-- This is the textbook signature of label smoothing fighting
-  cleaner data on rare classes: smoothing taxes confidence
-  uniformly, but the gradient signal that overcomes the smoothing
-  is proportional to support count, so 600-sample classes lose
-  more than 2,400-sample classes to the same smoothing constant.
-
-The mask-channel arm becomes a smaller lever than initially
-hypothesised. The variant-2 design still works, but it would help
-robustness on services / clears / lobs (already at 0.95-0.99 F1)
-rather than rescuing the bottleneck classes. Demote.
-
-The label-smoothing arm becomes the highest-priority loss-side
-experiment, not the focal-loss arm. **Promote LS sweep ahead of
-focal**, since LS is the cheaper test and the failure-mode profile
-matches its predicted effect more directly than focal's.
-
-A future direction worth flagging: **trajectory extrapolation** for
-the 11-60 frame off-screen-arc gaps. Since the gaps cluster at
-predictable phases of ballistic motion (between known endpoints,
-typically going up and coming down), a parabolic-fit extrapolation
-between pre-gap and post-gap valid coords would fill these frames
-with physically plausible positions rather than (0, 0). Not a
-near-term priority because the bottleneck isn't on the high-arc
-classes anyway, but a real lever once the loss-side knobs settle.
-
-### Three zeroing options, evaluated
-
-**Option A: zero only when both fail (0.08% of frames).** Effect:
-- On MMPose-only fail frames (0.84%), keep shuttle non-zero. The
-  shuttle stream provides continuous trajectory information across
-  the 14,411 frames per analysis where TrackNet had a perfectly
-  good detection but the current policy throws it away.
-- On shuttle-only fail frames (6.25%), no change because the
-  current policy doesn't intervene there anyway. Those frames
-  already have shuttle=(0,0) in the data with no flag.
-- On both-fail frames (0.08%, 1,445 frames), zero both. Same as
-  current behaviour.
-
-This is the easiest decoupling and the one with the most defensible
-read on what the model can use: it's giving back the 14,411 frames
-of valid shuttle data that the current policy was wastefully
-zeroing. Per-frame this is small (~0.84% of the total), but
-clip-clustering matters: a clip with a 50% MMPose fail rate
-in the hit zone (and there are 65 such clips, including 17 with
-100% hit-zone failure) would benefit specifically because shuttle
-trajectory still anchors the swing event when the player pose has
-collapsed.
-
-**Cost.** Code-side: the `failed` flag in sticky_anchor would need
-to flag only the both-zero (full-frame failure) case. Easier
-alternative: leave sticky_anchor as-is (it correctly flags
-"either slot zero" for downstream telemetry) and move the
-"zero shuttle on failed" line out of `prepare_train_on_shuttleset.py`
-so shuttle is just left as TrackNet emitted it. Re-collation
-required. ~10 minutes per taxonomy combo.
-
-**Risk.** Asymmetric coupling has a logic to it that we'd be
-giving up: pose tells you what the player is doing relative to a
-court frame, shuttle tells you where the bird is in that frame; if
-pose collapses, the shuttle's coord still has meaning *within the
-court frame*, which is what we're keeping. So the risk is small.
-
-**Option B: zero only when no keypoints at all (full-frame
-failure).** Effect:
-- On single-slot-picked frames, **keep the picked player's pose
-  non-zero AND keep shuttle non-zero**. This reverses both
-  asymmetries.
-- The "failed" flag becomes a stricter "both slots unpicked, or
-  pre-rally-presence rejection" condition.
-- Both-fail behaviour as Option A.
-
-This goes further than A and is the one Ariel's intuition was
-already pointing at: "a single player is validly detected ... we're
-still zeroing those single players?". The answer is yes, the
-shuttle is being zeroed on those frames; the picked player's pose
-is *not* being zeroed (it's preserved per the trace above), so the
-asymmetry has two sides:
-
-1. Picked player's pose: preserved (current behaviour is correct).
-2. Unpicked player's pose: zero (correct, no detection).
-3. Shuttle: zeroed (current behaviour, would change under B).
-
-So under Option B vs current: items 1 and 2 are unchanged; item 3
-becomes "leave shuttle as TrackNet emitted it". Same code change
-as Option A, same recollation cost.
-
-**Why distinguish A vs B?** Same end state on the data side,
-different framing of the heuristic flag. Going with B's framing
-matters if you also want to **expose the failure flag downstream as
-a mask channel** (next subsection): then "single slot picked" is
-information the model could use rather than something that just
-trips a flag.
-
-**Option C: zero when shuttle is zero (propagate shuttle-fail to
-pose).** Effect:
-- On the 6.25% shuttle-only-fail frames, zero the pose too. That's
-  ~107,520 extra zeroed pose frames, **a 7x increase in
-  pose-zeroed frame count vs current**.
-- The justification would be "without shuttle context, pose alone
-  is misleading because BST is fundamentally a shuttle-relative
-  classifier".
-- But: this is a lot of training data to throw away. Pose-only
-  signal is informative for many strokes (e.g. swing pattern of a
-  smash is recognisable without seeing the bird) and the
-  `BST_0` ablation (pose-only, no shuttle) in the BST paper still
-  performs above-trivially. So zeroing pose on every shuttle-miss
-  frame is throwing away training signal in exchange for a cleaner
-  "always-paired" invariant.
-
-**Verdict.** Almost certainly the wrong direction unless we also
-strip the shuttle stream from the model. Option C combined with
-explicit shuttle-failure masking might make sense as part of a
-"shuttle-conditional inference" experiment, but as a default
-zeroing policy it's destructive.
-
-### Mask-channel speculation
-
-Your "global some_input_is_masked channel" idea is the right
-question. The design space splits along two axes: granularity (how
-many separate mask channels) and signal density (how often each
-channel fires). Both axes matter for learnability.
-
-Variants worth sketching:
-
-1. **Three-channel per-stream**: `pose_top_missing[t]`,
-   `pose_bottom_missing[t]`, `shuttle_missing[t]`. Maximum
-   information; the model can condition behaviour on which stream
-   is broken. Standard "pad mask" pattern in NLP transformers.
-2. **Two-channel pose-merged**: `pose_missing_either_slot[t]`,
-   `shuttle_missing[t]`. Loses "which player is broken" info;
-   keeps "is pose broken at all" + "is shuttle broken".
-3. **Single global mask**: one channel that fires on any stream
-   failure. Coarsest. Cheapest to implement.
-4. **No mask, fix the encoding**: replace shuttle (0, 0) with
-   interpolation between last and next valid detections, or a
-   NaN-marker the model learns to skip. Different design
-   (interpolation over masking); the TCN's conv1d can't see NaNs
-   directly, so this needs care.
-
-**The signal-density question, with the actual numbers.** The
-1,719,627-frame validation analysis breaks down as:
-
-| Channel | Positive rate | Frames | Learnability read |
-|---|---|---|---|
-| `shuttle_missing` | 6.34% | ~109k | Plenty |
-| `pose_missing` (combined Top + Bottom) | 0.93% | ~16k | Borderline; clip-clustering rescues it |
-| `pose_top_missing` only | ~0.5% | ~8k | Too thin per-frame |
-| `pose_bottom_missing` only | ~0.5% | ~8k | Too thin per-frame |
-| Global "any masked" (OR) | ~7% | ~123k | Plenty but coarse |
-
-Splitting Top vs Bottom pose halves each channel's positive rate
-to a sub-0.5% range. At that density, a one-bit input has a hard
-time teaching a model anything specific per-frame because the
-gradient signal is dominated by the 99.5% of frames where the
-flag is the same value. The transformer's integration across
-positions does help (clip-level signal is much stronger), but the
-per-frame baseline is genuinely thin for splitting Top from Bottom.
-
-**Recommended design: variant 2 (two channels).** Collapse pose
-Top and Bottom into one `pose_missing_either_slot` flag. You give
-up the "which side broke" information in exchange for keeping each
-channel's positive rate above the per-frame learnability floor:
-
-- `shuttle_missing`: 6.34% positive. Strong, well-clustered in
-  slow-service classes (long_service 10.51%, clear 5.90%, lob 2.61%
-  near hit). Plenty learnable.
-- `pose_missing`: 0.93% positive. Borderline per-frame; rescued by
-  clip-clustering (785 clips have any zeroed frames, 65 with >50%
-  zeroed, 17 with 100% hit-zone-zeroed) and stroke-correlation
-  (long_service 3.91%, short_service 3.46% vs return_net 0.08%
-  failure rate). Becomes a class-conditional signal in addition to
-  a per-frame one.
-
-Strictly more informative than the current "no mask, just zero
-coords" encoding. Minimal plumbing cost: two extra input channels
-through the existing TCN + transformer stack.
-
-Your "make it global ... maybe it would just become a signal to
-interpolate between global last and next known positions across
-all inputs" intuition is well-targeted: a single global flag
-combined with the model's temporal context is exactly the
-invariance the model would learn (treat masked frames as
-interpolation problems). That's the **desired behaviour**. The
-risk you pointed at, "becoming an interpolation signal across
-*all* inputs", is the failure mode where the model forgets that
-mask=1 only means *one* stream is broken and over-discounts the
-others. Variant 2 (two channels) prevents this by separating the
-two failure modes that fail at very different rates and have very
-different downstream meanings (shuttle missing usually means a
-visible-shuttle problem; pose missing usually means a player-
-detection problem in service-heavy clips). Variant 3 (global) is
-sloppier and would risk that failure mode.
-
-**Practical ordering for the masking experiment.** Step 1: change
-the zeroing policy to Option A (give back shuttle on single-slot-
-picked frames). Train and measure. If it lifts metrics, the model
-is using the recovered shuttle signal even without an explicit
-mask. Step 2: add the two-channel mask (variant 2). Train and
-measure. If it lifts further, the model wanted the explicit
-signal. Step 3: only if lifts plateau, investigate whether the
-current shuttle (0, 0) frames (the 6.25% TrackNet visibility=0
-set) are causing visible per-stroke harm, given the model now has
-a shuttle-missing mask. Could lead to the fourth variant (real
-interpolation).
-
-### Per-clip vs per-frame signal-density rescue
-
-Even with variant 2, the `pose_missing` channel sits at a thin
-per-frame rate that warrants a sanity check on whether the
-transformer can learn from it at all:
-
-- The signal is **clip-correlated**. ~785 clips have *any* MMPose
-  zeroing in their hit zone, 17 are 100%-zeroed, 65 are >50%-zeroed.
-  At the clip level, a pose-missing flag is much more informative
-  than its 0.93% per-frame rate suggests, because the model sees
-  long stretches of correlated mask-on frames for these difficult
-  clips. The transformer integrates across positions, so even a
-  0.93% per-frame rate becomes a strong per-clip signal in those
-  785 clips.
-- The signal is **stroke-correlated**. Service strokes are 5-10x
-  more affected than smash / drop / clear by both pose and shuttle
-  failures. A mask channel becomes a cheap conditioning input that
-  tells the model "this is one of those service-side clips with a
-  patchy hit zone, lean harder on the parts you do have".
-
-So the worry is reasonable per-frame but the signal becomes
-learnable per-clip and per-class. Worth testing.
+Extracted to [`frame_zeroing.md`](frame_zeroing.md). Two live items:
+
+1. **Shuttle gets wiped on any pose-fail frame** (collation
+   asymmetry, ~14k frames). One-line collation fix: drop the
+   `shuttle[failed, :] = 0` line in
+   `prepare_train_on_shuttleset.py:864-867`.
+2. **Shuttle (0, 0) on TrackNet-visibility=0 frames** (6.25% of
+   frames) is indistinguishable from a real top-left detection
+   because the visibility flag is dropped at collation. Recommended
+   fix: variant-2 mask channels (combined `pose_missing_either_slot`
+   + `shuttle_missing`).
+
+Initially demoted on the +-10-of-hit framing (script 0c showed
+shuttle-miss rate correlates *positively* with per-class F1 at
++0.516 Pearson). Re-promoted on 2026-05-03 after the per-clip
+re-cut: smash and wrist_smash have asymmetric mid-clip zeroing
+(whole-clip mean 13.7% / 8.5%, 1.6x ratio) that the +-10 framing
+hid. The redesign plausibly bites on the pair-confused
+bottleneck pair, framed as a disambiguation between
+coarse-class-prior and shuttle-data-quality mechanisms. Run
+after the capacity-bump confirmations land. Trajectory
+extrapolation still parked; the transformer's learned
+representation given a `shuttle_missing` mask would probably
+outperform any hand-crafted physics prior anyway.
+
+Full code trace, cohort table, gap analysis, mask-channel
+variants, and the parked interpolation idea are in the linked
+doc.
 
 ## Hyperparameter interaction matrix
 
@@ -1306,8 +805,8 @@ Tier-3 (zeroing redesign, do alongside or after data-augmentation arm):
 
 | Sweep | Cells | Serials | A100 hours |
 | --- | --- | --- | --- |
-| Zeroing policy A (decoupled shuttle) vs current | 2 | 6 | ~6-9 + ~30 min recollation each |
-| Per-stream mask channel | 1 (vs Option A baseline) | 3 | ~3-5 + dataset code change |
+| Zeroing redesign (drop shuttle-on-pose-fail wipe) vs current | 2 | 6 | ~6-9 + ~30 min recollation each |
+| Mask channels (variant 2: combined pose + shuttle) | 1 (vs zeroing-redesign baseline) | 3 | ~3-5 + dataset code change |
 | **Tier-3 subtotal** | | **9** | **~12-15 hr** |
 
 Architecture geometry (Q5 attention head sweep, save for last):
@@ -1399,15 +898,35 @@ plan the rest as informed-by-results.
    macro moving. No CDB run breaks the val/test plateau at
    0.74-0.75 macro. Loss-side ceiling firmly mapped. Full
    numbers in `arch_1_directions.md`.
-2a. **Capacity-bump confirmation runs** — **NEW PRIORITY
-    (2026-05-02)**, ahead of the items below. Capacity-bottleneck
-    research at `scratch/architecture_notes/model_capacity_bottleneck_question.md`
+2a. **Capacity-bump confirmation runs**.
+    Capacity-bottleneck research at
+    `scratch/architecture_notes/model_capacity_bottleneck_question.md`
     argues the plateau is data-bound and signal-bound. Two cheap
-    confirmatory runs while compute is around: `mlp_head` hidden
-    400 → 768 (surgical, classifier-side only), then `d_model`
-    100 → 128 with `d_head` trim 128 → 32 (residual-stream widen
-    paired with Voita-style head trim). Both vs `run_20260501_164658`.
-    Expected gain 0-2 pp on test macro.
+    confirmatory runs while compute is around.
+    - **Run 1 (mlp_head hidden 400 → 1200)** — **DONE
+      (2026-05-03)** as `run_20260503_104300`. One-line swap at
+      `bst.py:199` from `d_model * mlp_d_scale` to
+      `head_dim * mlp_d_scale` (4x of actual head input rather
+      than 4x of d_model). 1200 picked over the earlier 768
+      candidate for FFN-ratio consistency. Result: head metrics
+      flat (mean macro -0.2 pp vs y1t1), wrist_smash mean
+      -4.8 pp, pair-confusion trade went smash-up / ws-down.
+      The mlp_head swap has been **reverted** at `bst.py:202`
+      to keep the baseline clean for Run 2 and any subsequent
+      work. Full numbers in `arch_1_directions.md` 2026-05-03
+      block.
+    - **Run 2 (d_model 100 → 192 + d_head trim 128 → 32)** —
+      pending. Encoder-side widening; residual stream goes 1.92x
+      wider, d_head trim eats some of the attention budget back
+      so the 7.68x d_head:d_model over-provisioning doesn't
+      propagate. Run 1's flat result weakens but doesn't void
+      the prior: encoder-side capacity is a different mechanism
+      from head-side, and the pair-confusion failure mode is
+      representation-bound rather than head-bound, so Run 2 has
+      a small theoretical advantage Run 1 didn't. Expected gain
+      still 0-2 pp on test macro. Implementation surface +
+      verification checklist + LR-schedule notes at
+      `scratch/architecture_notes/transformer_widening_hparam_changes.md`.
 3. **Weight decay sweep [0.0, 0.05, 0.1]**: single-arm, cheapest
    architectural-side win after the capacity-bump runs settle.
 4. **Augmentation magnitude sweep** (tighten / off): clarifies
@@ -1424,17 +943,24 @@ plan the rest as informed-by-results.
    from Table 1 BST paper, see "BST paper inferences"). After
    focal lands, retest BST-AP-only against BST-CG-AP. Single cell,
    3 serials.
-9. **Frame-zeroing Option A** (decouple shuttle from pose-fail):
-   re-collate, run 3 serials, compare. Demoted relative to the
-   earlier ordering: the 0c result shows shuttle is reliably
-   present on the bottleneck classes, so this arm helps the head
-   of the F1 distribution rather than rescuing the tail.
+9. **Frame-zeroing redesign** (drop the shuttle-on-pose-fail wipe):
+   re-collate, run 3 serials, compare. Re-promoted on 2026-05-03
+   after the per-clip re-cut: smash and wrist_smash have
+   asymmetric mid-clip zeroing (whole-clip mean 13.7% / 8.5%,
+   1.6x ratio) that the +-10 framing hid. Frames the experiment
+   as a disambiguation between coarse-class-prior and
+   shuttle-data-quality mechanisms for the smash↔wrist_smash
+   confusion. If both halves of the pair lift, mechanism 2 is
+   real; if neither moves, mechanism 1 is doing the work and the
+   smash-prior is structural.
 10. **Two-channel mask** (`shuttle_missing` + `pose_missing_either_slot`):
-    demoted to "only if Option A lifted by a meaningful amount".
-    The 0a / 0b results show the mask signal is interpretable as
-    "shuttle is in the high-altitude phase of an arc" rather than
-    "data is unreliable", but the bottleneck classes don't need
-    this info, so the lever size is bounded.
+    contingent on the zeroing redesign lifting either pair member.
+    Per-clip data shows ~50% of the missing-shuttle frames in
+    smash and wrist_smash sit in the central window (high-arc
+    setup), so an explicit `shuttle_missing` channel could let
+    the model condition on "off-screen-arc phase" rather than
+    inferring it from the (0, 0)-overload. Lever size depends on
+    which mechanism is operative.
 11. **X-flip-only augmentation arm** (orthogonal isolation): if
     step 1a's joint sweep can't tease apart whether the lift came
     from LS or from flip-aug, run a single cell of "LS=0.1 +
@@ -1460,12 +986,13 @@ The first 3 lines are the highest expected ratio of lever per
 A100-hour given the verified diagnosis. Line 1 has the cleanest
 predicted-effect-to-cost ratio. Lines 5-7 are joint-sweep gates
 depending on what 3 and 4 return. Lines 9-10 are the zeroing
-redesign, demoted because the 0c result showed shuttle data is
-already available on the bottleneck classes. Lines 11-13 are
-architecture / data-side cleanup, save until the rest has been
-worked. Line 14 is a longer-term direction flagged by the 0b
-result (heavy population of unrecoverable mid-length off-screen
-gaps).
+redesign, re-promoted on 2026-05-03 after the per-clip re-cut
+showed asymmetric mid-clip zeroing on smash vs wrist_smash;
+positioned to disambiguate the smash↔wrist_smash pair-confusion
+mechanism. Lines 11-13 are architecture / data-side cleanup, save
+until the rest has been worked. Line 14 is a longer-term
+direction flagged by the 0b result (heavy population of
+unrecoverable mid-length off-screen gaps).
 
 ## Sources
 
