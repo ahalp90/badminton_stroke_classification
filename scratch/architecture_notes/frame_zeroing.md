@@ -9,6 +9,13 @@ future direction. Code trace and real numbers pulled from
 `validation_scripts/zeroed_frames_analysis_outputs/analysis_merged25_bstbaseline_20260429_1906.txt`
 to ground the discussion.
 
+**Outcome update (2026-05-03):** Step 1 (drop the wipe) lifted
+both halves of the smash <-> wrist_smash pair (run_20260503_172922,
++0.5 macro / +1.2 min vs the first CDB-F1 run). Step 2 (variant 2a
+mask channel) tested in run_20260503_192718, didn't lift over Step
+1, archived in `shuttle_mask_archive.md`. Live data path keeps the
+unzeroing; the mask design is documented for future revisit.
+
 ## What the code is actually doing
 
 Two zeroing operations exist before the model sees data, plus a
@@ -490,7 +497,7 @@ often each fires). Four variants worth sketching:
    gradient from a 99.5%-zero one-bit input is dominated by the
    dominant-class signal.
 2. **Pose- and shuttle-missing mask channels**:
-   - **2a — Shuttle missing only (one channel, going in)**:
+   - **2a — Shuttle missing only (one channel, tested + dropped)**:
      `shuttle_missing[t]` at 6.34%. Source: TrackNet
      `Visibility=0` flag, currently dropped at
      `prepare_train_on_shuttleset.py:489`; preserve through
@@ -505,6 +512,12 @@ often each fires). Four variants worth sketching:
      transformer attention, not in the TCN. `d_mask=4` chosen
      for redundancy against bad init seeds; lower collapses to
      a direct concat, higher is wasteful on a one-bit input.
+     **Tested in run_20260503_192718 on top of the wipe-drop
+     run, didn't lift (macro -0.4, min -1.7). Most likely the
+     model was already inferring missing-shuttle from xy +
+     temporal context, plus the new fuse layer ate some learning
+     budget for a near-identity solution on the original 100
+     dims. Code archived in `shuttle_mask_archive.md`.**
    - **2b — Add pose_missing on top (deferred)**: extend 2a
      with `pose_missing_either_slot[t]` at 0.93%. The 0.93%
      per-frame rate is borderline for a one-bit input; clip-
@@ -541,22 +554,26 @@ analysis:
 | `pose_bottom_missing` alone | ~0.5% | ~8k | Too thin per-frame, no learnable Top vs Bottom signal |
 | Global "any masked" (OR) | ~7% | ~123k | Plenty but coarse, conflates failure modes |
 
-Variant 2a lands as the cleanest fix: strictly more informative
-than the current "(0, 0) means missing" encoding, one extra
-input channel plumbed through to a small post-TCN fusion
-(`mask_proj` + `shuttle_fuse`). 2b stays parked at the per-frame
-learnability worry; revisit if 2a lifts and the next gain is
-rescuing the service-side pose-fail distribution.
+Variant 2a was tested as the cleanest fix on paper: strictly more
+informative than the current "(0, 0) means missing" encoding, one
+extra input channel plumbed through to a small post-TCN fusion
+(`mask_proj` + `shuttle_fuse`). On data, the shuttle-unzeroing
+alone (Step 1 below) had already given the model what it needed;
+the explicit mask didn't add. 2b stays parked behind the per-frame
+learnability worry; only revisit if a future arm finds new
+service-side signal that the skeleton doesn't already disambiguate.
 
-**Practical ordering.** Step 1: drop the shuttle-on-pose-fail
-wipe (the redesign target above). Re-train and measure. If it
-lifts metrics, the model is using the recovered shuttle signal
-even without an explicit mask. Step 2: add variant 2a mask
-channel (2b channel deferred). Re-train and measure. If it
-lifts further, the model wanted the explicit signal. Step 3: only if lifts plateau,
-revisit the (0, 0)-overload question for the 6.25% TrackNet
-visibility=0 frames now that the model has a `shuttle_missing`
-mask. Could lead into the parked interpolation variant.
+**Practical ordering, with outcomes.** Step 1: drop the
+shuttle-on-pose-fail wipe (run_20260503_172922 / branch
+shuttle/wipe-drop). **Lifted: macro +0.5, min +1.2, smash and
+wrist_smash both up.** Step 2: add variant 2a mask channel
+(run_20260503_192718 / branch shuttle/mask-wiring). **Did not lift
+over Step 1: macro -0.4, min -1.7. Archived.** Step 3: revisit the
+(0, 0)-overload question for the 6.25% TrackNet visibility=0
+frames was contingent on 2a giving the model a way to
+disambiguate; with 2a dropped, the parked interpolation variant
+becomes the more direct alternative if the (0, 0) overload comes
+back as a real lever.
 
 ## Per-clip vs per-frame signal-density rescue (rationale for 2b parked-not-dismissed)
 
@@ -579,7 +596,11 @@ is borderline for a one-bit input. Two structural rescues keep
 
 The per-frame learnability worry is real but offset; the channel
 earns its place via clip + class structure rather than per-frame
-frequency alone. Worth revisiting once 2a lifts.
+frequency alone. With 2a not lifting, the case for 2b weakens
+further: if the model couldn't use a 6.34% mask on its own
+shuttle stream, a 0.93% pose-side mask is unlikely to land
+either. Parked unless a future arm finds service-side signal the
+skeleton doesn't already carry.
 
 ## Future direction: trajectory extrapolation
 
