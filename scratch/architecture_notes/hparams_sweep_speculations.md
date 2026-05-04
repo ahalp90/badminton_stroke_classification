@@ -33,13 +33,16 @@ work finishes**: weight decay. Cheapest-of-all to test because it's a
 one-line config swap with no code change. Sane sweep [0.0, 0.05,
 0.1] vs the AdamW default 0.01.
 
-**Augmentation status**: cheap 3-cell sweep planned (current /
-tighten / off), plus a flipping add-back cell on the side-collapsed
-taxonomies. The current 0.3 magnitude is aggressive on coords that
-already encode side identity, so probably-defensible-but-unverified.
-Expected lever is small to medium. Plays before dropout in the
-runbook because the two share regularisation budget and you want
-to fix augmentation first.
+**Augmentation status**: locked Task 2 set on 2026-05-04. Full
+analysis extracted to
+[`augmentation_framework.md`](augmentation_framework.md). Active
+set: centreline flip (p=0.5, coupled) plus corrected pos+shuttle
+constrained-jitter (p=0.2 nominal, ±0.05y / ±0.10x cap). Replaces
+the broken `RandomTranslation_batch` (joints-only, decoupled, body-
+deforming). First aug ablation slot is A/B-ing the corrected
+formulation against the no-aug baseline; magnitude and frequency
+sweeps follow. Plays before dropout in the runbook because the two
+share regularisation budget and you want to fix augmentation first.
 
 **Architecture-side priors from the verified TemPose/BST ablations**:
 `(DL=100, DA=128)` is empirically validated as a winner on Bad OL,
@@ -177,15 +180,57 @@ landed)**:
   the capacity-bump confirmations. Detail in
   [`frame_zeroing.md`](frame_zeroing.md).
 
-**Highest-priority near-term experiments (revised 2026-05-02)**,
-in order: capacity-bump confirmation runs (`mlp_head` 400 → 768
-then `d_model` 100 → 128 with `d_head` trim, both vs
-`run_20260501_164658`); horizontal-flip augmentation with COCO
-joint-pair swap (the natural intermediate before X3D-S, useful
-regardless of capacity-bump outcome); X3D-S fusion build (long-term
-primary direction; the lever capacity research argues actually
-addresses the data/signal bottleneck); weight decay sweep;
-`depth_inter=1 → 2` run.
+**Highest-priority near-term experiments (revised 2026-05-04)**,
+in order: capacity-bump Run 2 confirmation (`d_model` 100 → 192 +
+`d_head` trim 128 → 32, vs `run_20260501_164658`); landing the
+locked augmentation set (centreline flip + corrected pos+shuttle
+jitter, see [`augmentation_framework.md`](augmentation_framework.md));
+X3D-S fusion build (long-term primary direction; the lever capacity
+research argues actually addresses the data/signal bottleneck);
+weight decay sweep; `depth_inter=1 → 2` run.
+
+## Augmentation framework
+
+Detailed analysis, code traces, locked Task 2 spec, and Phase 3
+candidates extracted to
+[`augmentation_framework.md`](augmentation_framework.md) (this
+directory) on 2026-05-04 once the augmentation discussion outgrew
+this doc. Punch list:
+
+- **Locked Task 2 set**: centreline flip (p=0.5, coupled, COCO
+  bilateral joint-index swap) plus a corrected pos+shuttle
+  constrained-jitter (p=0.2 nominal, ±0.05y / ±0.10x cap, layered
+  conditional bounds, joints/bones untouched, zero-frame
+  preservation, shuttle off-screen mirroring). Replaces the broken
+  `RandomTranslation_batch` (joints-only, decoupled, body-deforming).
+- **Out for Task 2**: temporal speed jitter (Phase 3 candidate),
+  Gaussian joint jitter, random joint masking,
+  `WeightedRandomSampler`, net flip.
+- **Phase 3 / trimester 2 candidates**: temporal speed jitter
+  (uniform [1.0, 2.0] coupled with shuttle-velocity downweight cost
+  flagged), rotation / scaling / shearing for amateur cameras,
+  per-joint adaptive focal as a loss-side research direction.
+- **Coordinate spaces verified**: pos in court frame
+  (post-homography), shuttle in camera frame, joints in
+  bbox-centre-relative frame; PPF fuses pos into JnB at the input,
+  before the TCN. Out-of-court pos values flow through unclamped
+  within sticky_anchor's [-0.15, 1.15] band.
+- **X3D-S hit-frame metadata** derivable without re-extraction via
+  `clips_master.csv` correlation (Method A, faithful to annotation,
+  susceptible to annotator drift) or shuttle horizontal-velocity
+  sign reversals (Method B, independent verification with ±5-frame
+  ceiling on soft shots, well within X3D-S's ±19-frame window).
+- **Calibration mechanism**: `effective_aug_rate` TB scalar logs
+  per-epoch case-1 (fully-degenerate) dropout against nominal
+  `p_jitter_roll`; tune nominal upward if effective sits below
+  target.
+- **First aug ablation slot**: A/B the corrected jitter formulation
+  against the no-aug baseline before adding any further
+  augmentation arms.
+
+Full code traces, implementation outlines, magnitude / frequency
+rationale, ablation gates, and physics-of-non-uniform-temporal-aug
+analysis all in the framework doc.
 
 ## Inherited-vs-tuned audit
 
@@ -484,12 +529,24 @@ do a small joint cell with weight_decay (4 cells, 3 serials each,
 
 ### `RandomTranslation` (`trans_range=(-0.3, 0.3)`, `prob=0.3`)
 
-**What it does.** With probability 0.3, adds a uniform random xy
-shift in [-0.3, 0.3] to all pose / shuttle / position arrays in a
-batch (`shuttleset_dataset.py:121-136`). The shift is the same for
-every sample in the batch (the `RandomTranslation_batch` variant) so
-the relative geometry within a sample is preserved; only the
-absolute position on court moves.
+**Status correction (2026-05-04).** The original framing of this
+section read the live aug as coupled across streams. That's wrong.
+Code trace at `bst_train.py:198-205`: `random_shift_fn` is called
+on `human_pose` only (joints slice of it when bones are active,
+since bones are translation-invariant), and `shuttle` and `pos` are
+passed straight through. The shift is per-sample (`(n, d)` shape at
+`shuttleset_dataset.py:132-133`), not batch-uniform. So the live
+aug is **joints-only ±0.3 with p=0.3, shuttle and court untouched**.
+That violates Rule 1 of Isiah's writeup §3 and is actively
+mis-training the cross-attention. Fix is the first slot in the
+2026-05-04 augmentation runbook: either remove or replace with a
+coupled per-clip translation across pose+shuttle+court.
+
+**What it does (corrected).** With probability 0.3, adds a uniform
+random xy shift in [-0.3, 0.3] to the joint coordinates of each
+sample in the batch (`shuttleset_dataset.py:121-136`). Shuttle and
+`pos` (court positions) are not shifted, so the relative geometry
+*across modalities* breaks for ~30% of training batches.
 
 **Note: BST dropped TemPose's flipping augmentation.** TemPose
 Table 1 lists "Flipping 30%" alongside "Random shifting 30%" as
