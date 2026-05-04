@@ -39,6 +39,7 @@ Mean across 5 serials except where noted; combo A nosides except as flagged. **M
 | Capacity Run 1 (mlp_head 400→1200) | `run_20260503_104300` | **0.7414** | **0.4138** | **0.7604** | **0.9320** | 0.74 / 0.44 (S1) |
 | **Shuttle-unzeroing wipe_drop (current best)** | `run_20260503_172922` | **0.7481** | **0.4742** | **0.7653** | **0.9353** | **0.76 / 0.49 (S2)** |
 | Shuttle-mask variant 2a (mask_wiring) | `run_20260503_192718` | **0.7440** | **0.4568** | **0.7630** | **0.9365** | 0.75 / 0.49 (S4) |
+| Jitter-off ablation (`RandomTranslation_batch(prob=0.0)`) | `run_20260504_152529` | **0.7401** | **0.4301** | **0.7586** | **0.9365** | 0.74 / 0.48 (S2) |
 
 ### Key learnings
 
@@ -49,9 +50,8 @@ Mean across 5 serials except where noted; combo A nosides except as flagged. **M
 
 ### Active priorities (in order)
 
-0. **Immediate: disable the broken `RandomTranslation_batch` joint shift** (`bst_train.py:198-205`). The current aug shifts joints in the bbox-centre-relative frame, which deforms the body around its own centre rather than simulating position invariance (joints are court-position-invariant by construction; `pos` carries the location signal). Cheapest possible cleanup; either comment out the call to `random_shift_fn` or pass `prob=0.0` on `RandomTranslation_batch.__init__`. Single A/B against the current active baseline (`run_20260503_172922`) under otherwise identical hparams clarifies whether the broken aug was net-negative or noise. Trivially fast to set up; resolves the question before the corrected augmentation set lands.
 1. **Capacity-bump Run 2**: encoder-side widening (d_model 100→192 + d_head trim 128→32). Implementation surface + verifications + LR notes at `scratch/architecture_notes/transformer_widening_hparam_changes.md`. Now framed as testing whether encoder capacity is the local bottleneck, given Run 1's smash-up/ws-down pattern hints at one.
-2. **Augmentation set landing**: centreline flip (p=0.5, coupled, COCO bilateral joint-index swap) + corrected pos+shuttle constrained-jitter (p=0.2, ±0.05y/±0.10x cap). Replaces the broken `RandomTranslation_batch`. Full spec in [`augmentation_framework.md`](augmentation_framework.md).
+2. **Augmentation set landing**: centreline flip (p=0.5, coupled, COCO bilateral joint-index swap) + corrected pos+shuttle constrained-jitter (p=0.2, ±0.05y/±0.10x cap). Replaces the broken `RandomTranslation_batch`, which the jitter-off ablation (`run_20260504_152529`) showed was net-positive as regularisation despite being structurally wrong. Don't drop, replace. Full spec in [`augmentation_framework.md`](augmentation_framework.md).
 3. **X3D-S fusion build**: long-term primary direction; addresses the signal-bound bottleneck. Model + input shape decided; fusion depth, training schedule, temporal cut-in, and MMPose-drop handling open. See "Primary research direction: X3D-S wrist crop fusion" below.
 
 **TCN dilation flagged for investigation**: the inherited TCN runs two layers with `kernel=5` and dilations 1 then 3 (RF = 17 frames ~570 ms), plausibly pooling over the frame-by-frame micro-motion that discriminates the smash↔wrist_smash pair. 2-cell A/B (kernel=5 with dilation off, vs kernel=3 with dilation retained) writes up at "Secondary: TCN dilation pattern (open investigation)" below. Slot in after Capacity-bump Run 2 if the encoder-widening result leaves room.
@@ -90,6 +90,7 @@ Two project-wide boundaries worth flagging up-front: **2026-04-29** is the cut-o
 | 2026-05-03 | Frame-zeroing redesign: shuttle-unzeroing wipe-drop | `run_20260503_172922` (new project best mean) |
 | 2026-05-03 | Frame-zeroing redesign: mask-channel variant 2a | `run_20260503_192718` (no benefit on top; parked) |
 | 2026-05-04 | Augmentation set locked | full spec in `augmentation_framework.md` |
+| 2026-05-04 | Jitter-off ablation: `RandomTranslation_batch(prob=0.0)` | `run_20260504_152529` (defaults restored; broken jitter is empirically regularising) |
 | **pending** | Capacity-bump Run 2 (d_model 100→192 + d_head trim) | next gate |
 | **pending** | Augmentation set landing | A/B vs no-aug baseline |
 | **pending** | X3D-S fusion build | primary direction; build slated post-Run 2 |
@@ -411,6 +412,27 @@ Active set: centreline flip (p=0.5, coupled, COCO bilateral joint-index swap) + 
 Hit-frame metadata derivable without re-extraction via Method A (`clips_master.csv` correlation, faithful to annotation) or Method B (shuttle horizontal-velocity sign reversals, independent verification, ±5-frame ceiling on soft shots which X3D-S's ±19-frame window absorbs comfortably).
 
 Full spec, implementation outlines, magnitude/frequency rationale, ablation gates, code traces, and Phase 3 candidates at [`augmentation_framework.md`](augmentation_framework.md).
+
+### Jitter-off ablation: `RandomTranslation_batch(prob=0.0)` — 2026-05-04
+
+The augmentation framework lock left a "first aug ablation slot" question open: was the inherited bbox-centric jitter (joints shifted in their bbox-centre-relative frame, body-deforming, not court-position-aligned) net-negative or noise vs the active baseline? Single A/B against the wipe_drop best (`run_20260503_172922`): `RandomTranslation_batch(prob=0.0)` at `bst_train.py:375`, hparams otherwise identical.
+
+Run `run_20260504_152529`:
+
+| Serial | macro | min ws | acc | top-2 |
+| --- | --- | --- | --- | --- |
+| S1 | 0.7474 (top) | 0.4408 | 0.7639 (top) | 0.9403 (top) |
+| S2 (best) | 0.7398 | 0.4848 (top ws) | 0.7584 | 0.9348 |
+| S3 | 0.7447 | 0.4722 | 0.7601 | 0.9398 |
+| S4 | 0.7369 | 0.3911 | 0.7570 | 0.9343 |
+| S5 | 0.7317 | 0.3617 (low) | 0.7535 | 0.9334 |
+| **Mean** | **0.7401** | **0.4301** | **0.7586** | **0.9365** |
+
+Vs wipe_drop best mean (0.7481 / 0.4742 / 0.7653 / 0.9353): macro **-0.8**, min **-4.4**, acc **-0.7**, top-2 +0.1. Vs first CDB-F1 baseline mean (0.7432 / 0.4621 / 0.7617 / 0.9351): macro -0.3, min **-3.2**, acc -0.3, top-2 +0.1. Wrist_smash takes the brunt (mean 0.4742 → 0.4301; S4/S5 floor at 0.39 / 0.36, well below the [0.45, 0.50] band the jitter-on serials sat in). S2 best on pair-sum 1.225 (top ws); S1 wins macro / acc / top-2 but its min sits run-low among the upper three.
+
+Per-class shifts vs wipe_drop best (5-serial mean, pp absolute): smash +0.5, drive +0.5, return_net -0.1, clear -0.1, long_service -0.2, lob -0.4, net_shot -0.5, drop -0.5, push -0.7, rush -0.7, cross_court_net_shot -1.1, short_service -1.5, passive_drop -2.1, wrist_smash -4.4.
+
+**Read.** The bbox-centric jitter is conceptually wrong (deforms the body around its own centre, doesn't simulate court-position movement) but empirically regularising. Min F1 ends up below the CDB-F1 baseline too, not just below wipe_drop, so the broken-but-helpful jitter isn't even close to net-negative. Defaults restored at `bst_train.py:375`; corrected pos+shuttle jitter from [`augmentation_framework.md`](augmentation_framework.md) is the eventual replacement. The "first aug ablation slot" three-option menu (Remove / Couple-current / Couple-tighten) collapses on the result: Remove is the loser arm, so the next aug experiment takes the corrected formulation rather than the disable-and-see route.
 
 ## Parked decisions
 

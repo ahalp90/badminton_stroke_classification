@@ -20,6 +20,12 @@ claim has a verifiable trace one click away.*
   layered conditional bounds, joints/bones untouched, zero-frame
   preservation, shuttle off-screen mirroring). Replaces the broken
   `RandomTranslation_batch` (joints-only, decoupled, body-deforming).
+- **Jitter-off ablation result (2026-05-04, `run_20260504_152529`)**:
+  turning the broken `RandomTranslation_batch` off (`prob=0.0`)
+  regressed against the wipe_drop best (`run_20260503_172922`) by
+  macro -0.8, min -4.4, acc -0.7. Conceptually wrong, empirically
+  regularising. Defaults restored at `bst_train.py:375`; replace
+  via the locked corrected formulation rather than disabling.
 - **Out for Task 2**: temporal speed jitter (Phase 3 candidate),
   Gaussian joint jitter, random joint masking,
   `WeightedRandomSampler`, net flip.
@@ -636,6 +642,19 @@ is actively mis-training the cross-attention on ~30% of batches. Three options t
   0.3 shift can land a Bottom player on the Top court), and with
   side-coordinate carrying class signal, the smaller magnitude is
   closer to the "small projection-calibration jitter" job.
+
+**Remove arm result (2026-05-04, `run_20260504_152529`)**: the
+disable-and-see arm has been run with `RandomTranslation_batch(prob=0.0)`
+and otherwise identical hparams to the wipe_drop best
+(`run_20260503_172922`). Mean macro -0.8, min -4.4, acc -0.7, top-2 +0.1.
+Wrist_smash mean 0.4742 → 0.4301; S4/S5 floor at 0.39 / 0.36; min F1
+also fell below the first CDB-F1 baseline (`run_20260501_164658`). The
+decoupled body-deforming jitter is empirically regularising despite
+being structurally wrong. Defaults restored at `bst_train.py:375`.
+**Practical takeaway: don't disable, replace.** The corrected
+pos+shuttle constrained-jitter (above) is the path; the
+"couple-at-magnitude" and "couple-and-tighten" arms are subsumed by
+it. Detail: arch_1_directions.md (jitter-off ablation section).
 
 Note on the magnitude question: even with coupled streams, ±0.3 is
 aggressive given that 30% prob × the player's own coords means a
