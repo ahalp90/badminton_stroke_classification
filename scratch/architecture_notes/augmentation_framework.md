@@ -372,6 +372,70 @@ no-shift when the layered constraints produce a degenerate range is
 a feature, not a bug: clips where players are already pinned
 shouldn't get jittered.
 
+##### Worst-case drift on already-out-of-band clips
+
+A player who already sits past their band pre-shift (e.g. top player
+at y = 0.6, past the centreline) drops out of the layered min on that
+side. The other player's constraint still binds the envelope, so the
+sampled shift is bounded by whatever the in-band player can absorb,
+intersected with the cap. The already-out-of-band player then moves
+together with the in-band one (single `(dx, dy)` per clip; both
+players and the shuttle shift identically). Worst-case extra drift
+for the violator on that axis is the cap (currently `cap_y = 0.05`,
+`cap_x = 0.10`); they can't exceed that because the cap is fixed.
+
+The framing is deliberate: sticky_anchor's `generous_margin = 0.15`
+already passes these out-of-band-but-realistic clips through unclamped
+because they exist in real play (diving returns, wide-shot chases).
+Actively *clamping* the violator back toward band would reshape the
+natural data distribution by pulling extreme-position clips inward,
+which the doc avoids on the same principle as sticky_anchor's
+permissive band. The current rule lets the violator drift slightly
+further out (bounded by the cap) but doesn't introduce a phantom
+constraint that would yank them in.
+
+##### If `cap_y` ever bumps higher
+
+At `cap_y = 0.05` the worst-case extra drift is small enough not to
+matter in practice. If a future ablation widens the y cap and the
+worst-case drift on already-out-of-band clips starts mattering (e.g.
+a y = 0.6 top player drifting to y = 0.75 starts looking like
+out-of-distribution off-court positions rather than a wide reach),
+**the y axis should switch to a stricter rule**: if either player is
+already out-of-band on the y axis pre-shift, the y-shift for that
+clip is annulled (`dy = 0`); only x-shift remains available. This
+is a stricter form of distribution reshaping than the current
+permissive logic — clips with extreme-y players lose their y-jitter
+exposure entirely — but it's evenly applied across both directions
+of out-of-band rather than the asymmetric "drift outward only"
+behaviour the current rule allows. x can keep the permissive logic
+since `cap_x` is loose by design and x carries less class signal.
+The loose-x / strict-y asymmetry mirrors the asymmetric cap rationale.
+
+Keep flagged: this is a "future tune" branch, not a current concern
+at the locked `cap_y = 0.05`.
+
+##### Cap vs envelope (sample-range intersection)
+
+Each axis has two independent magnitude bounds:
+
+- *Envelope*: per-clip layered `[dy_min, dy_max]` (and
+  `[dx_min, dx_max]`) computed from that clip's own pos extremes plus
+  the constraint structure above. Data-dependent. A low-movement clip
+  with players in the centre has a wide envelope; a high-movement
+  clip with a player near the centreline has a narrow one.
+- *Cap*: fixed `cap_y` / `cap_x`, independent of any clip's data.
+
+Sample range is the intersection: `dy_lo = max(dy_min, -cap_y)`,
+`dy_hi = min(dy_max, +cap_y)`, and the same for x. So when the
+envelope is wider than the cap (low-movement clip), the cap binds
+and dy ranges in `[-cap_y, +cap_y]`. When the envelope is tighter
+than the cap (high-movement clip near a constraint), the envelope
+binds and dy ranges in the smaller window. The "magnitude-adaptive
+jitter" property the doc cites elsewhere (smaller injected aug for
+high-movement edge-of-court clips, full envelope for centre-of-court
+clips) falls out of this intersection.
+
 #### Effective augmentation rate vs nominal `p`
 
 The lottery roll is fired before the bounds compute, so a
