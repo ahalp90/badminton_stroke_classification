@@ -187,14 +187,25 @@ def main():
         print(f'  {k}: {stats[k]}')
     print()
     print('Results:')
-    print(f"  Fraction of clips that hit OOB at least once across {args.n_trials} trials: "
-          f"{stats['fraction_clips_ever_oob']*100:.2f}%")
-    print(f"  Fraction of effective-fire (clip,trial) pairs producing any OOB: "
-          f"{stats['fraction_trials_oob_given_eff']*100:.2f}%")
-    print(f"  Fraction of all (clip,trial) pairs producing any OOB: "
-          f"{stats['fraction_trials_oob_overall']*100:.2f}%")
-    print(f"  Fraction of real shuttle frames pushed OOB (per-frame rate): "
-          f"{stats['fraction_real_shuttle_frames_oob']*100:.2f}%")
+    print(
+        f"  Per real shuttle frame, how often the shift pushes it "
+        f"off-screen: {stats['fraction_real_shuttle_frames_oob']*100:.2f}%"
+    )
+    print(
+        f"  When the shift fires on a clip, how often it pushes any "
+        f"shuttle frame off-screen: "
+        f"{stats['fraction_trials_oob_given_eff']*100:.2f}%"
+    )
+    print(
+        f"  Across all simulated shifts (rolled or not), how often any "
+        f"shuttle frame ends up off-screen: "
+        f"{stats['fraction_trials_oob_overall']*100:.2f}%"
+    )
+    print(
+        f"  Across {args.n_trials} simulated shifts per clip, fraction "
+        f"of clips that had at least one off-screen event: "
+        f"{stats['fraction_clips_ever_oob']*100:.2f}%"
+    )
 
 
 if __name__ == '__main__':

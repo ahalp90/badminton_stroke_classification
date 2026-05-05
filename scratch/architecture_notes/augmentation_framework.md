@@ -363,6 +363,21 @@ dx_min = (-eps - x_min) if x_min >= -eps else 0.0
   shuttle_oob = (shuttle_shifted < 0).any(axis=-1) | (shuttle_shifted > 1).any(axis=-1)
   shuttle_shifted[shuttle_oob] = 0
   ```
+  *Verified empirically (2026-05-05) at the locked
+  cap_y=0.05 / cap_x=0.10 / p_jitter=0.2:* per-frame off-screen rate
+  is 0.65% (fewer than 1 in 150 real shuttle frames replaced with
+  the sentinel by the shift). When the shift fires on a clip,
+  7.21% of those clips have at least one frame go off-screen;
+  the remaining 92.8% keep all their shuttle frames in-bounds.
+  Run script: `scripts/estimate_shuttle_oob_rate.py`. The rate is
+  small enough that the model's existing tolerance for natural
+  off-screen shuttle absorbs the aug-induced cases. The
+  cross_court_net_shot regression in `run_20260505_111211` (5.7%
+  on 5-serial mean, 0.65 on S5 specifically near the wipe_drop
+  baseline) is therefore not attributable to the OOB sentinel rule;
+  the seed-to-seed variance of cross_court_net_shot in the run
+  (0.57, 0.58, 0.59, 0.65 across S1-S5 with S4 missing from the
+  cross-checked set) is the dominant explanation.
 - Joints and bones stay untouched throughout.
 
 No rerolling cost because the bounds are deterministic from per-clip
