@@ -363,6 +363,21 @@ dx_min = (-eps - x_min) if x_min >= -eps else 0.0
   shuttle_oob = (shuttle_shifted < 0).any(axis=-1) | (shuttle_shifted > 1).any(axis=-1)
   shuttle_shifted[shuttle_oob] = 0
   ```
+  *Verified empirically (2026-05-05) at the locked
+  cap_y=0.05 / cap_x=0.10 / p_jitter=0.2:* per-frame off-screen rate
+  is 0.65% (fewer than 1 in 150 real shuttle frames replaced with
+  the sentinel by the shift). When the shift fires on a clip,
+  7.21% of those clips have at least one frame go off-screen;
+  the remaining 92.8% keep all their shuttle frames in-bounds.
+  Run script: `scripts/estimate_shuttle_oob_rate.py`. The rate is
+  small enough that the model's existing tolerance for natural
+  off-screen shuttle absorbs the aug-induced cases. The
+  cross_court_net_shot regression in `run_20260505_111211` (5.7%
+  on 5-serial mean, 0.65 on S5 specifically near the wipe_drop
+  baseline) is therefore not attributable to the OOB sentinel rule;
+  the seed-to-seed variance of cross_court_net_shot in the run
+  (0.57, 0.58, 0.59, 0.65 across S1-S5 with S4 missing from the
+  cross-checked set) is the dominant explanation.
 - Joints and bones stay untouched throughout.
 
 No rerolling cost because the bounds are deterministic from per-clip
@@ -371,6 +386,69 @@ mask preservation" is ~constant time per clip. Per-axis fallback to
 no-shift when the layered constraints produce a degenerate range is
 a feature, not a bug: clips where players are already pinned
 shouldn't get jittered.
+
+##### What happens to clips where a player was already out of band
+
+A player who was already past their band before the shift (e.g. the
+top player reaching y = 0.6, past the centreline) doesn't contribute
+a constraint on that side anymore. The other player's constraint
+still applies, so the shift size for the clip is bounded by whatever
+the in-band player can absorb, intersected with the cap. Both
+players and the shuttle shift together by the same `(dx, dy)`, so
+the already-out-of-band player moves with everyone else. The most
+they can drift further out by is the cap (currently 0.05 on y, 0.10
+on x).
+
+This is by design. sticky_anchor's `generous_margin = 0.15` lets
+out-of-band-but-realistic positions through unclamped already, since
+they happen in real play (diving returns, players chasing wide
+shots). Pulling them back toward the band would actively reshape the
+data distribution, which we avoid for the same reason sticky_anchor
+uses a permissive margin. The current rule lets the out-of-band
+player drift a little further out (no more than the cap), rather
+than introducing a constraint that would pull them back in.
+
+##### If we ever raise cap_y
+
+At `cap_y = 0.05` the worst-case extra drift is small enough not to
+matter in practice. If a future experiment raises the y cap and that
+drift starts looking like a problem (e.g. a top player at y = 0.6
+drifting to y = 0.75 starts looking like an off-court position rather
+than a wide reach), the y axis should switch to a stricter rule: if
+either player is already out of band on y before the shift, set the
+y-shift to 0 for that clip and keep only the x-shift. That's a
+stricter form of distribution reshaping than the current permissive
+rule (clips with extreme-y players lose their y-jitter entirely),
+but it's even-handed across both directions of out-of-band rather
+than the current "drift outward only" behaviour. The x axis can stay
+permissive since `cap_x` is loose by design and x carries less class
+information.
+
+Park this as a future tune; it's not a concern at the locked
+`cap_y = 0.05`.
+
+##### Cap and per-clip bound: which one limits the shift
+
+Each axis has two limits on how far the shift can go:
+
+- *Per-clip bound*: how far the shift can go before pushing a player
+  out of their band. Computed from the clip's own min and max pos
+  values. A clip with players near the centre of the court has a
+  wide bound; a clip with a player near the centreline has a narrow
+  one.
+- *Cap*: a fixed maximum shift size (`cap_y`, `cap_x`), the same
+  for every clip.
+
+The actual shift is drawn from the intersection of the two:
+`dy_lo = max(dy_min, -cap_y)`, `dy_hi = min(dy_max, +cap_y)`, and
+the same for x. When the per-clip bound is wider than the cap
+(typical centre-court clip), the cap is what limits the shift, so
+dy is sampled from `[-cap_y, +cap_y]`. When the per-clip bound is
+narrower than the cap (high-movement clip near a constraint), the
+per-clip bound limits the shift, so dy is sampled from the smaller
+window. This is what makes the jitter magnitude-adaptive: clips
+with players near the edges of their band get a smaller injected
+shift than centre-of-court clips, which absorb the full cap.
 
 #### Effective augmentation rate vs nominal `p`
 
