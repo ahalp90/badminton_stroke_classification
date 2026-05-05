@@ -44,6 +44,13 @@ claim has a verifiable trace one click away.*
   horizontal-velocity sign reversals (Method B, independent
   verification with ±5-frame ceiling on soft shots, well within
   X3D-S's ±19-frame window).
+- **Aug round 1 sweep findings (2026-05-06)**: 5-serial run-mean
+  seed envelope is ~0.1% on macro/accuracy/top-2 and ~2% on min F1
+  (see "Seed-noise envelope on run means" section below);
+  smash/wrist_smash picked-serial F1 has flattened to ~0.51 /
+  0.51-0.60, reading as pose-only features running dry for the
+  pair (detail at [`hparams_sweep_speculations.md`](hparams_sweep_speculations.md),
+  "Smash/wrist_smash F1 split" section).
 
 ## Coordinate spaces of the three streams (verified 2026-05-04)
 
@@ -741,6 +748,31 @@ to keep each player on their own half would require asymmetric
 per-slot shift bounds (and stays a question even with shuttle and
 court paired). Keeping the streams paired is the most important
 correction; magnitude is a second-order tune.
+
+## Seed-noise envelope on run means (round 1 sweep finding)
+
+Aug hparam sweep round 1 (`sweep_20260505_211814_aug_v1_round_1`, 2026-05-06) ran four configs against the prior best (`run_20260505_154907`). The most useful result was a YAML slip: `p_flip_25_x_p_jitter_30`'s `p_jitter: 0.3` override matched the sweep base, so it ran the same aug as `p_flip_25`. Two 5-serial runs, identical config, different seeds.
+
+5-serial mean spread between the two:
+
+| Metric | p_flip_25 | replicate | spread |
+| --- | --- | --- | --- |
+| macro F1 | 0.7402 | 0.7389 | 0.13% |
+| min F1 | 0.4783 | 0.4569 | 2.14% |
+| accuracy | 0.7602 | 0.7588 | 0.14% |
+| top-2 | 0.9383 | 0.9385 | 0.02% |
+
+That's the 5-serial seed envelope. Macro and accuracy sit tight at ~0.1%, top-2 is essentially deterministic, min F1 swings two whole percentage points off seed alone.
+
+What this changes about reading sweeps:
+
+Macro and accuracy are the reliable signals at 5 serials. A run-mean macro difference of ~0.5%+ is genuinely outside seed noise; smaller moves are inside it. Min F1 at 5 serials is too noisy to drive hparam decisions: the 2% spread across identical-config runs is the same order as the differences we see between runs in a sweep, so big min F1 moves (3%+) are real and smaller ones aren't separable. Practical read: optimise the search on macro, where signal-to-noise is tractable, and read min F1 alongside as the success criterion (it's what we want to lift on the floor class) without using it as the hparam decision signal.
+
+The wrapper's 0.7% macro kill threshold sits right around one run-mean spread, so borderline runs (0.5-1% macro deficit) carry false-kill risk. Clear losers (1%+) get killed correctly: cap_bump's 1.08% deficit triggered exactly as designed at S4. Tighten the threshold only if false-kills become a problem in practice.
+
+Per-class noise on individual classes is much wider than the run-mean spread suggests. Cross_court_net_shot per-serial values across the prior reference's 5 serials: 0.625, 0.567, 0.556, 0.669, 0.613. Spread of 0.11 on one class from seed alone, larger than any cross-run movement we've observed on cross_court. The "cross_court regressed under augmentation" reading is inside its own seed envelope at this sample size, so we can't pin it on any one aug knob.
+
+Companion finding from the same sweep: smash/wrist_smash F1 has flattened, reading as a signal limit on pose-only features. Detail at [`hparams_sweep_speculations.md`](hparams_sweep_speculations.md), "Smash/wrist_smash F1 split" section.
 
 ## Application order in `__getitem__`
 

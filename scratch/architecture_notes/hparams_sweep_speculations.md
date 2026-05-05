@@ -227,6 +227,13 @@ this doc. Punch list:
 - **First aug ablation slot**: A/B the corrected jitter formulation
   against the no-aug baseline before adding any further
   augmentation arms.
+- **Round 1 sweep seed-noise envelope (2026-05-06)**: two
+  identical-config 5-serial runs gave run-mean spread ~0.1% on
+  macro/accuracy/top-2 and ~2% on min F1. Macro is the reliable
+  signal at this sample size; min F1 stays the success criterion
+  but is too noisy to drive decisions. Detail:
+  [`augmentation_framework.md`](augmentation_framework.md),
+  "Seed-noise envelope on run means" section.
 
 Full code traces, implementation outlines, magnitude / frequency
 rationale, ablation gates, and physics-of-non-uniform-temporal-aug
@@ -455,6 +462,28 @@ ablation:
 So our sweep candidates are real gaps, not "things the authors
 already ruled out". The BST contribution is architectural (CG/AP
 modules + clipping strategy), not optimisation-side.
+
+## Smash/wrist_smash F1 split has flattened (round 1 sweep finding, 2026-05-06)
+
+Picked serials from the aug hparam sweep round 1 (`sweep_20260505_211814_aug_v1_round_1`) showed a pattern shift on the smash↔wrist_smash pair:
+
+| Run | Cell | PICK serial | wrist_smash F1 | smash F1 |
+| --- | --- | --- | --- | --- |
+| `run_20260505_213008_504674` | p_flip_25 | S2 | 0.510 | 0.567 |
+| `run_20260506_011851_522295` | p_jitter_40 | S3 | 0.510 | 0.605 |
+| `run_20260506_032632_652587` | p_flip_25_x_p_jitter_30 | S1 | 0.523 | 0.568 |
+| `run_20260505_154907` (prior ref) | aug v1 + jit 0.3 | S5 | 0.519 | 0.515 |
+
+ws used to sit clearly below smash and was the project floor on most serials. This round's picks show roughly equal F1 on both (~0.51-0.52 ws, ~0.51-0.60 smash); which one is the floor varies by serial. The prior ref's S5 was the first picked serial where smash was the floor; this round's three picks all show the pair in the same band.
+
+Two reads, same operational implication:
+
+- **Equal confusion**: the model has stopped biasing one class over the other and is confused on both at roughly the same rate. Flip and jitter don't add information for the smash-vs-ws distinction, so the model settles into splitting between them when uncertain. The 50/50 split is the model giving up rather than improving.
+- **Signal ceiling**: smash and wrist_smash overlap in pose-only features and ~0.5/0.5 is what the data actually supports. Augmentation can't move it because the missing signal isn't on any aug axis.
+
+Both point at more signal needed. That's the X3D-S wrist crop bet: visual context at the wrist (racket angle, tip motion, contact frame) that pose-2D throws away. Lines up with the capacity-bottleneck read at `model_capacity_bottleneck_question.md`: plateau is data-bound and signal-bound, not capacity-bound.
+
+Caveat: the pattern is at picked-serial level, which is noisier than run means. Companion seed-noise finding at [`augmentation_framework.md`](augmentation_framework.md), "Seed-noise envelope on run means" section, shows run-mean min F1 swings ~2% from seed at 5 serials. Soft claim: no picked serial this round shows the historic wide-gap pattern. Quantitative size of the shift is bounded by the noise floor.
 
 ## Per-knob walkthrough
 

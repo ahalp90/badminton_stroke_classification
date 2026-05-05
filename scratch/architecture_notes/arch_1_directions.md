@@ -434,6 +434,30 @@ Per-class shifts vs wipe_drop best (5-serial mean, pp absolute): smash +0.5, dri
 
 **Read.** The bbox-centric jitter is conceptually wrong (deforms the body around its own centre, doesn't simulate court-position movement) but empirically regularising. Min F1 ends up below the CDB-F1 baseline too, not just below wipe_drop, so the broken-but-helpful jitter isn't even close to net-negative. Defaults restored at `bst_train.py:375`; corrected pos+shuttle jitter from [`augmentation_framework.md`](augmentation_framework.md) is the eventual replacement. The "first aug ablation slot" three-option menu (Remove / Couple-current / Couple-tighten) collapses on the result: Remove is the loser arm, so the next aug experiment takes the corrected formulation rather than the disable-and-see route.
 
+### Aug v1 round 1 hparam sweep — 2026-05-06
+
+First round of the aug hparam sweep, four runs via the new `hparam_sweep.py` wrapper against the aug v1 + p_jitter=0.3 reference (`run_20260505_154907`). Tested whether lower p_flip recovers cross_court_net_shot, whether bigger jitter caps keep paying, and whether p_jitter past 0.3 keeps paying.
+
+Nothing dislodges the prior best. Three TIE/LOSE verdicts inside seed noise; one clear LOSE (`cap_bump`, killed at S4 on the 0.7% macro tolerance). Aug v1 + p_jitter=0.3 stays the locked config.
+
+5-serial run means (cap_bump killed at S4, 4-serial):
+
+| Cell | Aug | macro | min ws | acc | top-2 | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| p_flip_25 | flip 0.25, jit 0.3 | 0.7402 | 0.4783 | 0.7602 | 0.9383 | TIE |
+| cap_bump | flip 0.5, jit 0.3, cap 0.075/0.15 | 0.7339 | 0.4587 | 0.7539 | 0.9344 | LOSE (killed S4) |
+| p_jitter_40 | flip 0.5, jit 0.4 | 0.7426 | 0.4822 | 0.7610 | 0.9409 | TIE |
+| p_flip_25_x_p_jitter_30 | flip 0.25, jit 0.3 (replicate of p_flip_25) | 0.7389 | 0.4569 | 0.7588 | 0.9385 | LOSE |
+
+Two findings worth their own writeups:
+
+- **Seed-noise envelope on run means.** YAML slip made `p_flip_25_x_p_jitter_30` an identical-config replicate of `p_flip_25` (its `p_jitter: 0.3` matched the base). Same aug, different seeds: macro spread 0.13%, min F1 2.14%, acc 0.14%, top-2 0.02%. Macro is the reliable signal at this sample size; min F1 stays the success criterion but is too noisy to drive decisions. The 0.7% macro kill threshold sits at one run-mean spread; cap_bump's 1.08% triggered correctly. Detail: [`augmentation_framework.md`](augmentation_framework.md), "Seed-noise envelope on run means" section.
+- **Smash/wrist_smash F1 has flattened.** Picked serials this round: ws 0.510 / 0.510 / 0.523, smash 0.567 / 0.605 / 0.568. Historic ws-below-smash gap is gone; which one is the floor varies by serial. Reads as pose-only signal running dry for the pair: flip and jitter don't carry information about that distinction. X3D-S wrist crop is the structural lever. Detail: [`hparams_sweep_speculations.md`](hparams_sweep_speculations.md), "Smash/wrist_smash F1 split" section.
+
+Best single-serial of the round: `p_flip_25_x_p_jitter_30` S1 (macro 0.7447 = ref, min 0.5231 ws). New project-wide single-serial min F1 high. Useful as deployable weights, not as a hparam signal — sits inside the round's worst-mean run.
+
+Sweep dir: `experiments/aug_hparam_sweep/sweep_20260505_211814_aug_v1_round_1/`. Per-run dirs: `run_20260505_213008_504674`, `run_20260505_233645_734631`, `run_20260506_011851_522295`, `run_20260506_032632_652587`.
+
 ## Parked decisions
 
 ### Vanilla focal skipped per project decision
