@@ -11,6 +11,7 @@ Badminton Stroke Classification using AI Computer Vision (Contribution to long-t
 - `configs/`: Hyperparameter and pipeline configurations
 - `scripts/`: Utility scripts
 - `scratch/`: Team notes and temporary files
+- `frontend/`: React app user interface
 - `data/`: Local dataset storage (`raw/`, `processed/`, `checkpoints/`, `logs/`)
 
 ---
