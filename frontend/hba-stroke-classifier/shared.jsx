@@ -1,0 +1,234 @@
+import { createContext, useContext, useState, useEffect } from 'react';
+import logoSrc from './uploads/logo-1777443863198.png';
+
+const ThemeContext = createContext();
+
+export const DARK = {
+  bg: '#070B13',
+  surface: '#0E1422',
+  surface2: '#16203A',
+  border: '#1E2D4A',
+  blue: '#2563EB',
+  blueLight: '#3B82F6',
+  blueDim: 'rgba(37,99,235,0.12)',
+  pine: '#D4A843',
+  pineDim: 'rgba(212,168,67,0.12)',
+  text: '#E4EAF6',
+  muted: '#6B7FA3',
+  success: '#22C55E',
+  successDim: 'rgba(34,197,94,0.12)',
+  danger: '#EF4444',
+  dangerDim: 'rgba(239,68,68,0.12)',
+  warning: '#F59E0B',
+};
+
+export const LIGHT = {
+  bg: '#EEF2FA',
+  surface: '#FFFFFF',
+  surface2: '#E4EBF7',
+  border: '#C8D4EA',
+  blue: '#1D4ED8',
+  blueLight: '#3B82F6',
+  blueDim: 'rgba(29,78,216,0.08)',
+  pine: '#A8720A',
+  pineDim: 'rgba(168,114,10,0.1)',
+  text: '#0A0E17',
+  muted: '#5A6882',
+  success: '#16A34A',
+  successDim: 'rgba(22,163,74,0.1)',
+  danger: '#DC2626',
+  dangerDim: 'rgba(220,38,38,0.1)',
+  warning: '#D97706',
+};
+
+export function ThemeProvider({ children }) {
+  const [dark, setDark] = useState(true);
+  const t = dark ? DARK : LIGHT;
+
+  useEffect(() => {
+    document.body.style.background = t.bg;
+    document.body.style.color = t.text;
+  }, [dark, t]);
+
+  return (
+    <ThemeContext.Provider value={{ t, dark, setDark }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export function useTheme() { return useContext(ThemeContext); }
+
+export function NavBar({ screen, onNavigate }) {
+  const { t, dark, setDark } = useTheme();
+
+  const steps = [
+    { id: 'library',   label: 'Select Video' },
+    { id: 'markup',    label: 'Markup' },
+    { id: 'configure', label: 'Configure' },
+    { id: 'progress',  label: 'Analysis' },
+    { id: 'results',   label: 'Results' },
+  ];
+  const stepIndex = steps.findIndex(s => s.id === screen);
+
+  return (
+    <nav style={{
+      background: t.surface,
+      borderBottom: `1px solid ${t.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      padding: '0 24px',
+      height: 56,
+      position: 'sticky',
+      top: 0,
+      zIndex: 100,
+      gap: 0,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginRight: 28, flexShrink: 0 }}>
+        <img
+          src={logoSrc}
+          style={{ height: 26, filter: dark ? 'none' : 'invert(1) brightness(0.15)' }}
+          alt="HBA"
+        />
+        <div style={{ width: 1, height: 24, background: t.border }} />
+        <span style={{ color: t.muted, fontSize: 12, fontWeight: 500, letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+          Stroke Classifier
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: 2 }}>
+        {steps.map((step, i) => {
+          const done     = i < stepIndex;
+          const active   = i === stepIndex;
+          const disabled = i > stepIndex + 1;
+          return (
+            <button
+              key={step.id}
+              onClick={() => !disabled && onNavigate(step.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7,
+                padding: '0 14px', height: 56,
+                background: 'none', border: 'none',
+                cursor: disabled ? 'default' : 'pointer',
+                color: active ? t.blue : done ? t.text : disabled ? t.border : t.muted,
+                fontSize: 13, fontWeight: active ? 600 : 400,
+                borderBottom: active ? `2px solid ${t.blue}` : '2px solid transparent',
+                transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
+                fontFamily: "'Space Grotesk', sans-serif",
+              }}
+            >
+              <span style={{
+                width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                background: active ? t.blue : done ? t.success : 'transparent',
+                border: `1.5px solid ${active ? t.blue : done ? t.success : disabled ? t.border : t.muted}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 9, fontWeight: 700,
+                color: active || done ? '#fff' : disabled ? t.border : t.muted,
+              }}>
+                {done ? '✓' : i + 1}
+              </span>
+              {step.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={() => setDark(d => !d)}
+        style={{
+          background: t.surface2, border: `1px solid ${t.border}`,
+          borderRadius: 7, padding: '6px 12px', cursor: 'pointer',
+          color: t.muted, fontSize: 12, fontWeight: 500,
+          fontFamily: "'Space Grotesk', sans-serif",
+          flexShrink: 0,
+        }}
+      >
+        {dark ? '☀ Light' : '☾ Dark'}
+      </button>
+    </nav>
+  );
+}
+
+export function Btn({ children, variant = 'primary', onClick, disabled, style: extraStyle = {}, size = 'md' }) {
+  const { t } = useTheme();
+  const [hov, setHov] = useState(false);
+
+  const pad = size === 'sm' ? '7px 14px' : '10px 20px';
+  const fz  = size === 'sm' ? 12 : 14;
+
+  const base = {
+    padding: pad, borderRadius: 8, fontSize: fz, fontWeight: 600,
+    cursor: disabled ? 'not-allowed' : 'pointer', border: 'none',
+    transition: 'all 0.15s', opacity: disabled ? 0.4 : 1,
+    fontFamily: "'Space Grotesk', sans-serif", lineHeight: 1.4,
+    ...extraStyle,
+  };
+  const variants = {
+    primary:   { background: hov && !disabled ? t.blueLight : t.blue, color: '#fff' },
+    secondary: { background: hov && !disabled ? t.surface2 : 'transparent', color: t.text, border: `1px solid ${t.border}` },
+    ghost:     { background: hov && !disabled ? t.blueDim : 'transparent', color: t.blue, border: `1px solid ${hov && !disabled ? t.blue : 'transparent'}` },
+    danger:    { background: hov && !disabled ? '#DC2626' : t.dangerDim, color: t.danger, border: `1px solid ${t.danger}` },
+  };
+
+  return (
+    <button
+      style={{ ...base, ...variants[variant] }}
+      onClick={disabled ? undefined : onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function Card({ children, style: extraStyle = {}, onClick }) {
+  const { t } = useTheme();
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: t.surface,
+        border: `1px solid ${t.border}`,
+        borderRadius: 12,
+        ...extraStyle,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function Badge({ children, color = 'blue' }) {
+  const { t } = useTheme();
+  const palette = {
+    blue:   { bg: t.blueDim,    text: t.blueLight },
+    pine:   { bg: t.pineDim,    text: t.pine },
+    green:  { bg: t.successDim, text: t.success },
+    red:    { bg: t.dangerDim,  text: t.danger },
+    muted:  { bg: t.surface2,   text: t.muted },
+  };
+  const c = palette[color] || palette.blue;
+  return (
+    <span style={{
+      background: c.bg, color: c.text,
+      padding: '2px 8px', borderRadius: 4,
+      fontSize: 11, fontWeight: 600,
+      fontFamily: "'JetBrains Mono', monospace",
+      display: 'inline-flex', alignItems: 'center',
+    }}>
+      {children}
+    </span>
+  );
+}
+
+export function SectionHeader({ title, subtitle }) {
+  const { t } = useTheme();
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <h1 style={{ fontSize: 22, fontWeight: 700, color: t.text, marginBottom: 4 }}>{title}</h1>
+      {subtitle && <p style={{ fontSize: 14, color: t.muted }}>{subtitle}</p>}
+    </div>
+  );
+}
