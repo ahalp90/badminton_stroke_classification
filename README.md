@@ -13,7 +13,7 @@ Badminton Stroke Classification using AI Computer Vision (Contribution to long-t
 - `scratch/`: Team notes and temporary files
 - `frontend/`: React app user interface
 - `data/`: Local dataset storage (`raw/`, `processed/`, `checkpoints/`, `logs/`)
-
+- `docs/`: Project documentation including decision log
 ---
 
 ## Local Setup Instructions
