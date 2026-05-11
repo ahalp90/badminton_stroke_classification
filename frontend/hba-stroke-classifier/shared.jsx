@@ -144,7 +144,7 @@ export function NavBar({ screen, onNavigate }) {
           flexShrink: 0,
         }}
       >
-        {dark ? '☀ Light' : '☾ Dark'}
+        {dark ? '𖤓 Light' : '☾ Dark'}
       </button>
     </nav>
   );
