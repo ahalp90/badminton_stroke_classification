@@ -157,10 +157,11 @@ def main():
     if not weights_path.is_file():
         sys.exit(f"weights file missing: {weights_path}")
 
-    # Reconstruct the npy_collated_dir the training pipeline used. bst_train builds it
-    # from Path(__file__).resolve().parent.parent (= bst_refactor); we mirror that by
-    # walking up from the run dir: experiments → main_on_shuttleset → stroke_classification → bst_refactor.
-    bst_refactor_root = run_dir.parents[3]
+    # Reconstruct the npy_collated_dir the training pipeline used. bst_train.py lives at
+    # main_on_shuttleset/bst_train.py and builds the path from Path(__file__).parent.parent,
+    # which is the stroke_classification dir. Mirror that by walking up from run_dir:
+    # experiments → main_on_shuttleset → stroke_classification.
+    stroke_classification_root = run_dir.parents[2]
     basename = derive_npy_collated_dir_basename(
         taxonomy_name=config["taxonomy"],
         split_column=config["split_column"],
@@ -173,7 +174,7 @@ def main():
         collated_dir = args.collated_root_override / basename
     else:
         collated_dir = (
-            bst_refactor_root
+            stroke_classification_root
             / f"preparing_data/ShuttleSet_data_{config['taxonomy']}"
             / basename
         )
