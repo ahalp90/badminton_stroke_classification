@@ -34,8 +34,6 @@ import pandas as pd
 
 # Same import path bst_train uses
 from pipeline.config import (
-    TAXONOMIES,
-    derive_ablation_id,
     derive_npy_collated_dir_basename,
 )
 

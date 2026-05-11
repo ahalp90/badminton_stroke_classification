@@ -460,11 +460,11 @@ def test_alpha_scales_per_class_gradient_magnitude():
     logits = torch.randn(4, 2)
     grads_per_label = []
     for label_value in [0, 1]:
-        l = logits.clone().detach().requires_grad_(True)
+        lg = logits.clone().detach().requires_grad_(True)
         labels = torch.full((4,), label_value, dtype=torch.long)
-        loss = loss_fn(l, labels)
+        loss = loss_fn(lg, labels)
         loss.backward()
-        grads_per_label.append(l.grad.abs().sum().item())
+        grads_per_label.append(lg.grad.abs().sum().item())
 
     # Higher-alpha class produces larger gradient magnitude.
     assert grads_per_label[0] > grads_per_label[1]
