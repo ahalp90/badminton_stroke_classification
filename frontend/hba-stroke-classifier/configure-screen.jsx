@@ -26,11 +26,12 @@ const MODELS = [
       { label: 'Inference',    value: '~0.3s / stroke' },
       { label: 'Architecture', value: 'TCN' },
     ],
+    disabled: true,
   },
 ];
 
 /* ─── Model card ─────────────────────────────────────────────────── */
-function ModelCard({ model, enabled, onToggle }) {
+function ModelCard({ model, enabled, disabled, onToggle }) {
   const { t } = useTheme();
   const [hov, setHov] = useState(false);
   return (
@@ -40,7 +41,9 @@ function ModelCard({ model, enabled, onToggle }) {
       onMouseLeave={() => setHov(false)}
       style={{
         border: `1.5px solid ${enabled ? t.blue : hov ? t.border : t.border}`,
-        borderRadius: 10, padding: 20, cursor: 'pointer',
+        borderRadius: 10, padding: 20,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.25 : 1,
         background: enabled ? t.blueDim : hov ? t.surface2 : t.surface2,
         transition: 'all 0.15s',
       }}
@@ -55,7 +58,7 @@ function ModelCard({ model, enabled, onToggle }) {
           background: enabled ? t.blue : t.surface,
           border: `1.5px solid ${enabled ? t.blue : t.border}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontSize: 12, transition: 'all 0.15s',
+          color: disabled ? t.muted : '#fff', fontSize: 12, transition: 'all 0.15s',
         }}>
           {enabled && '✓'}
         </div>
@@ -108,9 +111,7 @@ function ParamSlider({ label, hint, value, min, max, step, onChange, fmt }) {
 /* ─── Configure Screen ───────────────────────────────────────────── */
 export function ConfigureScreen({ markup, onSubmit, onBack }) {
   const { t } = useTheme();
-  const [enabled,    setEnabled]    = useState({ A: true, B: true });
-  const [confidence, setConfidence] = useState(0.65);
-  const [batchSize,  setBatchSize]  = useState(8);
+  const [enabled,    setEnabled]    = useState({ A: true, B: false });
   const [taskName,   setTaskName]   = useState(
     `Analysis — ${markup?.video?.match?.split(' vs ')[0] ?? 'Video'} — ${new Date().toLocaleDateString('en-AU')}`
   );
@@ -134,9 +135,13 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
               key={m.id}
               model={m}
               enabled={enabled[m.id]}
-              onToggle={() => setEnabled(prev => ({ ...prev, [m.id]: !prev[m.id] }))}
+              disabled={m.disabled}
+              onToggle={() => {}}
             />
           ))}
+          <div style={{ fontSize: 11, color: t.muted, lineHeight: 1.5 }}>
+            Only Model A is currently available for inference. Model B shown for reference.
+          </div>
           {!anyEnabled && (
             <div style={{ fontSize: 12, color: t.danger, padding: '8px 12px', background: t.dangerDim, borderRadius: 6 }}>
               Select at least one model to continue.
@@ -161,19 +166,8 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
 
           <Card style={{ padding: 18 }}>
             <div style={{ fontSize: 12, color: t.muted, marginBottom: 16, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Parameters</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <ParamSlider
-                label="Confidence Threshold"
-                hint="min score to accept"
-                value={confidence} min={0.1} max={1.0} step={0.05}
-                onChange={setConfidence}
-                fmt={v => `${(v * 100).toFixed(0)}%`}
-              />
-              <ParamSlider
-                label="Batch Size"
-                value={batchSize} min={1} max={32} step={1}
-                onChange={setBatchSize}
-              />
+            <div style={{ fontSize: 11, color: t.muted, lineHeight: 1.5 }}>
+              Using default model parameters.
             </div>
           </Card>
 
@@ -192,7 +186,7 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
             </div>
           </Card>
 
-          <Btn disabled={!anyEnabled} onClick={() => onSubmit({ markup, enabled, confidence, batchSize, taskName })}>
+          <Btn disabled={!anyEnabled} onClick={() => onSubmit({ markup, enabled, taskName })}>
             Submit for Analysis →
           </Btn>
           <Btn variant="secondary" onClick={onBack}>← Back</Btn>
