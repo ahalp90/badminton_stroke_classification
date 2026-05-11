@@ -19,6 +19,7 @@ function toVideo(m) {
     sets: m.sets,
     year: m.year,
     round: m.round,
+    strokeTimes: m.strokeTimes || [],
   };
 }
 

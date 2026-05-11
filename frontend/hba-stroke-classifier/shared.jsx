@@ -41,13 +41,24 @@ export const LIGHT = {
   warning: '#D97706',
 };
 
+const THEME_KEY = 'hba.theme';
+
+function initialDark() {
+  if (typeof window === 'undefined') return true;
+  const stored = window.localStorage?.getItem(THEME_KEY);
+  if (stored === 'dark') return true;
+  if (stored === 'light') return false;
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true;
+}
+
 export function ThemeProvider({ children }) {
-  const [dark, setDark] = useState(true);
+  const [dark, setDark] = useState(initialDark);
   const t = dark ? DARK : LIGHT;
 
   useEffect(() => {
     document.body.style.background = t.bg;
     document.body.style.color = t.text;
+    try { window.localStorage?.setItem(THEME_KEY, dark ? 'dark' : 'light'); } catch { /* noop */ }
   }, [dark, t]);
 
   return (

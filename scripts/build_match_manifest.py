@@ -82,14 +82,34 @@ def parse_folder(folder: str) -> dict:
     return {"title": title_case_players(s), "tournament": "", "year": None, "round": ""}
 
 
-def count_strokes(folder: Path) -> tuple[int, int]:
+def parse_time(s: str) -> float | None:
+    parts = s.strip().split(":")
+    try:
+        if len(parts) == 3:
+            h, m, sec = parts
+            return int(h) * 3600 + int(m) * 60 + float(sec)
+        if len(parts) == 2:
+            m, sec = parts
+            return int(m) * 60 + float(sec)
+    except ValueError:
+        return None
+    return None
+
+
+def count_strokes(folder: Path) -> tuple[int, int, list[float]]:
     sets = 0
     total = 0
+    times: list[float] = []
     for p in sorted(folder.glob("set*.csv")):
         sets += 1
         with p.open() as f:
-            total += sum(1 for _ in csv.DictReader(f))
-    return sets, total
+            for row in csv.DictReader(f):
+                total += 1
+                t = parse_time(row.get("time", "") or "")
+                if t is not None:
+                    times.append(t)
+    times = sorted(set(round(x, 1) for x in times))
+    return sets, total, times
 
 
 def main() -> int:
@@ -104,7 +124,7 @@ def main() -> int:
         folder = SET_DIR / r["video"]
         if not folder.is_dir():
             continue
-        sets, strokes = count_strokes(folder)
+        sets, strokes, times = count_strokes(folder)
         parsed = parse_folder(r["video"])
         matches.append({
             "id": vid,
@@ -114,6 +134,7 @@ def main() -> int:
             **parsed,
             "sets": sets,
             "strokes": strokes,
+            "strokeTimes": times,
         })
 
     rng = random.Random(42)
