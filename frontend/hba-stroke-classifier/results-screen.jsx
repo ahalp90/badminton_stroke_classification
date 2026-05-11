@@ -74,7 +74,7 @@ function StrokesTab() {
   const [filter, setFilter] = useState('all');
 
   const filtered = filter === 'errors'
-    ? STROKES.filter(s => s.predA !== s.gt || s.predB !== s.gt)
+    ? STROKES.filter(s => s.predA !== s.gt)
     : STROKES;
 
   const TH = ({ children }) => (
@@ -106,13 +106,11 @@ function StrokesTab() {
             <tr>
               <TH>#</TH><TH>Time</TH><TH>Ground Truth</TH>
               <TH>Model A</TH><TH>Conf. A</TH>
-              <TH>Model B</TH><TH>Conf. B</TH>
             </tr>
           </thead>
           <tbody>
             {filtered.map(s => {
-              const aOk = s.predA === s.gt;
-              const bOk = s.predB === s.gt;
+            const aOk = s.predA === s.gt;
               return (
                 <tr key={s.id} style={{ borderBottom:`1px solid ${t.border}` }}>
                   <td style={{ padding:'10px 12px', color:t.muted, fontFamily:"'JetBrains Mono',monospace", fontSize:11 }}>
@@ -124,10 +122,6 @@ function StrokesTab() {
                     {!aOk && '⚠ '}{s.predA}
                   </td>
                   <td style={{ padding:'10px 12px' }}><ConfBar value={s.cA} correct={aOk} /></td>
-                  <td style={{ padding:'10px 12px', color: bOk ? t.success : t.danger, fontWeight: bOk ? 400 : 600 }}>
-                    {!bOk && '⚠ '}{s.predB}
-                  </td>
-                  <td style={{ padding:'10px 12px' }}><ConfBar value={s.cB} correct={bOk} /></td>
                 </tr>
               );
             })}
@@ -144,7 +138,7 @@ function DistributionTab() {
   const [series, setSeries] = useState('gt');
   const maxVal = Math.max(...SHOT_DIST.map(d => Math.max(d.gt, d.mA, d.mB)));
 
-  const seriesMap = { gt:'Ground Truth', mA:'Model A', mB:'Model B' };
+  const seriesMap = { gt:'Ground Truth', mA:'Model A' };
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
@@ -177,7 +171,7 @@ function DistributionTab() {
         </div>
       </Card>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
         {Object.entries(seriesMap).map(([id, label]) => (
           <Card key={id} style={{ padding:16 }}>
             <div style={{ fontSize:12, fontWeight:600, color:t.muted, marginBottom:12 }}>{label}</div>
@@ -205,10 +199,9 @@ function ComparisonTab() {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14 }}>
         {[
           { label:'Model A Accuracy', value:'83.2%', sub:'Spatio-Temporal 3D-CNN', color:t.blue },
-          { label:'Model B Accuracy', value:'76.4%', sub:'Keypoint TCN',           color:t.success },
           { label:'BST Baseline',     value:'80–85%', sub:'Chang 2025 (reference)', color:t.pine },
         ].map(c => (
           <Card key={c.label} style={{ padding:20, textAlign:'center' }}>
@@ -224,22 +217,18 @@ function ComparisonTab() {
         <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
           <thead>
             <tr style={{ borderBottom:`2px solid ${t.border}` }}>
-              {['Metric','Model A','Model B','BST Baseline'].map(h => (
+              {['Metric','Model A','BST Baseline'].map(h => (
                 <th key={h} style={{ padding:'6px 12px', textAlign:'left', color:t.muted, fontSize:11, fontWeight:500, textTransform:'uppercase', letterSpacing:'0.05em' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {METRICS.map(m => {
-              const aWins = m.lowerBetter ? m.a < m.b : m.a > m.b;
               return (
                 <tr key={m.label} style={{ borderBottom:`1px solid ${t.border}` }}>
                   <td style={{ padding:'10px 12px', color:t.text, fontWeight:500 }}>{m.label}</td>
-                  <td style={{ padding:'10px 12px', fontFamily:"'JetBrains Mono',monospace", color: aWins ? t.blue : t.muted }}>
-                    {aWins && <span style={{ marginRight:5 }}>▲</span>}{m.fmt(m.a)}
-                  </td>
-                  <td style={{ padding:'10px 12px', fontFamily:"'JetBrains Mono',monospace", color: !aWins ? t.success : t.muted }}>
-                    {!aWins && <span style={{ marginRight:5 }}>▲</span>}{m.fmt(m.b)}
+                  <td style={{ padding:'10px 12px', fontFamily:"'JetBrains Mono',monospace", color:t.text }}>
+                    {m.fmt(m.a)}
                   </td>
                   <td style={{ padding:'10px 12px', fontFamily:"'JetBrains Mono',monospace", color:t.muted }}>
                     {m.base ? m.fmt(m.base) : '—'}
@@ -256,7 +245,6 @@ function ComparisonTab() {
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
           {SHOT_DIST.map(d => {
             const accA = 72 + (d.gt % 28);
-            const accB = accA - 5 - (d.gt % 9);
             return (
               <div key={d.label} style={{ display:'flex', alignItems:'center', gap:12 }}>
                 <div style={{ width:68, fontSize:12, color:t.text, flexShrink:0 }}>{d.label}</div>
@@ -267,13 +255,6 @@ function ComparisonTab() {
                       <div style={{ height:'100%', borderRadius:3, width:`${accA}%`, background:t.blue }} />
                     </div>
                     <span style={{ fontSize:11, fontFamily:"'JetBrains Mono',monospace", color:t.blue, width:34 }}>{accA}%</span>
-                  </div>
-                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                    <div style={{ width:52, fontSize:10, color:t.muted }}>Model B</div>
-                    <div style={{ flex:1, height:5, background:t.surface2, borderRadius:3 }}>
-                      <div style={{ height:'100%', borderRadius:3, width:`${accB}%`, background:t.success }} />
-                    </div>
-                    <span style={{ fontSize:11, fontFamily:"'JetBrains Mono',monospace", color:t.success, width:34 }}>{accB}%</span>
                   </div>
                 </div>
               </div>
@@ -434,11 +415,10 @@ export function ResultsScreen({ task, onNew }) {
         </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:26 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:26 }}>
         {[
           { label:'Strokes Classified', value:'847',   color:t.text },
           { label:'Model A Accuracy',   value:'83.2%', color:t.blue },
-          { label:'Model B Accuracy',   value:'76.4%', color:t.success },
           { label:'Conf. ≥ 65%',        value:'91.3%', color:t.pine },
         ].map(s => (
           <Card key={s.label} style={{ padding:18 }}>
