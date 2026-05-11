@@ -32,10 +32,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# Same import path bst_train uses
-from pipeline.config import (
-    derive_npy_collated_dir_basename,
-)
+# Same import path bst_train uses. TAXONOMIES kept on hand for ad-hoc tweaks
+# while iterating on this script; not currently referenced.
+from pipeline.config import TAXONOMIES  # noqa: F401
+from pipeline.config import derive_npy_collated_dir_basename
 
 
 def reproduce_clip_order(

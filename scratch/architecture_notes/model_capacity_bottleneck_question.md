@@ -300,7 +300,9 @@ Even granting the above, there's a defensible small-risk capacity sweep. None of
 |---|---|---|---|
 | `d_head` × `n_head` shape | 128 × 6 = 768 (7.68x d_model) | 32 × 6 = 192 (1.0x d_model) | Voita-style trim, not bump. Reclaims param budget without performance loss. |
 | `d_model` | 100 | 128 or 192 | ViT-Tiny is 192. Widens FFN automatically (FFN params scale ~d_model^2). Cheap test of whether residual stream width is the cap. Pair with d_head=32 if going to 192 so the 7.68x ratio doesn't propagate. |
-| `mlp_head` hidden | 400 | 768 | Decision-side widening only, encoder untouched. ~310k params (was ~127k). Most surgical test of whether the classifier head specifically is the local bottleneck (Kang-flavoured intervention without the full two-stage). |
+| `mlp_head` hidden | 400 | 1200 (= `head_dim * mlp_d_scale`; **shipped 2026-05-03**) | Decision-side widening only, encoder untouched. ~377k params (was ~127k). Most surgical test of whether the classifier head specifically is the local bottleneck (Kang-flavoured intervention without the full two-stage). 1200 picked over 768 because it's 4x the head's actual input (300), matching the FFN expansion ratio; 768 had no relationship to the head shape. |
 | FFN ratio inside transformer layers | 4x (400 = 4 × d_model) | unchanged | BERT/ViT convention; no theoretical case for changing. |
 
-The lowest-risk standalone test is `mlp_head` hidden 400 → 768: surgical, classifier-side only. If also widening `d_model`, the d_head trim to 32 belongs in the same change so the 7.68x ratio doesn't carry through.
+The lowest-risk standalone test is `mlp_head` hidden 400 → 1200, via the `head_dim * mlp_d_scale` swap at `bst.py:199`: surgical, classifier-side only. If also widening `d_model`, the d_head trim to 32 belongs in the same change so the 7.68x ratio doesn't carry through.
+
+(Run launched 2026-05-03; results due later today. Live status in `arch_1_directions.md` 2026-05-03 block.)

@@ -11,8 +11,9 @@ Badminton Stroke Classification using AI Computer Vision (Contribution to long-t
 - `configs/`: Hyperparameter and pipeline configurations
 - `scripts/`: Utility scripts
 - `scratch/`: Team notes and temporary files
+- `frontend/`: React app user interface
 - `data/`: Local dataset storage (`raw/`, `processed/`, `checkpoints/`, `logs/`)
-
+- `docs/`: Project documentation including decision log
 ---
 
 ## Local Setup Instructions
@@ -51,6 +52,30 @@ BST training runs log through `src/bst_refactor/run_tracker.py`. Each run writes
 Optional Aim UI (from `main_on_shuttleset/`): `python ../../aim_backfill.py` (one-shot, idempotent), then `aim up`. Details in [`src/bst_refactor/run_tracker.md`](src/bst_refactor/run_tracker.md).
 
 There's also a partial MLflow setup in `scripts/example_mlflow_run.py` if someone wants to plug in, but it's probably more than this project needs; the manifest tracker above integrates with Aim at near-zero effort. The MLflow stub will be deleted before delivery if Scott has not picked it up by then.
+
+---
+
+## Current data state and weight compatibility
+
+Active collated data on engelbart and bourbaki:
+
+```
+/scratch/comp320a/ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop/
+```
+
+`ablation_id=wipe_drop` corresponds to the shuttle-unzeroing-on-keypoint-fail change from the `shuttle/wipe-drop` branch. The script that used to wipe shuttle xy to (0, 0) on frames where MMPose dropped a player no longer fires (~14k frames, 0.84% of the extract). Pose path is unchanged. Rationale in [`scratch/architecture_notes/frame_zeroing.md`](scratch/architecture_notes/frame_zeroing.md). Comparison run lives at `experiments/run_20260503_172922/`.
+
+A variant 2a shuttle_missing channel was tested on top of this and didn't lift; the design + diff is archived in [`scratch/architecture_notes/shuttle_mask_archive.md`](scratch/architecture_notes/shuttle_mask_archive.md), code not in main.
+
+### Weight compatibility with prior runs
+
+The shuttle-unzeroing change is a data change only; model architecture is unchanged. So:
+
+- `load_state_dict` succeeds on any pre-shuttle-unzeroing weight file (e.g. `run_20260501_164658`).
+- But re-testing those weights on the new collation is a small distribution shift: ~14k frames that were wiped to (0, 0) at training time now carry their TrackNet shuttle xy. Test metrics will move slightly; not apples-to-apples with the original run.
+- Forward-going, train fresh on the new collation. Old weights tested on the old collation remain the canonical numbers for those runs.
+
+The dropped shuttle-mask branch added new state_dict keys (`mask_proj`, `shuttle_fuse`); its weights are not loadable into the active code.
 
 ---
 
