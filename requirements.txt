@@ -8,6 +8,9 @@ scikit-learn
 positional-encodings  # Positional encoding layers used by BST transformer model (bst_refactor/stroke_classification/model/)
 torchinfo             # Model summary utility used by tempose.py in the BST model module
 tensorboard           # Required by torch.utils.tensorboard, imported by bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py
+torcheval==0.0.7      # F1 metric used by bst_train; pinned to match src/bst_refactor/stroke_classification/requirements.txt
+transformers          # LR scheduler used by bst_train (get_cosine_schedule_with_warmup)
+pyyaml                # tests/test_active_classes.py reads taxonomy YAMLs
 
 
 # --- Backend API ---
