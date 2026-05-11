@@ -1,52 +1,34 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTheme, Btn, Badge, SectionHeader } from './shared';
+import matchesData from './data/matches.json';
 
-const SHUTTLESET_VIDEOS = [
-  { id: 'ss001', match: 'Chen Long vs Lee Chong Wei', tournament: 'BWF World Championships 2019', date: '2019-08-25', duration: '1:23:42', strokes: 847, annotated: true },
-  { id: 'ss002', match: 'Viktor Axelsen vs Kento Momota', tournament: 'All England Open 2020', date: '2020-03-15', duration: '0:58:17', strokes: 623, annotated: true },
-  { id: 'ss003', match: 'Tai Tzu-ying vs P.V. Sindhu', tournament: 'Tokyo Olympics 2021', date: '2021-07-28', duration: '1:12:05', strokes: 734, annotated: true },
-  { id: 'ss004', match: 'Anders Antonsen vs Jonatan Christie', tournament: 'Thomas Cup 2022', date: '2022-05-14', duration: '0:45:33', strokes: 512, annotated: true },
-  { id: 'ss005', match: 'An Se-young vs Akane Yamaguchi', tournament: 'Korea Open 2023', date: '2023-09-09', duration: '1:05:19', strokes: 698, annotated: true },
-  { id: 'ss006', match: 'Loh Kean Yew vs Chou Tien Chen', tournament: 'Singapore Open 2023', date: '2023-06-07', duration: '0:52:44', strokes: 581, annotated: false },
-];
+const frameModules = import.meta.glob('./data/frames/*.jpg', { eager: true, import: 'default' });
+const frameUrl = (id) => frameModules[`./data/frames/${id}.jpg`];
 
-function CourtThumbnail({ seed, selected }) {
-  const { t } = useTheme();
-  const hue = 28 + (seed * 7) % 12;
-  return (
-    <div style={{
-      height: 96, borderRadius: 7, overflow: 'hidden', position: 'relative',
-      background: `linear-gradient(135deg, hsl(${hue},55%,32%), hsl(${hue+5},48%,40%), hsl(${hue-3},52%,28%))`,
-    }}>
-      <div style={{
-        position: 'absolute', inset: 0,
-        backgroundImage: 'repeating-linear-gradient(91deg, rgba(0,0,0,0.06) 0px, transparent 1px, transparent 16px)',
-        pointerEvents: 'none',
-      }} />
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} viewBox="0 0 200 96" preserveAspectRatio="none">
-        <polygon points="22,8 178,8 186,88 14,88" fill="rgba(37,99,235,0.12)" stroke="rgba(255,255,255,0.55)" strokeWidth="1.2" />
-        <line x1="100" y1="8" x2="100" y2="88" stroke="rgba(255,255,255,0.3)" strokeWidth="0.8" />
-        <line x1="18" y1="48" x2="182" y2="48" stroke="rgba(255,255,255,0.6)" strokeWidth="1.4" />
-        <line x1="44" y1="8" x2="40" y2="88" stroke="rgba(255,255,255,0.2)" strokeWidth="0.7" />
-        <line x1="156" y1="8" x2="160" y2="88" stroke="rgba(255,255,255,0.2)" strokeWidth="0.7" />
-        <rect x="60" y="8" width="80" height="40" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.7" />
-        <rect x="60" y="48" width="80" height="40" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.7" />
-      </svg>
-      {selected && (
-        <div style={{
-          position: 'absolute', top: 6, right: 6,
-          width: 22, height: 22, borderRadius: '50%',
-          background: '#22C55E', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontSize: 12, fontWeight: 700,
-        }}>✓</div>
-      )}
-    </div>
-  );
+function toVideo(m) {
+  return {
+    id: m.id,
+    match: m.title,
+    tournament: [m.tournament, m.year, m.round].filter(Boolean).join(' '),
+    duration: '—',
+    strokes: m.strokes,
+    annotated: true,
+    youtubeId: m.youtubeId,
+    url: m.url,
+    fps: m.fps,
+    sets: m.sets,
+    year: m.year,
+    round: m.round,
+  };
 }
 
-function VideoCard({ video, selected, onSelect, index }) {
+const CURATED = matchesData.filter(m => m.curated).map(toVideo);
+const ALL = matchesData.map(toVideo);
+
+function VideoCard({ video, selected, onSelect }) {
   const { t } = useTheme();
   const [hov, setHov] = useState(false);
+  const src = frameUrl(video.youtubeId);
   return (
     <div
       onClick={() => onSelect(video)}
@@ -60,7 +42,27 @@ function VideoCard({ video, selected, onSelect, index }) {
         display: 'flex', flexDirection: 'column', gap: 10,
       }}
     >
-      <CourtThumbnail seed={index} selected={selected} />
+      <div style={{
+        height: 110, borderRadius: 7, overflow: 'hidden',
+        position: 'relative', background: '#000',
+      }}>
+        {src && (
+          <img
+            src={src}
+            alt=""
+            loading="lazy"
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        )}
+        {selected && (
+          <div style={{
+            position: 'absolute', top: 6, right: 6,
+            width: 22, height: 22, borderRadius: '50%',
+            background: '#22C55E', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: 12, fontWeight: 700,
+          }}>✓</div>
+        )}
+      </div>
       <div>
         <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 2, lineHeight: 1.35, textWrap: 'pretty' }}>
           {video.match}
@@ -68,13 +70,114 @@ function VideoCard({ video, selected, onSelect, index }) {
         <div style={{ fontSize: 11, color: t.muted }}>{video.tournament}</div>
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Badge color={video.annotated ? 'green' : 'muted'}>
-          {video.annotated ? 'Annotated' : 'Unannotated'}
-        </Badge>
+        <Badge color="green">Annotated</Badge>
         <Badge color="blue">{video.strokes} strokes</Badge>
-        <span style={{ fontSize: 11, color: t.muted, marginLeft: 'auto', fontFamily: "'JetBrains Mono', monospace" }}>
-          {video.duration}
-        </span>
+      </div>
+    </div>
+  );
+}
+
+function BrowseAllModal({ onSelect, onClose }) {
+  const { t } = useTheme();
+  const [query, setQuery] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return ALL;
+    return ALL.filter(v =>
+      v.match.toLowerCase().includes(q) ||
+      v.tournament.toLowerCase().includes(q)
+    );
+  }, [query]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 100, padding: 32,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: t.surface, border: `1px solid ${t.border}`,
+          borderRadius: 12, width: 'min(640px, 100%)', maxHeight: '80vh',
+          display: 'flex', flexDirection: 'column',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.55)',
+        }}
+      >
+        <div style={{
+          padding: '18px 20px', borderBottom: `1px solid ${t.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14,
+        }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: t.text }}>Match Library</div>
+            <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>
+              {filtered.length} of {ALL.length} matches
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none', border: 'none', color: t.muted,
+              fontSize: 22, cursor: 'pointer', padding: 4, lineHeight: 1,
+            }}
+            aria-label="Close"
+          >×</button>
+        </div>
+
+        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${t.border}` }}>
+          <input
+            autoFocus
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by player or tournament…"
+            style={{
+              width: '100%', padding: '10px 12px',
+              background: t.surface2, border: `1px solid ${t.border}`,
+              borderRadius: 7, color: t.text, fontSize: 13,
+              fontFamily: "'Space Grotesk', sans-serif", outline: 'none',
+            }}
+          />
+        </div>
+
+        <div style={{ overflowY: 'auto', padding: '8px 0' }}>
+          {filtered.length === 0 && (
+            <div style={{ padding: '32px 20px', textAlign: 'center', color: t.muted, fontSize: 13 }}>
+              No matches found.
+            </div>
+          )}
+          {filtered.map(v => (
+            <button
+              key={v.id}
+              onClick={() => onSelect(v)}
+              style={{
+                width: '100%', padding: '10px 20px',
+                background: 'none', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14,
+                textAlign: 'left', color: t.text,
+                fontFamily: "'Space Grotesk', sans-serif",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = t.surface2}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: t.text, marginBottom: 2 }}>
+                  {v.match}
+                </div>
+                <div style={{ fontSize: 11, color: t.muted }}>{v.tournament}</div>
+              </div>
+              <div style={{
+                fontSize: 11, color: t.muted, whiteSpace: 'nowrap',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}>
+                {v.strokes} strokes
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -83,48 +186,15 @@ function VideoCard({ video, selected, onSelect, index }) {
 function UploadTab({ onUpload }) {
   const { t } = useTheme();
   const [dragOver, setDragOver] = useState(false);
-  const [uploadType, setUploadType] = useState('annotated');
 
   const handleDrop = () => {
     setDragOver(false);
-    onUpload({
-      id: 'upload_' + Date.now(),
-      match: 'Uploaded Video',
-      tournament: 'Custom Upload',
-      duration: '—',
-      strokes: 0,
-      annotated: uploadType === 'annotated',
-    });
+    const random = ALL[Math.floor(Math.random() * ALL.length)];
+    onUpload({ ...random, id: 'upload_' + Date.now(), uploadedAs: random.match });
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div>
-        <div style={{ fontSize: 13, color: t.muted, marginBottom: 10 }}>Video type</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {[
-            { id: 'annotated',   label: 'Annotated', desc: 'Includes stroke labels — enables validation metrics' },
-            { id: 'unannotated', label: 'Unannotated', desc: 'Classification only, no ground-truth comparison' },
-          ].map(opt => (
-            <div
-              key={opt.id}
-              onClick={() => setUploadType(opt.id)}
-              style={{
-                flex: 1, padding: '12px 16px', borderRadius: 8, cursor: 'pointer',
-                border: `1.5px solid ${uploadType === opt.id ? t.blue : t.border}`,
-                background: uploadType === opt.id ? t.blueDim : t.surface2,
-                transition: 'all 0.15s',
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 600, color: uploadType === opt.id ? t.blue : t.text, marginBottom: 3 }}>
-                {opt.label}
-              </div>
-              <div style={{ fontSize: 11, color: t.muted }}>{opt.desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <div
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
@@ -142,22 +212,13 @@ function UploadTab({ onUpload }) {
           Drop video here, or click to browse
         </div>
         <div style={{ fontSize: 12, color: t.muted }}>MP4, MOV, AVI · up to 10 GB</div>
-        {uploadType === 'unannotated' && (
-          <div style={{
-            marginTop: 14, display: 'inline-block',
-            background: t.pineDim, color: t.pine,
-            fontSize: 12, padding: '6px 14px', borderRadius: 6,
-          }}>
-            No ground-truth labels — validation metrics unavailable
-          </div>
-        )}
       </div>
 
       <div style={{ display: 'flex', gap: 12, padding: '14px 16px', background: t.surface2, borderRadius: 8, border: `1px solid ${t.border}` }}>
         <div style={{ fontSize: 20 }}>ℹ</div>
         <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.6 }}>
-          To add an annotated video to the ShuttleSet validation set, upload it here with its corresponding label file.
-          Unannotated videos are classified immediately without accuracy evaluation.
+          Demo mode — uploaded videos are stand-ins for matches in the library.
+          The classifier will run against an annotated match so validation metrics stay meaningful.
         </div>
       </div>
     </div>
@@ -166,18 +227,19 @@ function UploadTab({ onUpload }) {
 
 export function LibraryScreen({ onNext }) {
   const { t } = useTheme();
-  const [tab, setTab] = useState('shuttleset');
+  const [tab, setTab] = useState('library');
   const [selected, setSelected] = useState(null);
+  const [browsing, setBrowsing] = useState(false);
 
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', padding: 32 }}>
       <SectionHeader
         title="Select Match Video"
-        subtitle="Choose from the ShuttleSet validation set or upload your own footage."
+        subtitle="Choose from our match library or upload your own footage."
       />
 
       <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, marginBottom: 24 }}>
-        {[['shuttleset', 'ShuttleSet Validation Set'], ['upload', 'Upload Video']].map(([id, label]) => (
+        {[['library', 'Match Library'], ['upload', 'Upload Video']].map(([id, label]) => (
           <button
             key={id}
             onClick={() => setTab(id)}
@@ -194,22 +256,38 @@ export function LibraryScreen({ onNext }) {
         ))}
       </div>
 
-      {tab === 'shuttleset' ? (
+      {tab === 'library' ? (
         <>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-            gap: 14, marginBottom: 24,
+            gap: 14, marginBottom: 16,
           }}>
-            {SHUTTLESET_VIDEOS.map((v, i) => (
+            {CURATED.map(v => (
               <VideoCard
                 key={v.id}
                 video={v}
-                index={i}
                 selected={selected?.id === v.id}
                 onSelect={setSelected}
               />
             ))}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+            <button
+              onClick={() => setBrowsing(true)}
+              style={{
+                background: 'none', border: `1px solid ${t.border}`,
+                color: t.muted, padding: '10px 18px', borderRadius: 7,
+                fontSize: 13, cursor: 'pointer',
+                fontFamily: "'Space Grotesk', sans-serif",
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = t.text; e.currentTarget.style.borderColor = t.blue; }}
+              onMouseLeave={e => { e.currentTarget.style.color = t.muted; e.currentTarget.style.borderColor = t.border; }}
+            >
+              Browse all {ALL.length} matches →
+            </button>
           </div>
 
           {selected && (
@@ -223,15 +301,22 @@ export function LibraryScreen({ onNext }) {
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{selected.match}</div>
                 <div style={{ fontSize: 12, color: t.muted }}>
-                  {selected.tournament} · {selected.strokes} annotated strokes · {selected.duration}
+                  {selected.tournament} · {selected.strokes} annotated strokes
                 </div>
               </div>
               <Btn onClick={() => onNext(selected)}>Begin Markup →</Btn>
             </div>
           )}
+
+          {browsing && (
+            <BrowseAllModal
+              onSelect={v => { setSelected(v); setBrowsing(false); }}
+              onClose={() => setBrowsing(false)}
+            />
+          )}
         </>
       ) : (
-        <UploadTab onUpload={v => { onNext(v); }} />
+        <UploadTab onUpload={v => onNext(v)} />
       )}
     </div>
   );
