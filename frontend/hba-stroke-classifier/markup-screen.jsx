@@ -167,115 +167,116 @@ function CourtBoundaryStep({ onComplete }) {
 }
 
 /* ─── Step 2: Player Selection ───────────────────────────────────── */
-function PlayerSelectionStep({ onComplete }) {
-  const { t } = useTheme();
-  const [selected, setSelected] = useState(null);
+// Player selection is mentioned in the web interface section in the project proposal. However, it isn't currently possible with the current model. The previous version will continue to be hosted. For further information, speak with Ari
+// function PlayerSelectionStep({ onComplete }) {
+//   const { t } = useTheme();
+//   const [selected, setSelected] = useState(null);
 
-  const players = [
-    { id: 'A', cx: '27%', cy: '38%', label: 'Player A', side: 'Near court', rotation: 0 },
-    { id: 'B', cx: '65%', cy: '57%', label: 'Player B', side: 'Far court',  rotation: 12 },
-  ];
+//   const players = [
+//     { id: 'A', cx: '27%', cy: '38%', label: 'Player A', side: 'Near court', rotation: 0 },
+//     { id: 'B', cx: '65%', cy: '57%', label: 'Player B', side: 'Far court',  rotation: 12 },
+//   ];
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <p style={{ fontSize: 13, color: t.muted, lineHeight: 1.6 }}>
-        Click a player to <span style={{ color: t.blue, fontWeight: 600 }}>select the target subject</span> whose strokes will be classified.
-        Object detection bounding boxes are shown automatically.
-      </p>
+//   return (
+//     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+//       <p style={{ fontSize: 13, color: t.muted, lineHeight: 1.6 }}>
+//         Click a player to <span style={{ color: t.blue, fontWeight: 600 }}>select the target subject</span> whose strokes will be classified.
+//         Object detection bounding boxes are shown automatically.
+//       </p>
 
-      <div style={{
-        position: 'relative', width: 620, maxWidth: '100%', height: 348,
-        borderRadius: 8, overflow: 'hidden',
-        background: 'linear-gradient(135deg, #C0882A, #D4A843 50%, #B07030)',
-      }}>
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          backgroundImage: 'repeating-linear-gradient(91deg, rgba(0,0,0,0.06) 0px, transparent 1px, transparent 22px)',
-        }} />
+//       <div style={{
+//         position: 'relative', width: 620, maxWidth: '100%', height: 348,
+//         borderRadius: 8, overflow: 'hidden',
+//         background: 'linear-gradient(135deg, #C0882A, #D4A843 50%, #B07030)',
+//       }}>
+//         <div style={{
+//           position: 'absolute', inset: 0, pointerEvents: 'none',
+//           backgroundImage: 'repeating-linear-gradient(91deg, rgba(0,0,0,0.06) 0px, transparent 1px, transparent 22px)',
+//         }} />
 
-        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} viewBox="0 0 620 348">
-          <polygon points="105,49 515,49 553,299 67,299"
-            fill="rgba(37,99,235,0.1)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
-          <line x1="310" y1="49" x2="310" y2="299" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
-          <line x1="86" y1="174" x2="534" y2="174" stroke="rgba(255,255,255,0.6)" strokeWidth="2" />
-          <line x1="141" y1="49" x2="133" y2="299" stroke="rgba(255,255,255,0.2)" strokeWidth="0.8" />
-          <line x1="479" y1="49" x2="487" y2="299" stroke="rgba(255,255,255,0.2)" strokeWidth="0.8" />
-          <rect x="200" y="49" width="220" height="125" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.8" />
-          <rect x="200" y="174" width="220" height="125" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.8" />
-        </svg>
+//         <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} viewBox="0 0 620 348">
+//           <polygon points="105,49 515,49 553,299 67,299"
+//             fill="rgba(37,99,235,0.1)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
+//           <line x1="310" y1="49" x2="310" y2="299" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+//           <line x1="86" y1="174" x2="534" y2="174" stroke="rgba(255,255,255,0.6)" strokeWidth="2" />
+//           <line x1="141" y1="49" x2="133" y2="299" stroke="rgba(255,255,255,0.2)" strokeWidth="0.8" />
+//           <line x1="479" y1="49" x2="487" y2="299" stroke="rgba(255,255,255,0.2)" strokeWidth="0.8" />
+//           <rect x="200" y="49" width="220" height="125" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.8" />
+//           <rect x="200" y="174" width="220" height="125" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.8" />
+//         </svg>
 
-        {players.map(p => (
-          <div
-            key={p.id}
-            onClick={() => setSelected(p.id)}
-            style={{
-              position: 'absolute', left: p.cx, top: p.cy,
-              transform: 'translate(-50%,-50%)',
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{
-              width: 58, height: 92,
-              border: `2px solid ${selected === p.id ? '#22C55E' : '#3B82F6'}`,
-              borderRadius: 4,
-              background: selected === p.id ? 'rgba(34,197,94,0.18)' : 'rgba(37,99,235,0.14)',
-              transition: 'all 0.15s',
-              boxShadow: selected === p.id ? '0 0 18px rgba(34,197,94,0.45)' : '0 0 10px rgba(37,99,235,0.3)',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="34" height="58" viewBox="0 0 34 58" style={{ transform: `rotate(${p.rotation}deg)`, opacity: 0.9 }}>
-                <circle cx="17" cy="8"  r="6.5"  fill="white" />
-                <line x1="17" y1="15" x2="17" y2="40" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-                <line x1="17" y1="23" x2="5"  y2="34" stroke="white" strokeWidth="2"   strokeLinecap="round" />
-                <line x1="17" y1="23" x2="29" y2="19" stroke="white" strokeWidth="2"   strokeLinecap="round" />
-                <line x1="17" y1="40" x2="11" y2="55" stroke="white" strokeWidth="2"   strokeLinecap="round" />
-                <line x1="17" y1="40" x2="23" y2="55" stroke="white" strokeWidth="2"   strokeLinecap="round" />
-              </svg>
-            </div>
-            <div style={{
-              marginTop: 4, fontSize: 10, fontWeight: 700, textAlign: 'center',
-              color: selected === p.id ? '#22C55E' : '#fff',
-              textShadow: '0 1px 4px rgba(0,0,0,0.9)',
-            }}>
-              {p.label}
-            </div>
-            <div style={{
-              position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
-              background: 'rgba(0,0,0,0.7)', color: '#fff',
-              fontSize: 9, padding: '1px 5px', borderRadius: 3,
-              fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap',
-            }}>
-              det: {p.id === 'A' ? '0.97' : '0.94'}
-            </div>
-          </div>
-        ))}
+//         {players.map(p => (
+//           <div
+//             key={p.id}
+//             onClick={() => setSelected(p.id)}
+//             style={{
+//               position: 'absolute', left: p.cx, top: p.cy,
+//               transform: 'translate(-50%,-50%)',
+//               cursor: 'pointer',
+//             }}
+//           >
+//             <div style={{
+//               width: 58, height: 92,
+//               border: `2px solid ${selected === p.id ? '#22C55E' : '#3B82F6'}`,
+//               borderRadius: 4,
+//               background: selected === p.id ? 'rgba(34,197,94,0.18)' : 'rgba(37,99,235,0.14)',
+//               transition: 'all 0.15s',
+//               boxShadow: selected === p.id ? '0 0 18px rgba(34,197,94,0.45)' : '0 0 10px rgba(37,99,235,0.3)',
+//               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+//             }}>
+//               <svg width="34" height="58" viewBox="0 0 34 58" style={{ transform: `rotate(${p.rotation}deg)`, opacity: 0.9 }}>
+//                 <circle cx="17" cy="8"  r="6.5"  fill="white" />
+//                 <line x1="17" y1="15" x2="17" y2="40" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+//                 <line x1="17" y1="23" x2="5"  y2="34" stroke="white" strokeWidth="2"   strokeLinecap="round" />
+//                 <line x1="17" y1="23" x2="29" y2="19" stroke="white" strokeWidth="2"   strokeLinecap="round" />
+//                 <line x1="17" y1="40" x2="11" y2="55" stroke="white" strokeWidth="2"   strokeLinecap="round" />
+//                 <line x1="17" y1="40" x2="23" y2="55" stroke="white" strokeWidth="2"   strokeLinecap="round" />
+//               </svg>
+//             </div>
+//             <div style={{
+//               marginTop: 4, fontSize: 10, fontWeight: 700, textAlign: 'center',
+//               color: selected === p.id ? '#22C55E' : '#fff',
+//               textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+//             }}>
+//               {p.label}
+//             </div>
+//             <div style={{
+//               position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
+//               background: 'rgba(0,0,0,0.7)', color: '#fff',
+//               fontSize: 9, padding: '1px 5px', borderRadius: 3,
+//               fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap',
+//             }}>
+//               det: {p.id === 'A' ? '0.97' : '0.94'}
+//             </div>
+//           </div>
+//         ))}
 
-        <div style={{
-          position: 'absolute', left: '46%', top: '28%',
-          width: 10, height: 10, borderRadius: '50%',
-          background: '#fff', border: '1.5px solid rgba(0,0,0,0.3)',
-          boxShadow: '0 0 6px rgba(255,255,255,0.8)',
-        }} />
-        <div style={{
-          position: 'absolute', left: 'calc(46% + 3px)', top: '29%',
-          fontSize: 9, color: '#fff', fontFamily: 'JetBrains Mono, monospace',
-          background: 'rgba(0,0,0,0.6)', padding: '1px 5px', borderRadius: 3,
-        }}>shuttle</div>
-      </div>
+//         <div style={{
+//           position: 'absolute', left: '46%', top: '28%',
+//           width: 10, height: 10, borderRadius: '50%',
+//           background: '#fff', border: '1.5px solid rgba(0,0,0,0.3)',
+//           boxShadow: '0 0 6px rgba(255,255,255,0.8)',
+//         }} />
+//         <div style={{
+//           position: 'absolute', left: 'calc(46% + 3px)', top: '29%',
+//           fontSize: 9, color: '#fff', fontFamily: 'JetBrains Mono, monospace',
+//           background: 'rgba(0,0,0,0.6)', padding: '1px 5px', borderRadius: 3,
+//         }}>shuttle</div>
+//       </div>
 
-      {selected ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, color: t.success }}>
-            ✓ {players.find(p => p.id === selected)?.label} selected ({players.find(p => p.id === selected)?.side})
-          </span>
-          <Btn onClick={() => onComplete(selected)}>Next: Set Timeframe →</Btn>
-        </div>
-      ) : (
-        <p style={{ fontSize: 13, color: t.muted }}>Click a player above to select them.</p>
-      )}
-    </div>
-  );
-}
+//       {selected ? (
+//         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+//           <span style={{ fontSize: 13, color: t.success }}>
+//             ✓ {players.find(p => p.id === selected)?.label} selected ({players.find(p => p.id === selected)?.side})
+//           </span>
+//           <Btn onClick={() => onComplete(selected)}>Next: Set Timeframe →</Btn>
+//         </div>
+//       ) : (
+//         <p style={{ fontSize: 13, color: t.muted }}>Click a player above to select them.</p>
+//       )}
+//     </div>
+//   );
+// }
 
 /* ─── Step 3: Timeframe ──────────────────────────────────────────── */
 function TimeframeStep({ onComplete }) {
@@ -457,13 +458,13 @@ export function MarkupScreen({ video, onNext, onBack }) {
 
   const STEPS = [
     { label: 'Court Boundary',   desc: 'Align perspective transform' },
-    { label: 'Player Selection', desc: 'Identify target subject' },
+    // { label: 'Player Selection', desc: 'Identify target subject' },
     { label: 'Timeframe',        desc: 'Isolate stroke segment' },
   ];
 
   const content = [
     <CourtBoundaryStep onComplete={pts => { setBoundary(pts); setStep(1); }} />,
-    <PlayerSelectionStep onComplete={p => { setPlayer(p); setStep(2); }} />,
+    // <PlayerSelectionStep onComplete={p => { setPlayer(p); setStep(2); }} />,
     <TimeframeStep onComplete={tf => onNext({ video, boundary, player, timeframe: tf })} />,
   ];
 
