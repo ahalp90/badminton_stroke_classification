@@ -212,9 +212,7 @@ const LOG_EVENTS = [
   { at: 24, msg: 'ShuttleTracker: shuttlecock trajectory computed' },
   { at: 32, msg: 'MediaPipe: skeleton keypoint sequences extracted' },
   { at: 41, msg: 'Model A (3D-CNN): inference started' },
-  { at: 52, msg: 'Model B (TCN): inference started' },
   { at: 64, msg: 'Model A: inference complete (847 strokes)' },
-  { at: 74, msg: 'Model B: inference complete (847 strokes)' },
   { at: 82, msg: 'Computing evaluation metrics against ground truth' },
   { at: 90, msg: 'Generating class activation maps' },
   { at: 96, msg: 'Writing results to database' },
@@ -350,12 +348,12 @@ export function ProgressScreen({ task, onComplete }) {
           </div>
         </Card>
 
-        {MODELS.map(m => {
+        {MODELS.filter(m => !m.disabled).map(m => {
           const modelPct = m.id === 'A' ? Math.max(0, Math.min(100, (pct - 41) / 0.23)) : Math.max(0, Math.min(100, (pct - 52) / 0.22));
           const active   = pct > (m.id === 'A' ? 41 : 52);
           const complete = pct > (m.id === 'A' ? 64 : 74);
           return (
-            <Card key={m.id} style={{ padding: 18 }}>
+            <Card key={m.id} style={{ padding: 18, gridColumn: '1 / -1' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Model {m.id}</div>
