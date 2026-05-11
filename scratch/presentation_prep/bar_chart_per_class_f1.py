@@ -1,9 +1,15 @@
 """Per-class F1 bar chart for the 2026-05-11 supervisor presentation.
 
-Compares the current best aug-v1 run against the wipe_drop data-side best, both on
-une_merge_v1_nosides (14 classes), 5 serials each. Bars are 5-serial means;
-error bars span min-max across serials. Sorted ascending by aug-v1 mean F1 so
-the smash / wrist_smash floor sits at the left.
+Compares the current best aug-v1 run against the first Phase 2 nosides baseline
+(`run_20260430_170325`, LS=0.1 sanity-A; the first time the 14-class nosides
+collation was trained against). Both runs share the post-Phase-2 keypoint base,
+so the gap reads as the cumulative effect of the loss-side sweep, the
+shuttle-unzeroing data fix, and aug v1.
+
+Bars are 5-serial means; error bars span min-max across serials. Sorted ascending
+by aug-v1 mean F1 so the smash / wrist_smash floor sits at the left. The
+wrist_smash bars carry an annotation callout because that's the project's min F1
+class and the lift there is the headline story.
 """
 from pathlib import Path
 
@@ -14,16 +20,20 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXPERIMENTS = REPO_ROOT / "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments"
 
-# Current best aug-v1 + p_jitter=0.3 (project min-F1 high).
+# Current best: aug v1 + p_jitter=0.3 (project min-F1 high).
 AUG_V1_RUN = "run_20260505_154907"
-# Shuttle-unzeroing wipe_drop, no aug; the data-path reference best.
-WIPE_DROP_RUN = "run_20260503_172922"
+AUG_V1_LABEL = "aug v1 + p_jit=0.3"
+# First Phase 2 nosides run (sanity A, LS=0.1); the cleanest "before any nosides
+# ablations" baseline at the same keypoint era as the aug run.
+BASELINE_RUN = "run_20260430_170325"
+BASELINE_LABEL = "first nosides (Phase 2 LS=0.1)"
 
 OUT_PATH = REPO_ROOT / "scratch/presentation_prep/bar_chart_per_class_f1.png"
 
-# Tol muted (protanopia-safe pastel qualitative): indigo + sand for the pair.
-COLOUR_AUG = "#332288"
-COLOUR_WIPE = "#DDCC77"
+# Tol muted (protanopia-safe, qualitative). Sand for baseline, indigo for current best.
+COLOUR_BASELINE = "#DDCC77"
+COLOUR_AUG      = "#332288"
+COLOUR_CALLOUT  = "#CC6677"  # rose for the wrist_smash annotation
 
 
 def load_per_class(run_id: str) -> tuple[list[str], np.ndarray, float]:
@@ -34,7 +44,6 @@ def load_per_class(run_id: str) -> tuple[list[str], np.ndarray, float]:
     """
     manifest = yaml.safe_load((EXPERIMENTS / run_id / "manifest.yaml").read_text())
     serials = manifest["serials"]
-    # Class order is the dict insertion order of the first serial's per_class_f1.
     class_names = list(serials[0]["metrics"]["per_class_f1"].keys())
     f1_grid = np.array([
         [s["metrics"]["per_class_f1"][cls] for cls in class_names]
@@ -45,21 +54,20 @@ def load_per_class(run_id: str) -> tuple[list[str], np.ndarray, float]:
 
 
 def main():
-    aug_classes, aug_f1, aug_macro = load_per_class(AUG_V1_RUN)
-    wipe_classes, wipe_f1, wipe_macro = load_per_class(WIPE_DROP_RUN)
-    assert aug_classes == wipe_classes, "Class lists differ between runs"
+    aug_classes,  aug_f1,  aug_macro  = load_per_class(AUG_V1_RUN)
+    base_classes, base_f1, base_macro = load_per_class(BASELINE_RUN)
+    assert aug_classes == base_classes, "Class lists differ between runs"
     class_names = aug_classes
 
-    aug_mean = aug_f1.mean(axis=0)
-    wipe_mean = wipe_f1.mean(axis=0)
-    # asymmetric yerr: (down, up) = (mean - min, max - mean)
-    aug_yerr = np.stack([aug_mean - aug_f1.min(axis=0), aug_f1.max(axis=0) - aug_mean])
-    wipe_yerr = np.stack([wipe_mean - wipe_f1.min(axis=0), wipe_f1.max(axis=0) - wipe_mean])
+    aug_mean  = aug_f1.mean(axis=0)
+    base_mean = base_f1.mean(axis=0)
+    aug_yerr  = np.stack([aug_mean  - aug_f1.min(axis=0),  aug_f1.max(axis=0)  - aug_mean])
+    base_yerr = np.stack([base_mean - base_f1.min(axis=0), base_f1.max(axis=0) - base_mean])
 
     order = np.argsort(aug_mean)
     class_names = [class_names[i] for i in order]
-    aug_mean, wipe_mean = aug_mean[order], wipe_mean[order]
-    aug_yerr, wipe_yerr = aug_yerr[:, order], wipe_yerr[:, order]
+    aug_mean,  base_mean = aug_mean[order],  base_mean[order]
+    aug_yerr,  base_yerr = aug_yerr[:, order], base_yerr[:, order]
 
     n = len(class_names)
     x = np.arange(n)
@@ -67,26 +75,48 @@ def main():
 
     fig, ax = plt.subplots(figsize=(13, 6))
     ax.bar(
-        x - bar_width / 2, aug_mean, bar_width,
-        yerr=aug_yerr, capsize=3, color=COLOUR_AUG,
-        label=f"aug v1 (run_20260505_154907; macro mean {aug_macro:.3f})",
+        x - bar_width / 2, base_mean, bar_width,
+        yerr=base_yerr, capsize=3, color=COLOUR_BASELINE,
+        label=f"{BASELINE_LABEL} ({BASELINE_RUN}; macro mean {base_macro:.3f})",
     )
     ax.bar(
-        x + bar_width / 2, wipe_mean, bar_width,
-        yerr=wipe_yerr, capsize=3, color=COLOUR_WIPE,
-        label=f"wipe_drop (run_20260503_172922; macro mean {wipe_macro:.3f})",
+        x + bar_width / 2, aug_mean, bar_width,
+        yerr=aug_yerr, capsize=3, color=COLOUR_AUG,
+        label=f"{AUG_V1_LABEL} ({AUG_V1_RUN}; macro mean {aug_macro:.3f})",
     )
 
-    ax.axhline(aug_macro, color=COLOUR_AUG, linestyle="--", linewidth=1, alpha=0.6)
-    ax.axhline(wipe_macro, color=COLOUR_WIPE, linestyle="--", linewidth=1, alpha=0.6)
+    ax.axhline(base_macro, color=COLOUR_BASELINE, linestyle="--", linewidth=1, alpha=0.6)
+    ax.axhline(aug_macro,  color=COLOUR_AUG,      linestyle="--", linewidth=1, alpha=0.6)
     ax.axhline(0.5, color="grey", linestyle=":", linewidth=1, alpha=0.5)
+
+    # Wrist_smash sits leftmost (sorted ascending by aug mean F1). Pull its delta out as
+    # the headline annotation; that's the project's min F1 class and where the gain
+    # against baseline matters most.
+    ws_idx = class_names.index("wrist_smash")
+    ws_base, ws_aug = base_mean[ws_idx], aug_mean[ws_idx]
+    delta_pp = (ws_aug - ws_base) * 100
+    annotation = (
+        f"min F1 (wrist_smash):\n"
+        f"{ws_base:.3f} → {ws_aug:.3f}  (+{delta_pp:.1f}pp)"
+    )
+    ax.annotate(
+        annotation,
+        xy=(ws_idx + bar_width / 2, ws_aug),
+        xytext=(ws_idx + 2.2, ws_aug + 0.18),
+        ha="left", va="bottom",
+        fontsize=10, fontweight="bold", color=COLOUR_CALLOUT,
+        arrowprops=dict(arrowstyle="->", color=COLOUR_CALLOUT, linewidth=1.4),
+        bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
+                  edgecolor=COLOUR_CALLOUT, alpha=0.95),
+    )
 
     ax.set_xticks(x)
     ax.set_xticklabels(class_names, rotation=35, ha="right")
     ax.set_ylabel("F1 score")
     ax.set_ylim(0, 1)
     ax.set_title(
-        "Per-class F1: aug v1 vs wipe_drop (5-serial mean; error bars span min-max across serials)"
+        f"Per-class F1: {AUG_V1_LABEL} vs {BASELINE_LABEL} "
+        f"(5-serial mean; error bars span min-max across serials)"
     )
     ax.legend(loc="lower right")
     ax.grid(axis="y", alpha=0.3)

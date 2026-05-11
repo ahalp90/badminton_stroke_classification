@@ -27,28 +27,38 @@ COLOUR = {
 }
 
 # Each entry: short label, taxonomy key, 5-serial mean macro F1, best-serial macro F1.
-# Order is chronological; LR retune was 3 serials and is flagged in the label.
+# Order is chronological; LR retune was 3 serials and is flagged in the label. Phase 2 +
+# sides carries an asterisk pointing to the dropunk-ablation caveat at the bottom of the
+# figure.
 RUNS = [
-    ("LR retune (3s)",           "merged_25",            0.826,  0.83),
-    ("sanity C (Phase 2)",       "merged_25",            0.831,  0.83),
-    ("sanity B (sides)",         "une_merge_v1",         0.739,  0.74),
-    ("sanity A (nosides)",       "une_merge_v1_nosides", 0.742,  0.74),
-    ("LS sweep winner",          "une_merge_v1_nosides", 0.747,  0.75),
-    ("class-weighting smoke",    "une_merge_v1_nosides", 0.748,  0.76),
-    ("CDB-F1 first",             "une_merge_v1_nosides", 0.7432, 0.75),
-    ("capacity Run 1",           "une_merge_v1_nosides", 0.7414, 0.74),
-    ("wipe_drop best",           "une_merge_v1_nosides", 0.7481, 0.76),
-    ("mask-channel 2a",          "une_merge_v1_nosides", 0.7440, 0.75),
-    ("jitter-off ablation",      "une_merge_v1_nosides", 0.7401, 0.74),
-    ("aug v1 first",             "une_merge_v1_nosides", 0.7388, 0.75),
-    ("aug v1 + p_jit=0.3",       "une_merge_v1_nosides", 0.7447, 0.75),
+    ("LR retune (3 serial)",                                                  "merged_25",            0.826,  0.83),
+    ("Phase 1 baseline (merged_25)",                                          "merged_25",            0.829,  0.83),
+    ("Keypoints fixed (Phase 2) (25c)",                                       "merged_25",            0.831,  0.83),
+    ("Phase 2 + sides (28c)\nuncollapsed smash & drop*",                      "une_merge_v1",         0.739,  0.74),
+    ("Phase 2 + nosides (14c)",                                               "une_merge_v1_nosides", 0.742,  0.74),
+    ("LS=0.15",                                                               "une_merge_v1_nosides", 0.747,  0.75),
+    ("Class weights 2× smash/ws",                                             "une_merge_v1_nosides", 0.748,  0.76),
+    ("CDB-F1 γ=1 τ=1 [focal loss]",                                           "une_merge_v1_nosides", 0.7432, 0.75),
+    ("MLP head 400→1200",                                                     "une_merge_v1_nosides", 0.7414, 0.74),
+    ("shuttle_zero_fix [wipe_drop]",                                          "une_merge_v1_nosides", 0.7481, 0.76),
+    ("shuttle_mask",                                                          "une_merge_v1_nosides", 0.7440, 0.75),
+    ("jitter-off",                                                            "une_merge_v1_nosides", 0.7401, 0.74),
+    ("aug v1",                                                                "une_merge_v1_nosides", 0.7388, 0.75),
+    ("aug v1 + p_jit=0.3",                                                    "une_merge_v1_nosides", 0.7447, 0.75),
 ]
 
+FOOTNOTE = (
+    "*No clean drop unknown ablation.\n"
+    "Progression suggests though that\n"
+    "removing it lowered macro,\n"
+    "rather than raise it."
+)
+
 # BST paper single-run figures, from arXiv:2502.21085 Table 1 (25-class) and appendix p3 (35-class).
+# Fixed-width variant dropped: it's not the preferred windowing strategy, theirs or ours.
 BST_REFS = [
-    ("BST paper, 25c variable-length", 0.8097),
-    ("BST paper, 25c fixed-width",     0.7983),
-    ("BST paper, 35c ShuttleSet",      0.7043),
+    ("BST 25-class best",         0.8097),
+    ("BST paper, 35c ShuttleSet", 0.7043),
 ]
 
 
@@ -108,7 +118,15 @@ def main():
     # Leave headroom on the right so the BST text labels don't get clipped.
     ax_best.set_xlim(0.5, n + 6.5)
 
-    fig.subplots_adjust(left=0.07, right=0.97, top=0.94, bottom=0.18, hspace=0.12)
+    # Footnote box anchored to the bottom-right of the top-serial panel; sits below the
+    # BST reference labels and to the right of the data, in otherwise-empty space.
+    ax_best.text(0.985, 0.03, FOOTNOTE, transform=ax_best.transAxes,
+                 fontsize=8, ha="right", va="bottom",
+                 style="italic", color="dimgrey",
+                 bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                           edgecolor="lightgrey", alpha=0.95))
+
+    fig.subplots_adjust(left=0.07, right=0.97, top=0.94, bottom=0.22, hspace=0.12)
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT_PATH, dpi=160, bbox_inches="tight")
     print(f"Saved: {OUT_PATH}")
