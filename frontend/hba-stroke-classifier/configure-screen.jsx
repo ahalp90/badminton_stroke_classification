@@ -204,15 +204,13 @@ const PIPELINE_STAGES = [
 const LOG_EVENTS = [
   { at:  0, msg: 'Job submitted — loading video segment…' },
   { at:  4, msg: 'Applying court boundary homography transform' },
-  { at:  9, msg: 'Frame extraction: 847 frames identified' },
-  { at: 16, msg: 'Player bounding boxes confirmed (det: 0.97, 0.94)' },
-  { at: 24, msg: 'ShuttleTracker: shuttlecock trajectory computed' },
-  { at: 32, msg: 'MediaPipe: skeleton keypoint sequences extracted' },
+  { at:  9, msg: 'Frame extraction in progress' },
+  { at: 16, msg: 'Player detection: bounding boxes extracted' },
+  { at: 24, msg: 'TrackNetV3: shuttlecock trajectory computed' },
+  { at: 32, msg: 'MMPose: skeleton keypoint sequences extracted' },
   { at: 52, msg: 'Model A (BST): inference started' },
-  { at: 76, msg: 'Model A: inference complete (847 strokes)' },
-  { at: 82, msg: 'Computing evaluation metrics against ground truth' },
-  { at: 90, msg: 'Generating class activation maps' },
-  { at: 96, msg: 'Writing results to database' },
+  { at: 76, msg: 'Model A: inference complete' },
+  { at: 82, msg: 'Writing results' },
   { at: 100, msg: '✓ Analysis complete' },
 ];
 
