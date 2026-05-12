@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ThemeProvider, useTheme, NavBar } from './shared';
+import { ThemeProvider, useTheme, NavBar, ScreenErrorBoundary } from './shared';
 import { LibraryScreen } from './library-screen';
 import { MarkupScreen } from './markup-screen';
 import { ConfigureScreen, ProgressScreen } from './configure-screen';
 import { ResultsScreen } from './results-screen';
+import { ProjectScreen } from './project-screen';
 
 const ORDER = ['library', 'markup', 'configure', 'progress', 'results'];
 
@@ -31,7 +32,24 @@ function HBAStrokeClassifier() {
   const [markup, setMarkup] = useState(null);
   const [task,   setTask]   = useState(null);
 
+  const resetAll = () => {
+    setVideo(null);
+    setMarkup(null);
+    setTask(null);
+    setScreen('library');
+  };
+
   const navigate = target => {
+    // The Project showcase is outside the wizard pipeline — jump freely.
+    if (target === 'project') {
+      setScreen('project');
+      return;
+    }
+    // Returning to the wizard from the Project page: restore wizard state.
+    if (screen === 'project') {
+      setScreen(target);
+      return;
+    }
     const cur = ORDER.indexOf(screen);
     const dst = ORDER.indexOf(target);
     if (dst <= cur) {
@@ -81,12 +99,15 @@ function HBAStrokeClassifier() {
         onNew={() => { setScreen('library'); setVideo(null); setMarkup(null); setTask(null); }}
       />
     ),
+    project: <ProjectScreen />,
   };
 
   return (
     <div style={{ minHeight: '100vh', background: t.bg }}>
       <NavBar screen={screen} onNavigate={navigate} />
-      {screens[screen]}
+      <ScreenErrorBoundary resetKey={screen} onReset={resetAll}>
+        {screens[screen]}
+      </ScreenErrorBoundary>
     </div>
   );
 }

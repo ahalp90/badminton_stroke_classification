@@ -208,8 +208,8 @@ const LOG_EVENTS = [
   { at: 16, msg: 'Player bounding boxes confirmed (det: 0.97, 0.94)' },
   { at: 24, msg: 'ShuttleTracker: shuttlecock trajectory computed' },
   { at: 32, msg: 'MediaPipe: skeleton keypoint sequences extracted' },
-  { at: 41, msg: 'Model A (BST): inference started' },
-  { at: 64, msg: 'Model A: inference complete (847 strokes)' },
+  { at: 52, msg: 'Model A (BST): inference started' },
+  { at: 76, msg: 'Model A: inference complete (847 strokes)' },
   { at: 82, msg: 'Computing evaluation metrics against ground truth' },
   { at: 90, msg: 'Generating class activation maps' },
   { at: 96, msg: 'Writing results to database' },
@@ -346,15 +346,20 @@ export function ProgressScreen({ task, onComplete }) {
         </Card>
 
         {MODELS.filter(m => !m.disabled).map(m => {
-          const modelPct = m.id === 'A' ? Math.max(0, Math.min(100, (pct - 41) / 0.23)) : Math.max(0, Math.min(100, (pct - 52) / 0.22));
-          const active   = pct > (m.id === 'A' ? 41 : 52);
-          const complete = pct > (m.id === 'A' ? 64 : 74);
+          // Model inference is stage index 2 (52% – 80%). Models must not
+          // appear to start running until the pipeline reaches that stage.
+          const startAt    = m.id === 'A' ? 52 : 60;
+          const completeAt = m.id === 'A' ? 78 : 76;
+          const span       = Math.max(1, completeAt - startAt);
+          const modelPct   = Math.max(0, Math.min(100, ((pct - startAt) / span) * 100));
+          const active     = pct > startAt;
+          const complete   = pct > completeAt;
           return (
             <Card key={m.id} style={{ padding: 18, gridColumn: '1 / -1' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Model {m.id}</div>
-                  <div style={{ fontSize: 11, color: t.muted }}>{m.stats[2].value}</div>
+                  <div style={{ fontSize: 11, color: t.muted }}>{m.subtitle}</div>
                 </div>
                 <Badge color={complete ? 'green' : active ? 'blue' : 'muted'}>
                   {complete ? 'Done' : active ? 'Running' : 'Queued'}
