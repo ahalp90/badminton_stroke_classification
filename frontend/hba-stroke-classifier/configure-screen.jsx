@@ -5,26 +5,23 @@ import { useTheme, Btn, Card, Badge, SectionHeader } from './shared';
 const MODELS = [
   {
     id: 'A',
-    name: 'Model A — Spatio-Temporal',
-    subtitle: 'Object detection → 3D-CNN + ShuttleTracker → Deep 1D-CNN',
-    tags: [{ label: 'Best Performance', color: 'blue' }, { label: 'GPU Required', color: 'pine' }],
-    description: 'Processes raw video frames through 3D convolutional layers to capture spatiotemporal motion patterns. Combined with ShuttleTracker for shuttlecock trajectory analysis. Targets 80–85% classification accuracy.',
+    name: 'Model A — BST',
+    subtitle: 'MMPose keypoints + TrackNetV3 shuttle → TCN → Transformer',
+    tags: [{ label: 'TCN', color: 'blue' }, { label: 'Transformer', color: 'blue' }, { label: 'Pose+Shuttle', color: 'pine' }],
+    description: 'Badminton Stroke-type Transformer (BST). Dilated TCN front-end over 17-joint COCO keypoints (MMPose) and TrackNetV3 shuttle trajectory, followed by a temporal / cross / interactional transformer stack. Variants: BST_0, PPF, CG, AP, CG_AP.',
     stats: [
-      { label: 'Target Acc.',  value: '80–85%' },
-      { label: 'Inference',    value: '~2.4s / stroke' },
-      { label: 'Architecture', value: '3D-CNN' },
+      { label: 'Architecture', value: 'TCN + Transformer' },
+      { label: 'Inputs',       value: 'Pose + Shuttle' },
     ],
   },
   {
     id: 'B',
-    name: 'Model B — Keypoint Graph',
-    subtitle: 'Object detection → MediaPipe keypoints + ShuttleTracker → TCN',
-    tags: [{ label: 'Lightweight', color: 'green' }, { label: 'Near Real-Time', color: 'green' }],
-    description: 'Extracts body-keypoint graphs via MediaPipe, eliminating raw pixel processing. A Temporal Convolutional Network processes skeleton sequences. Lower compute cost, suitable for near-real-time inference. Targets 70–80%.',
+    name: 'Model B — TBD',
+    subtitle: 'Second model — to be confirmed',
+    tags: [{ label: 'Reserved', color: 'muted' }],
+    description: 'Reserved slot for a second classification model. No architecture committed yet.',
     stats: [
-      { label: 'Target Acc.',  value: '70–80%' },
-      { label: 'Inference',    value: '~0.3s / stroke' },
-      { label: 'Architecture', value: 'TCN' },
+      { label: 'Architecture', value: 'TBD' },
     ],
     disabled: true,
   },
@@ -140,7 +137,7 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
             />
           ))}
           <div style={{ fontSize: 11, color: t.muted, lineHeight: 1.5 }}>
-            Only Model A is currently available for inference. Model B shown for reference.
+            Only Model A is currently available for inference. A second model slot is reserved for future work.
           </div>
           {!anyEnabled && (
             <div style={{ fontSize: 12, color: t.danger, padding: '8px 12px', background: t.dangerDim, borderRadius: 6 }}>
@@ -211,7 +208,7 @@ const LOG_EVENTS = [
   { at: 16, msg: 'Player bounding boxes confirmed (det: 0.97, 0.94)' },
   { at: 24, msg: 'ShuttleTracker: shuttlecock trajectory computed' },
   { at: 32, msg: 'MediaPipe: skeleton keypoint sequences extracted' },
-  { at: 41, msg: 'Model A (3D-CNN): inference started' },
+  { at: 41, msg: 'Model A (BST): inference started' },
   { at: 64, msg: 'Model A: inference complete (847 strokes)' },
   { at: 82, msg: 'Computing evaluation metrics against ground truth' },
   { at: 90, msg: 'Generating class activation maps' },
