@@ -111,7 +111,7 @@ export function NavBar({ screen, onNavigate }) {
         {steps.map((step, i) => {
           const done     = i < stepIndex;
           const active   = i === stepIndex;
-          const disabled = i > stepIndex + 1;
+          const disabled = false;
           return (
             <button
               key={step.id}

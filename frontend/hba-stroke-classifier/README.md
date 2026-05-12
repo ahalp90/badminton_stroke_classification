@@ -11,10 +11,10 @@ The interface walks through a four-step pipeline:
 
 ## Models
 
-| Model | Architecture | Target Accuracy | Inference |
-|---|---|---|---|
-| Model A | Object detection → 3D-CNN + ShuttleTracker → Deep 1D-CNN | 80–85% | ~2.4s / stroke |
-| Model B | Object detection → MediaPipe keypoints + ShuttleTracker → TCN | 70–80% | ~0.3s / stroke |
+| Model | Architecture | Status |
+|---|---|---|
+| Model A | MMPose keypoints + TrackNetV3 shuttle → TCN → Transformer (BST) | Active |
+| Model B | TBD | Reserved — no architecture committed |
 
 ## Integration
 

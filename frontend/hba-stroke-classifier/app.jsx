@@ -7,6 +7,24 @@ import { ResultsScreen } from './results-screen';
 
 const ORDER = ['library', 'markup', 'configure', 'progress', 'results'];
 
+const DEV_FIXTURES = {
+  video: {
+    youtubeId: 'dQw4w9WgXcQ',
+    match: 'Player One vs Player Two',
+    tournament: 'Demo Tournament 2026',
+    annotated: true,
+    strokeTimes: [],
+  },
+  markup: {
+    player: 1,
+    timeframe: { duration: 30 },
+  },
+  task: {
+    taskName: 'Demo task — fixture',
+    enabled: { A: true, B: false },
+  },
+};
+
 function HBAStrokeClassifier() {
   const [screen, setScreen] = useState('library');
   const [video,  setVideo]  = useState(null);
@@ -16,7 +34,17 @@ function HBAStrokeClassifier() {
   const navigate = target => {
     const cur = ORDER.indexOf(screen);
     const dst = ORDER.indexOf(target);
-    if (dst <= cur) setScreen(target);
+    if (dst <= cur) {
+      setScreen(target);
+      return;
+    }
+    const v = video ?? DEV_FIXTURES.video;
+    const m = markup ?? { ...DEV_FIXTURES.markup, video: v };
+    const t = task ?? { ...DEV_FIXTURES.task, markup: m };
+    if (!video) setVideo(v);
+    if (dst >= ORDER.indexOf('configure') && !markup) setMarkup(m);
+    if (dst >= ORDER.indexOf('progress') && !task) setTask(t);
+    setScreen(target);
   };
 
   const { t } = useTheme();
