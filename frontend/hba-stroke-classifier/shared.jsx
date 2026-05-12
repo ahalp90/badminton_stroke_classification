@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, Component } from 'react';
 import logoSrc from './uploads/logo-1777443863198.png';
 
 const ThemeContext = createContext();
@@ -81,6 +81,7 @@ export function NavBar({ screen, onNavigate }) {
     { id: 'results',   label: 'Results' },
   ];
   const stepIndex = steps.findIndex(s => s.id === screen);
+  const projectActive = screen === 'project';
 
   return (
     <nav style={{
@@ -146,6 +147,25 @@ export function NavBar({ screen, onNavigate }) {
       </div>
 
       <button
+        onClick={() => onNavigate('project')}
+        style={{
+          background: projectActive ? t.blueDim : 'transparent',
+          border: `1px solid ${projectActive ? t.blue : t.border}`,
+          borderRadius: 7,
+          padding: '6px 12px',
+          cursor: 'pointer',
+          color: projectActive ? t.blue : t.text,
+          fontSize: 12,
+          fontWeight: 600,
+          fontFamily: "'Space Grotesk', sans-serif",
+          marginRight: 8,
+          flexShrink: 0,
+        }}
+      >
+        Project
+      </button>
+
+      <button
         onClick={() => setDark(d => !d)}
         style={{
           background: t.surface2, border: `1px solid ${t.border}`,
@@ -158,6 +178,87 @@ export function NavBar({ screen, onNavigate }) {
         {dark ? '𖤓 Light' : '☾ Dark'}
       </button>
     </nav>
+  );
+}
+
+export class ScreenErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    // eslint-disable-next-line no-console
+    console.error('Screen crashed:', error, info);
+  }
+  componentDidUpdate(prevProps) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+  render() {
+    if (this.state.error) {
+      return <ScreenErrorFallback error={this.state.error} onReset={this.props.onReset} />;
+    }
+    return this.props.children;
+  }
+}
+
+function ScreenErrorFallback({ error, onReset }) {
+  const { t } = useTheme();
+  return (
+    <div style={{ maxWidth: 720, margin: '48px auto', padding: 24 }}>
+      <div
+        style={{
+          background: t.dangerDim,
+          border: `1px solid ${t.danger}`,
+          borderRadius: 10,
+          padding: 24,
+          color: t.text,
+        }}
+      >
+        <div style={{ fontSize: 18, fontWeight: 700, color: t.danger, marginBottom: 8 }}>
+          Something went wrong on this screen
+        </div>
+        <div style={{ fontSize: 13, color: t.muted, marginBottom: 14, lineHeight: 1.5 }}>
+          The navigation bar above is still usable. You can jump to another screen, or return to the start.
+        </div>
+        <pre
+          style={{
+            background: t.surface2,
+            color: t.text,
+            padding: 12,
+            borderRadius: 6,
+            fontSize: 12,
+            overflowX: 'auto',
+            margin: '0 0 14px',
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          {String(error?.message ?? error)}
+        </pre>
+        {onReset && (
+          <button
+            onClick={onReset}
+            style={{
+              background: t.blue,
+              color: '#fff',
+              border: 'none',
+              borderRadius: 7,
+              padding: '8px 14px',
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 600,
+              fontFamily: "'Space Grotesk', sans-serif",
+            }}
+          >
+            Return to start
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
