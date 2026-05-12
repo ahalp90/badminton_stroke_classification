@@ -1,198 +1,106 @@
 # Badminton Stroke Classifier
 
-Badminton Stroke Classification using AI Computer Vision (Contribution to long-term Badminton Objective Player Grading Project).
+Phase 1 of a year-long project with the Hunter Badminton Association to build an integrated badminton autograder. The first stage is a stroke-type classifier trained on broadcast footage; later stages will add rally segmentation, scoring, and player grading. COSC594 and COSC320 capstone, University of New England, 2026.
 
-## Project Structure
+## What's in Phase 1
 
-- `src/`: Core application code (data loading, models, training, API)
-- `src/bst_refactor/`: Standalone data pipeline and refactored BST stroke classifier; has its own pinned environments
-- `tests/`: Pytest test suite
-- `notebooks/`: Jupyter notebooks for EDA and experimentation
-- `configs/`: Hyperparameter and pipeline configurations
-- `scripts/`: Utility scripts
-- `scratch/`: Team notes and temporary files
-- `frontend/`: React app user interface
-- `data/`: Local dataset storage (`raw/`, `processed/`, `checkpoints/`, `logs/`)
-- `docs/`: Project documentation including decision log
----
+A classifier built on the BST skeleton-transformer architecture (Chang 2025, [arXiv:2502.21085](https://arxiv.org/abs/2502.21085)), trained on the ShuttleSet broadcast dataset (~32k stroke clips). Skeleton pose data is cleaned by a custom heuristic that picks one active player from each half-court, rejecting line judges and other on-court figures. TrackNetV3 shuttle coordinates support the pose data, fused through BST's cross-attention block. Class imbalance is addressed by a custom adaptive min-F1 focal loss (CDB-F1). Planning and implementation is finishing up for a third input stream to address feature saturation: a modified and fine-tuned X3D-S 3D CNN that dynamically follows the player's racket arm during the strike window.
 
-## Local Setup Instructions
+### Results on the original BST 25-class taxonomy
 
-The project runs in Docker. See `src/bst_refactor/` subproject READMEs for the separate HPC training environments.
+TemPose-TF (2023) and BST (Chang 2025) are the two published benchmarks for badminton stroke classification on ShuttleSet. Test-split figures:
 
-### 1. Build and run
+| | macro F1 | min-class F1 | acc | top-2 |
+| --- | --- | --- | --- | --- |
+| TemPose-TF (2023, prior published benchmark) | 0.794 | 0.493 | 0.819 | 0.950 |
+| BST paper, variable-length (Chang 2025) | 0.810 | 0.576 | 0.832 | 0.959 |
+| Upgraded TrackNet w/ inpaint (`bst_cg_ap_base_17_04_2026`) | 0.823 | 0.585 | 0.841 | 0.963 |
+| Training-schedule sweep (`run_20260417_191851`) | 0.830 | **0.627** | 0.844 | 0.964 |
+| Keypoint extraction heuristic (`run_20260429_202144`) | **0.831** | 0.577 | **0.849** | **0.968** |
+
+
+### Results on the project's core 14-class taxonomy
+
+The 25-class taxonomy carries an 'unknown' bucket of mislabelled clips that the model capably identifies, inflating macro and min averages.
+
+The project's target taxonomy drops the unknown bucket, merges Top/Bottom side variants, and splits `smash` and `drop` into pairs (`smash` vs `wrist_smash`, `drop` vs `passive_drop`), forcing nuanced class discrimination:
+
+`smash`, `wrist_smash`, `drop`, `clear`, `lob`, `drive`, `push`, `rush`, `net_shot`, `return_net`, `cross_court_net_shot`, `passive_drop`, `short_service`, `long_service`.
+
+Best run on this set (`run_20260505_154907`, 5-serial mean over the 4,202-stroke test split): macro 0.745 / min-class 0.478 / accuracy 0.764 / top-2 0.939.
+
+![Per-class F1, current best vs prior project best, 14-class taxonomy, 5 serials each](scratch/presentation_prep/bar_chart_per_class_f1.png)
+
+Core ablation graph and confusion-matrix charts: [`scratch/presentation_prep/`](scratch/presentation_prep/).
+
+**A second architecture (RGB-3dCNN-core multi-stream) is in development in parallel on the same data pipeline, to meet the need for greater fine-grained action discrimination flagged by the macro-F1 plateau**
+
+Explainable AI activation mapping overlays are currently also in development.
+
+## Project structure
+
+- `src/bst_refactor/` — data pipeline and badminton stroke classifier; standalone subproject with its own pinned environments
+- `src/api/` — FastAPI service for upload + inference orchestration (front-end inference path is currently stubbed)
+- `frontend/` — React app, WIP; intended to showcase model inference end-to-end
+- `scratch/architecture_notes/` — design docs, experiment writeups, taxonomy and loss exploration
+- `scratch/presentation_prep/` — charts and eval scripts for milestone reporting
+- `tests/` — pytest suite (environment, dataset, API, integration smoke)
+- `notebooks/` — EDA and dataset-build notebooks
+- `docs/` — decision log
+
+## Data pipeline and classifier training
+
+The classifier has its own pinned environments, separate from the root `requirements.txt`. Three venvs: data pipeline, MMPose pose extraction, BST training. They can't share dependencies; the MMPose skeleton keypoint extractor pins NumPy < 2.0, which conflicts with the rest of the project. Full setup and execution order: [`src/bst_refactor/data_pipeline_to_model_train.md`](src/bst_refactor/data_pipeline_to_model_train.md).
+
+### Local config (`.env`)
+
+Data paths differ between machines (local dev vs `engelbart` vs `bourbaki`). The `pipeline.data_access` tool reads them from a local `.env` file rather than CLI flags.
 
 ```bash
-docker compose up --build
+cp .env.example .env
+# edit .env to point at the four BST_*_DIR paths for your environment
 ```
 
-Backend API: http://localhost:24082/docs
-Frontend: http://localhost:5173
+`.env` is gitignored. Shell exports always override the file. HPC example paths are commented at the bottom of `.env.example`.
 
-### 2. Enter the backend container
+### Inspecting available clips (`pipeline.data_access`)
+
+Lists clips for a given `split` + `class` filter, paired with their shuttle and pose files. Reads from `notebooks/clips_master.csv` under the active taxonomy (default `une_merge_v1`).
 
 ```bash
-docker exec -it badminton-backend bash
+# Set PYTHONPATH once for the session
+export PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification
+
+python -m pipeline.data_access --summary                       # counts per split/class
+python -m pipeline.data_access --split val --class Top_smash   # one row per matching clip
+python -m pipeline.data_access                                 # interactive prompts
 ```
 
-### 3. Verify setup
+Full CLI flags and Python API: [`src/bst_refactor/pipeline/README.md`](src/bst_refactor/pipeline/README.md).
 
-```bash
-pytest tests/
-```
+## UNE HPC setup (engelbart, bourbaki)
 
-If the tests pass, your environment is ready to go.
-
----
-
-## Experiment Tracking
-
-BST training runs log through `src/bst_refactor/run_tracker.py`. Each run writes a manifest, per-serial metrics, and TensorBoard events under `src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/<run_id>/`.
-
-Optional Aim UI (from `main_on_shuttleset/`): `python ../../aim_backfill.py` (one-shot, idempotent), then `aim up`. Details in [`src/bst_refactor/run_tracker.md`](src/bst_refactor/run_tracker.md).
-
-There's also a partial MLflow setup in `scripts/example_mlflow_run.py` if someone wants to plug in, but it's probably more than this project needs; the manifest tracker above integrates with Aim at near-zero effort. The MLflow stub will be deleted before delivery if Scott has not picked it up by then.
-
----
-
-## Current data state and weight compatibility
-
-Active collated data on engelbart and bourbaki:
+Training, pose extraction, and eval at scale all run on the UNE HPC GPU nodes. Active collated training data:
 
 ```
 /scratch/comp320a/ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop/
 ```
 
-`ablation_id=wipe_drop` corresponds to the shuttle-unzeroing-on-keypoint-fail change from the `shuttle/wipe-drop` branch. The script that used to wipe shuttle xy to (0, 0) on frames where MMPose dropped a player no longer fires (~14k frames, 0.84% of the extract). Pose path is unchanged. Rationale in [`scratch/architecture_notes/frame_zeroing.md`](scratch/architecture_notes/frame_zeroing.md). Comparison run lives at `experiments/run_20260503_172922/`.
 
-A variant 2a shuttle_missing channel was tested on top of this and didn't lift; the design + diff is archived in [`scratch/architecture_notes/shuttle_mask_archive.md`](scratch/architecture_notes/shuttle_mask_archive.md), code not in main.
+### Ongoing run and build notes:
 
-### Weight compatibility with prior runs
+- Use a GPU host (`engelbart` is the project default) for training. Build environments on the GPU host, not on `turing`.
+- Keep videos, clips, and generated `.npy` files in `/scratch`, not in your home directory (UNE 40 GB quota).
+- Run long training jobs inside `tmux` so they survive SSH drops.
+- `/scratch` is **not backed up** and is **local to each HPC host** — data on engelbart's scratch is not visible from bourbaki.
 
-The shuttle-unzeroing change is a data change only; model architecture is unchanged. So:
+### Symlinks from project into `/scratch`
 
-- `load_state_dict` succeeds on any pre-shuttle-unzeroing weight file (e.g. `run_20260501_164658`).
-- But re-testing those weights on the new collation is a small distribution shift: ~14k frames that were wiped to (0, 0) at training time now carry their TrackNet shuttle xy. Test metrics will move slightly; not apples-to-apples with the original run.
-- Forward-going, train fresh on the new collation. Old weights tested on the old collation remain the canonical numbers for those runs.
-
-The dropped shuttle-mask branch added new state_dict keys (`mask_proj`, `shuttle_fuse`); its weights are not loadable into the active code.
-
----
-
-## Verify Environment
-
-The project's pytest suite covers environment, data access, dataset, API, sticky_anchor heuristic invariants, and an integration smoke (auto-skipped without `BST_DATA_DIR`):
-
-- `tests/test_environment.py`
-- `tests/test_data_access.py`
-- `tests/test_dataset.py`
-- `tests/test_api.py`
-- `tests/test_sticky_anchor.py`
-- `tests/test_integration.py`
-
-Optional manual checks:
+The pipeline expects clip and pose data inside the repo tree; symlink to `/scratch` so the bulk data lives outside home.
 
 ```bash
-python -c "import torch; print(torch.__version__)"
-python -c "import fastapi; print('fastapi ok')"
-```
+mkdir -p /scratch/comp320a/ShuttleSet/{raw_video,clips,shuttle_csv,shuttle_npy}
 
----
-
-## Data Directory
-
-```text
-data/
-├── raw/
-├── processed/
-├── checkpoints/
-└── logs/
-```
-
-Create it with:
-
-```bash
-bash scripts/setup_data.sh
-```
-
----
-
-## UNE HPC Setup
-
-- Project guide: `scratch/hpc_quickstart.md`
-- GPU notes: `scratch/gpu-access.md`
-
-Notes:
-
-- Use GPU hosts (e.g. `engelbart`) for training
-- Build environments on the GPU host (not just `turing`)
-- Store data in `/scratch`, not your home directory
-- Run long training jobs inside `tmux` so they survive SSH drops
-
----
-
-## Notes
-
-- HPC is used for GPU training workloads
-- Keep large files out of the repository
-
-## BST Stroke Classifier (`src/bst_refactor/`)
-
-The BST subproject has its own tightly pinned dependencies (three separate venvs) that are **not** covered by the root `requirements.txt`. 
-Do not add its packages globally — the MMPose stack requires numpy < 2.0, which conflicts with the main project.
-
-See [`src/bst_refactor/data_pipeline_to_model_train.md`](src/bst_refactor/data_pipeline_to_model_train.md#quick-start-end-to-end-execution)
-  for:
-  - Three-venv setup (pipeline, MMPose, BST training)
-  - Full execution order from video download through model training
-  - Requirements files: `pipeline/requirements.txt`, `stroke_classification/preparing_data/requirements.txt`,
-  `stroke_classification/requirements.txt`
-  
-(detailed pipeline-only README.md in the relevant subdir)
-
-### Inspecting available clips (`pipeline.data_access`)
-
-Lists clips for a given `split` + `class` filter, paired with their shuttle and mmpose files. Reads from `notebooks/clips_master.csv` under the active taxonomy (default `une_merge_v1`). Three modes:
-
-```bash
-# Run from the repo root. Set PYTHONPATH once for the session, or prepend
-# PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification to each
-# command instead.
-export PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification
-
-# 1. Counts: how many clips per split/class, how many on disk, how many
-#    have shuttle/mmpose files. Quick health check on what's available.
-python -m pipeline.data_access --summary
-
-# 2. List of paths: one tab-separated row per matching clip
-#    (split, class, clip_stem, clip_path, shuttle_path, mmpose_path).
-#    Save it (>file.tsv) or pipe it to another script that needs the paths.
-python -m pipeline.data_access --split val --class Top_smash
-
-# 3. Walk-through (no flags): six numbered prompts ask for split column,
-#    taxonomy, split, class, drop-unknown, and summary-vs-paths in turn.
-#    Useful when you don't remember the flag names.
-python -m pipeline.data_access
-```
-
-Paths differ between machines (local vs engelbart); keep them in a local/remote `.env` file. Copy [`.env.example`](.env.example) to `.env` and fill in your paths; the `.env` is gitignored so each person's paths stay local.
-
-Full CLI flag list and Python API: [`src/bst_refactor/pipeline/README.md`](src/bst_refactor/pipeline/README.md#higher-level-access-pipelinedata_accesspy).
-
-## HPC Data Storage (engelbart)
-
-Video data and generated datasets are too large for home directories (40GB quota). On engelbart, these directories should be symlinked to `/scratch` before running the pipeline.
-
-**One-time setup (pipeline data):**
-
-```bash
-# Create shared data directories on scratch
-mkdir -p /scratch/comp320a/ShuttleSet/raw_video
-mkdir -p /scratch/comp320a/ShuttleSet/clips
-mkdir -p /scratch/comp320a/ShuttleSet/shuttle_csv
-mkdir -p /scratch/comp320a/ShuttleSet/shuttle_npy
-
-# Symlink from your project into scratch
 cd ~/badminton_stroke_classification/src/bst_refactor/ShuttleSet
 ln -s /scratch/comp320a/ShuttleSet/raw_video raw_video
 ln -s /scratch/comp320a/ShuttleSet/clips clips
@@ -200,28 +108,34 @@ ln -s /scratch/comp320a/ShuttleSet/shuttle_csv shuttle_csv
 ln -s /scratch/comp320a/ShuttleSet/shuttle_npy shuttle_npy
 ```
 
-**One-time setup (pose estimation output):**
-
-MMPose saves per-clip `.npy` files under a taxonomy-specific directory (`ShuttleSet_data_{taxonomy}/`). The script auto-creates this directory and all subdirectories, but on engelbart you want the data on scratch, so symlink first:
+Per-taxonomy MMPose output dir, same pattern:
 
 ```bash
-# Create the taxonomy output dir on scratch (replace taxonomy name as needed)
 mkdir -p /scratch/comp320a/ShuttleSet_data_une_merge_v1
-
-# Symlink into the preparing_data dir where the script expects it
 cd ~/badminton_stroke_classification/src/bst_refactor/stroke_classification/preparing_data
 ln -s /scratch/comp320a/ShuttleSet_data_une_merge_v1 ShuttleSet_data_une_merge_v1
 ```
 
-**Note on taxonomy and pose data:** Pose data is physically taxonomy-independent -- the same clip produces byte-identical keypoints regardless of which taxonomy it's organized under. Clip filenames (`{vid}_{set}_{rally}_{ball}`) are physical identifiers, so pose results from one taxonomy can in principle be reused by another via filename matching. The taxonomy folder only determines which stroke-type subdirectories the `.npy` files land in.
-
-Everyone shares the same `/scratch` data, so videos only need to be downloaded once. Make sure permissions are open after downloading:
+After first download, open permissions so the rest of the team can read/write the shared data:
 
 ```bash
 chmod -R 775 /scratch/comp320a/ShuttleSet
 ```
 
-**Important notes:**
-- `/scratch` is **not backed up** and is **local to each HPC host** — data on engelbart's scratch is not visible from bourbaki.
-- Do not store videos or clips in your home directory — they will exceed your quota.
-- These symlinks are tracked in git. They will be broken on non-HPC machines — this is expected. The symlinks only need to work on engelbart.
+**Don't commit these symlinks.** They're host-local and break on every other machine. Add them to your local `.gitignore` if `git status` keeps surfacing them. Pose data is physically taxonomy-independent (same clip → byte-identical pose npy), so a single pose extraction can be reused across taxonomies via filename matching; only the output folder layout differs.
+
+HPC quickstart and GPU notes: [`scratch/hpc_quickstart.md`](scratch/hpc_quickstart.md), [`scratch/gpu-access.md`](scratch/gpu-access.md).
+
+## Experiment tracking
+
+Each training run writes a manifest, per-serial metrics, and TensorBoard events under `src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/<run_id>/`. Optional Aim UI for browsing runs: [`src/bst_refactor/run_tracker.md`](src/bst_refactor/run_tracker.md).
+
+## API + frontend
+
+`docker compose up --build` brings up the FastAPI backend (port 24082) and the Vite frontend (port 5173). Dev compose proxies the frontend through to the backend; prod compose adds an nginx-fronted setup with cloudflare tunnel. Current state: the API + frontend wiring runs end-to-end, but the inference path is stubbed (returns canned predictions). Integration with the trained classifier is in progress. Test suite: `pytest tests/`.
+
+## Team and acknowledgements
+
+COSC594 + COSC320 capstone team, University of New England, 2026, in development for the Hunter Badminton Association. Built on top of BST (Chang 2025, [arXiv:2502.21085](https://arxiv.org/abs/2502.21085)) and the ShuttleSet dataset.
+
+Contributors visible via `git shortlog -s -n`.
