@@ -29,6 +29,11 @@ import os
 import platform
 import sys
 import traceback
+from pathlib import Path
+
+# Project root, derived once. Any cache / artefact paths the smoke test
+# touches resolve from here so the script is invariant to cwd.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 # ANSI colours for terminal output. No-op if NO_COLOR or non-tty.
@@ -124,8 +129,12 @@ except ImportError as e:
     fail('ultralytics not installed. Run: uv sync --extra bric', e)
 
 try:
-    # First call downloads the weights (~5MB). Cached for subsequent runs.
-    model = YOLO('yolo11n.pt')
+    # Resolve weights to the canonical project cache (gitignored).
+    # ultralytics downloads the file on first use if not present at this path.
+    yolo_weights = PROJECT_ROOT / 'checkpoints' / 'yolo11' / 'yolo11n.pt'
+    yolo_weights.parent.mkdir(parents=True, exist_ok=True)
+    info(f'YOLO weights path: {yolo_weights}')
+    model = YOLO(str(yolo_weights))
     # Synthetic image — RGB ndarray, 640x640.
     import numpy as np
     img = np.random.randint(0, 255, (640, 640, 3), dtype=np.uint8)
@@ -173,8 +182,7 @@ except ImportError as e:
 # 7. BRIC modules import cleanly
 # ---------------------------------------------------------------------------
 banner('7. BRIC modules')
-src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'))
-sys.path.insert(0, src_path)
+sys.path.insert(0, str(PROJECT_ROOT / 'src'))
 
 try:
     from shared import taxonomy
@@ -202,4 +210,3 @@ ok('BRIC modules importable')
 # Done.
 # ---------------------------------------------------------------------------
 print(f'\n{GREEN}All checks passed.{RESET} Environment is ready for BRIC training.')
-print(f'Recommended next step: cd into the project root and run `pytest tests/`')

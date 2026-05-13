@@ -51,3 +51,53 @@ scratch/sticky_anchor_inspection
 # Video uploads — contents are runtime artefacts, not tracked. Directory is tracked via .gitkeep.
 uploads/*
 !uploads/.gitkeep
+
+# ---------------------------------------------------------------------------
+# Project runtime data — directory structure tracked via .gitkeep, contents not.
+#
+# Each top-level dir has one purpose:
+#   data/         — source data (rsync'd ShuttleSet, future OOD eval, etc.)
+#   checkpoints/  — model weights, organised per-architecture
+#                   (e.g. checkpoints/bric/, checkpoints/bst/, plus shared
+#                    third-party caches like checkpoints/tracknetv3/, checkpoints/yolo11/)
+#   experiments/  — training run manifests + metrics, organised per-architecture
+#                   (e.g. experiments/bric/, experiments/bst/)
+#   cache/        — derived computations (player tracks, etc.) — re-derivable,
+#                   shared across architectures
+#   jobs/         — per-job inference artefacts (frames, softmax) — TTL'd by API
+#
+# Only BRIC's subdirs are pre-created below, since BRIC is the only
+# architecture currently using this structure. BST or future architectures
+# add their own subdirs following the same `<dir>/<arch>/*` + `.gitkeep`
+# pattern.
+# ---------------------------------------------------------------------------
+
+data/shuttleset/clips/*
+!data/shuttleset/clips/.gitkeep
+data/shuttleset/raw_video/*
+!data/shuttleset/raw_video/.gitkeep
+
+checkpoints/bric/*
+!checkpoints/bric/.gitkeep
+checkpoints/tracknetv3/*
+!checkpoints/tracknetv3/.gitkeep
+checkpoints/yolo11/*
+!checkpoints/yolo11/.gitkeep
+
+experiments/bric/*
+!experiments/bric/.gitkeep
+
+cache/players/*
+!cache/players/.gitkeep
+
+jobs/*
+!jobs/.gitkeep
+
+# Ultralytics auto-downloads YOLO weights into the current working directory
+# (or to ~/.cache/ultralytics/) on first use. Catch any that land in the repo root
+# regardless. Production code should explicitly load from checkpoints/yolo11/.
+yolo*.pt
+*.engine
+
+# Ultralytics training/predict default output dir
+runs/
