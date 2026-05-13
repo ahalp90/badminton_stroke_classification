@@ -60,14 +60,25 @@ What this does:
 - Reads `pyproject.toml`.
 - Creates a `.venv/` if not present, using a Python interpreter that
   satisfies `requires-python = ">=3.11"`.
-- Resolves the `bric` extras group: torch, torchvision, ultralytics,
-  pytorchvideo, opencv-python, numpy, pyyaml, pandas, tqdm, parse,
-  pycocotools, scipy.
+- Installs the **shared base** (always): torch, torchvision, numpy,
+  pandas, scipy, opencv-python, Pillow, tqdm, parse, pycocotools,
+  pyyaml, fastapi, uvicorn, python-multipart.
+- Installs the **`bric` extras** on top: pytorchvideo, ultralytics
+  (combines `bric-runtime` + `bric-train`).
 - For `torch` / `torchvision` on **Linux**, pulls from the CUDA wheel
   index configured in `[tool.uv.sources]` (currently `cu128`). On
   **macOS**, falls back to the default PyPI wheels (MPS-capable on
   Apple Silicon).
 - Writes `uv.lock` so the install is reproducible.
+
+Other install patterns:
+
+| Use case | Command |
+|----------|---------|
+| BRIC training | `uv sync --extra bric --extra dev` |
+| BRIC inference | `uv sync --extra bric-runtime` |
+| Unified API server (BRIC + BST handlers) | `uv sync --extra bric-runtime --extra bst-runtime` |
+| Dev tooling only (lint / tests) | `uv sync --extra dev` |
 
 ### Adjusting the CUDA wheel version
 

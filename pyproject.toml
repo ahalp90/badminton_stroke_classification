@@ -3,15 +3,12 @@ name = "badminton-stroke-classification"
 version = "0.1.0"
 description = "Capstone — BST + BRIC stroke classifiers and supporting pipeline."
 requires-python = ">=3.11"
-# Backend / shared deps stay in requirements.txt for now (existing source of
-# truth used by the BST pipeline). BRIC's training-side deps live in the bric
-# extras group below; install with `uv sync --extra bric` on the GB10.
-dependencies = []
 
-[project.optional-dependencies]
 # ---------------------------------------------------------------------------
-# Extras groups. Each scopes deps to a specific role so the unified API
-# server can install just what it needs.
+# Shared base — installed by every `uv sync`.
+# These deps are needed by every architecture (BRIC, BST handler) as well as
+# the FastAPI backend. Architecture-specific deps go in the extras groups
+# below.
 #
 # Compatible coexistence notes:
 #   - BRIC and BST inference handlers can share one venv. Both use PyTorch,
@@ -25,60 +22,97 @@ dependencies = []
 #     TrackNetV3 (per the vendored requirements.txt header) supports it.
 #
 # Install patterns:
-#   - BRIC training/inference (GB10):  uv sync --extra bric --extra dev
-#   - Unified API server:              uv sync --extra bric --extra bst-runtime --extra serve
-#   - Backend only (FastAPI):          uv sync --extra serve
+#   - BRIC training:                     uv sync --extra bric --extra dev
+#   - BRIC inference only:               uv sync --extra bric-runtime
+#   - Unified API server (both arches):  uv sync --extra bric-runtime --extra bst-runtime
+#   - Dev tooling only (lint / tests):   uv sync --extra dev
 # ---------------------------------------------------------------------------
-
-bric = [
-    # Core ML
+dependencies = [
+    # Core ML — both architectures are PyTorch models
     "torch>=2.5",
     "torchvision",
-    "pytorchvideo",
-    "ultralytics>=8.3",
-    # Vendored TrackNetV3 runtime deps (per
-    # src/pipeline/_vendor/tracknetv3/requirements.txt header)
-    "opencv-python",
+    # Numerics
     "numpy",
     "pandas",
+    "scipy",
+    # Video / image I/O
+    "opencv-python",
     "Pillow",
+    # Vendored TrackNetV3 runtime deps (both arches do shuttle tracking)
     "tqdm",
     "parse",
     "pycocotools",     # used by TrackNetV3 inference_utils; if the ARM64 wheel install fails, patch and drop
-    # Misc
+    # Config
     "pyyaml",
-    "scipy",           # pytorchvideo transitive, declared explicit
-]
-
-# Placeholder for the BST handler's runtime deps when its inference path
-# is wired into the API. Kept empty here pending the BST pipeline owner
-# defining what's required (transformers, torcheval, etc.). MMPose stays
-# out — it lives in the subprocess venv.
-bst-runtime = []
-
-# FastAPI backend deps. Mirror of the relevant subset of requirements.txt
-# so the unified API server can be installed via uv sync rather than the
-# legacy pip install -r requirements.txt path.
-serve = [
+    # API serving — FastAPI is small enough to be base; lets the API skeleton
+    # boot even without architecture-specific extras (returns mock results).
     "fastapi",
     "uvicorn",
     "python-multipart",
 ]
 
+[project.optional-dependencies]
+
+# BRIC handler runtime deps for inference (X3D-M load + YOLO11 player
+# tracking + per-stroke prediction).
+bric-runtime = [
+    "pytorchvideo",       # X3D-M backbone
+    "ultralytics>=8.3",   # YOLO11 player detection + built-in tracker
+]
+
+# BRIC training-only adds (not needed at inference).
+bric-train = [
+    "transformers",   # HF get_cosine_schedule_with_warmup; matches BST's pattern
+    "torcheval",      # multiclass_f1_score for per-epoch val metrics
+    # Future candidates: wandb / mlflow / aim for experiment tracking,
+    # kornia for GPU augmentations, etc.
+]
+
+# Convenience meta-extras: install both bric-runtime and bric-train.
+# Use this for training (`uv sync --extra bric --extra dev`).
+bric = [
+    "badminton-stroke-classification[bric-runtime,bric-train]",
+]
+
+# BST handler runtime deps for the unified API server.
+#
+# **Pre-populated as a starting guess** from the project's existing
+# requirements.txt (which is BST's source of truth). Comments mirror the
+# usage notes from that file. The BST pipeline owner should prune this
+# down to inference-only deps once the handler is wired — training-only
+# tooling (tensorboard, mlflow, matplotlib, etc.) can move to a future
+# `bst-train` extras group.
+#
+# MMPose deliberately omitted — runs via subprocess into its own venv,
+# per the BST pipeline's existing isolation pattern.
+bst-runtime = [
+    "positional-encodings",   # BST transformer model uses these (tempose.py)
+    "torchinfo",              # Model summary utility (imported by tempose.py)
+    "torcheval",              # multiclass_f1_score; may be used at eval time
+    "transformers",           # HF cosine LR schedule (training); in case shared modules import
+    "tensorboard",            # SummaryWriter; module-load import in bst_train.py
+    "mlflow",                 # Experiment tracking
+    "scikit-learn",           # Eval / preprocessing utilities
+    "matplotlib",             # Plots; rarely needed at inference, BST owner can drop
+]
+
+# Dev tooling.
 dev = [
     "pytest",
     "httpx",
     "ipython",
-    "ruff",   # configured in [tool.ruff] above; needed for `uv run ruff check`
+    "ruff",   # configured in [tool.ruff] below; invoke via `uv run ruff check`
 ]
 
-# uv-managed PyTorch sources: on Linux (GB10), pull torch + torchvision
-# from PyTorch's CUDA wheel index so we get ARM64 + CUDA Blackwell wheels.
-# On macOS (M1 dev), uv falls back to the default PyPI wheels (MPS-capable).
+# uv-managed PyTorch sources: on Linux, pull torch + torchvision from
+# PyTorch's CUDA wheel index so we get prebuilt CUDA wheels (works for
+# both x86_64 and aarch64). On macOS, uv falls back to the default PyPI
+# wheels (MPS-capable on Apple Silicon).
 #
-# cu128 chosen because the GB10 ships with a CUDA 13.0 driver and Blackwell;
-# PyTorch 2.6+ has cu128 wheels with proper Blackwell support. If install
-# fails, try cu130 (if wheels exist) or fall back to PyTorch nightly:
+# cu128 is the default — recent enough to support current-generation
+# GPUs. If your training host has a different CUDA driver version, pick
+# the matching index — see docs/training_env_setup.md for the table.
+# Available channels include cu121, cu124, cu126, cu128, plus nightly:
 #   url = "https://download.pytorch.org/whl/nightly/cu128"
 [[tool.uv.index]]
 name = "pytorch-cuda"
