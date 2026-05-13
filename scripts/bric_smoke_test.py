@@ -38,7 +38,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # ANSI colours for terminal output. No-op if NO_COLOR or non-tty.
 def _supports_color() -> bool:
-    import os
     return sys.stdout.isatty() and not os.environ.get('NO_COLOR')
 
 GREEN = '\033[32m' if _supports_color() else ''
