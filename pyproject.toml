@@ -1,3 +1,93 @@
+[project]
+name = "badminton-stroke-classification"
+version = "0.1.0"
+description = "Capstone — BST + BRIC stroke classifiers and supporting pipeline."
+requires-python = ">=3.11"
+# Backend / shared deps stay in requirements.txt for now (existing source of
+# truth used by the BST pipeline). BRIC's training-side deps live in the bric
+# extras group below; install with `uv sync --extra bric` on the GB10.
+dependencies = []
+
+[project.optional-dependencies]
+# ---------------------------------------------------------------------------
+# Extras groups. Each scopes deps to a specific role so the unified API
+# server can install just what it needs.
+#
+# Compatible coexistence notes:
+#   - BRIC and BST inference handlers can share one venv. Both use PyTorch,
+#     TrackNetV3, opencv, fastapi.
+#   - **MMPose is the exception.** Its numpy<2 ceiling forces isolation; the
+#     BST pipeline's existing pattern is to call MMPose-using code via
+#     subprocess (see src/bst_refactor/pipeline/shuttle_extractor.py and
+#     stroke_classification/preparing_data/). That subprocess venv is
+#     managed separately from this pyproject.
+#   - Therefore numpy>=2 is fine for everything in this pyproject. Modern
+#     TrackNetV3 (per the vendored requirements.txt header) supports it.
+#
+# Install patterns:
+#   - BRIC training/inference (GB10):  uv sync --extra bric --extra dev
+#   - Unified API server:              uv sync --extra bric --extra bst-runtime --extra serve
+#   - Backend only (FastAPI):          uv sync --extra serve
+# ---------------------------------------------------------------------------
+
+bric = [
+    # Core ML
+    "torch>=2.5",
+    "torchvision",
+    "pytorchvideo",
+    "ultralytics>=8.3",
+    # Vendored TrackNetV3 runtime deps (per
+    # src/pipeline/_vendor/tracknetv3/requirements.txt header)
+    "opencv-python",
+    "numpy",
+    "pandas",
+    "Pillow",
+    "tqdm",
+    "parse",
+    "pycocotools",     # used by TrackNetV3 inference_utils; if the ARM64 wheel install fails, patch and drop
+    # Misc
+    "pyyaml",
+    "scipy",           # pytorchvideo transitive, declared explicit
+]
+
+# Placeholder for the BST handler's runtime deps when its inference path
+# is wired into the API. Kept empty here pending the BST pipeline owner
+# defining what's required (transformers, torcheval, etc.). MMPose stays
+# out — it lives in the subprocess venv.
+bst-runtime = []
+
+# FastAPI backend deps. Mirror of the relevant subset of requirements.txt
+# so the unified API server can be installed via uv sync rather than the
+# legacy pip install -r requirements.txt path.
+serve = [
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+]
+
+dev = [
+    "pytest",
+    "httpx",
+    "ipython",
+]
+
+# uv-managed PyTorch sources: on Linux (GB10), pull torch + torchvision
+# from PyTorch's CUDA wheel index so we get ARM64 + CUDA Blackwell wheels.
+# On macOS (M1 dev), uv falls back to the default PyPI wheels (MPS-capable).
+#
+# cu128 chosen because the GB10 ships with a CUDA 13.0 driver and Blackwell;
+# PyTorch 2.6+ has cu128 wheels with proper Blackwell support. If install
+# fails, try cu130 (if wheels exist) or fall back to PyTorch nightly:
+#   url = "https://download.pytorch.org/whl/nightly/cu128"
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cuda", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cuda", marker = "sys_platform == 'linux'" }]
+
 [tool.ruff]
 exclude = ["notebooks/", "**/deprecated/", "src/bst_refactor/TrackNetV3/", "scratch/project_history/"]
 
