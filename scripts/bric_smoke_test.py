@@ -25,6 +25,7 @@ Exits 0 on full success, 1 on first failure with a clear diagnostic.
 
 from __future__ import annotations
 
+import os
 import platform
 import sys
 import traceback
@@ -172,9 +173,7 @@ except ImportError as e:
 # 7. BRIC modules import cleanly
 # ---------------------------------------------------------------------------
 banner('7. BRIC modules')
-import os
-src_path = os.path.join(os.path.dirname(__file__), '..', 'src')
-src_path = os.path.abspath(src_path)
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'))
 sys.path.insert(0, src_path)
 
 try:
