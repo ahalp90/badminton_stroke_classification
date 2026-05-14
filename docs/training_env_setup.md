@@ -63,8 +63,10 @@ What this does:
 - Installs the **shared base** (always): torch, torchvision, numpy,
   pandas, scipy, opencv-python, Pillow, tqdm, parse, pycocotools,
   pyyaml, fastapi, uvicorn, python-multipart.
-- Installs the **`bric` extras** on top: pytorchvideo, ultralytics
-  (combines `bric-runtime` + `bric-train`).
+- Installs the **`bric` extras** on top: ultralytics, transformers,
+  torcheval (combines `bric-runtime` + `bric-train`). R(2+1)D-18 ships
+  in torchvision (a base dep) so no extra ML lib is needed beyond
+  ultralytics.
 - For `torch` / `torchvision` on **Linux**, pulls from the CUDA wheel
   index configured in `[tool.uv.sources]` (currently `cu128`). On
   **macOS**, falls back to the default PyPI wheels (MPS-capable on
@@ -119,10 +121,11 @@ This script checks:
 2. PyTorch installed and accelerator (CUDA / MPS / CPU) visible
 3. Tensor matmul on the accelerator
 4. YOLO11n forward pass on the accelerator
-5. X3D-M forward pass on the accelerator
+5. R(2+1)D-18 forward pass on the accelerator (Kinetics-400 pretrained,
+   `torchvision.models.video`)
 6. OpenCV importable
 7. BRIC's own modules (`shared.taxonomy`, `shared.court`,
-   `pipeline.video_io`) import cleanly
+   `perception.video_io`) import cleanly
 
 Expected output ends with:
 
@@ -168,8 +171,8 @@ no need for `source .venv/bin/activate` first.
 - PyTorch uses the MPS backend; CUDA-only ops fall back to CPU silently.
   Most BRIC ops work, but full training is slower than on a discrete GPU
   — fine for development and small experiments.
-- Some libraries (e.g. older versions of pytorchvideo) have MPS rough
-  edges; if you hit one, move that workload to a CUDA host.
+- Some video / vision libraries have MPS rough edges; if you hit one,
+  move that workload to a CUDA host.
 
 ### Linux + Nvidia x86_64
 
@@ -187,9 +190,9 @@ no need for `source .venv/bin/activate` first.
 
 ### CPU-only
 
-- Training the full X3D-M model on CPU is impractical (days per epoch).
-  Use this only for module imports, dataset iteration, and unit tests.
-  For real training, get GPU access.
+- Training R(2+1)D-18 on CPU is impractical (days per epoch). Use this
+  only for module imports, dataset iteration, and unit tests. For real
+  training, get GPU access.
 
 ---
 

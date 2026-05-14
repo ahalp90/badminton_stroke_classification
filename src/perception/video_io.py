@@ -107,3 +107,51 @@ def read_frames(
     if not frames:
         raise ValueError(f'No frames read from {path} for [{start_frame}, {end_frame})')
     return np.stack(frames, axis=0)
+
+
+def write_frame_thumbnail(
+    video_path: str | Path,
+    frame_idx: int,
+    output_path: str | Path,
+    max_width: int | None = 640,
+    quality: int = 85,
+) -> Path:
+    """Extract one frame and write it as a JPG thumbnail.
+
+    Backs the per-stroke `stroke_frame_url` in the inference API
+    contract: the BRIC handler calls this once per classified stroke
+    and stores the resulting path in `strokes.frame_path`.
+
+    :param video_path: Source video file.
+    :param frame_idx: Frame to extract (0-indexed).
+    :param output_path: Destination JPG path. Parent directories are
+        created if missing.
+    :param max_width: If set, resize so width <= ``max_width`` while
+        preserving aspect ratio. Pass ``None`` to skip resizing and
+        write the source-resolution frame.
+    :param quality: JPG quality in [0, 100]; 85 is a sensible default
+        balancing file size and visual fidelity for thumbnails.
+    :return: The output path (as a ``Path``) for caller convenience.
+    :raises FileNotFoundError: if ``video_path`` cannot be opened.
+    :raises ValueError: if ``frame_idx`` cannot be read, ``max_width``
+        is non-positive, or ``quality`` is outside [0, 100].
+    """
+    if max_width is not None and max_width <= 0:
+        raise ValueError(f'max_width must be positive or None, got {max_width}')
+    if not (0 <= quality <= 100):
+        raise ValueError(f'quality must be in [0, 100], got {quality}')
+
+    # Read in BGR — cv2.imwrite expects BGR, and skipping the BGR↔RGB
+    # round-trip avoids a copy. read_frame_at would give us RGB by default.
+    frame = read_frame_at(video_path, frame_idx, rgb=False)
+
+    if max_width is not None and frame.shape[1] > max_width:
+        scale = max_width / frame.shape[1]
+        new_size = (max_width, int(round(frame.shape[0] * scale)))
+        frame = cv2.resize(frame, new_size, interpolation=cv2.INTER_AREA)
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if not cv2.imwrite(str(output_path), frame, [cv2.IMWRITE_JPEG_QUALITY, quality]):
+        raise OSError(f'cv2.imwrite failed writing thumbnail to {output_path}')
+    return output_path

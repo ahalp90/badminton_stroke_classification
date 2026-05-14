@@ -48,50 +48,63 @@ scratch/sticky_anchor_inspection
 # Jupyter lab virtual docs
 .virtual_documents/
 
-# Video uploads — contents are runtime artefacts, not tracked. Directory is tracked via .gitkeep.
-uploads/*
-!uploads/.gitkeep
-
 # ---------------------------------------------------------------------------
-# Project runtime data — directory structure tracked via .gitkeep, contents not.
+# Project runtime data — all operational dirs grouped under runtime/.
+# Directory structure tracked via .gitkeep; contents not.
 #
-# Each top-level dir has one purpose:
-#   data/         — source data (rsync'd ShuttleSet, future OOD eval, etc.)
-#   checkpoints/  — model weights, organised per-architecture
-#                   (e.g. checkpoints/bric/, checkpoints/bst/, plus shared
-#                    third-party caches like checkpoints/tracknetv3/, checkpoints/yolo11/)
-#   experiments/  — training run manifests + metrics, organised per-architecture
-#                   (e.g. experiments/bric/, experiments/bst/)
-#   cache/        — derived computations (player tracks, etc.) — re-derivable,
-#                   shared across architectures
-#   jobs/         — per-job inference artefacts (frames, softmax) — TTL'd by API
+# Each runtime/<sub> has one purpose:
+#   runtime/data/         — source data (rsync'd ShuttleSet, future OOD eval).
+#   runtime/checkpoints/  — model weights, organised per-architecture
+#                           (e.g. runtime/checkpoints/bric/, runtime/checkpoints/bst/,
+#                            plus shared third-party caches like
+#                            runtime/checkpoints/tracknetv3/, runtime/checkpoints/yolo11/).
+#   runtime/experiments/  — training run manifests + metrics, organised per-architecture
+#                           (e.g. runtime/experiments/bric/, runtime/experiments/bst/).
+#   runtime/cache/        — derived computations (player tracks, etc.) — re-derivable,
+#                           shared across architectures.
+#   runtime/jobs/         — per-job inference artefacts (frame thumbnails, softmax).
+#                           Persists for the lifetime of the corresponding jobs row in
+#                           runtime/state/inference.db. v1 has no automatic TTL — files
+#                           are removed when the job is explicitly deleted.
+#   runtime/uploads/      — user-uploaded videos.
+#   runtime/state/        — backend operational state (SQLite at inference.db).
+#                           Distinct from runtime/cache/ — losing state/ wipes inference
+#                           history but doesn't break training/serving. See docs/storage.md.
 #
 # Only BRIC's subdirs are pre-created below, since BRIC is the only
 # architecture currently using this structure. BST or future architectures
-# add their own subdirs following the same `<dir>/<arch>/*` + `.gitkeep`
+# add their own subdirs following the same `runtime/<dir>/<arch>/*` + `.gitkeep`
 # pattern.
 # ---------------------------------------------------------------------------
 
-data/shuttleset/clips/*
-!data/shuttleset/clips/.gitkeep
-data/shuttleset/raw_video/*
-!data/shuttleset/raw_video/.gitkeep
+runtime/data/shuttleset/clips/*
+!runtime/data/shuttleset/clips/.gitkeep
+runtime/data/shuttleset/raw_video/*
+!runtime/data/shuttleset/raw_video/.gitkeep
 
-checkpoints/bric/*
-!checkpoints/bric/.gitkeep
-checkpoints/tracknetv3/*
-!checkpoints/tracknetv3/.gitkeep
-checkpoints/yolo11/*
-!checkpoints/yolo11/.gitkeep
+runtime/checkpoints/bric/*
+!runtime/checkpoints/bric/.gitkeep
+runtime/checkpoints/tracknetv3/*
+!runtime/checkpoints/tracknetv3/.gitkeep
+runtime/checkpoints/yolo11/*
+!runtime/checkpoints/yolo11/.gitkeep
 
-experiments/bric/*
-!experiments/bric/.gitkeep
+runtime/experiments/bric/*
+!runtime/experiments/bric/.gitkeep
 
-cache/players/*
-!cache/players/.gitkeep
+runtime/cache/players/*
+!runtime/cache/players/.gitkeep
+runtime/cache/shuttle/*
+!runtime/cache/shuttle/.gitkeep
 
-jobs/*
-!jobs/.gitkeep
+runtime/jobs/*
+!runtime/jobs/.gitkeep
+
+runtime/uploads/*
+!runtime/uploads/.gitkeep
+
+runtime/state/*
+!runtime/state/.gitkeep
 
 # Ultralytics auto-downloads YOLO weights into the current working directory
 # (or to ~/.cache/ultralytics/) on first use. Catch any that land in the repo root

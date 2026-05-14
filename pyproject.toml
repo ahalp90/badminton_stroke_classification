@@ -53,10 +53,10 @@ dependencies = [
 
 [project.optional-dependencies]
 
-# BRIC handler runtime deps for inference (X3D-M load + YOLO11 player
-# tracking + per-stroke prediction).
+# BRIC handler runtime deps for inference (R(2+1)D-18 load + YOLO11 player
+# tracking + per-stroke prediction). R(2+1)D-18 ships in torchvision
+# (already a base dep) so no extra ML lib is needed beyond ultralytics.
 bric-runtime = [
-    "pytorchvideo",       # X3D-M backbone
     "ultralytics>=8.3",   # YOLO11 player detection + built-in tracker
 ]
 
@@ -128,7 +128,7 @@ exclude = [
     "notebooks/",
     "**/deprecated/",
     "src/bst_refactor/TrackNetV3/",
-    "src/pipeline/_vendor/",   # All vendored upstream code (currently TrackNetV3)
+    "src/perception/_vendor/",   # All vendored upstream code (currently TrackNetV3)
     "scratch/project_history/",
 ]
 

@@ -15,10 +15,10 @@ What it checks:
   2. PyTorch installed and accelerator (CUDA / MPS / CPU) visible
   3. Tensor matmul on the accelerator
   4. YOLO11n forward pass on the accelerator
-  5. X3D-M forward pass on the accelerator
+  5. R(2+1)D-18 forward pass on the accelerator (Kinetics-400 pretrained)
   6. OpenCV importable
   7. BRIC's own modules import cleanly (shared.taxonomy, shared.court,
-     pipeline.video_io)
+     perception.video_io)
 
 Exits 0 on full success, 1 on first failure with a clear diagnostic.
 """
@@ -130,7 +130,7 @@ except ImportError as e:
 try:
     # Resolve weights to the canonical project cache (gitignored).
     # ultralytics downloads the file on first use if not present at this path.
-    yolo_weights = PROJECT_ROOT / 'checkpoints' / 'yolo11' / 'yolo11n.pt'
+    yolo_weights = PROJECT_ROOT / 'runtime' / 'checkpoints' / 'yolo11' / 'yolo11n.pt'
     yolo_weights.parent.mkdir(parents=True, exist_ok=True)
     info(f'YOLO weights path: {yolo_weights}')
     model = YOLO(str(yolo_weights))
@@ -145,28 +145,32 @@ except Exception as e:
 
 
 # ---------------------------------------------------------------------------
-# 5. X3D-M forward pass (PyTorchVideo)
+# 5. R(2+1)D-18 forward pass (torchvision)
 # ---------------------------------------------------------------------------
-banner('5. X3D-M forward pass')
+banner('5. R(2+1)D-18 forward pass')
 try:
-    from pytorchvideo.models.hub import x3d_m
-    info('pytorchvideo.models.hub imported')
+    from torchvision.models.video import r2plus1d_18, R2Plus1D_18_Weights
+    info('torchvision.models.video imported')
 except ImportError as e:
-    fail('pytorchvideo not installed. Run: uv sync --extra bric', e)
+    fail('torchvision not installed. Run: uv sync --extra bric', e)
 
 try:
-    # X3D-M expects (B, C=3, T=16, H=224, W=224) input.
-    model = x3d_m(pretrained=True).to(device).eval()
-    x = torch.randn(1, 3, 16, 224, 224, device=device)
+    # R(2+1)D-18 takes a single (B, C=3, T, H, W) tensor. Pretrained
+    # Kinetics-400 weights are trained on 16 frames at 112x112; finetuning
+    # on different (T, H, W) works because the temporal conv adapts to T
+    # and the spatial convs adapt to H/W. BRIC's dataset will sample
+    # n=32 over a ~2s window at 224x224 — smoke test exercises that shape.
+    model = r2plus1d_18(weights=R2Plus1D_18_Weights.KINETICS400_V1).to(device).eval()
+    x = torch.randn(1, 3, 32, 224, 224, device=device)
     with torch.no_grad():
         y = model(x)
-    ok(f'X3D-M forward pass on {device}: output shape={tuple(y.shape)}')
+    ok(f'R(2+1)D-18 forward pass on {device}: output shape={tuple(y.shape)}')
 except Exception as e:
-    fail('X3D-M forward pass failed', e)
+    fail('R(2+1)D-18 forward pass failed', e)
 
 
 # ---------------------------------------------------------------------------
-# 6. OpenCV import (used by pipeline.video_io)
+# 6. OpenCV import (used by perception.video_io)
 # ---------------------------------------------------------------------------
 banner('6. OpenCV')
 try:
@@ -197,10 +201,10 @@ except Exception as e:
     fail('shared.court failed to import', e)
 
 try:
-    from pipeline import video_io
-    info(f'pipeline.video_io: VideoInfo dataclass present = {hasattr(video_io, "VideoInfo")}')
+    from perception import video_io
+    info(f'perception.video_io: VideoInfo dataclass present = {hasattr(video_io, "VideoInfo")}')
 except Exception as e:
-    fail('pipeline.video_io failed to import', e)
+    fail('perception.video_io failed to import', e)
 
 ok('BRIC modules importable')
 
