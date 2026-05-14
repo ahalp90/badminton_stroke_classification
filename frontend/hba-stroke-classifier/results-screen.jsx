@@ -203,11 +203,37 @@ function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
 
 function ClipDetail({ detail }) {
   const { t } = useTheme();
+  const [videoError, setVideoError] = useState(false);
+  // Reset the video error gate when the clip changes; otherwise a missing
+  // mock clip would poison subsequent picks that might actually be on disk.
+  useEffect(() => { setVideoError(false); }, [detail.clip_stem]);
   // Bar widths scale to the strongest class, so the runner-up reads as
   // "almost as confident" when the model is genuinely torn.
   const maxConf = Math.max(...detail.top_k.map(k => k.confidence));
   return (
     <div>
+      <div style={{
+        marginBottom: 14, background: '#000', borderRadius: 6, overflow: 'hidden',
+        aspectRatio: '16 / 9', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {videoError
+          ? (
+            <div style={{ color: t.muted, fontSize: 12, padding: 16, textAlign: 'center', lineHeight: 1.5 }}>
+              No clip mp4 available on this host.<br/>
+              Set <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>BST_CLIPS_DIR</span> to a directory holding the ShuttleSet clips, or run on UNE HPC.
+            </div>
+          )
+          : (
+            <video
+              src={detail.video_url}
+              controls
+              preload="metadata"
+              onError={() => setVideoError(true)}
+              style={{ width: '100%', height: '100%', display: 'block' }}
+            />
+          )
+        }
+      </div>
       <div style={{ fontSize: 11, color: t.muted, marginBottom: 6, fontFamily: "'JetBrains Mono',monospace" }}>
         {detail.match} · {detail.set_id} · rally {detail.rally} · ball round {detail.ball_round}
       </div>
@@ -259,9 +285,6 @@ function ClipDetail({ detail }) {
         ))}
       </div>
 
-      <div style={{ marginTop: 14, fontSize: 10, color: t.muted, fontFamily: "'JetBrains Mono',monospace" }}>
-        video: {detail.video_url} (Tier 1: clip mp4s live on /scratch, endpoint stubbed for now)
-      </div>
     </div>
   );
 }

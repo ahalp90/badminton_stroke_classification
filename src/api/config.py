@@ -8,6 +8,13 @@ REGISTRY_PATH = Path(
     os.getenv("BST_REGISTRY_PATH", str(REPO_ROOT / "docs" / "models_registry.yaml"))
 )
 
+# Optional: directory holding the clip mp4s, with layout
+# <split>/<Side>_<class>/<stem>.mp4. On UNE HPC this resolves to
+# /scratch/comp320a/ShuttleSet/clips. Unset locally; video endpoint
+# returns a helpful 404 when missing.
+_clips_dir = os.getenv("BST_CLIPS_DIR")
+BST_CLIPS_DIR: Path | None = Path(_clips_dir) if _clips_dir else None
+
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/app/uploads"))
 
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "1024"))

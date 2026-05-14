@@ -16,8 +16,9 @@ from typing import Optional
 
 import yaml
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse
 
-from .config import REGISTRY_PATH, REPO_ROOT
+from .config import BST_CLIPS_DIR, REGISTRY_PATH, REPO_ROOT
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
@@ -110,8 +111,32 @@ def _read_clip_index(entry: dict) -> dict:
     raw = _read_json_under_run(entry["manifest_path"], "clip_index.json")
     if not raw:
         raise HTTPException(status_code=404, detail=f"No clip_index for {entry['id']}")
-    # Mock wraps the lookup in `clips`; tolerate both shapes.
-    return raw.get("clips") if "clips" in raw else {k: v for k, v in raw.items() if not k.startswith("_")}
+    return _unwrap_clip_index(raw)
+
+
+def _unwrap_clip_index(raw: dict) -> dict:
+    """Mock wraps the lookup in `clips`; real data may be flat. Tolerate both."""
+    if "clips" in raw:
+        return raw["clips"]
+    return {k: v for k, v in raw.items() if not k.startswith("_")}
+
+
+@lru_cache(maxsize=1)
+def _build_stem_index() -> dict:
+    """Flatten every registered model's clip_index into stem -> video_path.
+
+    Stems are globally unique across the ShuttleSet collation tree, so the
+    first model's entry wins; subsequent models just fill any gaps."""
+    out: dict[str, str] = {}
+    for entry in _load_registry().get("models", []):
+        raw = _read_json_under_run(entry["manifest_path"], "clip_index.json")
+        if not raw:
+            continue
+        for stem, meta in _unwrap_clip_index(raw).items():
+            video_path = meta.get("video_path") if isinstance(meta, dict) else None
+            if stem not in out and video_path:
+                out[stem] = video_path
+    return out
 
 
 def _read_predictions(entry: dict, split: str) -> dict:
@@ -232,12 +257,33 @@ def get_clip(model_id: str, split: str, stem: str) -> dict:
 
 @router.get("/clips/{stem}/video")
 def get_video(stem: str):
-    """Tier 1 stub. Wires up to FileResponse / StreamingResponse against
-    BST_CLIPS_DIR once /scratch (or a copied subset) is reachable."""
-    raise HTTPException(
-        status_code=404,
-        detail=(
-            f"Video streaming not yet wired for Tier 1 mock "
-            f"(clip '{stem}' lives on /scratch/comp320a/ShuttleSet/clips/)."
-        ),
-    )
+    """Serve the clip mp4 from BST_CLIPS_DIR.
+
+    FileResponse handles Range requests automatically, so the <video>
+    element on the FE can scrub. Returns 404 with a hint when the env
+    var is unset (e.g. running natively without /scratch mounted) or
+    when the file isn't on this filesystem (e.g. mocked stems)."""
+    rel_path = _build_stem_index().get(stem)
+    if rel_path is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Clip '{stem}' not in any registered model's clip_index.",
+        )
+    if BST_CLIPS_DIR is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "BST_CLIPS_DIR env var not set; can't resolve clip mp4 location. "
+                "On UNE HPC this is /scratch/comp320a/ShuttleSet/clips."
+            ),
+        )
+    abs_path = BST_CLIPS_DIR / rel_path
+    if not abs_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Clip file not found at {abs_path}. "
+                "Likely a mocked stem or a missing clip on this host."
+            ),
+        )
+    return FileResponse(abs_path, media_type="video/mp4")
