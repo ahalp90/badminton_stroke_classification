@@ -1,6 +1,13 @@
 import os
 from pathlib import Path
 
+# Repo root resolves the same in Docker (`/app`) and native dev (the working
+# tree). Used by registry.py to anchor relative paths in models_registry.yaml.
+REPO_ROOT = Path(os.getenv("BST_REPO_ROOT", str(Path(__file__).resolve().parents[2])))
+REGISTRY_PATH = Path(
+    os.getenv("BST_REGISTRY_PATH", str(REPO_ROOT / "docs" / "models_registry.yaml"))
+)
+
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/app/uploads"))
 
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "1024"))

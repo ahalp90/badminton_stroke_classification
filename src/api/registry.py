@@ -1,0 +1,243 @@
+"""Tier 1 read-only registry endpoints.
+
+Loads docs/models_registry.yaml + each entry's manifest.yaml, and serves the
+sidecar JSONs (predictions, per-class stats, clip_index) per the contract
+in frontend_integration_guide.md sections 1-3.
+
+No PyTorch. No /scratch dependency. The video endpoint is a stub for now
+because clip mp4s live on /scratch on UNE HPC; we wire properly once
+serving infra is in place.
+"""
+import json
+import logging
+from functools import lru_cache
+from pathlib import Path
+from typing import Optional
+
+import yaml
+from fastapi import APIRouter, HTTPException, Query
+
+from .config import REGISTRY_PATH, REPO_ROOT
+
+log = logging.getLogger(__name__)
+router = APIRouter(prefix="/api")
+
+VALID_SPLITS = {"val", "test"}
+
+
+@lru_cache(maxsize=1)
+def _load_registry() -> dict:
+    if not REGISTRY_PATH.exists():
+        log.warning("registry yaml not found at %s", REGISTRY_PATH)
+        return {"models": []}
+    with open(REGISTRY_PATH) as f:
+        return yaml.safe_load(f) or {"models": []}
+
+
+@lru_cache(maxsize=8)
+def _load_manifest(manifest_rel_path: str) -> dict:
+    abs_path = REPO_ROOT / manifest_rel_path
+    if not abs_path.exists():
+        log.warning("manifest not found at %s", abs_path)
+        return {}
+    with open(abs_path) as f:
+        return yaml.safe_load(f) or {}
+
+
+def _read_json_under_run(manifest_rel_path: str, *relparts: str) -> dict:
+    run_dir = (REPO_ROOT / manifest_rel_path).parent
+    json_path = run_dir.joinpath(*relparts)
+    if not json_path.exists():
+        return {}
+    with open(json_path) as f:
+        return json.load(f)
+
+
+def _get_model_entry(model_id: str) -> dict:
+    for m in _load_registry().get("models", []):
+        if m.get("id") == model_id:
+            return m
+    raise HTTPException(status_code=404, detail=f"Unknown model_id '{model_id}'")
+
+
+def _validate_split(split: str) -> None:
+    if split not in VALID_SPLITS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Split must be one of {sorted(VALID_SPLITS)}; got '{split}'",
+        )
+
+
+def _format_metrics(raw: dict) -> dict:
+    """Round + slim down a manifest serial-metrics block for the FE."""
+    if not raw:
+        return {}
+    return {
+        "macro_f1": round(raw["macro_f1"], 4) if "macro_f1" in raw else None,
+        "min_f1": round(raw["min_f1"], 4) if "min_f1" in raw else None,
+        "accuracy": round(raw["accuracy"], 4) if "accuracy" in raw else None,
+        "top2_accuracy": round(raw["top2_accuracy"], 4) if "top2_accuracy" in raw else None,
+        "per_class_f1": {k: round(v, 4) for k, v in raw.get("per_class_f1", {}).items()},
+    }
+
+
+def _summarise_model(entry: dict) -> dict:
+    manifest = _load_manifest(entry["manifest_path"])
+    serial_metrics = next(
+        (s.get("metrics", {}) for s in manifest.get("serials", [])
+         if s.get("serial_no") == entry["serial_no"]),
+        {},
+    )
+    class_list = manifest.get("extra", {}).get("arch", {}).get("active_class_list", [])
+    return {
+        "id": entry["id"],
+        "display_name": entry.get("display_name", entry["id"]),
+        "description": entry.get("description", ""),
+        "taxonomy": entry.get("taxonomy"),
+        "split_column": entry.get("split_column"),
+        "drop_unknown": entry.get("drop_unknown", True),
+        "ablation_id": entry.get("ablation_id"),
+        "temperature": entry.get("temperature", 1.0),
+        "num_classes": len(class_list),
+        "class_list": class_list,
+        "splits_available": ["val", "test"],
+        "test_metrics": _format_metrics(serial_metrics),
+        "val_metrics": {},
+    }
+
+
+def _read_clip_index(entry: dict) -> dict:
+    raw = _read_json_under_run(entry["manifest_path"], "clip_index.json")
+    if not raw:
+        raise HTTPException(status_code=404, detail=f"No clip_index for {entry['id']}")
+    # Mock wraps the lookup in `clips`; tolerate both shapes.
+    return raw.get("clips") if "clips" in raw else {k: v for k, v in raw.items() if not k.startswith("_")}
+
+
+def _read_predictions(entry: dict, split: str) -> dict:
+    preds = _read_json_under_run(entry["manifest_path"], "predictions", f"{split}.json")
+    if not preds:
+        raise HTTPException(status_code=404, detail=f"No predictions for {entry['id']} split={split}")
+    return preds
+
+
+def _build_summary(record: dict, class_list: list, idx_entry: dict) -> dict:
+    y_true = record["y_true"]
+    y_pred = record["y_pred"]
+    top_prob = record["top_k_prob"][0] if record.get("top_k_prob") else 0.0
+    return {
+        "clip_stem": record["clip_stem"],
+        "true_class": class_list[y_true] if 0 <= y_true < len(class_list) else None,
+        "predicted_class": class_list[y_pred] if 0 <= y_pred < len(class_list) else None,
+        "is_correct": y_true == y_pred,
+        "confidence_pct": int(round(top_prob * 100)),
+        "match": idx_entry.get("match"),
+        "split": idx_entry.get("split"),
+    }
+
+
+@router.get("/registry")
+def list_models() -> dict:
+    return {"models": [_summarise_model(m) for m in _load_registry().get("models", [])]}
+
+
+@router.get("/registry/{model_id}")
+def get_model(model_id: str) -> dict:
+    return _summarise_model(_get_model_entry(model_id))
+
+
+@router.get("/registry/{model_id}/splits/{split}/stats")
+def get_perclass_stats(model_id: str, split: str) -> dict:
+    _validate_split(split)
+    entry = _get_model_entry(model_id)
+    stats = _read_json_under_run(
+        entry["manifest_path"], "predictions", f"perclass_stats_{split}.json"
+    )
+    if not stats:
+        raise HTTPException(status_code=404, detail=f"No perclass_stats for {model_id} split={split}")
+    return stats
+
+
+@router.get("/registry/{model_id}/splits/{split}/clips")
+def list_clips(
+    model_id: str,
+    split: str,
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    true_class: Optional[str] = None,
+    predicted_class: Optional[str] = None,
+    errors_only: bool = False,
+) -> dict:
+    _validate_split(split)
+    entry = _get_model_entry(model_id)
+    preds = _read_predictions(entry, split)
+    clip_index = _read_clip_index(entry)
+    class_list = preds.get("active_class_list", [])
+
+    summaries = [
+        _build_summary(r, class_list, clip_index.get(r["clip_stem"], {}))
+        for r in preds.get("clips", [])
+    ]
+    if true_class:
+        summaries = [s for s in summaries if s["true_class"] == true_class]
+    if predicted_class:
+        summaries = [s for s in summaries if s["predicted_class"] == predicted_class]
+    if errors_only:
+        summaries = [s for s in summaries if not s["is_correct"]]
+
+    return {
+        "model_id": model_id,
+        "split": split,
+        "total": len(summaries),
+        "limit": limit,
+        "offset": offset,
+        "clips": summaries[offset:offset + limit],
+    }
+
+
+@router.get("/registry/{model_id}/splits/{split}/clips/{stem}")
+def get_clip(model_id: str, split: str, stem: str) -> dict:
+    _validate_split(split)
+    entry = _get_model_entry(model_id)
+    preds = _read_predictions(entry, split)
+    clip_index = _read_clip_index(entry)
+    class_list = preds.get("active_class_list", [])
+
+    record = next((r for r in preds.get("clips", []) if r["clip_stem"] == stem), None)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"Clip '{stem}' not in split={split}")
+    idx_entry = clip_index.get(stem, {})
+
+    top_k = [
+        {"class": class_list[i], "confidence": p}
+        for i, p in zip(record["top_k_idx"], record["top_k_prob"])
+    ]
+    y_true = record["y_true"]
+    y_pred = record["y_pred"]
+    return {
+        "clip_stem": stem,
+        "video_url": f"/api/clips/{stem}/video",
+        "true_class": class_list[y_true] if 0 <= y_true < len(class_list) else None,
+        "predicted_class": class_list[y_pred] if 0 <= y_pred < len(class_list) else None,
+        "is_correct": y_true == y_pred,
+        "confidence_pct": int(round(record["top_k_prob"][0] * 100)) if record.get("top_k_prob") else 0,
+        "top_k": top_k,
+        "match": idx_entry.get("match"),
+        "set_id": idx_entry.get("set_id"),
+        "rally": idx_entry.get("rally"),
+        "ball_round": idx_entry.get("ball_round"),
+        "split": idx_entry.get("split", split),
+    }
+
+
+@router.get("/clips/{stem}/video")
+def get_video(stem: str):
+    """Tier 1 stub. Wires up to FileResponse / StreamingResponse against
+    BST_CLIPS_DIR once /scratch (or a copied subset) is reachable."""
+    raise HTTPException(
+        status_code=404,
+        detail=(
+            f"Video streaming not yet wired for Tier 1 mock "
+            f"(clip '{stem}' lives on /scratch/comp320a/ShuttleSet/clips/)."
+        ),
+    )
