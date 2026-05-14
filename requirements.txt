@@ -5,6 +5,7 @@ numpy
 pandas
 matplotlib
 scikit-learn
+opencv-python         # cv2; used by perception/video_io.py and tests/test_video_io.py
 positional-encodings  # Positional encoding layers used by BST transformer model (bst_refactor/stroke_classification/model/)
 torchinfo             # Model summary utility used by tempose.py in the BST model module
 tensorboard           # Backs torch.utils.tensorboard.SummaryWriter (imported at module load in bst_train.py)
