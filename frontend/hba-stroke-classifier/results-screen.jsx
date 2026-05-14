@@ -1,39 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTheme, Btn, Card } from './shared';
 
-// Real held-out test-set numbers for the picked BST_CG_AP serial.
-// Source: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/
-//         run_20260505_154907/manifest.yaml (best_serials: [5]).
-// Do not edit these by hand — re-export from the manifest if the run changes.
-const TEST_EVAL = {
-  runId: 'run_20260505_154907',
-  serial: 5,
-  variant: 'BST_CG_AP',
-  taxonomy: 'une_merge_v1_nosides',
-  numClasses: 14,
-  numStrokes: 4202,
-  macroF1: 0.7479,
-  minF1: 0.5147,
-  accuracy: 0.7675,
-  top2Accuracy: 0.9407,
-  perClassF1: [
-    ['short_service',         0.9801],
-    ['long_service',          0.9517],
-    ['clear',                 0.9465],
-    ['net_shot',              0.8924],
-    ['return_net',            0.8184],
-    ['lob',                   0.7846],
-    ['rush',                  0.7742],
-    ['drop',                  0.6821],
-    ['passive_drop',          0.6765],
-    ['drive',                 0.6628],
-    ['push',                  0.6546],
-    ['cross_court_net_shot',  0.6130],
-    ['wrist_smash',           0.5186],
-    ['smash',                 0.5147],
-  ],
-};
-
 /* ─── Per-clip browser (Tier 1, from /api/registry sidecar JSONs) ── */
 // Both val and test have mock predictions via build_mock_artifacts.py, so
 // the split toggle below works against either. For real data: only `test`
@@ -45,7 +12,6 @@ const SPLITS = ['val', 'test'];
 
 function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
   const { t } = useTheme();
-  const [resolvedId,   setResolvedId]   = useState(modelId ?? null);
   const [split,        setSplit]        = useState(initialSplit);
   const [clips,        setClips]        = useState([]);
   const [listError,    setListError]    = useState(null);
@@ -55,22 +21,13 @@ function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [errorsOnly,   setErrorsOnly]   = useState(false);
 
-  // Fallback: if no model was picked upstream (e.g. dev-jump straight to
-  // Results), grab the first registered model so the browser still works.
+  // Pull the clip list whenever model / split / filter changes. Parent owns
+  // model resolution; we just react to whatever modelId comes through.
   useEffect(() => {
-    if (modelId) { setResolvedId(modelId); return; }
-    fetch('/api/registry')
-      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
-      .then(data => setResolvedId(data.models?.[0]?.id ?? null))
-      .catch(err => setListError(err.message));
-  }, [modelId]);
-
-  // Pull the clip list whenever model / split / filter changes.
-  useEffect(() => {
-    if (!resolvedId) return;
+    if (!modelId) return;
     setListError(null);
     const params = errorsOnly ? '?errors_only=true' : '';
-    fetch(`/api/registry/${resolvedId}/splits/${split}/clips${params}`)
+    fetch(`/api/registry/${modelId}/splits/${split}/clips${params}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
       .then(data => {
         const items = data.clips || [];
@@ -78,20 +35,20 @@ function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
         setSelectedStem(items[0]?.clip_stem ?? null);
       })
       .catch(err => setListError(err.message));
-  }, [resolvedId, split, errorsOnly]);
+  }, [modelId, split, errorsOnly]);
 
   // Pull the selected clip's per-clip JSON.
   useEffect(() => {
-    if (!resolvedId || !selectedStem) { setDetail(null); return; }
+    if (!modelId || !selectedStem) { setDetail(null); return; }
     setDetailLoading(true);
     setDetailError(null);
-    fetch(`/api/registry/${resolvedId}/splits/${split}/clips/${selectedStem}`)
+    fetch(`/api/registry/${modelId}/splits/${split}/clips/${selectedStem}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
       .then(d => { setDetail(d); setDetailLoading(false); })
       .catch(err => { setDetailError(err.message); setDetailLoading(false); });
-  }, [resolvedId, split, selectedStem]);
+  }, [modelId, split, selectedStem]);
 
-  if (!resolvedId && !listError) {
+  if (!modelId && !listError) {
     return (
       <Card style={{ padding: 22, marginBottom: 22 }}>
         <div style={{ fontSize: 12, color: t.muted }}>Loading registry…</div>
@@ -289,15 +246,17 @@ function ClipDetail({ detail }) {
   );
 }
 
-/* ─── Held-out test set evaluation (real numbers from manifest.yaml) ─ */
-function TestEvalCard() {
+/* ─── Held-out test set evaluation (from /api/registry, no hardcoded numbers) ─ */
+function TestEvalCard({ model }) {
   const { t } = useTheme();
+  if (!model || !model.test_metrics) return null;
+  const m = model.test_metrics;
   const pct = (x) => (x * 100).toFixed(1) + '%';
   const stats = [
-    { label: 'Macro F1',       value: TEST_EVAL.macroF1.toFixed(3),    color: t.blue },
-    { label: 'Accuracy',       value: pct(TEST_EVAL.accuracy),         color: t.text },
-    { label: 'Top-2 accuracy', value: pct(TEST_EVAL.top2Accuracy),     color: t.text },
-    { label: 'Min F1',         value: TEST_EVAL.minF1.toFixed(3),      color: t.text },
+    { label: 'Macro F1',       value: m.macro_f1.toFixed(3),    color: t.blue },
+    { label: 'Accuracy',       value: pct(m.accuracy),          color: t.text },
+    { label: 'Top-2 accuracy', value: pct(m.top2_accuracy),     color: t.text },
+    { label: 'Min F1',         value: m.min_f1.toFixed(3),      color: t.text },
   ];
   const Mono = ({ children }) => (
     <span style={{ fontFamily: "'JetBrains Mono',monospace", color: t.text }}>{children}</span>
@@ -308,9 +267,7 @@ function TestEvalCard() {
         Held-out test set evaluation
       </div>
       <div style={{ fontSize: 12, color: t.muted, marginBottom: 16, lineHeight: 1.6 }}>
-        Run <Mono>{TEST_EVAL.runId}</Mono> · serial {TEST_EVAL.serial} · variant <Mono>{TEST_EVAL.variant}</Mono>
-        {' '}· taxonomy <Mono>{TEST_EVAL.taxonomy}</Mono>
-        {' '}· {TEST_EVAL.numClasses} classes · {TEST_EVAL.numStrokes.toLocaleString()} test strokes.
+        {model.display_name} · {model.num_classes} classes · taxonomy <Mono>{model.taxonomy}</Mono>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
         {stats.map((s) => (
@@ -324,17 +281,22 @@ function TestEvalCard() {
   );
 }
 
-/* ─── Per-class F1 on test set (real numbers from manifest.yaml) ──── */
-function PerClassF1Card() {
+/* ─── Per-class F1 on test set (from /api/registry per_class_f1 map) ── */
+function PerClassF1Card({ model }) {
   const { t } = useTheme();
-  const max = Math.max(...TEST_EVAL.perClassF1.map(([, v]) => v));
+  if (!model?.test_metrics?.per_class_f1) return null;
+  // Sort desc so the strongest classes read top-down; bar widths scale to
+  // the max so small differences between weak classes are still visible.
+  const entries = Object.entries(model.test_metrics.per_class_f1)
+    .sort(([, a], [, b]) => b - a);
+  const max = Math.max(...entries.map(([, v]) => v));
   return (
     <Card style={{ padding: 22 }}>
       <div style={{ fontSize: 11, color: t.muted, marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
         Per-class F1 — test set
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {TEST_EVAL.perClassF1.map(([cls, f1]) => (
+        {entries.map(([cls, f1]) => (
           <div key={cls} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
               width: 170, fontSize: 12, color: t.text,
@@ -365,11 +327,26 @@ function PerClassF1Card() {
 export function ResultsScreen({ task, onNew }) {
   const { t } = useTheme();
 
-  // Active model = first enabled in the task's models list. Tier 1 only
-  // has one registered model so this collapses to "the one model". When
-  // upstream task is empty (dev-jump), Tier1ClipBrowser falls back to the
-  // first model in /api/registry.
-  const activeModel = task?.models?.find(m => task?.enabled?.[m.id]);
+  // Resolve active model from /api/registry, so TestEvalCard +
+  // PerClassF1Card get full test_metrics (configure-screen's toModelCard
+  // strips those for the picker). Prefer the model the user picked in
+  // configure; if no task (dev-jump) or no picked id, fall back to first.
+  const pickedId = task?.models?.find(m => task?.enabled?.[m.id])?.id ?? null;
+  const [activeModel, setActiveModel] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/registry')
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(data => {
+        if (!alive) return;
+        const models = data.models || [];
+        const picked = (pickedId && models.find(m => m.id === pickedId)) || models[0];
+        setActiveModel(picked || null);
+      })
+      .catch(() => { if (alive) setActiveModel(null); });
+    return () => { alive = false; };
+  }, [pickedId]);
 
   return (
     <div style={{ maxWidth: 1120, margin: '0 auto', padding: 32 }}>
@@ -384,8 +361,8 @@ export function ResultsScreen({ task, onNew }) {
       </div>
 
       <Tier1ClipBrowser modelId={activeModel?.id} />
-      <TestEvalCard />
-      <PerClassF1Card />
+      <TestEvalCard model={activeModel} />
+      <PerClassF1Card model={activeModel} />
     </div>
   );
 }
