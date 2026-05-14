@@ -58,6 +58,11 @@ dependencies = [
 # (already a base dep) so no extra ML lib is needed beyond ultralytics.
 bric-runtime = [
     "ultralytics>=8.3",   # YOLO11 player detection + built-in tracker
+    "lap>=0.5.12",        # ByteTrack uses Jonker-Volgenant assignment; not a
+                          # hard dep of ultralytics, but model.track() crashes
+                          # without it. Declared explicitly so uv installs it
+                          # and ultralytics' pip-based auto-installer never
+                          # fires (uv venvs don't ship pip).
 ]
 
 # BRIC training-only adds (not needed at inference).
