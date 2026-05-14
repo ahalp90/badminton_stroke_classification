@@ -7,9 +7,9 @@ Arch 1 extends BST (Badminton Stroke Transformer, Chang 2025, `arXiv:2502.21085`
 
 Everything else tweaks the inherited BST scaffolding (Q3-Q5 in the codebase: CG/AP scheduling, LR-schedule retune, attention head geometry).
 
-## TLDR (2026-05-04)
+## TLDR (2026-05-06)
 
-**Active baseline**: combo A (`une_merge_v1_nosides + split_v2 + dropunk`), 14-class head, CDB-F1 loss with `adaptive_focal{tau=1, gamma=1, momentum=0.9, warm_up_epochs=5, f1_floor=0}`, compressed LR schedule (`n_epochs=80, lr=5e-4, num_cycles=0.5, warm_up_step=100, early_stop_n_epochs=40`), CG/AP annealed-out (1.0 → 0.0 by epoch 15), and the **shuttle-unzeroing-on-keypoint-fail** collation fix (drops the asymmetric `shuttle[failed,:] = 0` wipe at `prepare_train_on_shuttleset.py:866-867`). Best run `run_20260503_172922`: mean macro 0.7481 / min wrist_smash 0.4742 / acc 0.7653 / top-2 0.9353. Best S2 within that run: 0.7559 / 0.4935 / 0.7684 / 0.9334.
+**Active baseline**: combo A (`une_merge_v1_nosides + split_v2 + dropunk`), 14-class head, CDB-F1 loss with `adaptive_focal{tau=1, gamma=1, momentum=0.9, warm_up_epochs=5, f1_floor=0}`, compressed LR schedule (`n_epochs=80, lr=5e-4, num_cycles=0.5, warm_up_step=100, early_stop_n_epochs=40`), CG/AP annealed-out (1.0 → 0.0 by epoch 15), the **shuttle-unzeroing-on-keypoint-fail** collation fix (drops the asymmetric `shuttle[failed,:] = 0` wipe at `prepare_train_on_shuttleset.py:866-867`), and **augmentation v1** (centreline flip p=0.5 + corrected pos+shuttle constrained jitter p=0.3, cap_y=0.05, cap_x=0.10). Best aug run `run_20260505_154907`: mean macro 0.7447 / min wrist_smash 0.4779 / acc 0.7635 / top-2 0.9394, ahead of the pre-aug wipe_drop best on min and top-2, on par on macro and accuracy. Underlying wipe_drop best (`run_20260503_172922`, no aug) stays on file as the data-path reference: mean 0.7481 / 0.4742 / 0.7653 / 0.9353.
 
 ### Headline results across the project arms
 
@@ -40,6 +40,9 @@ Mean across 5 serials except where noted; combo A nosides except as flagged. **M
 | **Shuttle-unzeroing wipe_drop (current best)** | `run_20260503_172922` | **0.7481** | **0.4742** | **0.7653** | **0.9353** | **0.76 / 0.49 (S2)** |
 | Shuttle-mask variant 2a (mask_wiring) | `run_20260503_192718` | **0.7440** | **0.4568** | **0.7630** | **0.9365** | 0.75 / 0.49 (S4) |
 | Jitter-off ablation (`RandomTranslation_batch(prob=0.0)`) | `run_20260504_152529` | **0.7401** | **0.4301** | **0.7586** | **0.9365** | 0.74 / 0.48 (S2) |
+| Aug v1 first run (flip 0.5, jit 0.2) | `run_20260505_111211` | **0.7388** | **0.4750** | **0.7591** | **0.9402** | 0.75 / 0.50 (S5; first project serial with smash as the floor) |
+| **Aug v1 + p_jitter=0.3 (current best aug)** | `run_20260505_154907` | **0.7447** | **0.4779** | **0.7635** | **0.9394** | **0.75 / 0.51 (S5; min F1 project high)** |
+| Aug v1 round 1 hparam sweep (4 cells, none dislodge) | `sweep_20260505_211814` | — | — | — | — | best single-serial: `run_20260506_032632_652587` S1 (0.74 / 0.52, new single-serial min F1 high) |
 
 ### Key learnings
 
@@ -47,12 +50,15 @@ Mean across 5 serials except where noted; combo A nosides except as flagged. **M
 - **Capacity might still be a lever, just not on the head-MLP axis in isolation.** Capacity-bottleneck research at `scratch/architecture_notes/model_capacity_bottleneck_question.md` argued plateau is data-bound and signal-bound. Run 1 (mlp_head 400→1200) confirmed mlp_head widening alone: head metrics flat, ws -4.8 pp, swap reverted. But the smash-up / ws-down pattern under widening hints at a capacity-bound representation somewhere — wider head let the easier head class run away from the harder pair member, which is consistent with insufficient encoder capacity to separate the pair. Run 2 (d_model 100→192 + d_head trim 128→32) is still the natural test of this; Run 1's flat result weakens but doesn't void the prior because encoder-side capacity is structurally different from head-side.
 - **Data quality is a real lever after all.** Phase 1 sticky_anchor mixed retrain (`run_20260425_150548`) and the per-class frame-zeroing audit *had* ruled out the gross data-quality-bottleneck hypothesis at the keypoint-extraction level. Shuttle-zeroing concentrates in the high-arc classes (long_service 24.7%, smash 13.7%, clear 11.9%, lob 9.1%, wrist_smash 8.5%, drop 8.1% whole-clip means against sub-2% for the rest) because the bird leaves the top of the broadcast frame on high setups, per `validation_scripts/shuttle_gap_y_distribution.py` (61.6% of gap boundaries cluster in the top 10% of the frame). Within that high-arc family, smash↔ws is the only bottleneck pair, so it's the only one the model leans on shuttle to disambiguate; dropping the asymmetric shuttle-on-pose-fail collation wipe gave the floor-lift the loss-side knobs hadn't found. Earlier "data quality is not the bottleneck" framing was right about the keypoint side but missed the shuttle-side collation asymmetry.
 - **The bottleneck is the smash↔wrist_smash pair specifically**: representation-bound (encoder isn't separating the pair on its own) and signal-bound (pose-2D doesn't carry the wrist-vs-full-swing distinction that X3D-S could see at the racket-pixel level). Train-test gap concentrates on this pair (14-18 pp); pose-distinctive classes generalise within 1-2 pp at 0.95+ test F1. The shuttle-unzeroing fix lifted both members of the pair (smash +1.5, ws +1.2) without trading them off, which is the first time a single intervention has done that.
+- **Pose-only signal looks tapped on the smash↔ws pair.** Round 1 aug sweep flattened the picked-serial F1 split to ~0.51 each across runs (smash 0.567 / 0.605 / 0.568, ws 0.510 / 0.510 / 0.523). Historic ws-below-smash gap is gone; which one is the floor varies by serial. Reads as no useful axis left on the pose stream for the pair: flip and jitter don't carry information about wrist-vs-full-swing. Reinforces the X3D-S wrist crop as the structural lever, not another loss-side or pose-aug knob. Detail: [`hparams_sweep_speculations.md`](hparams_sweep_speculations.md) "Smash/wrist_smash F1 split" section.
+- **Seed-noise envelope at 5 serials is wider than expected on min F1.** Accidental same-config replicate in the round 1 sweep gave a direct read: macro spread 0.13%, min F1 2.14%, acc 0.14%, top-2 0.02% across 5-serial run means. Macro is reliable for hparam picks at this sample size; min F1 stays the success criterion but is too noisy to drive decisions on its own. The 0.7% sweep-kill macro tolerance sits at one run-mean spread, so kills only fire on real misses. Detail: [`augmentation_framework.md`](augmentation_framework.md) "Seed-noise envelope on run means" section.
 
 ### Active priorities (in order)
 
 1. **Capacity-bump Run 2**: encoder-side widening (d_model 100→192 + d_head trim 128→32). Implementation surface + verifications + LR notes at `scratch/architecture_notes/transformer_widening_hparam_changes.md`. Now framed as testing whether encoder capacity is the local bottleneck, given Run 1's smash-up/ws-down pattern hints at one.
-2. **Augmentation set landing**: centreline flip (p=0.5, coupled, COCO bilateral joint-index swap) + corrected pos+shuttle constrained-jitter (p=0.2, ±0.05y/±0.10x cap). Replaces the broken `RandomTranslation_batch`, which the jitter-off ablation (`run_20260504_152529`) showed was net-positive as regularisation despite being structurally wrong. Don't drop, replace. Full spec in [`augmentation_framework.md`](augmentation_framework.md).
-3. **X3D-S fusion build**: long-term primary direction; addresses the signal-bound bottleneck. Model + input shape decided; fusion depth, training schedule, temporal cut-in, and MMPose-drop handling open. See "Primary research direction: X3D-S wrist crop fusion" below.
+2. **X3D-S fusion build**: long-term primary direction; addresses the signal-bound bottleneck. Model + input shape decided; fusion depth, training schedule, temporal cut-in, and MMPose-drop handling open. Six-stage macro plan at [`x3d_integration_macro_plan/`](x3d_integration_macro_plan/); each stage launches as its own sub-task. Slated post-Run 2.
+3. **Aug round 2 (small)**: flip ablation (p_flip=0 vs 0.25 vs 0.5) to test whether the flip is washing out cross_court_net_shot, and a check on whether p_jitter past 0.4 keeps paying. Cheap to schedule alongside other work; not a blocker.
+4. **Pre-submission comparability reruns** (by ~20 May, software-side submission window): headline table above spans pre-Phase-2 MMPose, pre-wipe_drop, and pre-aug-v1 collation eras, so cross-arm deltas aren't apples-to-apples in the strict sense. Refresh loss-side arm winners (LS sweep winner, class-weighting smoke, CDB-F1 first) on the current wipe_drop + aug v1 collation so final-writeup deltas hold up. Same window: single 5-serial cells for BST-25 (`merged_25` retain-unknown) and ShuttleSet-original with `drop_unknown=True`, so per-class F1 + confusion-matrix coverage extends across all three taxonomies the project benchmarks against (currently only 14-class nosides is fully populated).
 
 **TCN dilation flagged for investigation**: the inherited TCN runs two layers with `kernel=5` and dilations 1 then 3 (RF = 17 frames ~570 ms), plausibly pooling over the frame-by-frame micro-motion that discriminates the smash↔wrist_smash pair. 2-cell A/B (kernel=5 with dilation off, vs kernel=3 with dilation retained) writes up at "Secondary: TCN dilation pattern (open investigation)" below. Slot in after Capacity-bump Run 2 if the encoder-widening result leaves room.
 
@@ -91,8 +97,12 @@ Two project-wide boundaries worth flagging up-front: **2026-04-29** is the cut-o
 | 2026-05-03 | Frame-zeroing redesign: mask-channel variant 2a | `run_20260503_192718` (no benefit on top; parked) |
 | 2026-05-04 | Augmentation set locked | full spec in `augmentation_framework.md` |
 | 2026-05-04 | Jitter-off ablation: `RandomTranslation_batch(prob=0.0)` | `run_20260504_152529` (defaults restored; broken jitter is empirically regularising) |
+| 2026-05-05 | Aug framework v1 first run (p_jitter=0.2) | `run_20260505_111211` (head metrics slip, min holds) |
+| 2026-05-05 | Jitter per-clip-bounds bug fix | commit `2291ad8` (padded zeros were being read as real positions in the min/max bounds calc) |
+| 2026-05-05 | Aug v1 + p_jitter=0.3 retune | `run_20260505_154907` (new project-best aug; min F1 project high at S5 0.515) |
+| 2026-05-06 | Hparam search wrapper built | commit `80cea68` (drives cells through serials with kill rules; per-session search log) |
+| 2026-05-06 | Aug v1 round 1 hparam sweep | `sweep_20260505_211814_aug_v1_round_1` (4 cells; none dislodge p_jitter=0.3) |
 | **pending** | Capacity-bump Run 2 (d_model 100→192 + d_head trim) | next gate |
-| **pending** | Augmentation set landing | A/B vs no-aug baseline |
 | **pending** | X3D-S fusion build | primary direction; build slated post-Run 2 |
 
 ## Architecture
@@ -434,6 +444,52 @@ Per-class shifts vs wipe_drop best (5-serial mean, pp absolute): smash +0.5, dri
 
 **Read.** The bbox-centric jitter is conceptually wrong (deforms the body around its own centre, doesn't simulate court-position movement) but empirically regularising. Min F1 ends up below the CDB-F1 baseline too, not just below wipe_drop, so the broken-but-helpful jitter isn't even close to net-negative. Defaults restored at `bst_train.py:375`; corrected pos+shuttle jitter from [`augmentation_framework.md`](augmentation_framework.md) is the eventual replacement. The "first aug ablation slot" three-option menu (Remove / Couple-current / Couple-tighten) collapses on the result: Remove is the loser arm, so the next aug experiment takes the corrected formulation rather than the disable-and-see route.
 
+### Aug framework v1 first run — 2026-05-05
+
+Augmentation framework v1 lands: coupled centreline flip (p=0.5, COCO bilateral joint-index swap) + corrected pos+shuttle constrained jitter (p=0.2, cap_y=0.05, cap_x=0.10, eps=0.15). Replaces the broken bbox-centric `RandomTranslation_batch`. JnB_bone-only at present. Hparams otherwise identical to the wipe_drop best (`run_20260503_172922`).
+
+Run `run_20260505_111211`:
+
+| Serial | macro | min ws | acc | top-2 | smash F1 | ws F1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| S1 | 0.7361 | 0.4832 | 0.7592 | 0.9367 | — | — |
+| S2 | 0.7395 | 0.4505 | 0.7570 | 0.9388 | — | — |
+| S3 | 0.7321 | 0.4945 | 0.7520 | 0.9412 | — | — |
+| S4 | 0.7521 (top) | 0.4435 | 0.7699 (top) | 0.9436 (top) | — | — |
+| S5 (best) | 0.7341 | 0.5034 (top) | 0.7573 | 0.9405 | 0.503 | 0.518 |
+| **Mean** | **0.7388** | **0.4750** | **0.7591** | **0.9402** | | |
+
+Vs wipe_drop best mean (0.7481 / 0.4742 / 0.7653 / 0.9353): macro **-0.9**, min ~flat (+0.1), acc -0.6, top-2 +0.5. Head metrics slipped, min held. S5 is the first project serial where smash takes over as the floor class (smash 0.503, ws 0.518) — the CDB-F1 inversion the loss was built for, now showing up in a real serial.
+
+Per-class shifts vs wipe_drop (5-serial mean, pp absolute): drive +1.6, wrist_smash +0.4, clear +0.4, short_service +0.2, return_net ~0, lob -0.5, rush -0.5, net_shot -0.5, long_service -0.8, drop -1.0, passive_drop -1.3, push -2.1, smash -3.0, cross_court_net_shot -5.7.
+
+**Read.** Aug at p_jitter=0.2 is under-regularising on the head metrics. Cross_court_net_shot down 5.7% is the standout movement and the candidate concern: the centreline flip might be washing out a side-of-court signal the class relies on. Bumping p_jitter to 0.3 next to test the under-reg read; flip ablation parked behind that. Bug subsequently spotted in the jitter's per-clip bounds calc (commit `2291ad8`): the data loader pads short clips to 100 frames with zeros, and the jitter was reading those padded zeros as real (0, 0) player positions when computing min/max bounds for the safe shift range. Fixed before the p_jitter retune.
+
+S5 picked on the floor lift. Min F1 0.5034 a project high at the time. Full per-run notes at `experiments/run_20260505_111211/best_model_id.txt`.
+
+### Aug v1 + p_jitter=0.3 retune — 2026-05-05
+
+Single-knob change vs the previous aug run: p_jitter 0.2 → 0.3, on top of the bounds bug fix. Everything else held. Tests the under-reg read from `run_20260505_111211`.
+
+Run `run_20260505_154907`:
+
+| Serial | macro | min ws | acc | top-2 | smash F1 | ws F1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| S1 | 0.7549 (top) | 0.4910 | 0.7718 (top) | 0.9417 (top) | — | — |
+| S2 | 0.7414 | 0.4627 | 0.7594 | 0.9381 | — | — |
+| S3 | 0.7392 | 0.4350 | 0.7596 | 0.9407 | — | — |
+| S4 | 0.7402 | 0.4859 | 0.7594 | 0.9357 | — | — |
+| S5 (best) | 0.7479 | 0.5147 (top) | 0.7675 | 0.9407 | 0.515 | 0.519 |
+| **Mean** | **0.7447** | **0.4779** | **0.7635** | **0.9394** | | |
+
+Vs previous aug run (`run_20260505_111211`) mean: macro **+0.6**, min +0.3, acc +0.4, top-2 ~flat. Vs wipe_drop best mean: macro -0.3, min +0.4, acc -0.2, top-2 +0.4. The under-reg hypothesis was right: lifting p_jitter 0.2 → 0.3 recovers the head-metrics slip without giving back min. Aug now sits at parity-or-better than wipe_drop on the head metrics and ahead on min and top-2.
+
+S5 again the picked serial: smash 0.515, ws 0.519, smash again the floor class for the second project run running. Pair sum 1.033 (slightly tighter than the previous S5's 1.021). Min F1 0.515 a new project high (prior 0.503 the previous S5). The CDB-F1 inversion is replicating across runs, not a one-run fluke.
+
+Per-class shifts vs wipe_drop best (5-serial mean, pp absolute): drive +2.6, rush +2.6, clear +0.8, wrist_smash +0.5, lob +0.5, push +0.1, short_service ~0, return_net ~0, long_service -0.3, net_shot -0.4, drop -0.6, passive_drop -1.5, smash -3.2, cross_court_net_shot -5.4.
+
+**Read.** New project-best aug config; locked in as the active baseline going forward. Cross_court_net_shot is still down ~5% vs wipe_drop and didn't move with the p_jitter bump, so it's not on the rate axis. Likely flip-mediated (centreline flip washing out a side-of-court signal); flip ablation flagged for round 2 of the sweep. Full per-run notes at `experiments/run_20260505_154907/best_model_id.txt`.
+
 ### Aug v1 round 1 hparam sweep — 2026-05-06
 
 First round of the aug hparam sweep, four runs via the new `hparam_sweep.py` wrapper against the aug v1 + p_jitter=0.3 reference (`run_20260505_154907`). Tested whether lower p_flip recovers cross_court_net_shot, whether bigger jitter caps keep paying, and whether p_jitter past 0.3 keeps paying.
@@ -508,7 +564,9 @@ Two entry points is few enough that I'm leaving it for now. When a third arrives
 - `scratch/architecture_notes/seesaw_f1_focal_design.md`: pair-aware Seesaw-loss-style alternative design verified against CVPR 2021 paper.
 - `scratch/architecture_notes/transformer_widening_hparam_changes.md`: capacity-bump Run 2 implementation surface + verifications + LR notes.
 - `scratch/architecture_notes/frame_zeroing.md`: frame-zeroing redesign detail.
-- [`augmentation_framework.md`](augmentation_framework.md): locked Task 2 augmentation set, code traces, Phase 3 candidates, hit-frame metadata derivation.
+- [`augmentation_framework.md`](augmentation_framework.md): locked Task 2 augmentation set, code traces, Phase 3 candidates, hit-frame metadata derivation, seed-noise envelope writeup.
+- [`hparams_sweep_speculations.md`](hparams_sweep_speculations.md): per-knob walkthrough for the hparam sweep menu; smash/wrist_smash F1 split section covers the round 1 finding.
+- `experiments/aug_hparam_sweep/sweep_20260505_211814_aug_v1_round_1/`: round 1 sweep dir (manifest.md, state.json, config.yaml, per-session search log).
 - [`x3d_integration_macro_plan/`](x3d_integration_macro_plan/): macro plan for X3D-S wrist-crop integration (six stages: hit-frame derivation → wrist-loss assessment → crop sizing + dominant-wrist heuristic → extraction pipeline → solo X3D-S fine-tune → fusion build), surfaces the open questions per stage; each stage gets its own sub-task. Source MD, print-tuned MD, printable PDF, and a `print_assets/build_pdf.sh` rebuild script all live in the subfolder.
 - `scratch/architecture_notes/historical_bst.md`: BST paper defaults preserved for reproduction.
 - `scratch/research/class_player_split_overlap_exploration.md`: train-val 55% / val-test 15% clip-weighted player overlap; informs the swap val/test parked direction.
