@@ -11,6 +11,7 @@ signature with reserved fusion slots. Generic torchvision behaviours
 output of nn.Linear) are not retested here.
 """
 
+import pytest
 import torch
 
 from bric.network import BRICNetwork
