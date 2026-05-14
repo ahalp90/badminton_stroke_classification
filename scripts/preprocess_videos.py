@@ -260,36 +260,61 @@ def crop_and_resize(
 def extract_stroke_rgb(
     stroke: pd.Series,
     rally_frames: dict[int, np.ndarray],
-    detections_at_target: list[dict],
+    rally_dets: dict[int, list[dict]],
     frame_w: int,
     frame_h: int,
     court_info: dict | None,
-) -> np.ndarray | None:
+) -> tuple[np.ndarray | None, int]:
     """Build the (32, 224, 224, 3) RGB tensor for one stroke.
 
-    Returns None (and logs) if the striker bbox is missing at target.
+    If the striker bbox is missing at ``target_frame`` (transient YOLO
+    miss, on-court projection rejection, etc.), walk outward ±1, ±2, ...
+    up to ±RGB_N_BEFORE frames looking for any frame where the striker
+    is detected. The found bbox is used as the fixed crop region for
+    all 32 frames in the RGB window — small temporal offsets in the
+    crop region are cheap; losing the stroke entirely is expensive.
+
+    :return: (tensor, offset_used). ``tensor`` is None if no striker
+        found within ±RGB_N_BEFORE; ``offset_used`` is 0 for direct hit,
+        positive for fallback distance, -1 if not found.
     """
     target_f = int(stroke['frame_num'])
     striker_side = stroke['player_side']
-    bbox = pick_striker_bbox(detections_at_target, striker_side, frame_w, frame_h, court_info)
+
+    bbox: tuple[float, float, float, float] | None = None
+    used_offset = -1
+    for offset in range(RGB_N_BEFORE + 1):
+        # Try target_f, then ±1, ±2, ... up to ±RGB_N_BEFORE.
+        for f in ((target_f,) if offset == 0 else (target_f - offset, target_f + offset)):
+            dets = rally_dets.get(f)
+            if not dets:
+                continue
+            cand = pick_striker_bbox(dets, striker_side, frame_w, frame_h, court_info)
+            if cand is not None:
+                bbox = cand
+                used_offset = offset
+                break
+        if bbox is not None:
+            break
+
     if bbox is None:
         print(
-            f'  stroke {stroke["clip_stem"]}: no {striker_side} detection at frame '
-            f'{target_f}, skipping RGB'
+            f'  stroke {stroke["clip_stem"]}: no {striker_side} detection in '
+            f'±{RGB_N_BEFORE} frames around {target_f}, skipping RGB'
         )
-        return None
-    crop_box = expand_and_squarify(bbox, frame_w, frame_h)
+        return None, -1
 
+    crop_box = expand_and_squarify(bbox, frame_w, frame_h)
     crops = []
     window_start = target_f - RGB_N_BEFORE
-    for offset in range(RGB_N_FRAMES):
-        wf = window_start + offset
+    for i in range(RGB_N_FRAMES):
+        wf = window_start + i
         # Boundary clamp — should be rare given rally extent guards.
         if wf not in rally_frames:
             available = sorted(rally_frames.keys())
             wf = max(available[0], min(available[-1], wf))
         crops.append(crop_and_resize(rally_frames[wf], crop_box))
-    return np.stack(crops, axis=0)  # (32, 224, 224, 3) uint8
+    return np.stack(crops, axis=0), used_offset  # (32, 224, 224, 3) uint8
 
 
 def process_rally(
@@ -323,6 +348,7 @@ def process_rally(
         rally_dets[f_idx] = detect_persons(yolo_model, frame)
 
     # Per-stroke RGB extraction from the buffered frames.
+    n_ok = n_fallback = n_failed = 0
     for _, stroke in strokes.iterrows():
         out_path = RGB_CACHE_DIR / f'{stroke["clip_stem"]}.npy'
         if out_path.exists() and not force:
@@ -330,16 +356,24 @@ def process_rally(
         target_f = int(stroke['frame_num'])
         if target_f not in rally_dets:
             print(f'  stroke {stroke["clip_stem"]}: target frame {target_f} not buffered, skipping')
+            n_failed += 1
             continue
-        tensor = extract_stroke_rgb(
-            stroke, rally_frames, rally_dets[target_f], frame_w, frame_h,
-            court_info,
+        tensor, used_offset = extract_stroke_rgb(
+            stroke, rally_frames, rally_dets, frame_w, frame_h, court_info,
         )
         if tensor is None:
+            n_failed += 1
             continue
+        if used_offset == 0:
+            n_ok += 1
+        else:
+            n_fallback += 1
         out_path.parent.mkdir(parents=True, exist_ok=True)
         np.save(out_path, tensor)
 
+    if n_fallback or n_failed:
+        print(f'  rally set={set_id} rally={rally_id}: rgb {n_ok} direct, '
+              f'{n_fallback} fallback, {n_failed} failed')
     return rally_dets
 
 
