@@ -60,6 +60,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / 'src'))
 
 from perception.players import DEFAULT_YOLO_WEIGHTS  # noqa: E402
+from shared.court import (  # noqa: E402
+    convert_homogeneous,
+    load_all_court_info,
+    project,
+    scale_pos_by_resolution,
+)
+from shared.dataset import HOMOGRAPHY_CSV_PATH  # noqa: E402
 
 SHOTS_MASTER_PATH = REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
 RAW_VIDEO_DIR = REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'raw_video'
@@ -129,27 +136,80 @@ def detect_persons(yolo_model, frame: np.ndarray) -> list[dict]:
     ]
 
 
+def _project_foot_to_court(
+    bbox: tuple[float, float, float, float],
+    frame_w: int,
+    frame_h: int,
+    court_info: dict,
+) -> tuple[float, float]:
+    """Project a bbox foot-centre to normalised court coords (x_n, y_n).
+
+    Foot-centre = bbox bottom edge midpoint. Source pixels are scaled to
+    the homography's reference resolution (1280×720) before projection.
+    Result is in [0, 1] when on-court (with eps slack), outside otherwise.
+    """
+    foot_x = (bbox[0] + bbox[2]) / 2
+    foot_y = bbox[3]
+    pt = np.array([[foot_x], [foot_y]])
+    pt = scale_pos_by_resolution(pt, width=frame_w, height=frame_h)
+    pt = convert_homogeneous(pt)
+    court_pt = project(court_info['H'], pt)
+    x_n = (court_pt[0, 0] - court_info['border_L']) / (
+        court_info['border_R'] - court_info['border_L']
+    )
+    y_n = (court_pt[1, 0] - court_info['border_U']) / (
+        court_info['border_D'] - court_info['border_U']
+    )
+    return float(x_n), float(y_n)
+
+
 def pick_striker_bbox(
     detections: list[dict],
     striker_side: str,
-    frame_height: int,
+    frame_w: int,
+    frame_h: int,
+    court_info: dict | None = None,
 ) -> tuple[float, float, float, float] | None:
     """Pick the striker's bbox from per-frame YOLO detections.
 
-    Two-step heuristic suited to broadcast singles footage:
-      1. Split detections by foot-y position (bottom edge of bbox)
-         relative to the frame midline → top half / bottom half.
-      2. Within the striker's half, pick the highest-confidence detection.
+    With ``court_info`` (BST homography for this vid):
+      1. Project each detection's foot-centre to normalised court coords.
+      2. Filter to detections whose foot lands inside the court polygon
+         (this drops the umpire, coaches, and audience members whose
+         bboxes happen to sit in the wrong frame half).
+      3. Bucket survivors by court-y (< 0.5 = top half) and pick the
+         highest-confidence detection in the striker's half.
 
-    Returns ``None`` if the striker's half has no detection at this frame.
+    Without ``court_info`` (fallback only — should not happen for
+    ShuttleSet vids):
+      Use the pixel-midline heuristic. This is the path that produced
+      the umpire-cropping bug; only acceptable when no homography exists.
+
+    Returns ``None`` if no on-court detection in the striker's half.
     """
     if not detections:
         return None
-    midline = frame_height / 2
-    side_dets = [
-        d for d in detections
-        if (d['bbox'][3] < midline) == (striker_side.lower() == 'top')
-    ]
+
+    if court_info is not None:
+        eps = 0.02
+        on_court_with_y: list[tuple[dict, float]] = []
+        for d in detections:
+            try:
+                _, y_n = _project_foot_to_court(d['bbox'], frame_w, frame_h, court_info)
+            except Exception:
+                continue
+            x_n, _ = _project_foot_to_court(d['bbox'], frame_w, frame_h, court_info)
+            if (-eps <= x_n <= 1 + eps) and (-eps <= y_n <= 1 + eps):
+                on_court_with_y.append((d, y_n))
+        want_top = striker_side.lower() == 'top'
+        side_dets = [d for d, y_n in on_court_with_y if (y_n < 0.5) == want_top]
+    else:
+        midline = frame_h / 2
+        side_dets = [
+            d for d in detections
+            if (d['bbox'][3] < midline) == (striker_side.lower() == 'top')
+        ]
+
     if not side_dets:
         return None
     side_dets.sort(key=lambda d: d['conf'], reverse=True)
@@ -203,6 +263,7 @@ def extract_stroke_rgb(
     detections_at_target: list[dict],
     frame_w: int,
     frame_h: int,
+    court_info: dict | None,
 ) -> np.ndarray | None:
     """Build the (32, 224, 224, 3) RGB tensor for one stroke.
 
@@ -210,7 +271,7 @@ def extract_stroke_rgb(
     """
     target_f = int(stroke['frame_num'])
     striker_side = stroke['player_side']
-    bbox = pick_striker_bbox(detections_at_target, striker_side, frame_h)
+    bbox = pick_striker_bbox(detections_at_target, striker_side, frame_w, frame_h, court_info)
     if bbox is None:
         print(
             f'  stroke {stroke["clip_stem"]}: no {striker_side} detection at frame '
@@ -238,6 +299,7 @@ def process_rally(
     frame_w: int,
     frame_h: int,
     force: bool,
+    court_info: dict | None,
 ) -> dict[int, list[dict]]:
     """Process one rally: read frames, run YOLO, extract per-stroke RGB.
 
@@ -271,6 +333,7 @@ def process_rally(
             continue
         tensor = extract_stroke_rgb(
             stroke, rally_frames, rally_dets[target_f], frame_w, frame_h,
+            court_info,
         )
         if tensor is None:
             continue
@@ -311,7 +374,12 @@ def write_player_tracks_cache(
     return out_path
 
 
-def process_one_vid(vid: int, all_strokes: pd.DataFrame, force: bool = False) -> None:
+def process_one_vid(
+    vid: int,
+    all_strokes: pd.DataFrame,
+    court_info_by_vid: dict[int, dict],
+    force: bool = False,
+) -> None:
     """Run the single-pass preprocessing for one source video."""
     players_cache_path = PLAYERS_CACHE_DIR / f'{vid}.json'
     if players_cache_path.exists() and not force:
@@ -328,6 +396,11 @@ def process_one_vid(vid: int, all_strokes: pd.DataFrame, force: bool = False) ->
         print(f'vid={vid}: no strokes in shots_master.csv, skipping')
         return
 
+    court_info = court_info_by_vid.get(vid)
+    if court_info is None:
+        print(f'vid={vid}: WARNING no homography found, falling back to '
+              f'pixel-midline striker selection (umpire may contaminate Top crops)')
+
     # Lazy import — keeps the module importable in environments without ultralytics.
     from ultralytics import YOLO
     yolo_model = YOLO(str(DEFAULT_YOLO_WEIGHTS))
@@ -342,14 +415,17 @@ def process_one_vid(vid: int, all_strokes: pd.DataFrame, force: bool = False) ->
         fps = float(cap.get(cv2.CAP_PROP_FPS))
         frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        print(f'vid={vid}: {video_path.name} ({frame_w}×{frame_h} @ {fps:.2f}fps, {n_frames} frames)')
+        print(f'vid={vid}: {video_path.name} ({frame_w}×{frame_h} @ {fps:.2f}fps, {n_frames} frames)'
+              f'  court_info={"yes" if court_info else "MISSING"}')
 
         extents = compute_rally_extents(strokes)
         print(f'vid={vid}: {len(extents)} rallies, {len(strokes)} strokes')
 
         all_dets: dict[int, list[dict]] = {}
         for extent in extents:
-            rally_dets = process_rally(extent, cap, yolo_model, frame_w, frame_h, force)
+            rally_dets = process_rally(
+                extent, cap, yolo_model, frame_w, frame_h, force, court_info,
+            )
             all_dets.update(rally_dets)
     finally:
         cap.release()
@@ -360,10 +436,15 @@ def process_one_vid(vid: int, all_strokes: pd.DataFrame, force: bool = False) ->
     print(f'vid={vid}: wrote {out_path.name} — {len(all_dets):,} in-rally frames cached')
 
 
-def _worker(vid: int, master: pd.DataFrame, force: bool) -> None:
+def _worker(
+    vid: int,
+    master: pd.DataFrame,
+    court_info_by_vid: dict[int, dict],
+    force: bool,
+) -> None:
     """Pool worker target — wraps process_one_vid for multiprocessing.Pool."""
     try:
-        process_one_vid(vid, master, force=force)
+        process_one_vid(vid, master, court_info_by_vid, force=force)
     except Exception as e:
         # Don't let one bad vid kill the whole pool; surface and move on.
         print(f'vid={vid}: ERROR {type(e).__name__}: {e}', flush=True)
@@ -389,6 +470,9 @@ def main() -> None:
     args = parser.parse_args()
 
     master = pd.read_csv(SHOTS_MASTER_PATH)
+    court_info_by_vid = load_all_court_info(HOMOGRAPHY_CSV_PATH)
+    print(f'Loaded court_info for {len(court_info_by_vid)} vids from homography.csv')
+
     if args.vid:
         vids = sorted(set(args.vid))
     else:
@@ -399,15 +483,18 @@ def main() -> None:
 
     if n_workers == 1:
         for vid in vids:
-            _worker(int(vid), master, args.force)
+            _worker(int(vid), master, court_info_by_vid, args.force)
         return
 
     # spawn (not fork) — ultralytics + CUDA both prefer fresh processes;
     # fork after CUDA init causes hangs on some platforms.
     ctx = mp.get_context('spawn')
     with ctx.Pool(n_workers) as pool:
-        pool.map(partial(_worker, master=master, force=args.force),
-                 [int(v) for v in vids])
+        pool.map(
+            partial(_worker, master=master, court_info_by_vid=court_info_by_vid,
+                    force=args.force),
+            [int(v) for v in vids],
+        )
 
 
 if __name__ == '__main__':

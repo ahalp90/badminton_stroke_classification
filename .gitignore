@@ -96,6 +96,9 @@ runtime/cache/players/*
 !runtime/cache/players/.gitkeep
 runtime/cache/shuttle/*
 !runtime/cache/shuttle/.gitkeep
+runtime/cache/rgb/*
+!runtime/cache/rgb/.gitkeep
+runtime/cache/validation/
 
 runtime/jobs/*
 !runtime/jobs/.gitkeep

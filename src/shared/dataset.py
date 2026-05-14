@@ -64,6 +64,7 @@ ANNOTATIONS_DIR = _PROJECT_ROOT / 'runtime' / 'data' / 'shuttleset' / 'annotatio
 SET_INFO_DIR = ANNOTATIONS_DIR / 'set'
 FLAW_RECORDS_PATH = ANNOTATIONS_DIR / 'flaw_shot_records.csv'
 VIDEO_METADATA_PATH = ANNOTATIONS_DIR / 'video_metadata.csv'
+HOMOGRAPHY_CSV_PATH = SET_INFO_DIR / 'homography.csv'
 
 # BST-team derived split — co-located with this module since it's a
 # small static curation artefact, not bulk upstream data.
