@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useTheme, Btn, Card } from './shared';
 
 // Real held-out test-set numbers for the picked BST_CG_AP serial.
@@ -33,38 +34,202 @@ const TEST_EVAL = {
   ],
 };
 
-const fmtTime = (s) => {
-  if (!isFinite(s)) return '–:––';
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = Math.floor(s % 60);
-  const mm = String(m).padStart(2, '0');
-  const ss = String(sec).padStart(2, '0');
-  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
-};
-
-/* ─── Pending per-match results placeholder ──────────────────────── */
-function PendingPerMatchCard({ video, timeframe }) {
+/* ─── Per-clip browser (Tier 1, from /api/registry sidecar JSONs) ── */
+function Tier1ClipBrowser({ modelId, split = 'test' }) {
   const { t } = useTheme();
+  const [resolvedId,   setResolvedId]   = useState(modelId ?? null);
+  const [clips,        setClips]        = useState([]);
+  const [listError,    setListError]    = useState(null);
+  const [selectedStem, setSelectedStem] = useState(null);
+  const [detail,       setDetail]       = useState(null);
+  const [detailError,  setDetailError]  = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [errorsOnly,   setErrorsOnly]   = useState(false);
+
+  // Fallback: if no model was picked upstream (e.g. dev-jump straight to
+  // Results), grab the first registered model so the browser still works.
+  useEffect(() => {
+    if (modelId) { setResolvedId(modelId); return; }
+    fetch('/api/registry')
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(data => setResolvedId(data.models?.[0]?.id ?? null))
+      .catch(err => setListError(err.message));
+  }, [modelId]);
+
+  // Pull the clip list whenever model / split / filter changes.
+  useEffect(() => {
+    if (!resolvedId) return;
+    setListError(null);
+    const params = errorsOnly ? '?errors_only=true' : '';
+    fetch(`/api/registry/${resolvedId}/splits/${split}/clips${params}`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(data => {
+        const items = data.clips || [];
+        setClips(items);
+        setSelectedStem(items[0]?.clip_stem ?? null);
+      })
+      .catch(err => setListError(err.message));
+  }, [resolvedId, split, errorsOnly]);
+
+  // Pull the selected clip's per-clip JSON.
+  useEffect(() => {
+    if (!resolvedId || !selectedStem) { setDetail(null); return; }
+    setDetailLoading(true);
+    setDetailError(null);
+    fetch(`/api/registry/${resolvedId}/splits/${split}/clips/${selectedStem}`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(d => { setDetail(d); setDetailLoading(false); })
+      .catch(err => { setDetailError(err.message); setDetailLoading(false); });
+  }, [resolvedId, split, selectedStem]);
+
+  if (!resolvedId && !listError) {
+    return (
+      <Card style={{ padding: 22, marginBottom: 22 }}>
+        <div style={{ fontSize: 12, color: t.muted }}>Loading registry…</div>
+      </Card>
+    );
+  }
+
   return (
-    <Card style={{ padding: 22, marginBottom: 22, borderColor: t.warning + '88', borderWidth: 1.5 }}>
-      <div style={{ fontSize: 11, color: t.warning, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
-        Per-stroke results — pending
+    <Card style={{ padding: 22, marginBottom: 22 }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        marginBottom: 14,
+      }}>
+        <div style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+          Per-clip predictions · {split} split
+        </div>
+        <label style={{ fontSize: 11, color: t.muted, display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={errorsOnly}
+            onChange={e => setErrorsOnly(e.target.checked)}
+            style={{ accentColor: t.blue }}
+          />
+          Errors only
+        </label>
       </div>
-      <div style={{ fontSize: 14, color: t.text, lineHeight: 1.6 }}>
-        Per-stroke predictions for{' '}
-        <span style={{ fontWeight: 600 }}>{video?.match ?? 'this match'}</span>{' '}
-        are not yet available.
-        {timeframe?.startSec !== undefined && timeframe?.endSec !== undefined && (
-          <> Selected window: {fmtTime(timeframe.startSec)} – {fmtTime(timeframe.endSec)}.</>
-        )}
-      </div>
-      <div style={{ fontSize: 12, color: t.muted, marginTop: 10, lineHeight: 1.6 }}>
-        Stroke-by-stroke predictions, per-match confusion, and class activation maps will appear here once the
-        validation-set inference output (<span style={{ fontFamily: "'JetBrains Mono',monospace" }}>predictions.csv</span>)
-        is delivered. See <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>scratch/real-predictions-data-format.md</span> for the schema.
-      </div>
+
+      {listError && (
+        <div style={{ fontSize: 12, color: t.danger, padding: '8px 12px', background: t.dangerDim, borderRadius: 6 }}>
+          Couldn't load clips: {listError}
+        </div>
+      )}
+
+      {!listError && (
+        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 18 }}>
+          <div style={{ border: `1px solid ${t.border}`, borderRadius: 6, maxHeight: 480, overflowY: 'auto' }}>
+            {clips.length === 0 && (
+              <div style={{ padding: 12, fontSize: 12, color: t.muted }}>
+                {errorsOnly ? 'No mispredicted clips in this split.' : 'Loading clips…'}
+              </div>
+            )}
+            {clips.map(c => {
+              const sel = c.clip_stem === selectedStem;
+              return (
+                <div
+                  key={c.clip_stem}
+                  onClick={() => setSelectedStem(c.clip_stem)}
+                  style={{
+                    padding: '8px 12px',
+                    background: sel ? t.blueDim : 'transparent',
+                    borderLeft: sel ? `3px solid ${t.blue}` : '3px solid transparent',
+                    borderBottom: `1px solid ${t.border}`,
+                    cursor: 'pointer',
+                    fontSize: 12,
+                  }}
+                >
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", color: t.text, marginBottom: 3 }}>
+                    {c.clip_stem}
+                  </div>
+                  <div style={{ color: t.muted, fontSize: 10 }}>
+                    {c.true_class} → {c.predicted_class}
+                    {' '}
+                    <span style={{ color: c.is_correct ? t.success : t.danger, fontWeight: 600 }}>
+                      {c.is_correct ? '✓' : '✗'} {c.confidence_pct}%
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div>
+            {detailLoading && <div style={{ fontSize: 13, color: t.muted }}>Loading clip…</div>}
+            {detailError && <div style={{ fontSize: 13, color: t.danger }}>Couldn't load clip: {detailError}</div>}
+            {!detailLoading && !detailError && detail && <ClipDetail detail={detail} />}
+            {!detailLoading && !detailError && !detail && (
+              <div style={{ fontSize: 13, color: t.muted }}>Pick a clip on the left.</div>
+            )}
+          </div>
+        </div>
+      )}
     </Card>
+  );
+}
+
+function ClipDetail({ detail }) {
+  const { t } = useTheme();
+  // Bar widths scale to the strongest class, so the runner-up reads as
+  // "almost as confident" when the model is genuinely torn.
+  const maxConf = Math.max(...detail.top_k.map(k => k.confidence));
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: t.muted, marginBottom: 6, fontFamily: "'JetBrains Mono',monospace" }}>
+        {detail.match} · {detail.set_id} · rally {detail.rally} · ball round {detail.ball_round}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
+        <span style={{ fontSize: 24, fontWeight: 700, color: t.text }}>{detail.predicted_class}</span>
+        <span style={{ fontSize: 13, color: t.muted }}>predicted</span>
+        <span style={{
+          fontSize: 24, fontWeight: 700, color: t.blue,
+          fontFamily: "'JetBrains Mono',monospace", marginLeft: 'auto',
+        }}>
+          {detail.confidence_pct}%
+        </span>
+      </div>
+      <div style={{ fontSize: 13, color: t.muted, marginBottom: 16 }}>
+        true: <span style={{ color: t.text, fontFamily: "'JetBrains Mono',monospace" }}>{detail.true_class}</span>
+        {' · '}
+        <span style={{ color: detail.is_correct ? t.success : t.danger, fontWeight: 600 }}>
+          {detail.is_correct ? '✓ correct' : '✗ wrong'}
+        </span>
+      </div>
+
+      <div style={{ fontSize: 11, color: t.muted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+        Top-{detail.top_k.length}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {detail.top_k.map((entry, i) => (
+          <div key={entry.class} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 170, fontSize: 12, color: t.text,
+              fontFamily: "'JetBrains Mono',monospace", textAlign: 'right', flexShrink: 0,
+            }}>
+              {entry.class}
+            </div>
+            <div style={{ flex: 1, height: 16, background: t.surface2, borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${(entry.confidence / maxConf) * 100}%`,
+                background: i === 0 ? t.blue : t.pine,
+                borderRadius: 3,
+              }} />
+            </div>
+            <div style={{
+              width: 56, fontSize: 12, fontWeight: 600,
+              fontFamily: "'JetBrains Mono',monospace", color: t.text, textAlign: 'right',
+            }}>
+              {(entry.confidence * 100).toFixed(1)}%
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 14, fontSize: 10, color: t.muted, fontFamily: "'JetBrains Mono',monospace" }}>
+        video: {detail.video_url} (Tier 1: clip mp4s live on /scratch, endpoint stubbed for now)
+      </div>
+    </div>
   );
 }
 
@@ -144,9 +309,11 @@ function PerClassF1Card() {
 export function ResultsScreen({ task, onNew }) {
   const { t } = useTheme();
 
-  const markup = task?.markup;
-  const video = markup?.video;
-  const timeframe = markup?.timeframe;
+  // Active model = first enabled in the task's models list. Tier 1 only
+  // has one registered model so this collapses to "the one model". When
+  // upstream task is empty (dev-jump), Tier1ClipBrowser falls back to the
+  // first model in /api/registry.
+  const activeModel = task?.models?.find(m => task?.enabled?.[m.id]);
 
   return (
     <div style={{ maxWidth: 1120, margin: '0 auto', padding: 32 }}>
@@ -160,7 +327,7 @@ export function ResultsScreen({ task, onNew }) {
         <Btn variant="secondary" size="sm" onClick={onNew}>New Analysis</Btn>
       </div>
 
-      <PendingPerMatchCard video={video} timeframe={timeframe} />
+      <Tier1ClipBrowser modelId={activeModel?.id} />
       <TestEvalCard />
       <PerClassF1Card />
     </div>
