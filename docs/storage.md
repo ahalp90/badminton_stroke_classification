@@ -65,8 +65,11 @@ CREATE TABLE IF NOT EXISTS strokes (
     stroke_idx     INTEGER NOT NULL,
     target_frame   INTEGER NOT NULL,
     timestamp_sec  REAL NOT NULL,
-    stroke_type    TEXT NOT NULL,
-    confidence     REAL NOT NULL,
+    predicted_class TEXT NOT NULL,           -- equiv to top_k[0].class in the result JSON
+    confidence_pct INTEGER NOT NULL,         -- 0-100 calibrated headline.
+                                             -- Full top_k array lives in jobs.result
+                                             -- JSON only — not denormalised here
+                                             -- (variable-length array, awkward in SQL).
     player_side    TEXT,
     player_id      TEXT,                 -- FK to players.id (nullable)
     court_x        REAL,                 -- striker foot-centre projected to court via H
@@ -85,7 +88,7 @@ CREATE TABLE IF NOT EXISTS strokes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_strokes_player ON strokes(player_id);
-CREATE INDEX IF NOT EXISTS idx_strokes_type   ON strokes(stroke_type);
+CREATE INDEX IF NOT EXISTS idx_strokes_type   ON strokes(predicted_class);
 CREATE INDEX IF NOT EXISTS idx_jobs_cache     ON jobs(video_sha256, handler, run_id);
 ```
 
@@ -127,7 +130,7 @@ matches") derives half-court coords at query time:
 ```sql
 -- All of Smith's shots normalised to a single half-court view.
 -- Note: player_label is JOIN'd from players (not stored in strokes).
-SELECT p.label, s.stroke_type, s.court_x, ABS(s.court_y - 0.5) * 2 AS y_half
+SELECT p.label, s.predicted_class, s.court_x, ABS(s.court_y - 0.5) * 2 AS y_half
 FROM strokes s
 JOIN players p ON p.id = s.player_id
 WHERE s.player_id = 'p_smith_001' AND s.court_x IS NOT NULL;
@@ -150,10 +153,10 @@ the project root, so analytics queries can locate the file directly:
 
 ```sql
 -- Every smash thumbnail Smith has hit
-SELECT s.frame_path, s.confidence
+SELECT s.frame_path, s.confidence_pct
 FROM strokes s
 WHERE s.player_id = 'p_smith_001'
-  AND s.stroke_type = 'smash'
+  AND s.predicted_class = 'smash'
   AND s.frame_path IS NOT NULL;
 ```
 
