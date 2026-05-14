@@ -35,9 +35,18 @@ const TEST_EVAL = {
 };
 
 /* ─── Per-clip browser (Tier 1, from /api/registry sidecar JSONs) ── */
-function Tier1ClipBrowser({ modelId, split = 'test' }) {
+// Both val and test have mock predictions via build_mock_artifacts.py, so
+// the split toggle below works against either. For real data: only `test`
+// is emitted by the current eval_dump_predictions.py and only test_metrics
+// land in manifest.yaml. Train + val headline metrics could probably be
+// reconstructed from the per-epoch TensorBoard scalars (final val_macro_f1
+// etc.) rather than re-running eval, but that's a follow-up.
+const SPLITS = ['val', 'test'];
+
+function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
   const { t } = useTheme();
   const [resolvedId,   setResolvedId]   = useState(modelId ?? null);
+  const [split,        setSplit]        = useState(initialSplit);
   const [clips,        setClips]        = useState([]);
   const [listError,    setListError]    = useState(null);
   const [selectedStem, setSelectedStem] = useState(null);
@@ -94,10 +103,34 @@ function Tier1ClipBrowser({ modelId, split = 'test' }) {
     <Card style={{ padding: 22, marginBottom: 22 }}>
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: 14,
+        marginBottom: 14, gap: 12, flexWrap: 'wrap',
       }}>
-        <div style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
-          Per-clip predictions · {split} split
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+            Per-clip predictions
+          </span>
+          <div style={{ display: 'inline-flex', gap: 4 }}>
+            {SPLITS.map(s => {
+              const active = s === split;
+              return (
+                <button
+                  key={s}
+                  onClick={() => setSplit(s)}
+                  style={{
+                    background: active ? t.blue : t.surface2,
+                    color: active ? '#fff' : t.muted,
+                    border: `1px solid ${active ? t.blue : t.border}`,
+                    padding: '3px 10px', borderRadius: 4,
+                    fontSize: 11, fontWeight: 600,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    cursor: 'pointer',
+                  }}
+                >
+                  {s}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <label style={{ fontSize: 11, color: t.muted, display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
           <input
