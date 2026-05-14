@@ -120,7 +120,12 @@ class Taxonomy:
         return 'unknown' in self.standalone_types
 
     def class_list(self, side: str = 'Both') -> list[str]:
-        """Build the full class label list with Top_/Bottom_ prefixes."""
+        """Build the full class label list with Top_/Bottom_ prefixes.
+
+        Includes 'unknown' if the taxonomy carries it. For training, see
+        `trainable_class_list` (filters unknown to match BST's
+        ``drop_unknown=True`` convention).
+        """
         base = list(self.base_types)
         standalone = list(self.standalone_types)
         match side:
@@ -138,6 +143,21 @@ class Taxonomy:
         if side == 'Both' and self.unknown_first:
             return standalone + prefixed
         return prefixed + standalone
+
+    def trainable_class_list(self, side: str = 'Both') -> list[str]:
+        """Class list with 'unknown' filtered.
+
+        Matches BST's ``drop_unknown=True`` training convention — the
+        ShuttleSet 'unknown' bucket is heterogeneous (mislabels,
+        ambiguous swings, partial strokes) and training on it teaches
+        the model to be confused, not to predict any specific stroke.
+        """
+        return [c for c in self.class_list(side) if c != 'unknown']
+
+    @property
+    def n_trainable_classes(self) -> int:
+        """Number of classes the model actually trains on (post-unknown-drop)."""
+        return len(self.trainable_class_list())
 
 
 TAXONOMY_MERGED_25 = Taxonomy(
@@ -175,7 +195,6 @@ TAXONOMY_RAW_35 = Taxonomy(
     unknown_first=False,
 )
 
-# BRIC v1 default — matches BST's active config.
 DEFAULT_TAXONOMY = 'une_merge_v1_nosides'
 
 TAXONOMIES: dict[str, Taxonomy] = {
