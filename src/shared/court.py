@@ -15,8 +15,8 @@ Two ways to use this module:
    pre-computed matrices for ShuttleSet videos.
 
 What's NOT mirrored:
-  - The `pipeline.config` import. HOMOGRAPHY_RESOLUTION is inlined here
-    to keep this module standalone.
+  - The `pipeline.config` import. HOMOGRAPHY_RESOLUTION is defined locally
+    so this module has no cross-package dependencies.
 """
 
 from pathlib import Path
@@ -25,8 +25,11 @@ import numpy as np
 import pandas as pd
 
 
-# Mirror of HOMOGRAPHY_RESOLUTION from shared.taxonomy. Inlined here so this
-# module has no internal dependencies.
+# Resolution at which BST's homography.csv matrices were computed.
+# Pixel coordinates from a different resolution (e.g. our 1080p source
+# videos) must be scaled to this before applying H — see
+# `scale_pos_by_resolution` and `to_court_coordinate`. Source-of-truth
+# for BRIC; mirrored from bst_refactor.pipeline.config.
 HOMOGRAPHY_RESOLUTION: tuple[int, int] = (1280, 720)
 
 # Singles-court reference rectangle in metres (13.4 m × 6.1 m). Used as the

@@ -1,20 +1,24 @@
-"""Stroke-type taxonomy + splits, mirrored from bst_refactor.pipeline.config.
+"""Stroke-type taxonomy, mirrored from bst_refactor.pipeline.config.
 
 Canonical for BRIC. Keep values in sync with BST manually for v1; a drift
 test is in the v2 backlog.
 
-What's kept from BST's config.py:
+What's kept here:
   - Stroke type definitions (English + Chinese)
   - Merge maps (raw 19 -> reduced taxonomies)
   - Taxonomy dataclass + the four taxonomies BST defines
-  - Train/val/test splits (raw video IDs)
-  - Homography reference resolution
   - Players, unprefixed types
 
+Dataset / curation config lives in `shared.dataset`:
+  - Annotation paths (SET_INFO_DIR, FLAW_RECORDS_PATH, etc.)
+  - EXCLUDED_VIDEOS, REMOVED_SHOTS (parsed from flaw_shot_records.csv)
+  - CLIP_WINDOW
+  - SPLITS_V2 (active for BRIC) and SPLITS_BST_BASELINE (parity column)
+
+Court geometry config (HOMOGRAPHY_RESOLUTION, court reference points)
+lives in `shared.court` alongside the projection math that uses it.
+
 What's NOT mirrored (BST-specific, not relevant to BRIC):
-  - File paths (PROJECT_ROOT, SET_INFO_DIR, etc.)
-  - Flaw record loading (EXCLUDED_VIDEOS, REMOVED_SHOTS) — BRIC reads
-    notebooks/clips_master.csv which already has exclusions applied
   - derive_ablation_id / derive_npy_collated_dir_basename — BST training infra
 """
 
@@ -205,20 +209,3 @@ TAXONOMIES: dict[str, Taxonomy] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Match-level train/val/test splits (raw — exclusions are applied via
-# clips_master.csv, not here).
-# ---------------------------------------------------------------------------
-SPLITS: dict[str, list[int]] = {
-    'train': list(range(1, 35)),
-    'val':   list(range(35, 39)) + [41],
-    'test':  [39, 40, 42, 43, 44],
-}
-
-
-# ---------------------------------------------------------------------------
-# Homography reference resolution
-# Homography matrices in homography.csv were computed at this resolution;
-# pixel coordinates must be scaled before applying the homography.
-# ---------------------------------------------------------------------------
-HOMOGRAPHY_RESOLUTION = (1280, 720)
