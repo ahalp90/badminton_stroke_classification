@@ -15,7 +15,7 @@ function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
   const [split,        setSplit]        = useState(initialSplit);
   const [clips,        setClips]        = useState([]);
   const [total,        setTotal]        = useState(0);
-  const [limit]                         = useState(25);
+  const [limit]                         = useState(25); // TODO: Increase to 50 when changeover to real test clips occurs
   const [offset,       setOffset]       = useState(0);
   const [listError,    setListError]    = useState(null);
   const [selectedStem, setSelectedStem] = useState(null);
@@ -116,16 +116,18 @@ function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
 
       {!listError && (
         <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 18 }}>
-          <div style={{ border: `1px solid ${t.border}`, borderRadius: 6, maxHeight: 480, overflowY: 'auto' }}>
-            {clips.length === 0 && (
-              <div style={{ padding: 12, fontSize: 12, color: t.muted }}>
-                {errorsOnly ? 'No mispredicted clips in this split.' : 'Loading clips…'}
-              </div>
-            )}
-            {clips.map(c => {
-              const sel = c.clip_stem === selectedStem;
-              return (
-                <div
+          {/* LEFT: list + pagination */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8}}>
+            <div style={{ border: `1px solid ${t.border}`, borderRadius: 6, maxHeight: 480, overflowY: 'auto' }}>
+              {clips.length === 0 && (
+                <div style={{ padding: 12, fontSize: 12, color: t.muted }}>
+                  {errorsOnly ? 'No mispredicted clips in this split.' : 'Loading clips…'}
+                </div>
+              )}
+              {clips.map(c => {
+                const sel = c.clip_stem === selectedStem;
+                return (
+                  <div
                   key={c.clip_stem}
                   onClick={() => setSelectedStem(c.clip_stem)}
                   style={{
@@ -137,53 +139,56 @@ function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
                     fontSize: 12,
                   }}
                 >
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", color: t.text, marginBottom: 3 }}>
-                    {c.clip_stem}
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", color: t.text, marginBottom: 3 }}>
+                      {c.clip_stem}
+                    </div>
+                    <div style={{ color: t.muted, fontSize: 10 }}>
+                      {c.true_class} → {c.predicted_class}
+                      {' '}
+                      <span style={{ color: c.is_correct ? t.success : t.danger, fontWeight: 600 }}>
+                        {c.is_correct ? '✓' : '✗'} {c.confidence_pct}%
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ color: t.muted, fontSize: 10 }}>
-                    {c.true_class} → {c.predicted_class}
-                    {' '}
-                    <span style={{ color: c.is_correct ? t.success : t.danger, fontWeight: 600 }}>
-                      {c.is_correct ? '✓' : '✗'} {c.confidence_pct}%
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            marginTop: 8, fontSize: 11, color: t.muted,
-          }}>
-            <button
-            onClick={() => setOffset(o => Math.max(0, o-limit))}
-            disabled={offset === 0}
-            style={{
-              background: 'none', border: `1px solid ${t.border}`, borderRadius: 4,
-              padding: '3px 10px', fontSize: 11, color: t.text,
-              cursor: offset === 0 ? 'not-allowed' : 'pointer',
-              opacity: offset === 0 ? 0.4 : 1, 
-            }}
-            >
-              ← Prev
-            </button>
-            <span>
-              {total === 0 ? '-' : `${offset + 1}=${Math.min(offset + limit, total)} of ${total}`}
-            </span>
-            <button
-            onClick={() => setOffset(o => o + limit)}
-            disabled={offset + limit >= total}
-            style={{
-              background: 'none', border: `1px solid ${t.border}`, borderRadius: 4,
-              padding: '3px 10px', fontSize: 11, color: t.text,
-              cursor: offset + limit > total ? 'not-allowed' : 'pointer',
-              opacity: offset + limit >= total ? 0.4 : 1, 
-            }}
-            >
-              Next →
-            </button>
+                  );
+                  })}
+            </div>
+            {/* Pagination sits below the list, inside the left column */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              marginTop: 8, fontSize: 11, color: t.muted,
+              }}>
+              <button
+              onClick={() => setOffset(o => Math.max(0, o-limit))}
+              disabled={offset === 0}
+              style={{
+                background: 'none', border: `1px solid ${t.border}`, borderRadius: 4,
+                padding: '3px 10px', fontSize: 11, color: t.text,
+                cursor: offset === 0 ? 'not-allowed' : 'pointer',
+                opacity: offset === 0 ? 0.4 : 1, 
+              }}
+              >
+                ← Prev
+              </button>
+              <span>
+                {total === 0 ? '-' : `${offset + 1}-${Math.min(offset + limit, total)} of ${total}`}
+              </span>
+              <button
+              onClick={() => setOffset(o => o + limit)}
+              disabled={offset + limit >= total}
+              style={{
+                background: 'none', border: `1px solid ${t.border}`, borderRadius: 4,
+                padding: '3px 10px', fontSize: 11, color: t.text,
+                cursor: offset + limit > total ? 'not-allowed' : 'pointer',
+                opacity: offset + limit >= total ? 0.4 : 1, 
+              }}
+              >
+                Next →
+              </button>
+            </div>
           </div>
 
+          {/* RIGHT: clip detail */}
           <div>
             {detailLoading && <div style={{ fontSize: 13, color: t.muted }}>Loading clip…</div>}
             {detailError && <div style={{ fontSize: 13, color: t.danger }}>Couldn't load clip: {detailError}</div>}
