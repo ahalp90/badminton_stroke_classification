@@ -22,8 +22,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import yaml
-from sklearn.metrics import f1_score
 from torch.optim import AdamW
+from torcheval.metrics.functional import multiclass_f1_score
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
@@ -210,8 +210,8 @@ def evaluate(
     model.eval()
     total_loss = 0.0
     total_n = 0
-    all_preds: list[np.ndarray] = []
-    all_labels: list[np.ndarray] = []
+    all_preds: list[torch.Tensor] = []
+    all_labels: list[torch.Tensor] = []
     autocast_ctx = (
         torch.amp.autocast(device_type=device.type, dtype=torch.bfloat16)
         if use_amp else contextlib.nullcontext()
@@ -224,20 +224,19 @@ def evaluate(
             loss = loss_fn(logits, labels)
         total_loss += loss.item() * labels.size(0)
         total_n += labels.size(0)
-        all_preds.append(logits.argmax(dim=1).cpu().numpy())
-        all_labels.append(labels.cpu().numpy())
+        all_preds.append(logits.argmax(dim=1))
+        all_labels.append(labels)
 
-    preds = np.concatenate(all_preds)
-    labels_arr = np.concatenate(all_labels)
-    macro_f1 = f1_score(
-        labels_arr, preds, labels=list(range(n_classes)),
-        average='macro', zero_division=0,
-    )
-    acc = float((preds == labels_arr).mean())
+    preds = torch.cat(all_preds)
+    labels_t = torch.cat(all_labels)
+    macro_f1 = multiclass_f1_score(
+        preds, labels_t, num_classes=n_classes, average='macro',
+    ).item()
+    acc = (preds == labels_t).float().mean().item()
     return {
         'val_loss': total_loss / max(1, total_n),
         'val_macro_f1': float(macro_f1),
-        'val_acc': acc,
+        'val_acc': float(acc),
     }
 
 
