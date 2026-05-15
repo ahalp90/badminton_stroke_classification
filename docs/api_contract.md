@@ -1,32 +1,47 @@
-# Inference API Contract — v1
+# Inference API Contract
 
 The HTTP contract the backend exposes for stroke classification, model
-browsing, and per-clip metadata. Both inference handlers (BRIC, BST)
-satisfy this contract. Companion to the BST handoff at
-[`scratch/frontend_integration_handoff.md`](../scratch/frontend_integration_handoff.md);
-remaining points of disagreement tracked in [Open conflicts](#open-conflicts).
+browsing, and per-clip metadata. Inference handlers register against
+this contract; multiple handlers (e.g. one per architecture) can be
+mounted concurrently.
 
 ## Contents
 
 1. [The two modes](#the-two-modes)
-2. [API endpoint specifications](#api-endpoint-specifications)
-3. [Mock data and fallback behaviour](#mock-data-and-fallback-behaviour)
-4. [Confidence](#confidence)
-5. [Indexing conventions](#indexing-conventions)
-6. [Open conflicts](#open-conflicts)
+2. [Backing storage](#backing-storage)
+3. [API endpoint specifications](#api-endpoint-specifications)
+4. [Mock data and fallback behaviour](#mock-data-and-fallback-behaviour)
+5. [Confidence](#confidence)
+6. [Indexing conventions](#indexing-conventions)
 
 ---
 
 ## The two modes
 
-| Mode | Tier | What it does | Analytic story |
-|---|---|---|---|
-| Model mode | 1 | Reads pre-computed predictions off disk for a known dataset clip. No model loaded. | Browse model behaviour against the labelled test/val splits — per-class confusion, error surfacing, headline metrics. |
-| Inference mode | 2 | Runs the full pipeline (player tracking, shuttle tracking, court projection, classification) on a user-uploaded video. | Per-stroke output for arbitrary footage with player aggregation across uploads, court overlays, frame thumbnails. |
+| Mode | What it does | Analytic story |
+|---|---|---|
+| Model browsing | Reads pre-computed predictions off disk for a known dataset clip. No model loaded. | Browse model behaviour against the labelled test/val splits — per-class confusion, error surfacing, headline metrics. |
+| Inference | Runs the full pipeline (player tracking, shuttle tracking, court projection, classification) on a user-uploaded video. | Per-stroke output for arbitrary footage with player aggregation across uploads, court overlays, frame thumbnails. |
 
-The two modes have **different request and response shapes** — Model
-mode is built around dataset clips, Inference mode is built around
-user uploads with rally support. Per-endpoint specs below.
+The two modes have **different request and response shapes** — model
+browsing is built around dataset clips, inference is built around
+user uploads with rally support.
+
+---
+
+## Backing storage
+
+Read and write endpoints have different backing-store conventions:
+
+| Endpoint family | Backing storage |
+|---|---|
+| Model browsing (registry, per-split clips / stats, clip video stream) | Handler-controlled. Each handler reads its own on-disk artefacts (registry entry, per-clip prediction JSON, per-class stats JSON). The contract is HTTP-shape-only; handlers may use any on-disk format that hydrates the response shape. |
+| Inference (upload, status, results, frames, players) | Shared SQLite at `runtime/state/inference.db` (`players` / `jobs` / `strokes` tables; see [`storage.md`](storage.md)). Player identities and job history span architectures and require shared persistence. |
+| Per-job intermediate artefacts (frame thumbnails, per-stroke softmax dumps) | Handler-defined files under `runtime/jobs/{job_id}/`. The contract specifies the URL shape that retrieves them. |
+
+A handler is therefore free to source its model-browsing data from any
+combination of YAML manifests, per-clip JSONs, or precomputed eval
+artefacts — provided the response shapes below are honoured.
 
 ---
 
@@ -93,10 +108,10 @@ Single model entry. Same shape as one element of `/api/registry`'s `models[]`.
 
 ---
 
-### Tier 1: Model mode endpoints
+### Model browsing endpoints
 
-Tier 1 returns precomputed predictions on the labelled splits. No model
-is loaded; the backend reads JSON files off disk.
+These return precomputed predictions on the labelled splits. No model
+is loaded; the backend reads from each handler's on-disk artefacts.
 
 #### `GET /api/registry/{model_id}/splits/{split}/clips`
 
@@ -106,7 +121,8 @@ Paginated list of precomputed clip predictions, with optional filters.
 
 **Query params:** `limit` (int, 1-500, default 50), `offset` (int, default 0),
 `true_class` (string, optional), `predicted_class` (string, optional),
-`errors_only` (bool, default false).
+`match` (string, optional — exact-string match against the clip's `match` field;
+combinable with the other filters), `errors_only` (bool, default false).
 
 **Response:**
 
@@ -196,6 +212,9 @@ Per-class aggregates for the per-class panel.
 
 **Path params:** `model_id`, `split`.
 
+**Query params:** `match` (string, optional — restricts the aggregation to a
+single match. Same exact-string semantics as the filter on `/clips`).
+
 **Response:**
 
 ```jsonc
@@ -227,6 +246,44 @@ Per-class aggregates for the per-class panel.
 | `top5_when_true` | `[class, freq][]` | When ground truth is this class, top 5 predictions and frequencies (recall-style; sums to 1.0). |
 | `top5_when_pred` | `[class, freq][]` | When prediction is this class, top 5 actual classes and frequencies (precision-style; sums to 1.0). |
 
+#### `GET /api/registry/{model_id}/splits/{split}/matches`
+
+List of matches contributing to the split, with per-match headline metrics.
+Populates the match picker; per-class breakdown for a selected match
+comes from `/stats?match=...`.
+
+**Path params:** `model_id`, `split`.
+
+**Response:**
+
+```jsonc
+{
+  "model_id": "bst_x_v1_wipe_drop_s5",
+  "split":    "test",
+  "matches": [
+    {
+      "match":     "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "n_clips":   142,
+      "accuracy":  0.781,
+      "macro_f1":  0.621,
+      "min_f1":    0.412
+    }
+  ]
+}
+```
+
+**Per-match fields:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `match` | string | Exact identifier; matches the `match` field on clip responses and is the value to pass back as `?match=...`. |
+| `n_clips` | int | Number of split clips drawn from this match. |
+| `accuracy`, `macro_f1`, `min_f1` | float | Computed over the match's clips only. |
+
+Per-class breakdown is deliberately omitted from this list response to
+keep it lightweight (~40 matches in the ShuttleSet test split). Drill
+down via `/stats?match=...` and `/clips?match=...`.
+
 #### `GET /api/clips/{stem}/video`
 
 Stream a known dataset clip's mp4. Byte-range requests supported, so
@@ -241,10 +298,10 @@ index, or if `BST_CLIPS_DIR` is unset / the file isn't on this host.
 
 ---
 
-### Tier 2: Inference mode endpoints
+### Inference endpoints
 
-Tier 2 runs the full inference pipeline on user-uploaded video. The
-flow: `POST /api/upload` returns a `job_id`; poll `GET /api/status/{job_id}`
+These run the full inference pipeline on user-uploaded video. Flow:
+`POST /api/upload` returns a `job_id`; poll `GET /api/status/{job_id}`
 until `done`; fetch `GET /api/results/{job_id}`.
 
 #### `POST /api/upload`
@@ -292,7 +349,7 @@ Submit a video plus markup; returns a job ID for polling.
 |---|---|---|
 | `architecture` | enum \| null | `"bric"` \| `"bst"`. Simple-mode model pick — backend resolves to the registry entry with `is_default: true` for that architecture. |
 | `model_id` | string \| null | Explicit-mode override. Wins over `architecture` if both supplied. At least one of `architecture` / `model_id` is required (else 4xx). |
-| `orientation` | string | `"portrait"` only in v1. |
+| `orientation` | string | `"portrait"`. |
 | `video_label` | string \| null | Optional human-readable upload name (analytics retrieval). Defaults to original filename. |
 | `boundary` | `[{x,y}][4]` | Normalised `[0,1]` court corners, any order; backend sorts to canonical TL/TR/BR/BL and computes `H = cv2.getPerspectiveTransform(boundary, ref_court_corners)`. |
 | `annotations` | array | One entry per stroke; `N=1` = single-shot UX, `N>1` = rally UX. |
@@ -314,7 +371,7 @@ Submit a video plus markup; returns a job ID for polling.
 
 Backend never invents stroke times — every classified stroke
 corresponds to a user-supplied annotation. Stroke detection /
-SRA pre-segmentation is a v2 concern.
+SRA pre-segmentation is out of scope for this contract.
 
 **Response (202):**
 
@@ -338,7 +395,7 @@ Poll job state.
 
 #### `GET /api/results/{job_id}`
 
-Fetch the structured Tier 2 result.
+Fetch the structured inference result.
 
 **Path params:** `job_id`.
 
@@ -404,16 +461,21 @@ Fetch the structured Tier 2 result.
 | `player_side` | enum | `"top"` \| `"bottom"` \| `"unknown"`. |
 | `player_id`, `player_label` | string \| null | Resolved from the players block via `player_side`. |
 | `court_position` | `{x,y}` \| null | Striker foot-centre projected via homography to normalised `[0, 1]` over the FULL singles court (top y=0, net y=0.5, bottom y=1). Null when `homography_ok` is false. |
-| `stroke_frame_url` | string | Resolves to `GET /api/jobs/{job_id}/frames/{stroke_index}`. |
+| `stroke_frame_url` | string | Resolves to `GET /api/jobs/{job_id}/frames/{stroke_index}`. The image content is handler-defined — e.g. an RGB frame at `target_frame`, or a keypoint / skeleton overlay rendered on it. |
 | `prediction` | object | The model output for this stroke. |
 | `prediction.predicted_class` | string | Headline class. Equal to `prediction.top_k[0].class`. |
 | `prediction.confidence_pct` | int | `[0, 100]`. Equal to `round(top_k[0].confidence * 100)`. See [Confidence](#confidence). |
 | `prediction.top_k` | array | Top 5 by confidence, descending. Each: `{class, confidence}` with confidence as float `[0, 1]`. |
 
-**Per-handler differences within Tier 2:** BRIC populates `player_id`,
-`player_label`, and `court_position` from its perception layer. BST may
-emit `null` for these (no player-identity tracking, no court projection
-in its current pipeline). All other fields are shared.
+**Per-handler population matrix.** Optional fields per handler:
+
+| Field | Required | Notes |
+|---|---|---|
+| `player_id`, `player_label` | No | Populated when the handler tracks player identity; `null` otherwise. |
+| `court_position` | No | Populated when the handler runs court projection; `null` otherwise (also `null` when `homography_ok` is `false`). |
+| `stroke_frame_url` | No | When emitted, the image content is handler-defined (RGB frame, keypoint overlay, etc.). |
+
+All other fields are required.
 
 #### `GET /api/jobs/{job_id}/frames/{stroke_idx}`
 
@@ -424,8 +486,8 @@ Stream a stroke-frame thumbnail JPG.
 **Response:** binary `image/jpeg`.
 
 **Notes:** files at `runtime/jobs/{job_id}/frames/{stroke_idx}.jpg`.
-Persist for the lifetime of the `jobs` row in the storage layer — no
-automatic TTL in v1. See [`storage.md`](storage.md#frame-thumbnails).
+Persist for the lifetime of the `jobs` row in the storage layer; no
+automatic TTL. See [`storage.md`](storage.md#frame-thumbnails).
 
 #### `GET /api/players/search`
 
@@ -466,37 +528,35 @@ Single player identity record.
 
 ## Mock data and fallback behaviour
 
-Endpoints return mocks in two situations: (a) Tier 1 predictions JSONs
-have been mocked because the real eval hasn't run yet; (b) Tier 2's
-upload dispatches to an unregistered handler.
+Endpoints return mocks in two situations: (a) model-browsing prediction
+JSONs are placeholder content while real eval artefacts are pending;
+(b) inference upload dispatches to an unregistered handler.
 
-### Tier 1 mocks (precomputed predictions on disk)
+### Mocked browsing artefacts
 
-Backend reads predictions from `experiments/{run_id}/predictions/*.json`.
-While a model is being wired, those JSONs may be hand-built mocks.
-Mocked artefacts carry a top-level marker:
+Mocked prediction artefacts carry a top-level marker so the frontend
+can surface a "mock data" badge:
 
 ```jsonc
 { "_mock_data": true, "clips": [ ... ] }
 ```
 
-Frontend can surface a "mock data" badge when `_mock_data` is true.
 Behaviour by endpoint when mocks are in place:
 
 | Endpoint | Mock behaviour |
 |---|---|
-| `GET /api/registry` | Returns the registry yaml entries as-is. Mocked-eval entries marked with `_mock_data: true` (per-entry, optional). |
-| `GET /api/registry/{model_id}/splits/{split}/clips` | Returns the mocked clips list. `total` reflects mock count (~28 in PR #77's mock build). |
+| `GET /api/registry` | Returns the registry entries as-is. Mocked-eval entries marked with `_mock_data: true` (per-entry, optional). |
+| `GET /api/registry/{model_id}/splits/{split}/clips` | Returns the mocked clips list. `total` reflects the mocked count. |
 | `GET /api/registry/{model_id}/splits/{split}/clips/{stem}` | Returns the mocked single clip. `confidence_pct` and `top_k` are synthesised. |
-| `GET /api/registry/{model_id}/splits/{split}/stats` | Returns mocked per-class stats (synthesised confusion patterns). |
-| `GET /api/clips/{stem}/video` | `404` if the mock stem doesn't correspond to a real mp4 on disk (typical for synthesised stems). Frontend should render a "no clip available on this host" fallback. |
+| `GET /api/registry/{model_id}/splits/{split}/stats` | Returns mocked per-class stats (synthesised confusion patterns). Honours `?match=...`. |
+| `GET /api/registry/{model_id}/splits/{split}/matches` | Returns mocked match list with synthesised per-match metrics. |
+| `GET /api/clips/{stem}/video` | `404` if the mock stem does not correspond to a real mp4 on disk. Frontend should render a "no clip available on this host" fallback. |
 
-### Tier 2 mock-fallback
+### Inference upload mock-fallback
 
-When `markup.model_id` doesn't resolve to a registered handler (e.g.
-the BRIC handler isn't wired yet), `POST /api/upload` returns a
-v1-shaped Tier 2 result so the frontend's processing-poll loop
-exercises end-to-end:
+When `markup.model_id` (or the architecture default) does not resolve
+to a registered handler, `POST /api/upload` returns a contract-shaped
+result so the frontend's processing-poll loop exercises end-to-end:
 
 - 3-second sleep (simulates job latency).
 - `strokes` mirrors `markup.annotations` 1:1.
@@ -522,27 +582,16 @@ exercises end-to-end:
 
 ## Confidence
 
-> Open issue: v1 ships uncalibrated `confidence_pct` for both handlers
-> (raw softmax). v2 adds post-hoc temperature scaling so the numbers
-> match true frequency. Until then, treat the headline as relative
-> ordering, not an absolute probability. Tracked as
-> [Open conflict](#open-conflicts) #4.
+`confidence_pct` is the model's softmax probability for the top class,
+rounded to an integer in `[0, 100]`. The current implementation ships
+raw (uncalibrated) softmax for all handlers; consumers should treat
+the value as relative ordering rather than a calibrated probability
+until post-hoc temperature scaling is in place.
 
-`confidence_pct` is the model's calibrated probability for the top
-class, rounded to an integer in `[0, 100]`. "32% confident" means
-"across all clips where the model says about 32%, it's right about
-32% of the time".
-
-### Why the headline number can look low
-
-When the model is genuinely torn between two similar classes (say
-`wrist_smash` vs `smash`), the headline confidence sits in the 30s
-even though the model is decisive about it being "some kind of
-overhead-aggressive shot". Working as intended; inflating the number
-would lie to the user.
-
-The fix is to render `top_k` as a bar chart alongside the headline.
-The user instantly sees the close call:
+When the model is genuinely uncertain between close classes (e.g.
+`wrist_smash` vs `smash`), the headline confidence can sit in the 30s
+even though the prediction is decisive within the close pair. Surfacing
+`top_k` alongside the headline conveys this shape:
 
 ```
 wrist_smash  ████████████████░░░░░░  32%
@@ -552,18 +601,8 @@ push         █████░░░░░░░░░░░░░░░░░ 
 drop         ████░░░░░░░░░░░░░░░░░░   8%
 ```
 
-The headline is the "if forced to pick one" probability. The bars
-carry the shape of the uncertainty.
-
-### Suggested visual hierarchy
-
-- **Top of the results card:** predicted class name (large) +
-  `confidence_pct` (medium).
-- **Below:** bar chart of `top_k` (5 rows).
-- **Optional:** "tie" badge when
-  `top_k[0].confidence - top_k[1].confidence < 0.10`.
-
-(Section adapted from the BST handoff doc's "Confidence" section.)
+The headline reports the top class's probability under the "force a
+single pick" reading; `top_k` carries the distributional shape.
 
 ---
 
@@ -578,25 +617,7 @@ Reference for any numeric field across the contract.
 | `rally` | 1-indexed integer | First rally in a set is 1. |
 | `ball_round` | 1-indexed integer | First stroke in a rally is 1. |
 | `serial_no` | 1-indexed integer | Range 1-5 per training run. |
-| `stroke_index` | 0-indexed integer | Position within Tier 2's `strokes[]` array. |
+| `stroke_index` | 0-indexed integer | Position within the inference result's `strokes[]` array. |
 | `clip_stem` | All-1-indexed composite | Format `{vid}_{set}_{rally}_{ball_round}` (e.g. `1_1_1_1` is the first stroke in the dataset). |
 | `boundary[].x`, `boundary[].y`, `court_position.x`, `court_position.y` | Normalised `[0, 1]` | Not pixel-space. `[0, 0]` is top-left. |
 
----
-
-## Open conflicts
-
-Items not yet resolved between this contract and the BST handoff doc /
-PR #77 implementation. Each needs a decision before the disputed
-surface ships.
-
-| # | Item | This contract | BST handoff / PR #77 | Resolution path |
-|---|------|---------------|----------------------|------------------|
-| 1 | Tier 2 stroke count per upload | N annotations (rally support) | 1 stroke window in handoff doc; Tier 2 not yet implemented in PR #77 | Subsume single-stroke as N=1 special case (this contract's shape). |
-| 2 | "Sample inference" tier — live forward-pass on a known clip (BST handoff's Tier 2, `POST /api/registry/{model_id}/predict/{stem}`) | **Dropped** — this contract uses Tier 1 (precomputed) and Tier 2 (novel upload) only. BST's Tier 3 (novel upload) renumbered to Tier 2 to close the gap. | Defined as Tier 2 | Dropped deliberately — Tier 1 (precomputed) already serves the dashboard view; live-on-known adds latency without a new analytic story. Visible here for BST team awareness. |
-| 3 | Registry: `architecture` and `is_default` fields | Documented (drives architecture-grouping + best-per-architecture filter in the picker) | Absent in handoff and in PR #77 implementation | Additive — BST entries can populate `architecture: "bst"` and mark one as `is_default: true`. Without them the picker can't group/filter by architecture. Worth landing. |
-| 4 | Calibration of `confidence_pct` | v2 candidate (raw softmax in v1) | v2 candidate per BST status doc ("next couple of weeks") | Aligned in direction. Both handlers ship raw in v1; both add temperature scaling in v2. Documented as parallel deferral. |
-| 5 | Storage backend | SQLite (see `storage.md`) | File-based predictions on disk (Tier 1) | Coexist for now — registry can read from either. BST team can adopt SQLite if useful, otherwise no action needed. |
-
-Resolve in a three-way conversation (BRIC author + BST handler author +
-frontend wiring owner).

@@ -1,46 +1,7 @@
-"""ShuttleSet stroke dataset for BRIC training.
+"""Per-stroke ShuttleSet dataset for BRIC.
 
-Reads from the preprocessed caches built by:
-  - ``scripts.build_shots_master``    → per-stroke metadata CSV
-  - ``scripts.bric.preprocess_videos`` → per-stroke RGB tensors + per-vid
-                                         striker bboxes (NPZ wide format)
-  - ``scripts.bric.extract_shuttle``   → per-vid TrackNetV3 shuttle predictions
-
-Per-stroke ``__getitem__`` returns a dict:
-
-  - ``rgb``             (3, T=32, 224, 224) float32, channels-first,
-                        Kinetics-normalised.
-  - ``shuttle``         (T_var, 5) float32,
-                        ``[x_norm, y_norm, visibility, dx, dy]`` over the
-                        stroke's shuttle window. Variable length per
-                        stroke — use ``collate_strokes`` to right-pad
-                        to the batch max.
-  - ``shuttle_length``  int, true length of the shuttle window before
-                        padding. Used by the network's masked pool to
-                        ignore padded positions.
-  - ``court``           (3,) float32, striker court ``[x, y, valid]`` at
-                        ``target_frame``. ``x``, ``y`` normalised to
-                        [0, 1] over the singles court polygon. ``valid``
-                        is 1.0 when a striker bbox was found within
-                        ±``smooth_radius`` frames of ``target_frame``,
-                        else 0.0 (in which case ``x = y = 0``).
-  - ``label``           int, class index into the active taxonomy
-  - ``clip_stem``       str, identifies the stroke (for diagnostics)
-
-The shuttle ``dx``/``dy`` channels are forward-differenced
-(``dx[t] = x[t] - x[t-1]``, ``dx[0] = 0``) and zeroed across
-visibility transitions so the encoder doesn't see synthetic jumps
-when the shuttle reappears after an occlusion.
-
-Filtering at ``__init__``:
-  1. Select rows by ``split_v2`` column (BRIC's active split).
-  2. Apply ``taxonomy.merge_map`` to ``raw_type_en``; drop rows that map to
-     ``'unknown'`` (drop_unknown convention).
-  3. Drop rows whose RGB cache file doesn't exist (preprocess failed for
-     that stroke — typically <1% bbox-resolution failures).
-
-Caches are loaded lazily per-vid (40 small NPZ files total, kept in memory
-once first accessed). Per-stroke RGB tensors load on-demand from disk.
+Reads from the preprocessed caches under ``training/bric/cache/``.
+See ``docs/bric_training_design.md`` for input shapes and conventions.
 """
 from __future__ import annotations
 
@@ -74,7 +35,7 @@ _DEFAULT_RGB_DIR = _REPO_ROOT / 'training' / 'bric' / 'cache' / 'rgb'
 _DEFAULT_PLAYERS_DIR = _REPO_ROOT / 'training' / 'bric' / 'cache' / 'players'
 _DEFAULT_SHUTTLE_DIR = _REPO_ROOT / 'training' / 'bric' / 'cache' / 'shuttle'
 
-# R(2+1)D-18 Kinetics-400 normalisation (torchvision R2Plus1D_18_Weights.KINETICS400_V1).
+# torchvision R2Plus1D_18_Weights.KINETICS400_V1 normalisation.
 _RGB_MEAN = np.array([0.43216, 0.394666, 0.37645], dtype=np.float32).reshape(3, 1, 1, 1)
 _RGB_STD = np.array([0.22803, 0.22145, 0.216989], dtype=np.float32).reshape(3, 1, 1, 1)
 
@@ -92,21 +53,15 @@ def _resolve_taxonomy(taxonomy: Taxonomy | str | None) -> Taxonomy:
 def _derive_label(
     raw_type: str, player_side: str, taxonomy: Taxonomy,
 ) -> str | None:
-    """Apply taxonomy merge + side-prefix logic; return label string or None.
-
-    Returns ``None`` if the merged type is 'unknown' (drop_unknown convention)
-    or otherwise not in the trainable class list.
-    """
+    """Map ``raw_type`` through the taxonomy; return the label or ``None`` to drop."""
     merged = (taxonomy.merge_map or {}).get(raw_type, raw_type)
     if merged == 'unknown':
         return None
     if merged in taxonomy.standalone_set:
-        label = merged
-    elif merged in taxonomy.base_types:
-        label = f'{player_side}_{merged}'
-    else:
-        return None
-    return label
+        return merged
+    if merged in taxonomy.base_types:
+        return f'{player_side}_{merged}'
+    return None
 
 
 class ShuttleSetDataset(Dataset):
@@ -151,9 +106,6 @@ class ShuttleSetDataset(Dataset):
             Path(shots_master_path), require_court, require_shuttle_cache,
         )
 
-    # ------------------------------------------------------------------
-    # Construction-time filtering
-    # ------------------------------------------------------------------
     def _build_samples(
         self,
         shots_master_path: Path,
@@ -174,7 +126,7 @@ class ShuttleSetDataset(Dataset):
             clip_stem = row['clip_stem']
             rgb_path = self.rgb_cache_dir / f'{clip_stem}.npy'
             if not rgb_path.exists():
-                continue   # preprocess didn't produce this stroke (rare bbox failure)
+                continue
 
             vid = int(row['vid'])
             if require_court and vid not in self.court_info_by_vid:
@@ -191,15 +143,12 @@ class ShuttleSetDataset(Dataset):
                 'frame_num':       int(row['frame_num']),
                 'shuttle_start_f': int(row['shuttle_start_f']),
                 'shuttle_end_f':   int(row['shuttle_end_f']),
-                'player_side':     row['player_side'],     # 'Top' or 'Bottom'
+                'player_side':     row['player_side'],
                 'label':           self._class_to_idx[label_str],
                 'label_str':       label_str,
             })
         return records
 
-    # ------------------------------------------------------------------
-    # Lazy per-vid cache loaders
-    # ------------------------------------------------------------------
     def _get_players(self, vid: int) -> dict[str, np.ndarray]:
         cache = self._players_cache.get(vid)
         if cache is None:
@@ -216,30 +165,15 @@ class ShuttleSetDataset(Dataset):
             self._shuttle_cache[vid] = cache
         return cache
 
-    # ------------------------------------------------------------------
-    # Per-modality builders
-    # ------------------------------------------------------------------
     def _build_rgb(self, rgb_path: Path) -> np.ndarray:
-        """(32, 224, 224, 3) uint8 → (3, 32, 224, 224) float32, Kinetics-normalised."""
-        thwc = np.load(rgb_path)  # (T, H, W, C) uint8
+        thwc = np.load(rgb_path)
         if self.rgb_transform is not None:
             thwc = self.rgb_transform(thwc)
         cthw = thwc.transpose(3, 0, 1, 2).astype(np.float32) / 255.0
-        cthw = (cthw - _RGB_MEAN) / _RGB_STD
-        return cthw
+        return (cthw - _RGB_MEAN) / _RGB_STD
 
     def _build_shuttle(self, vid: int, start_f: int, end_f: int) -> np.ndarray:
-        """Slice the per-vid shuttle cache to ``[start_f, end_f)``;
-        return ``(T, 5)`` float32 of ``[x_norm, y_norm, visibility, dx, dy]``.
-
-        Velocity is forward-differenced and zeroed across visibility
-        transitions — when the shuttle reappears after an occlusion
-        the apparent jump is not motion, so propagating it would inject
-        a high-magnitude noise signal into the encoder.
-        """
         s = self._get_shuttle(vid)
-        # Normalise pixel coords by source video resolution. Use the players
-        # cache for canonical width/height (cv2-probed at preprocess time).
         p = self._get_players(vid)
         w = float(p['width'])
         h = float(p['height'])
@@ -250,6 +184,9 @@ class ShuttleSetDataset(Dataset):
         y = s['y'][a:b].astype(np.float32) / h
         v = s['visibility'][a:b].astype(np.float32)
 
+        # Zero velocity across visibility transitions: when the shuttle
+        # reappears after an occlusion, the apparent jump is not motion
+        # and would otherwise inject a high-magnitude noise spike.
         t = x.shape[0]
         dx = np.zeros(t, dtype=np.float32)
         dy = np.zeros(t, dtype=np.float32)
@@ -262,17 +199,6 @@ class ShuttleSetDataset(Dataset):
     def _build_court(
         self, vid: int, target_f: int, side: str,
     ) -> np.ndarray:
-        """Project striker foot to normalised court ``[x, y, valid]``;
-        fallback to nearest valid frame within ``smooth_radius`` if
-        ``target_frame``'s striker bbox is missing.
-
-        :return: ``(3,)`` float32 ``[x, y, valid]``; ``x``, ``y`` in
-            [0, 1]. ``valid`` is 1.0 when a striker bbox was resolved,
-            0.0 (with ``x = y = 0``) when nothing was found within
-            ±``smooth_radius`` frames. The encoder uses ``valid`` to
-            distinguish "striker is at court origin" from "no striker
-            data" — without it both look identical.
-        """
         p = self._get_players(vid)
         side_lc = side.lower()
         valid = p[f'{side_lc}_valid']
@@ -308,9 +234,6 @@ class ShuttleSetDataset(Dataset):
         )
         return np.array([x_n, y_n, 1.0], dtype=np.float32)
 
-    # ------------------------------------------------------------------
-    # Dataset interface
-    # ------------------------------------------------------------------
     def __len__(self) -> int:
         return len(self.samples)
 
@@ -320,34 +243,17 @@ class ShuttleSetDataset(Dataset):
         shuttle = self._build_shuttle(s['vid'], s['shuttle_start_f'], s['shuttle_end_f'])
         court = self._build_court(s['vid'], s['frame_num'], s['player_side'])
         return {
-            'rgb':            torch.from_numpy(rgb),                     # (3, 32, 224, 224)
-            'shuttle':        torch.from_numpy(shuttle),                 # (T, 5)
+            'rgb':            torch.from_numpy(rgb),
+            'shuttle':        torch.from_numpy(shuttle),
             'shuttle_length': int(shuttle.shape[0]),
-            'court':          torch.from_numpy(court),                   # (3,)
+            'court':          torch.from_numpy(court),
             'label':          torch.tensor(s['label'], dtype=torch.long),
             'clip_stem':      s['clip_stem'],
         }
 
 
-# ---------------------------------------------------------------------------
-# Batch collation
-# ---------------------------------------------------------------------------
 def collate_strokes(batch: list[dict[str, Any]]) -> dict[str, Any]:
-    """Collate a batch of stroke dicts.
-
-    Pads variable-length shuttle sequences to the batch max with zeros
-    on the right; emits a ``shuttle_length`` tensor so the encoder can
-    mask padded positions in its temporal pool.
-
-    :param batch: list of dicts as returned by ``ShuttleSetDataset.__getitem__``.
-    :return: dict with batched tensors:
-        - ``rgb``            (B, 3, 32, 224, 224) float32
-        - ``shuttle``        (B, T_max, 5) float32, zero-padded on the right
-        - ``shuttle_length`` (B,) long, true unpadded lengths
-        - ``court``          (B, 3) float32
-        - ``label``          (B,) long
-        - ``clip_stem``      list[str] of length B
-    """
+    """Right-pad variable-length shuttle sequences and stack the rest."""
     rgb = torch.stack([b['rgb'] for b in batch], dim=0)
     court = torch.stack([b['court'] for b in batch], dim=0)
     label = torch.stack([b['label'] for b in batch], dim=0)
