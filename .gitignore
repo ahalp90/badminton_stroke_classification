@@ -79,6 +79,8 @@ scratch/sticky_anchor_inspection
 
 runtime/data/shuttleset/clips/*
 !runtime/data/shuttleset/clips/.gitkeep
+runtime/data/shuttleset/rally_clips/*
+!runtime/data/shuttleset/rally_clips/.gitkeep
 runtime/data/shuttleset/raw_video/*
 !runtime/data/shuttleset/raw_video/.gitkeep
 
