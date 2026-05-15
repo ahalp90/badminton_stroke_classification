@@ -5,10 +5,10 @@ Verifies the training environment is ready: ML stack works on the available
 accelerator AND BRIC's own modules import cleanly.
 
 Run from the project root after `uv sync --extra bric`:
-    uv run python scripts/bric_smoke_test.py
+    uv run python -m scripts.bric.smoke_test
 
 Or from an activated venv:
-    python scripts/bric_smoke_test.py
+    python -m scripts.bric.smoke_test
 
 What it checks:
   1. Platform basics
@@ -33,7 +33,7 @@ from pathlib import Path
 
 # Project root, derived once. Any cache / artefact paths the smoke test
 # touches resolve from here so the script is invariant to cwd.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 # ANSI colours for terminal output. No-op if NO_COLOR or non-tty.

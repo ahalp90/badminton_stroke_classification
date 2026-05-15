@@ -5,7 +5,7 @@ videos / shots have been curated out. Mirrors the relevant pieces of
 `bst_refactor.pipeline.config` so BRIC code never needs to import from
 that module.
 
-ShuttleSet upstream annotations live under ``runtime/data/shuttleset/annotations/``:
+ShuttleSet upstream annotations live under ``training/data/shuttleset/annotations/``:
 
   - ``ANNOTATIONS_DIR``      — root of the annotations tree (CSVs + set/)
   - ``SET_INFO_DIR``         — annotations/set/ (per-match folders + match.csv)
@@ -60,7 +60,7 @@ import pandas as pd
 # This file lives at <project>/src/shared/dataset.py → parents[2] = <project>.
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-ANNOTATIONS_DIR = _PROJECT_ROOT / 'runtime' / 'data' / 'shuttleset' / 'annotations'
+ANNOTATIONS_DIR = _PROJECT_ROOT / 'training' / 'data' / 'shuttleset' / 'annotations'
 SET_INFO_DIR = ANNOTATIONS_DIR / 'set'
 FLAW_RECORDS_PATH = ANNOTATIONS_DIR / 'flaw_shot_records.csv'
 VIDEO_METADATA_PATH = ANNOTATIONS_DIR / 'video_metadata.csv'

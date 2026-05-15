@@ -16,9 +16,9 @@ Reports for the requested vid(s):
     non-match content)
 
 Usage:
-    uv run python -m scripts.evaluate_shuttle --vid 1
-    uv run python -m scripts.evaluate_shuttle --vid 1 --top 20
-    uv run python -m scripts.evaluate_shuttle              # all vids with cache
+    uv run python -m scripts.bric.evaluate_shuttle --vid 1
+    uv run python -m scripts.bric.evaluate_shuttle --vid 1 --top 20
+    uv run python -m scripts.bric.evaluate_shuttle              # all vids with cache
 """
 from __future__ import annotations
 
@@ -29,11 +29,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / 'src'))
 
-SHOTS_MASTER_PATH = REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
-SHUTTLE_CACHE_DIR = REPO_ROOT / 'runtime' / 'cache' / 'shuttle'
+SHOTS_MASTER_PATH = REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
+SHUTTLE_CACHE_DIR = REPO_ROOT / 'training' / 'bric' / 'cache' / 'shuttle'
 
 
 def load_visibility_array(vid: int) -> np.ndarray:

@@ -12,8 +12,8 @@ the right cwd is cleaner and matches BST's usage pattern.
 
 Usage:
     csv_path = extract_shuttle(
-        video_path=Path('runtime/data/shuttleset/raw_video/1 ....mp4'),
-        save_dir=Path('runtime/cache/tmp_shuttle/1'),
+        video_path=Path('training/data/shuttleset/raw_video/1 ....mp4'),
+        save_dir=Path('training/bric/cache/tmp_shuttle/1'),
     )
     df = pd.read_csv(csv_path)
 """

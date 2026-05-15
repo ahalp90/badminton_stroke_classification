@@ -2,20 +2,35 @@
 
 Reads from the preprocessed caches built by:
   - ``scripts.build_shots_master``    → per-stroke metadata CSV
-  - ``scripts.preprocess_videos``     → per-stroke RGB tensors + per-vid
-                                        striker bboxes (NPZ wide format)
-  - ``scripts.extract_shuttle``       → per-vid TrackNetV3 shuttle predictions
+  - ``scripts.bric.preprocess_videos`` → per-stroke RGB tensors + per-vid
+                                         striker bboxes (NPZ wide format)
+  - ``scripts.bric.extract_shuttle``   → per-vid TrackNetV3 shuttle predictions
 
 Per-stroke ``__getitem__`` returns a dict:
 
-  - ``rgb``       (3, T=32, 224, 224) float32, channels-first, Kinetics-normalised
-  - ``shuttle``   (T_var, 3) float32, ``[x_norm, y_norm, visibility]`` over the
-                  stroke's shuttle window. Variable length per stroke — collate
-                  with padding or a sequence encoder.
-  - ``court``     (2,) float32, striker court (x, y) at ``target_frame``,
-                  normalised to [0, 1] over the singles court polygon.
-  - ``label``     int, class index into the active taxonomy
-  - ``clip_stem`` str, identifies the stroke (for diagnostics)
+  - ``rgb``             (3, T=32, 224, 224) float32, channels-first,
+                        Kinetics-normalised.
+  - ``shuttle``         (T_var, 5) float32,
+                        ``[x_norm, y_norm, visibility, dx, dy]`` over the
+                        stroke's shuttle window. Variable length per
+                        stroke — use ``collate_strokes`` to right-pad
+                        to the batch max.
+  - ``shuttle_length``  int, true length of the shuttle window before
+                        padding. Used by the network's masked pool to
+                        ignore padded positions.
+  - ``court``           (3,) float32, striker court ``[x, y, valid]`` at
+                        ``target_frame``. ``x``, ``y`` normalised to
+                        [0, 1] over the singles court polygon. ``valid``
+                        is 1.0 when a striker bbox was found within
+                        ±``smooth_radius`` frames of ``target_frame``,
+                        else 0.0 (in which case ``x = y = 0``).
+  - ``label``           int, class index into the active taxonomy
+  - ``clip_stem``       str, identifies the stroke (for diagnostics)
+
+The shuttle ``dx``/``dy`` channels are forward-differenced
+(``dx[t] = x[t] - x[t-1]``, ``dx[0] = 0``) and zeroed across
+visibility transitions so the encoder doesn't see synthetic jumps
+when the shuttle reappears after an occlusion.
 
 Filtering at ``__init__``:
   1. Select rows by ``split_v2`` column (BRIC's active split).
@@ -53,11 +68,11 @@ from shared.taxonomy import (
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_SHOTS_MASTER = (
-    _REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
+    _REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
 )
-_DEFAULT_RGB_DIR = _REPO_ROOT / 'runtime' / 'cache' / 'rgb'
-_DEFAULT_PLAYERS_DIR = _REPO_ROOT / 'runtime' / 'cache' / 'players'
-_DEFAULT_SHUTTLE_DIR = _REPO_ROOT / 'runtime' / 'cache' / 'shuttle'
+_DEFAULT_RGB_DIR = _REPO_ROOT / 'training' / 'bric' / 'cache' / 'rgb'
+_DEFAULT_PLAYERS_DIR = _REPO_ROOT / 'training' / 'bric' / 'cache' / 'players'
+_DEFAULT_SHUTTLE_DIR = _REPO_ROOT / 'training' / 'bric' / 'cache' / 'shuttle'
 
 # R(2+1)D-18 Kinetics-400 normalisation (torchvision R2Plus1D_18_Weights.KINETICS400_V1).
 _RGB_MEAN = np.array([0.43216, 0.394666, 0.37645], dtype=np.float32).reshape(3, 1, 1, 1)
@@ -215,7 +230,13 @@ class ShuttleSetDataset(Dataset):
 
     def _build_shuttle(self, vid: int, start_f: int, end_f: int) -> np.ndarray:
         """Slice the per-vid shuttle cache to ``[start_f, end_f)``;
-        return ``(T, 3)`` float32 of ``[x_norm, y_norm, visibility]``."""
+        return ``(T, 5)`` float32 of ``[x_norm, y_norm, visibility, dx, dy]``.
+
+        Velocity is forward-differenced and zeroed across visibility
+        transitions — when the shuttle reappears after an occlusion
+        the apparent jump is not motion, so propagating it would inject
+        a high-magnitude noise signal into the encoder.
+        """
         s = self._get_shuttle(vid)
         # Normalise pixel coords by source video resolution. Use the players
         # cache for canonical width/height (cv2-probed at preprocess time).
@@ -228,17 +249,29 @@ class ShuttleSetDataset(Dataset):
         x = s['x'][a:b].astype(np.float32) / w
         y = s['y'][a:b].astype(np.float32) / h
         v = s['visibility'][a:b].astype(np.float32)
-        return np.stack([x, y, v], axis=-1)
+
+        t = x.shape[0]
+        dx = np.zeros(t, dtype=np.float32)
+        dy = np.zeros(t, dtype=np.float32)
+        if t > 1:
+            valid_pair = (v[1:] > 0) & (v[:-1] > 0)
+            dx[1:] = (x[1:] - x[:-1]) * valid_pair
+            dy[1:] = (y[1:] - y[:-1]) * valid_pair
+        return np.stack([x, y, v, dx, dy], axis=-1)
 
     def _build_court(
         self, vid: int, target_f: int, side: str,
     ) -> np.ndarray:
-        """Project striker foot to normalised court (x, y); fallback to
-        nearest valid frame within ``smooth_radius`` if target_frame's
-        striker bbox is missing.
+        """Project striker foot to normalised court ``[x, y, valid]``;
+        fallback to nearest valid frame within ``smooth_radius`` if
+        ``target_frame``'s striker bbox is missing.
 
-        :return: ``(2,)`` float32 in [0, 1]; ``[0., 0.]`` if no valid
-            frame found in ``±smooth_radius``.
+        :return: ``(3,)`` float32 ``[x, y, valid]``; ``x``, ``y`` in
+            [0, 1]. ``valid`` is 1.0 when a striker bbox was resolved,
+            0.0 (with ``x = y = 0``) when nothing was found within
+            ±``smooth_radius`` frames. The encoder uses ``valid`` to
+            distinguish "striker is at court origin" from "no striker
+            data" — without it both look identical.
         """
         p = self._get_players(vid)
         side_lc = side.lower()
@@ -256,7 +289,7 @@ class ShuttleSetDataset(Dataset):
             if bbox is not None:
                 break
         if bbox is None:
-            return np.zeros(2, dtype=np.float32)
+            return np.zeros(3, dtype=np.float32)
 
         court_info = self.court_info_by_vid[vid]
         foot_x = (float(bbox[0]) + float(bbox[2])) / 2
@@ -273,7 +306,7 @@ class ShuttleSetDataset(Dataset):
         y_n = (court_pt[1, 0] - court_info['border_U']) / (
             court_info['border_D'] - court_info['border_U']
         )
-        return np.array([x_n, y_n], dtype=np.float32)
+        return np.array([x_n, y_n, 1.0], dtype=np.float32)
 
     # ------------------------------------------------------------------
     # Dataset interface
@@ -287,9 +320,50 @@ class ShuttleSetDataset(Dataset):
         shuttle = self._build_shuttle(s['vid'], s['shuttle_start_f'], s['shuttle_end_f'])
         court = self._build_court(s['vid'], s['frame_num'], s['player_side'])
         return {
-            'rgb':       torch.from_numpy(rgb),                          # (3, 32, 224, 224)
-            'shuttle':   torch.from_numpy(shuttle),                      # (T, 3)
-            'court':     torch.from_numpy(court),                        # (2,)
-            'label':     torch.tensor(s['label'], dtype=torch.long),
-            'clip_stem': s['clip_stem'],
+            'rgb':            torch.from_numpy(rgb),                     # (3, 32, 224, 224)
+            'shuttle':        torch.from_numpy(shuttle),                 # (T, 5)
+            'shuttle_length': int(shuttle.shape[0]),
+            'court':          torch.from_numpy(court),                   # (3,)
+            'label':          torch.tensor(s['label'], dtype=torch.long),
+            'clip_stem':      s['clip_stem'],
         }
+
+
+# ---------------------------------------------------------------------------
+# Batch collation
+# ---------------------------------------------------------------------------
+def collate_strokes(batch: list[dict[str, Any]]) -> dict[str, Any]:
+    """Collate a batch of stroke dicts.
+
+    Pads variable-length shuttle sequences to the batch max with zeros
+    on the right; emits a ``shuttle_length`` tensor so the encoder can
+    mask padded positions in its temporal pool.
+
+    :param batch: list of dicts as returned by ``ShuttleSetDataset.__getitem__``.
+    :return: dict with batched tensors:
+        - ``rgb``            (B, 3, 32, 224, 224) float32
+        - ``shuttle``        (B, T_max, 5) float32, zero-padded on the right
+        - ``shuttle_length`` (B,) long, true unpadded lengths
+        - ``court``          (B, 3) float32
+        - ``label``          (B,) long
+        - ``clip_stem``      list[str] of length B
+    """
+    rgb = torch.stack([b['rgb'] for b in batch], dim=0)
+    court = torch.stack([b['court'] for b in batch], dim=0)
+    label = torch.stack([b['label'] for b in batch], dim=0)
+
+    lengths = torch.tensor([b['shuttle_length'] for b in batch], dtype=torch.long)
+    t_max = int(lengths.max().item()) if len(batch) > 0 else 0
+    shuttle = torch.zeros((len(batch), t_max, 5), dtype=torch.float32)
+    for i, b in enumerate(batch):
+        seq = b['shuttle']
+        shuttle[i, : seq.shape[0]] = seq
+
+    return {
+        'rgb':            rgb,
+        'shuttle':        shuttle,
+        'shuttle_length': lengths,
+        'court':          court,
+        'label':          label,
+        'clip_stem':      [b['clip_stem'] for b in batch],
+    }

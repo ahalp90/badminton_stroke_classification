@@ -2,7 +2,7 @@
 
 Single source of truth for BRIC's per-stroke metadata. Reads from:
 
-  - ShuttleSet upstream annotations under runtime/data/shuttleset/annotations/
+  - ShuttleSet upstream annotations under training/data/shuttleset/annotations/
     (match.csv, setN.csv per match, video_metadata.csv, flaw_shot_records.csv).
   - BST-team v2 split CSV under src/shared/shuttleset_splits_v2.csv
     (player-leakage-corrected split, active for BRIC).
@@ -24,7 +24,7 @@ training/eval code MUST select on ``split_v2`` — the baseline scheme
 ignores player overlap between train and val/test, leaking player
 identity, and any results derived from it are misleading.
 
-Output (`runtime/data/shuttleset/annotations/shots_master.csv`)
+Output (`training/data/shuttleset/annotations/shots_master.csv`)
 carries every column notebook 03's clips_master has, plus three new
 ones in source-video frame coordinates:
 
@@ -64,7 +64,7 @@ from shared.player_mapping import collect_shots  # noqa: E402
 from shared.taxonomy import STROKE_TYPES_19_ZH  # noqa: E402
 
 OUT_PATH = (
-    REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'annotations'
+    REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'annotations'
     / 'shots_master.csv'
 )
 

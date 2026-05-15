@@ -8,7 +8,7 @@ each vid:
      rally-local CSV (Frame, Visibility, X, Y in clip-frame coords)
   3. Re-key clip-frame -> source-frame using the rally's ``shuttle_start_f``
      (re-derived from shots_master.csv to match the slicer's bounds)
-  4. Write a per-vid dense cache at ``runtime/cache/shuttle/<vid>.npz``
+  4. Write a per-vid dense cache at ``training/bric/cache/shuttle/<vid>.npz``
      with arrays length = source video frame count. Non-rally frames
      have visibility=0, x=y=0 (placeholder; never read at training time
      since training only slices in-rally windows).
@@ -24,9 +24,9 @@ Why per-rally instead of full source video:
 Idempotency: skip vids whose cache exists. ``--force`` to redo.
 
 Usage:
-    uv run python -m scripts.extract_shuttle              # all vids
-    uv run python -m scripts.extract_shuttle --vid 1
-    uv run python -m scripts.extract_shuttle --workers 8
+    uv run python -m scripts.bric.extract_shuttle              # all vids
+    uv run python -m scripts.bric.extract_shuttle --vid 1
+    uv run python -m scripts.bric.extract_shuttle --workers 8
 """
 from __future__ import annotations
 
@@ -40,16 +40,16 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / 'src'))
 
 from perception.shuttle import extract_shuttle  # noqa: E402
 from perception.video_io import get_video_info  # noqa: E402
 
-SHOTS_MASTER_PATH = REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
-RAW_VIDEO_DIR = REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'raw_video'
-RALLY_CLIPS_DIR = REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'rally_clips'
-SHUTTLE_CACHE_DIR = REPO_ROOT / 'runtime' / 'cache' / 'shuttle'
+SHOTS_MASTER_PATH = REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
+RAW_VIDEO_DIR = REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'raw_video'
+RALLY_CLIPS_DIR = REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'rally_clips'
+SHUTTLE_CACHE_DIR = REPO_ROOT / 'training' / 'bric' / 'cache' / 'shuttle'
 
 
 def find_source_video(vid: int) -> Path | None:

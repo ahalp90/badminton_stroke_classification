@@ -26,8 +26,10 @@ Different access pattern, different tool.
 - Backups are a file copy. Wipe via `rm runtime/state/inference.db`.
 
 `runtime/state/` is for *backend operational state* and is distinct from
-`runtime/cache/` (derivable computations like player tracks) and
-`runtime/data/` (source data) / `runtime/checkpoints/` (model weights).
+`runtime/deployed/<arch>/` (live model weights served by the API),
+`runtime/uploads/` (user video uploads), `runtime/jobs/` (per-job
+inference artefacts), and the training-only `training/` tree
+(source data + per-architecture caches and experiments).
 Wiping `runtime/state/` loses inference history but doesn't break training
 or serving.
 

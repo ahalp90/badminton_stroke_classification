@@ -112,7 +112,7 @@ the latest GPU-specific optimisations.
 ## 5. Run the BRIC smoke test
 
 ```bash
-uv run python scripts/bric_smoke_test.py
+uv run python -m scripts.bric.smoke_test
 ```
 
 This script checks:
@@ -146,7 +146,7 @@ the smoke test any time you want to verify the env is still healthy
 git pull
 
 # Re-verify env after pulling (cheap)
-uv run python scripts/bric_smoke_test.py
+uv run python -m scripts.bric.smoke_test
 
 # Run training
 uv run python -m bric.train --overfit 32 --epochs 30   # sanity check

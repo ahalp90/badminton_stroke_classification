@@ -22,7 +22,7 @@ def run_inference(video_path: str, model_name: str) -> dict:
         3. Project player positions to court coordinates (homography)
         4. Run shuttle tracking (TrackNetV3)
         5. Collate features into BST input tensors
-        6. Load checkpoint from runtime/experiments/<run>/ and run bst_infer
+        6. Load checkpoint from runtime/deployed/<arch>/ and run inference
         7. Map predicted class indices back to stroke label strings
         8. Return results in the format below
     """

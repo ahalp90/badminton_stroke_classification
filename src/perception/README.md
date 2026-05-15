@@ -1,44 +1,46 @@
-# perception/ — model-agnostic perception infrastructure
+# `perception/`
 
-Video I/O, player detection + tracking, court geometry, shuttle tracking,
-and temporal sampling utilities. Shared by training (`bric.dataset`) and
-inference (`bric.infer`); also called from the API layer to populate
-per-stroke artefacts (frame thumbnails, court positions).
+Architecture-agnostic perception primitives: video I/O, player detection
+and tracking, shuttle tracking, and frame-window helpers. Consumed by
+preprocessing scripts and inference handlers; no architecture-specific
+code lives here.
 
 ## Modules
 
-| Module | Purpose |
+| Module | Exports |
 |--------|---------|
-| `video_io.py` | cv2 wrappers: `get_video_info`, `iter_frames`, `read_frame_at`, `read_frames`, `write_frame_thumbnail`. RGB-by-default; the only place cv2 should be imported directly. |
-| `players.py` | YOLO11 + built-in tracker (ByteTrack) → `PlayerTrack` records with stable per-frame bboxes and `court_side` ('top' / 'bottom' / 'unknown'). Filters >2 detections by on-court frame count. |
-| `temporal.py` | `clip_window_seconds`, `clip_window_frames`, `subsample_indices` — frame-window helpers. `subsample_indices` is what feeds R(2+1)D-18 (n=32 over a 2s window centred on `target_frame`, fps-invariant stride). |
-| `shuttle.py` | Wrapper for TrackNetV3 → `(T, 3)` `[x_norm, y_norm, visibility]` per clip. |
-| `_vendor/tracknetv3/` | TrackNetV3 upstream repository trimmed for inference only.
+| `video_io.py` | `VideoInfo`, `get_video_info`, `iter_frames`, `read_frame_at`, `read_frames`, `write_frame_thumbnail`. Thin cv2 wrapper; defaults to RGB ordering and exposes a `VideoInfo` dataclass for fps / frame-count / resolution. |
+| `players.py`  | `PlayerTrack` dataclass, `detect_and_track(video_path, court_info=None, ...)`, `DEFAULT_YOLO_WEIGHTS`. Wraps Ultralytics YOLO11 with its built-in tracker (ByteTrack). When `court_info` is supplied, court-side is assigned by projecting bbox foot-centres through the homography and averaging the track's normalised court-y over its on-court frames; otherwise a vertical-pixel heuristic is used. Filters >2 detected persons (coaches, ball persons, audience) by keeping the 2 tracks with the most on-court frames. |
+| `temporal.py` | `clip_window_seconds`, `clip_window_frames`, `subsample_indices`. Frame-window helpers. `subsample_indices` returns N indices uniformly subsampled from a coverage-second window centred on a target frame, with stride that adapts to source fps so real-world coverage stays constant across videos of different frame rates. |
+| `shuttle.py`  | `extract_shuttle(video_path, save_dir, weights_dir=...)`. Subprocess wrapper around the vendored TrackNetV3 `predict.py`; returns the path to the per-frame CSV (`Frame, Visibility, X, Y`). |
+| `_vendor/tracknetv3/` | Vendored TrackNetV3 source. Used as a subprocess from its own directory because its modules use top-level absolute imports that assume the vendor dir is on `sys.path`. |
 
-## Import rules
+`PlayerTrack`'s `track_id` is stable within a single video but can swap
+when players cross paths (e.g. at the net). Downstream code that needs
+"which player did this" should rely on `court_side`, which is
+re-derived from court position each frame, rather than `track_id`.
 
-- `perception.*` **never** imports `bst_refactor.*`. The two architectures live separately.
-- Imports `shared.*` for taxonomy and court constants.
-- Imports TrackNetV3 from `perception._vendor.tracknetv3.*` (not from BST's vendored copy).
+## Imports
 
-## Public API at a glance
+- No imports from `bst_refactor.*`.
+- `players.py` imports `shared.court` for homography projection.
+- `shuttle.py` invokes the vendored TrackNetV3 via subprocess; it does
+  not import from `_vendor/tracknetv3/`.
 
-```python
-from perception.video_io import get_video_info, read_frame_at, write_frame_thumbnail
-from perception.players import detect_and_track, PlayerTrack
-from perception.temporal import subsample_indices, clip_window_seconds
-```
+## Layout assumptions
 
-## Where this fits
+- YOLO11 weights at `runtime/checkpoints/yolo11/yolo11n.pt`. Auto-downloaded
+  by Ultralytics on first call to `detect_and_track`.
+- TrackNetV3 weights at `runtime/checkpoints/tracknetv3/{TrackNet_best.pt, InpaintNet_best.pt}`.
+  Pulled per the upstream release; not auto-downloaded.
 
-- Inference handler (`bric.infer`) calls `detect_and_track`, `subsample_indices`,
-  `read_frames`, `write_frame_thumbnail` per stroke.
-- Training dataset (`bric.dataset`) calls the same — uses cached `PlayerTrack`
-  records from `runtime/cache/players/<clip_stem>.json` to avoid recomputing.
-- API layer (`api.main`) is downstream — it never calls perception directly,
-  only via the handler dispatcher.
+## Consumers
 
-## Related docs
+- `scripts/bric/preprocess_videos.py` reads `DEFAULT_YOLO_WEIGHTS` and
+  drives YOLO directly with its own per-rally loop.
+- `scripts/bric/extract_shuttle.py` calls `extract_shuttle` per rally
+  clip and `get_video_info` to size the per-source-video shuttle cache.
+- `tests/` exercises `subsample_indices` and `video_io`.
 
-- [`docs/api_contract.md`](../../docs/api_contract.md) — `court_position` and `stroke_frame_url` per-stroke fields are produced here.
-- [`docs/storage.md`](../../docs/storage.md) — `strokes.frame_path` records the file `write_frame_thumbnail` produces.
+`bric.dataset` does not import this package directly — it reads the
+NPZ caches that the preprocessing scripts produce.

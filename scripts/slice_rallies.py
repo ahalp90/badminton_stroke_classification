@@ -23,7 +23,7 @@ For each ``(vid, set, rally)`` group in shots_master.csv:
   - Slice the source video with the above ffmpeg incantation
   - Verify output frame count via ffprobe (allows ±1 tolerance for
     boundary frames; >1 mismatch is a hard fail)
-  - Save to ``runtime/data/shuttleset/rally_clips/<vid>_<set>_<rally>.mp4``
+  - Save to ``training/data/shuttleset/rally_clips/<vid>_<set>_<rally>.mp4``
 
 Idempotency: skip if output exists. ``--force`` to redo.
 
@@ -48,9 +48,9 @@ sys.path.insert(0, str(REPO_ROOT / 'src'))
 
 from shared.dataset import VIDEO_METADATA_PATH  # noqa: E402
 
-SHOTS_MASTER_PATH = REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
-RAW_VIDEO_DIR = REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'raw_video'
-RALLY_CLIPS_DIR = REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'rally_clips'
+SHOTS_MASTER_PATH = REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
+RAW_VIDEO_DIR = REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'raw_video'
+RALLY_CLIPS_DIR = REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'rally_clips'
 
 
 def find_source_video(vid: int) -> Path | None:

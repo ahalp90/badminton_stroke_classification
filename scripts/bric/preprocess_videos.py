@@ -8,20 +8,20 @@ windows from the buffer using the resolved striker bbox at ``target_frame``.
 
 Outputs two caches per source video:
 
-  - ``runtime/cache/players/<vid>.npz``    wide-format resolved striker
-                                           bboxes (Top + Bottom) per frame,
-                                           length = source video frames.
-                                           Court projection + side
-                                           resolution baked in — dataset
-                                           does O(1) lookup, no per-frame
-                                           filter logic. See
-                                           ``write_player_tracks_cache``
-                                           docstring for the array shapes.
-  - ``runtime/cache/rgb/<clip_stem>.npy``  32-frame striker crop tensor
-                                           per stroke
+  - ``training/bric/cache/players/<vid>.npz``    wide-format resolved striker
+                                                 bboxes (Top + Bottom) per frame,
+                                                 length = source video frames.
+                                                 Court projection + side
+                                                 resolution baked in — dataset
+                                                 does O(1) lookup, no per-frame
+                                                 filter logic. See
+                                                 ``write_player_tracks_cache``
+                                                 docstring for the array shapes.
+  - ``training/bric/cache/rgb/<clip_stem>.npy``  32-frame striker crop tensor
+                                                 per stroke
 
-Shuttle (TrackNetV3 → ``runtime/cache/shuttle/<vid>.npz``) is produced
-by ``scripts.extract_shuttle`` separately, operating on the per-rally
+Shuttle (TrackNetV3 → ``training/bric/cache/shuttle/<vid>.npz``) is produced
+by ``scripts.bric.extract_shuttle`` separately, operating on the per-rally
 clips from ``scripts.slice_rallies``.
 
 Why one pass, in-memory: the source videos are 1-2hr broadcast mp4s but
@@ -46,11 +46,11 @@ shared GPU. Default is 1 for predictable debugging output. Use shell
 parallelism (``xargs -P``) instead when you want per-job log files.
 
 Usage:
-    python -m scripts.preprocess_videos                    # all vids serial
-    python -m scripts.preprocess_videos --vid 1            # one vid
-    python -m scripts.preprocess_videos --vid 1 2 3        # several
-    python -m scripts.preprocess_videos --workers 8        # 8 vids at once
-    python -m scripts.preprocess_videos --force            # ignore caches
+    python -m scripts.bric.preprocess_videos                    # all vids serial
+    python -m scripts.bric.preprocess_videos --vid 1            # one vid
+    python -m scripts.bric.preprocess_videos --vid 1 2 3        # several
+    python -m scripts.bric.preprocess_videos --workers 8        # 8 vids at once
+    python -m scripts.bric.preprocess_videos --force            # ignore caches
 """
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / 'src'))
 
 from perception.players import DEFAULT_YOLO_WEIGHTS  # noqa: E402
@@ -76,10 +76,10 @@ from shared.court import (  # noqa: E402
 )
 from shared.dataset import HOMOGRAPHY_CSV_PATH  # noqa: E402
 
-SHOTS_MASTER_PATH = REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
-RAW_VIDEO_DIR = REPO_ROOT / 'runtime' / 'data' / 'shuttleset' / 'raw_video'
-PLAYERS_CACHE_DIR = REPO_ROOT / 'runtime' / 'cache' / 'players'
-RGB_CACHE_DIR = REPO_ROOT / 'runtime' / 'cache' / 'rgb'
+SHOTS_MASTER_PATH = REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
+RAW_VIDEO_DIR = REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'raw_video'
+PLAYERS_CACHE_DIR = REPO_ROOT / 'training' / 'bric' / 'cache' / 'players'
+RGB_CACHE_DIR = REPO_ROOT / 'training' / 'bric' / 'cache' / 'rgb'
 
 # RGB window: 32 frames, target at index 16 (16 before, 16 after, 16th = target).
 RGB_N_FRAMES = 32
