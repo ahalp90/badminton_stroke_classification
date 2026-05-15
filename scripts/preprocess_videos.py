@@ -1,19 +1,28 @@
 """Single-pass per-source-video preprocessing for BRIC.
 
 Walks each source video sequentially, in-rally frames only. For each
-rally: seeks to start, iterates frames, runs YOLO on each frame, buffers
-the raw frames in memory. At end of rally, extracts per-stroke RGB
-windows from the buffer using the striker bbox at ``target_frame``.
+rally: seeks to start, iterates frames, runs YOLO on each frame,
+resolves Top + Bottom striker bboxes via court projection, buffers the
+raw frames in memory. At end of rally, extracts per-stroke RGB
+windows from the buffer using the resolved striker bbox at ``target_frame``.
 
 Outputs two caches per source video:
 
-  - ``runtime/cache/players/<vid>.json``   per-frame YOLO detections
-                                           (in-rally frames only)
+  - ``runtime/cache/players/<vid>.npz``    wide-format resolved striker
+                                           bboxes (Top + Bottom) per frame,
+                                           length = source video frames.
+                                           Court projection + side
+                                           resolution baked in — dataset
+                                           does O(1) lookup, no per-frame
+                                           filter logic. See
+                                           ``write_player_tracks_cache``
+                                           docstring for the array shapes.
   - ``runtime/cache/rgb/<clip_stem>.npy``  32-frame striker crop tensor
                                            per stroke
 
-A third task (TrackNetV3 → ``runtime/cache/shuttle/<vid>.npz``) lands
-in Day 8 in this same loop — code structure leaves a clear slot.
+Shuttle (TrackNetV3 → ``runtime/cache/shuttle/<vid>.npz``) is produced
+by ``scripts.extract_shuttle`` separately, operating on the per-rally
+clips from ``scripts.slice_rallies``.
 
 Why one pass, in-memory: the source videos are 1-2hr broadcast mp4s but
 the actual play is ~30 min per video, ~4-5× less work than processing
@@ -46,7 +55,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import multiprocessing as mp
 import sys
 from functools import partial
@@ -163,14 +171,14 @@ def _project_foot_to_court(
     return float(x_n), float(y_n)
 
 
-def pick_striker_bbox(
+def pick_striker_detection(
     detections: list[dict],
     striker_side: str,
     frame_w: int,
     frame_h: int,
     court_info: dict | None = None,
-) -> tuple[float, float, float, float] | None:
-    """Pick the striker's bbox from per-frame YOLO detections.
+) -> dict | None:
+    """Pick the striker's detection dict (bbox + conf) from per-frame YOLO output.
 
     With ``court_info`` (BST homography for this vid):
       1. Project each detection's foot-centre to normalised court coords.
@@ -195,10 +203,9 @@ def pick_striker_bbox(
         on_court_with_y: list[tuple[dict, float]] = []
         for d in detections:
             try:
-                _, y_n = _project_foot_to_court(d['bbox'], frame_w, frame_h, court_info)
+                x_n, y_n = _project_foot_to_court(d['bbox'], frame_w, frame_h, court_info)
             except Exception:
                 continue
-            x_n, _ = _project_foot_to_court(d['bbox'], frame_w, frame_h, court_info)
             if (-eps <= x_n <= 1 + eps) and (-eps <= y_n <= 1 + eps):
                 on_court_with_y.append((d, y_n))
         want_top = striker_side.lower() == 'top'
@@ -213,7 +220,7 @@ def pick_striker_bbox(
     if not side_dets:
         return None
     side_dets.sort(key=lambda d: d['conf'], reverse=True)
-    return side_dets[0]['bbox']
+    return side_dets[0]
 
 
 def expand_and_squarify(
@@ -260,38 +267,36 @@ def crop_and_resize(
 def extract_stroke_rgb(
     stroke: pd.Series,
     rally_frames: dict[int, np.ndarray],
-    rally_dets: dict[int, list[dict]],
+    striker_arrays: dict[str, np.ndarray],
     frame_w: int,
     frame_h: int,
-    court_info: dict | None,
 ) -> tuple[np.ndarray | None, int]:
     """Build the (32, 224, 224, 3) RGB tensor for one stroke.
 
-    If the striker bbox is missing at ``target_frame`` (transient YOLO
-    miss, on-court projection rejection, etc.), walk outward ±1, ±2, ...
-    up to ±RGB_N_BEFORE frames looking for any frame where the striker
-    is detected. The found bbox is used as the fixed crop region for
-    all 32 frames in the RGB window — small temporal offsets in the
-    crop region are cheap; losing the stroke entirely is expensive.
+    Looks up the striker bbox from ``striker_arrays`` (the wide per-vid
+    arrays populated during the rally loop). If the bbox is missing at
+    ``target_frame`` (no on-court detection, transient YOLO miss), walks
+    outward ±1, ±2, ... up to ±RGB_N_BEFORE looking for a valid
+    neighbour. The found bbox is used as the fixed crop region for all
+    32 frames in the RGB window.
 
     :return: (tensor, offset_used). ``tensor`` is None if no striker
         found within ±RGB_N_BEFORE; ``offset_used`` is 0 for direct hit,
         positive for fallback distance, -1 if not found.
     """
     target_f = int(stroke['frame_num'])
-    striker_side = stroke['player_side']
+    side = stroke['player_side'].lower()  # 'top' or 'bottom'
+    valid_arr = striker_arrays[f'{side}_valid']
+    bbox_arr = striker_arrays[f'{side}_bbox']
 
-    bbox: tuple[float, float, float, float] | None = None
+    bbox = None
     used_offset = -1
+    n_frames = len(valid_arr)
     for offset in range(RGB_N_BEFORE + 1):
-        # Try target_f, then ±1, ±2, ... up to ±RGB_N_BEFORE.
-        for f in ((target_f,) if offset == 0 else (target_f - offset, target_f + offset)):
-            dets = rally_dets.get(f)
-            if not dets:
-                continue
-            cand = pick_striker_bbox(dets, striker_side, frame_w, frame_h, court_info)
-            if cand is not None:
-                bbox = cand
+        candidates = (target_f,) if offset == 0 else (target_f - offset, target_f + offset)
+        for f in candidates:
+            if 0 <= f < n_frames and valid_arr[f]:
+                bbox = tuple(float(v) for v in bbox_arr[f])
                 used_offset = offset
                 break
         if bbox is not None:
@@ -299,7 +304,7 @@ def extract_stroke_rgb(
 
     if bbox is None:
         print(
-            f'  stroke {stroke["clip_stem"]}: no {striker_side} detection in '
+            f'  stroke {stroke["clip_stem"]}: no {side} detection in '
             f'±{RGB_N_BEFORE} frames around {target_f}, skipping RGB'
         )
         return None, -1
@@ -325,41 +330,51 @@ def process_rally(
     frame_h: int,
     force: bool,
     court_info: dict | None,
-) -> dict[int, list[dict]]:
-    """Process one rally: read frames, run YOLO, extract per-stroke RGB.
+    striker_arrays: dict[str, np.ndarray],
+) -> None:
+    """Process one rally: read frames, run YOLO, resolve strikers, extract RGB.
 
-    Returns the per-frame YOLO detections accumulated in this rally
-    (frame_idx -> list[detection]) for the caller to merge into the
-    per-vid player-tracks cache.
+    Populates the per-vid wide arrays (``striker_arrays``) in-place for
+    every in-rally frame: Top + Bottom striker bbox + confidence +
+    valid mask. ``extract_stroke_rgb`` later reads from those wide
+    arrays — both for the target_frame lookup and for the
+    smoothing-fallback ±k frame walk.
     """
     set_id, rally_id, start_f, end_f, strokes = extent
     print(f'  rally set={set_id} rally={rally_id}: frames [{start_f}, {end_f}) — {len(strokes)} strokes')
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, start_f)
     rally_frames: dict[int, np.ndarray] = {}
-    rally_dets: dict[int, list[dict]] = {}
 
+    # YOLO + resolve strikers per frame; write into the per-vid wide arrays.
     for f_idx in range(start_f, end_f):
         ok, frame = cap.read()
         if not ok:
             print(f'  rally set={set_id} rally={rally_id}: short read at frame {f_idx}, stopping early')
             break
         rally_frames[f_idx] = frame
-        rally_dets[f_idx] = detect_persons(yolo_model, frame)
+        dets = detect_persons(yolo_model, frame)
+        for side in ('top', 'bottom'):
+            d = pick_striker_detection(dets, side, frame_w, frame_h, court_info)
+            if d is None:
+                continue
+            striker_arrays[f'{side}_bbox'][f_idx] = d['bbox']
+            striker_arrays[f'{side}_conf'][f_idx] = d['conf']
+            striker_arrays[f'{side}_valid'][f_idx] = True
 
-    # Per-stroke RGB extraction from the buffered frames.
+    # Per-stroke RGB extraction from the buffered frames + resolved strikers.
     n_ok = n_fallback = n_failed = 0
     for _, stroke in strokes.iterrows():
         out_path = RGB_CACHE_DIR / f'{stroke["clip_stem"]}.npy'
         if out_path.exists() and not force:
             continue
         target_f = int(stroke['frame_num'])
-        if target_f not in rally_dets:
+        if target_f not in rally_frames:
             print(f'  stroke {stroke["clip_stem"]}: target frame {target_f} not buffered, skipping')
             n_failed += 1
             continue
         tensor, used_offset = extract_stroke_rgb(
-            stroke, rally_frames, rally_dets, frame_w, frame_h, court_info,
+            stroke, rally_frames, striker_arrays, frame_w, frame_h,
         )
         if tensor is None:
             n_failed += 1
@@ -374,7 +389,6 @@ def process_rally(
     if n_fallback or n_failed:
         print(f'  rally set={set_id} rally={rally_id}: rgb {n_ok} direct, '
               f'{n_fallback} fallback, {n_failed} failed')
-    return rally_dets
 
 
 def write_player_tracks_cache(
@@ -384,27 +398,35 @@ def write_player_tracks_cache(
     frame_h: int,
     n_frames: int,
     fps: float,
-    all_dets: dict[int, list[dict]],
+    striker_arrays: dict[str, np.ndarray],
 ) -> Path:
-    """Write per-vid YOLO detections (in-rally only) to JSON cache."""
-    payload = {
-        'vid':         vid,
-        'video_path':  str(video_path),
-        'n_frames':    n_frames,
-        'fps':         fps,
-        'width':       frame_w,
-        'height':      frame_h,
-        # JSON keys must be strings; dataset code does int(k) on read.
-        'detections_per_frame': {
-            str(f): [
-                {'bbox': list(d['bbox']), 'conf': d['conf']} for d in dets
-            ]
-            for f, dets in sorted(all_dets.items())
-        },
-    }
-    out_path = PLAYERS_CACHE_DIR / f'{vid}.json'
+    """Write per-vid resolved striker bboxes (Top + Bottom) to compressed NPZ.
+
+    Wide-format arrays of length ``n_frames`` (full source video length):
+
+      - ``{top,bottom}_bbox``  (N, 4) float32  pixel (x1, y1, x2, y2); zeros
+                                               where no valid striker
+      - ``{top,bottom}_conf``  (N,)   float32  YOLO confidence
+      - ``{top,bottom}_valid`` (N,)   bool     True for in-rally frames with
+                                               an on-court detection of that side
+
+    The dataset class does O(1) lookup by source frame index — no
+    filter, no court projection at training time. Court/striker
+    resolution is baked into this cache (re-extract if those rules change).
+    """
+    out_path = PLAYERS_CACHE_DIR / f'{vid}.npz'
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(payload, separators=(',', ':')))
+    np.savez_compressed(
+        out_path,
+        # Metadata — small scalars, kept in npz so consumers don't need a sidecar.
+        vid=np.int32(vid),
+        video_path=np.array(str(video_path)),
+        n_frames=np.int32(n_frames),
+        fps=np.float32(fps),
+        width=np.int32(frame_w),
+        height=np.int32(frame_h),
+        **striker_arrays,
+    )
     return out_path
 
 
@@ -415,7 +437,7 @@ def process_one_vid(
     force: bool = False,
 ) -> None:
     """Run the single-pass preprocessing for one source video."""
-    players_cache_path = PLAYERS_CACHE_DIR / f'{vid}.json'
+    players_cache_path = PLAYERS_CACHE_DIR / f'{vid}.npz'
     if players_cache_path.exists() and not force:
         print(f'vid={vid}: players cache exists, skipping (use --force to re-run)')
         return
@@ -452,22 +474,34 @@ def process_one_vid(
         print(f'vid={vid}: {video_path.name} ({frame_w}×{frame_h} @ {fps:.2f}fps, {n_frames} frames)'
               f'  court_info={"yes" if court_info else "MISSING"}')
 
+        # Pre-allocate per-vid wide arrays. Zeros for non-rally frames + frames
+        # with no on-court detection of the side; valid mask separates the two.
+        striker_arrays: dict[str, np.ndarray] = {
+            'top_bbox':     np.zeros((n_frames, 4), dtype=np.float32),
+            'top_conf':     np.zeros(n_frames, dtype=np.float32),
+            'top_valid':    np.zeros(n_frames, dtype=bool),
+            'bottom_bbox':  np.zeros((n_frames, 4), dtype=np.float32),
+            'bottom_conf':  np.zeros(n_frames, dtype=np.float32),
+            'bottom_valid': np.zeros(n_frames, dtype=bool),
+        }
+
         extents = compute_rally_extents(strokes)
         print(f'vid={vid}: {len(extents)} rallies, {len(strokes)} strokes')
-
-        all_dets: dict[int, list[dict]] = {}
         for extent in extents:
-            rally_dets = process_rally(
+            process_rally(
                 extent, cap, yolo_model, frame_w, frame_h, force, court_info,
+                striker_arrays,
             )
-            all_dets.update(rally_dets)
     finally:
         cap.release()
 
     out_path = write_player_tracks_cache(
-        vid, video_path, frame_w, frame_h, n_frames, fps, all_dets,
+        vid, video_path, frame_w, frame_h, n_frames, fps, striker_arrays,
     )
-    print(f'vid={vid}: wrote {out_path.name} — {len(all_dets):,} in-rally frames cached')
+    n_top = int(striker_arrays['top_valid'].sum())
+    n_bot = int(striker_arrays['bottom_valid'].sum())
+    print(f'vid={vid}: wrote {out_path.name} — '
+          f'Top valid {n_top:,} frames, Bottom valid {n_bot:,} frames')
 
 
 def _worker(
