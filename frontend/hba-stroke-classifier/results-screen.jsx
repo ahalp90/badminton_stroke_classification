@@ -9,13 +9,13 @@ import { useTheme, Btn, Card } from './shared';
 // reconstructed from the per-epoch TensorBoard scalars (final val_macro_f1
 // etc.) rather than re-running eval, but that's a follow-up.
 const SPLITS = ['val', 'test'];
+const CLIP_LIMIT = 25; // TODO: Increase to 50 when changeover to real test clips occurs
 
 function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
   const { t } = useTheme();
   const [split,        setSplit]        = useState(initialSplit);
   const [clips,        setClips]        = useState([]);
   const [total,        setTotal]        = useState(0);
-  const [limit]                         = useState(25); // TODO: Increase to 50 when changeover to real test clips occurs
   const [offset,       setOffset]       = useState(0);
   const [listError,    setListError]    = useState(null);
   const [selectedStem, setSelectedStem] = useState(null);
@@ -32,7 +32,7 @@ function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
   useEffect(() => {
     if (!modelId) return;
     setListError(null);
-    const params = new URLSearchParams({ limit, offset });
+    const params = new URLSearchParams({ CLIP_LIMIT, offset });
     if (errorsOnly) params.set('errors_only', 'true');
     fetch(`/api/registry/${modelId}/splits/${split}/clips?${params}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
@@ -43,7 +43,7 @@ function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
         setSelectedStem(items[0]?.clip_stem ?? null);
       })
       .catch(err => setListError(err.message));
-  }, [modelId, split, errorsOnly, offset, limit]);
+  }, [modelId, split, errorsOnly, offset]);
 
   // Pull the selected clip's per-clip JSON.
   useEffect(() => {
@@ -159,7 +159,7 @@ function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
               marginTop: 8, fontSize: 11, color: t.muted,
               }}>
               <button
-              onClick={() => setOffset(o => Math.max(0, o-limit))}
+              onClick={() => setOffset(o => Math.max(0, o - CLIP_LIMIT))}
               disabled={offset === 0}
               style={{
                 background: 'none', border: `1px solid ${t.border}`, borderRadius: 4,
@@ -171,16 +171,16 @@ function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
                 ← Prev
               </button>
               <span>
-                {total === 0 ? '-' : `${offset + 1}-${Math.min(offset + limit, total)} of ${total}`}
+                {total === 0 ? '-' : `${offset + 1}-${Math.min(offset + CLIP_LIMIT, total)} of ${total}`}
               </span>
               <button
-              onClick={() => setOffset(o => o + limit)}
-              disabled={offset + limit >= total}
+              onClick={() => setOffset(o => o + CLIP_LIMIT)}
+              disabled={offset + CLIP_LIMIT >= total}
               style={{
                 background: 'none', border: `1px solid ${t.border}`, borderRadius: 4,
                 padding: '3px 10px', fontSize: 11, color: t.text,
-                cursor: offset + limit > total ? 'not-allowed' : 'pointer',
-                opacity: offset + limit >= total ? 0.4 : 1, 
+                cursor: offset + CLIP_LIMIT > total ? 'not-allowed' : 'pointer',
+                opacity: offset + CLIP_LIMIT >= total ? 0.4 : 1, 
               }}
               >
                 Next →
