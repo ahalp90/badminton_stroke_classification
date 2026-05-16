@@ -1,27 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useTheme, Btn, Badge, SectionHeader } from './shared';
+import { toVideo } from './utils/videoTransforms';
 import matchesData from './data/matches.json';
 
 const frameModules = import.meta.glob('./data/frames/*.jpg', { eager: true, import: 'default' });
 const frameUrl = (id) => frameModules[`./data/frames/${id}.jpg`];
-
-function toVideo(m) {
-  return {
-    id: m.id,
-    match: m.title,
-    tournament: [m.tournament, m.year, m.round].filter(Boolean).join(' '),
-    duration: '—',
-    strokes: m.strokes,
-    annotated: true,
-    youtubeId: m.youtubeId,
-    url: m.url,
-    fps: m.fps,
-    sets: m.sets,
-    year: m.year,
-    round: m.round,
-    strokeTimes: m.strokeTimes || [],
-  };
-}
 
 const CURATED = matchesData.filter(m => m.curated).map(toVideo);
 const ALL = matchesData.map(toVideo);
