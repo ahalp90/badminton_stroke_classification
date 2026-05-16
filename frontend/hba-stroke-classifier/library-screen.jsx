@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useTheme, Btn, Badge, SectionHeader } from './shared';
 import { toVideo } from './utils/videoTransforms';
+import { UPLOAD_STAGES } from './constants/uploadStages';
 import matchesData from './data/matches.json';
 
 const frameModules = import.meta.glob('./data/frames/*.jpg', { eager: true, import: 'default' });
@@ -166,13 +167,6 @@ function BrowseAllModal({ onSelect, onClose }) {
     </div>
   );
 }
-
-const UPLOAD_STAGES = [
-  { id: 'upload',  label: 'Uploading video',        ms: 1600 },
-  { id: 'meta',    label: 'Extracting metadata',    ms: 900  },
-  { id: 'frames',  label: 'Decoding key frames',    ms: 1200 },
-  { id: 'ready',   label: 'Preparing for markup',   ms: 600  },
-];
 
 function UploadingPanel({ filename, onDone }) {
   const { t } = useTheme();
