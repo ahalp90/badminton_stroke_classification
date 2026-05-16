@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import { useTheme } from '../../shared';
 import { UploadingPanel } from './UploadingPanel';
-import { ALL } from '../../library-screen.jsx'; // TODO: Remove this after un-mocking the upload
 
-export function UploadTab({ onUpload }) {
+export function UploadTab({ videos, onUpload }) { // TODO: Remove videos param after un-mocking the upload
   const { t } = useTheme();
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(null);
 
   const startMockUpload = () => {
     setDragOver(false);
-    const random = ALL[Math.floor(Math.random() * ALL.length)];
+    const random = videos[Math.floor(Math.random() * videos.length)];
     const filename = `match_${Date.now()}.mp4`;
     setUploading({ filename, video: { ...random, id: 'upload_' + Date.now(), uploadedAs: random.match } });
   };

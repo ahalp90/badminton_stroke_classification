@@ -155,7 +155,7 @@ export function LibraryScreen({ onNext }) {
           )}
         </>
       ) : (
-        <UploadTab onUpload={v => onNext(v)} />
+        <UploadTab videos={ALL} onUpload={v => onNext(v)} />
       )}
     </div>
   );
