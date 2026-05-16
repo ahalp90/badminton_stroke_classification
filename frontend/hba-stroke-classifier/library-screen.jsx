@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTheme, Btn, Badge, SectionHeader } from './shared';
 import { toVideo } from './utils/videoTransforms';
 import { BrowseAllModal } from './components/BrowseAllModal';
-import { UPLOAD_STAGES } from './constants/uploadStages';
+import { UploadTab } from './components/upload/UploadTab';
 import matchesData from './data/matches.json';
 
 const frameModules = import.meta.glob('./data/frames/*.jpg', { eager: true, import: 'default' });
@@ -58,138 +58,6 @@ function VideoCard({ video, selected, onSelect }) {
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         <Badge color="green">Annotated</Badge>
         <Badge color="blue">{video.strokes} strokes</Badge>
-      </div>
-    </div>
-  );
-}
-
-function UploadingPanel({ filename, onDone }) {
-  const { t } = useTheme();
-  const [stage, setStage] = useState(0);
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    if (stage >= UPLOAD_STAGES.length) {
-      const id = setTimeout(onDone, 200);
-      return () => clearTimeout(id);
-    }
-    setProgress(0);
-    const start = Date.now();
-    const dur = UPLOAD_STAGES[stage].ms;
-    const tick = setInterval(() => {
-      const f = Math.min(1, (Date.now() - start) / dur);
-      setProgress(f);
-      if (f >= 1) {
-        clearInterval(tick);
-        setStage(s => s + 1);
-      }
-    }, 50);
-    return () => clearInterval(tick);
-  }, [stage, onDone]);
-
-  return (
-    <div style={{
-      background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10,
-      padding: '24px 28px',
-    }}>
-      <div style={{
-        display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 18,
-      }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{filename}</div>
-        <div style={{ fontSize: 12, color: t.muted, fontFamily: "'JetBrains Mono', monospace" }}>
-          {Math.min(stage, UPLOAD_STAGES.length - 1) + 1} / {UPLOAD_STAGES.length}
-        </div>
-      </div>
-
-      {UPLOAD_STAGES.map((s, i) => {
-        const done = i < stage;
-        const active = i === stage;
-        const pct = active ? progress : done ? 1 : 0;
-        return (
-          <div key={s.id} style={{ marginBottom: 12 }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5,
-              fontSize: 12, color: done ? t.success : active ? t.text : t.muted,
-            }}>
-              <span style={{
-                display: 'inline-flex', width: 16, height: 16, borderRadius: '50%',
-                alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                background: done ? t.success : active ? t.blue : 'transparent',
-                border: `1.5px solid ${done ? t.success : active ? t.blue : t.border}`,
-                color: '#fff', fontSize: 9, fontWeight: 700,
-              }}>
-                {done ? '✓' : active ? '' : ''}
-              </span>
-              <span style={{ flex: 1, fontWeight: active ? 600 : 400 }}>{s.label}</span>
-              <span style={{
-                fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
-                color: t.muted, opacity: done || active ? 1 : 0.5,
-              }}>
-                {Math.round(pct * 100)}%
-              </span>
-            </div>
-            <div style={{ height: 3, background: t.surface2, borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', width: `${pct * 100}%`,
-                background: done ? t.success : t.blue,
-                transition: active ? 'width 0.05s linear' : 'width 0.2s ease',
-              }} />
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function UploadTab({ onUpload }) {
-  const { t } = useTheme();
-  const [dragOver, setDragOver] = useState(false);
-  const [uploading, setUploading] = useState(null);
-
-  const startMockUpload = () => {
-    setDragOver(false);
-    const random = ALL[Math.floor(Math.random() * ALL.length)];
-    const filename = `match_${Date.now()}.mp4`;
-    setUploading({ filename, video: { ...random, id: 'upload_' + Date.now(), uploadedAs: random.match } });
-  };
-
-  if (uploading) {
-    return (
-      <UploadingPanel
-        filename={uploading.filename}
-        onDone={() => onUpload(uploading.video)}
-      />
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div
-        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={e => { e.preventDefault(); startMockUpload(); }}
-        onClick={startMockUpload}
-        style={{
-          border: `2px dashed ${dragOver ? t.blue : t.border}`,
-          borderRadius: 12, padding: '52px 32px', textAlign: 'center',
-          background: dragOver ? t.blueDim : t.surface2,
-          transition: 'all 0.2s', cursor: 'pointer',
-        }}
-      >
-        <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.7 }}>⬆</div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 6 }}>
-          Drop video here, or click to browse
-        </div>
-        <div style={{ fontSize: 12, color: t.muted }}>MP4, MOV, AVI · up to 10 GB</div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 12, padding: '14px 16px', background: t.surface2, borderRadius: 8, border: `1px solid ${t.border}` }}>
-        <div style={{ fontSize: 20 }}>ℹ</div>
-        <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.6 }}>
-          Demo mode — uploaded videos are stand-ins for matches in the library.
-          The classifier will run against an annotated match so validation metrics stay meaningful.
-        </div>
       </div>
     </div>
   );
