@@ -1,18 +1,10 @@
 import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
 import { useTheme, Btn, Card } from './shared';
+import { fmtTime } from './utils/format';
+import { loadYouTubeAPI } from './utils/youtube'
 
 const frameModules = import.meta.glob('./data/frames/*.jpg', { eager: true, import: 'default' });
 const frameUrl = (id) => frameModules[`./data/frames/${id}.jpg`];
-
-const fmtTime = (s) => {
-  if (!isFinite(s)) return '–:––';
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = Math.floor(s % 60);
-  const mm = String(m).padStart(2, '0');
-  const ss = String(sec).padStart(2, '0');
-  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
-};
 
 /* ─── Step 1: Court Boundary ─────────────────────────────────────── */
 function CourtBoundaryStep({ video, onComplete }) {
@@ -241,24 +233,6 @@ function CourtBoundaryStep({ video, onComplete }) {
       </div>
     </div>
   );
-}
-
-/* ─── YouTube IFrame API loader ──────────────────────────────────── */
-function loadYouTubeAPI() {
-  if (typeof window === 'undefined') return Promise.resolve(null);
-  if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
-  if (window._ytApiPromise) return window._ytApiPromise;
-  window._ytApiPromise = new Promise((resolve) => {
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
-    const prev = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      if (prev) try { prev(); } catch { /* noop */ }
-      resolve(window.YT);
-    };
-  });
-  return window._ytApiPromise;
 }
 
 /* ─── Scrubber: buffered + density-binned pips + click-drag seek ─── */
