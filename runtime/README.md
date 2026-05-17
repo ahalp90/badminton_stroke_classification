@@ -41,9 +41,11 @@ The API code reads `runtime/deployed/<arch>/manifest.yaml` and loads
 `best.pt`; whether `deployed/<arch>/` is a symlink or a real directory
 is invisible to the API.
 
-To register a new architecture, create `runtime/deployed/<arch>/` and
-add a handler entry in `src/api/inference.py` keyed on the manifest's
-`architecture` field.
+Architectures that adopt this tree (currently BRIC) drop their
+deployed model into `runtime/deployed/<arch>/`. The backend dispatcher
+routes requests to the registered handler for that architecture.
+Adding a new architecture also requires implementing the handler — see
+`src/api/inference.py` and `src/bric/infer.py` for one example.
 
 ## `checkpoints/<dep>/`
 

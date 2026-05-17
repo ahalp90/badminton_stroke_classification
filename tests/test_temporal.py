@@ -1,4 +1,4 @@
-"""Unit tests for `perception.temporal.subsample_indices`.
+"""Unit tests for `shared.temporal.subsample_indices`.
 
 Covers the invariants we rely on for R(2+1)D pathway construction:
   - output length matches `n`
@@ -11,7 +11,7 @@ Covers the invariants we rely on for R(2+1)D pathway construction:
 
 import pytest
 
-from perception.temporal import subsample_indices
+from shared.temporal import subsample_indices
 
 
 def _span(idxs):

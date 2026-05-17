@@ -8,16 +8,16 @@ what each preview is supposed to show.
 
 Usage:
     # 5 random strokes from any vid that has cache files
-    uv run python -m scripts.bric.validate_rgb
+    uv run python -m bric.diagnostics.validate_rgb
 
     # 5 random strokes from a specific vid
-    uv run python -m scripts.bric.validate_rgb --vid 1
+    uv run python -m bric.diagnostics.validate_rgb --vid 1
 
     # specific stroke(s) by clip_stem
-    uv run python -m scripts.bric.validate_rgb --stem 1_1_3_1 1_1_5_4
+    uv run python -m bric.diagnostics.validate_rgb --stem 1_1_3_1 1_1_5_4
 
     # more strokes
-    uv run python -m scripts.bric.validate_rgb --n 20
+    uv run python -m bric.diagnostics.validate_rgb --n 20
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 CACHE = REPO / 'training' / 'bric' / 'cache' / 'rgb'
 SHOTS = REPO / 'training' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
 OUT = REPO / 'training' / 'bric' / 'cache' / 'validation'

@@ -23,13 +23,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Vendor lives at src/perception/_vendor/tracknetv3/.
+# Vendor lives at src/bric/perception/_vendor/tracknetv3/.
 _VENDOR_DIR = Path(__file__).resolve().parent / '_vendor' / 'tracknetv3'
 
 # Default weights live at runtime/checkpoints/tracknetv3/.
-# Resolved from this file: src/perception/shuttle.py → parents[2] = repo root.
+# Resolved from this file: src/bric/perception/shuttle.py → parents[3] = repo root.
 _DEFAULT_WEIGHTS_DIR = (
-    Path(__file__).resolve().parents[2]
+    Path(__file__).resolve().parents[3]
     / 'runtime' / 'checkpoints' / 'tracknetv3'
 )
 

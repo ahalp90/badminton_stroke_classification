@@ -1,7 +1,7 @@
 """Unit tests for ``bric.network.BRICNetwork``.
 
 Architecture-level tests only — the pretrained backbone download
-(~242MB) is exercised by ``scripts/bric/smoke_test.py``.
+(~242MB) is exercised by ``src/bric/smoke_test.py``.
 """
 
 import pytest

@@ -28,9 +28,9 @@ For each ``(vid, set, rally)`` group in shots_master.csv:
 Idempotency: skip if output exists. ``--force`` to redo.
 
 Usage:
-    uv run python -m scripts.slice_rallies                # all vids
-    uv run python -m scripts.slice_rallies --vid 1
-    uv run python -m scripts.slice_rallies --workers 8
+    uv run python -m bric.preprocessing.slice_rallies                # all vids
+    uv run python -m bric.preprocessing.slice_rallies --vid 1
+    uv run python -m bric.preprocessing.slice_rallies --workers 8
 """
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ from pathlib import Path
 
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / 'src'))
 
 from shared.dataset import VIDEO_METADATA_PATH  # noqa: E402

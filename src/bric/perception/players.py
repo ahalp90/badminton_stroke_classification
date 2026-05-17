@@ -38,14 +38,14 @@ from typing import Literal
 
 import numpy as np
 
-from perception.video_io import get_video_info
+from shared.video_io import get_video_info
 from shared.court import convert_homogeneous, project
 
 # Project-relative default location for the YOLO11n weights.
 # runtime/checkpoints/ is gitignored; ultralytics auto-downloads to this path
-# on first use. This file lives at <project>/src/perception/players.py, so
-# parents[2] = <project>.
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# on first use. This file lives at <project>/src/bric/perception/players.py, so
+# parents[3] = <project>.
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_YOLO_WEIGHTS = _PROJECT_ROOT / "runtime" / "checkpoints" / "yolo11" / "yolo11n.pt"
 
 CourtSide = Literal["top", "bottom", "unknown"]

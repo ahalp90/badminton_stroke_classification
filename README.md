@@ -40,8 +40,13 @@ Explainable AI activation mapping overlays are currently also in development.
 ## Project structure
 
 - `src/bst_refactor/` — data pipeline and badminton stroke classifier; standalone subproject with its own pinned environments
-- `src/api/` — FastAPI service for upload + inference orchestration (front-end inference path is currently stubbed)
+- `src/bric/` — BRIC (Badminton RGB Inference Classifier): R(2+1)D-18 backbone with optional shuttle + court fusion lanes. Self-contained: network/dataset/train/infer/eval, plus its own `perception/` (YOLO+TrackNet), `preprocessing/` (cache producers), and `diagnostics/` (cache validators)
+- `src/shared/` — values and utilities BRIC consumes: stroke taxonomy, court geometry, player mapping, video I/O, frame-window helpers
+- `src/api/` — FastAPI service: model registry endpoints (Tier 1 — browse precomputed predictions), upload + inference orchestration (Tier 2 — inference path currently stubbed)
 - `frontend/` — React app, WIP; intended to showcase model inference end-to-end
+- `scripts/` — cross-cutting setup and shared data-prep only (e.g. `build_shots_master.py`, `validate_videos.py`, `setup_data.sh`). Per-architecture scripts live with their architecture (`src/bric/preprocessing/`, `src/bric/diagnostics/`)
+- `training/` — per-model training data, caches, and run artefacts (gitignored)
+- `runtime/` — runtime state for the API + inference jobs (gitignored)
 - `scratch/architecture_notes/` — design docs, experiment writeups, taxonomy and loss exploration
 - `scratch/presentation_prep/` — charts and eval scripts for milestone reporting
 - `tests/` — pytest suite (environment, dataset, API, integration smoke)
