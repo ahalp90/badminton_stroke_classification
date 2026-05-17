@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTheme, Btn, Card } from './shared';
+import { useClipList, useClipDetail } from './hooks'
 
 /* ─── Per-clip browser (Tier 1, from /api/registry sidecar JSONs) ── */
 // Both val and test have mock predictions via build_mock_artifacts.py, so
@@ -9,52 +10,19 @@ import { useTheme, Btn, Card } from './shared';
 // reconstructed from the per-epoch TensorBoard scalars (final val_macro_f1
 // etc.) rather than re-running eval, but that's a follow-up.
 const SPLITS = ['val', 'test'];
-const CLIP_LIMIT = 25; // TODO: Increase to 50 when changeover to real test clips occurs
 
 function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
   const { t } = useTheme();
   const [split,        setSplit]        = useState(initialSplit);
-  const [clips,        setClips]        = useState([]);
-  const [total,        setTotal]        = useState(0);
-  const [offset,       setOffset]       = useState(0);
-  const [listError,    setListError]    = useState(null);
   const [selectedStem, setSelectedStem] = useState(null);
-  const [detail,       setDetail]       = useState(null);
-  const [detailError,  setDetailError]  = useState(null);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [errorsOnly,   setErrorsOnly]   = useState(false);
 
-  // Reset to page 1 when filters change.
-  useEffect(() => { setOffset(0); }, [modelId, split, errorsOnly]);
+  const { clips, total, offset, setOffset, limit, error: listError} = useClipList({ modelId, split, errorsOnly });
+  const { detail, loading: detailLoading, error: detailError } = useClipDetail({ modelId, split, selectedStem});
 
-  // Pull the clip list whenever model / split / filter changes. Parent owns
-  // model resolution; we just react to whatever modelId comes through.
   useEffect(() => {
-    if (!modelId) return;
-    setListError(null);
-    const params = new URLSearchParams({ CLIP_LIMIT, offset });
-    if (errorsOnly) params.set('errors_only', 'true');
-    fetch(`/api/registry/${modelId}/splits/${split}/clips?${params}`)
-      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
-      .then(data => {
-        const items = data.clips || [];
-        setClips(items);
-        setTotal(data.total ?? 0);
-        setSelectedStem(items[0]?.clip_stem ?? null);
-      })
-      .catch(err => setListError(err.message));
-  }, [modelId, split, errorsOnly, offset]);
-
-  // Pull the selected clip's per-clip JSON.
-  useEffect(() => {
-    if (!modelId || !selectedStem) { setDetail(null); return; }
-    setDetailLoading(true);
-    setDetailError(null);
-    fetch(`/api/registry/${modelId}/splits/${split}/clips/${selectedStem}`)
-      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
-      .then(d => { setDetail(d); setDetailLoading(false); })
-      .catch(err => { setDetailError(err.message); setDetailLoading(false); });
-  }, [modelId, split, selectedStem]);
+    setSelectedStem(clips[0]?.clip_stem ?? null);
+  }, [clips]);
 
   if (!modelId && !listError) {
     return (
@@ -159,7 +127,7 @@ function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
               marginTop: 8, fontSize: 11, color: t.muted,
               }}>
               <button
-              onClick={() => setOffset(o => Math.max(0, o - CLIP_LIMIT))}
+              onClick={() => setOffset(o => Math.max(0, o - limit))}
               disabled={offset === 0}
               style={{
                 background: 'none', border: `1px solid ${t.border}`, borderRadius: 4,
@@ -171,16 +139,16 @@ function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
                 ← Prev
               </button>
               <span>
-                {total === 0 ? '-' : `${offset + 1}-${Math.min(offset + CLIP_LIMIT, total)} of ${total}`}
+                {total === 0 ? '-' : `${offset + 1}-${Math.min(offset + limit, total)} of ${total}`}
               </span>
               <button
-              onClick={() => setOffset(o => o + CLIP_LIMIT)}
-              disabled={offset + CLIP_LIMIT >= total}
+              onClick={() => setOffset(o => o + limit)}
+              disabled={offset + limit >= total}
               style={{
                 background: 'none', border: `1px solid ${t.border}`, borderRadius: 4,
                 padding: '3px 10px', fontSize: 11, color: t.text,
-                cursor: offset + CLIP_LIMIT > total ? 'not-allowed' : 'pointer',
-                opacity: offset + CLIP_LIMIT >= total ? 0.4 : 1, 
+                cursor: offset + limit > total ? 'not-allowed' : 'pointer',
+                opacity: offset + limit >= total ? 0.4 : 1, 
               }}
               >
                 Next →
@@ -382,7 +350,7 @@ export function ResultsScreen({ task, onNew }) {
   useEffect(() => {
     let alive = true;
     fetch('/api/registry')
-      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(response => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
       .then(data => {
         if (!alive) return;
         const models = data.models || [];
