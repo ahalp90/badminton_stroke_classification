@@ -37,7 +37,6 @@ from shared.dataset import HOMOGRAPHY_CSV_PATH  # noqa: E402
 
 _SHOTS_MASTER = _REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
 _SET_DIR      = _REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'annotations' / 'set'
-_VIDEO_META   = _REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'annotations' / 'video_metadata.csv'
 _PLAYERS_DIR  = _REPO_ROOT / 'training' / 'bric' / 'cache' / 'players'
 
 
@@ -73,13 +72,11 @@ def project_pixel_to_court(
 
 
 def main(sample_size: int) -> None:
-    print(f'Loading metadata ...')
+    print('Loading metadata ...')
     shots = pd.read_csv(_SHOTS_MASTER)
-    video_meta = pd.read_csv(_VIDEO_META).set_index('id')
     court_info_by_vid = load_all_court_info(HOMOGRAPHY_CSV_PATH)
 
     # Sample strokes deterministically across vids so we don't miss whole matches.
-    rng = np.random.default_rng(seed=42)
     sample = shots.sample(n=min(sample_size, len(shots)), random_state=42).copy()
 
     # Cache loads: set CSVs per match (lazy), player npz per vid (lazy).
