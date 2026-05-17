@@ -22,6 +22,12 @@ class Job:
     created_at: datetime = field(default_factory=datetime.utcnow)
     result: Optional[dict] = None
     error: Optional[str] = None
+    # Optional fields captured for echo-back in /api/results so the FE can
+    # confirm the markup sidecar (Gap 1) and library_predict context
+    # (Gap 2) reached the server.
+    markup: Optional[dict] = None
+    source: str = "upload"  # "upload" | "library"
+    clip_stem: Optional[str] = None
 
 
 class JobStore:
@@ -29,8 +35,25 @@ class JobStore:
         self._jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
 
-    def create(self, job_id: str, filename: str, model_name: str, video_path: str) -> Job:
-        job = Job(job_id=job_id, filename=filename, model_name=model_name, video_path=video_path)
+    def create(
+        self,
+        job_id: str,
+        filename: str,
+        model_name: str,
+        video_path: str,
+        markup: Optional[dict] = None,
+        source: str = "upload",
+        clip_stem: Optional[str] = None,
+    ) -> Job:
+        job = Job(
+            job_id=job_id,
+            filename=filename,
+            model_name=model_name,
+            video_path=video_path,
+            markup=markup,
+            source=source,
+            clip_stem=clip_stem,
+        )
         with self._lock:
             self._jobs[job_id] = job
         return job

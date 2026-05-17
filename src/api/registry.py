@@ -88,6 +88,11 @@ def _summarise_model(entry: dict) -> dict:
          if s.get("serial_no") == entry["serial_no"]),
         {},
     )
+    # val_metrics.json is produced by scripts/compute_val_metrics.py, which
+    # runs the same checkpoint over /app/bst_inputs/val. Missing file just
+    # means the script hasn't been run for this run dir yet — we fall back
+    # to {} and the FE shows its "No val metrics available" placeholder.
+    val_metrics_raw = _read_json_under_run(entry["manifest_path"], "val_metrics.json")
     class_list = manifest.get("extra", {}).get("arch", {}).get("active_class_list", [])
     return {
         "id": entry["id"],
@@ -102,7 +107,7 @@ def _summarise_model(entry: dict) -> dict:
         "class_list": class_list,
         "splits_available": ["val", "test"],
         "test_metrics": _format_metrics(serial_metrics),
-        "val_metrics": {},
+        "val_metrics": _format_metrics(val_metrics_raw),
     }
 
 
@@ -232,6 +237,41 @@ def get_clip(model_id: str, split: str, stem: str) -> dict:
         raise HTTPException(status_code=404, detail=f"Clip '{stem}' not in split={split}")
     idx_entry = clip_index.get(stem, {})
 
+    # --- Real BST forward pass when the data is available. -------------
+    # On this branch, scratch/bst_inputs/{split} carries the SCP'd
+    # collated tensors for the 28 test + 28 val real stems, and the
+    # repo ships serial_5.pt. bst_inference.predict() slices the
+    # right row, builds the (B=1) input, and runs forward. We fall
+    # back to whatever predictions JSON the registry has if anything
+    # in that chain isn't available — keeps the endpoint working in
+    # demo-with-no-bst-inputs deployments.
+    live = None
+    try:
+        from .bst_inference import predict as bst_predict, BstInferenceUnavailable
+        live = bst_predict(stem, split)
+    except BstInferenceUnavailable as e:
+        log.info("clip %s: live BST inference unavailable (%s); using cached predictions", stem, e)
+    except Exception as e:
+        log.exception("clip %s: live BST inference error; falling back to cached predictions: %s", stem, e)
+
+    if live is not None:
+        return {
+            "clip_stem": stem,
+            "video_url": f"/api/clips/{stem}/video",
+            "true_class": live["true_class"],
+            "predicted_class": live["predicted_class"],
+            "is_correct": live["predicted_class"] == live["true_class"],
+            "confidence_pct": live["confidence_pct"],
+            "top_k": live["top_k"],
+            "match": idx_entry.get("match"),
+            "set_id": idx_entry.get("set_id"),
+            "rally": idx_entry.get("rally"),
+            "ball_round": idx_entry.get("ball_round"),
+            "split": idx_entry.get("split", split),
+            "drawn_from": live["drawn_from"],
+        }
+
+    # --- Fallback: serve cached predictions from the JSON. -------------
     top_k = [
         {"class": class_list[i], "confidence": p}
         for i, p in zip(record["top_k_idx"], record["top_k_prob"])
@@ -251,6 +291,7 @@ def get_clip(model_id: str, split: str, stem: str) -> dict:
         "rally": idx_entry.get("rally"),
         "ball_round": idx_entry.get("ball_round"),
         "split": idx_entry.get("split", split),
+        "drawn_from": "cached_predictions_json",
     }
 
 

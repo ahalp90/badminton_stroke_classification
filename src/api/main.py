@@ -1,15 +1,17 @@
 import asyncio
+import json
 import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import List, Literal, Optional
 
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from .config import (
     ALLOWED_EXTENSIONS,
@@ -23,6 +25,78 @@ from .config import (
 from .inference import run_inference
 from .jobs import JobStatus, JobStore
 from .registry import router as registry_router
+
+
+# ─── Markup schema (matches docs/api_contract.md on feat/bric-pipeline) ───
+# Subset honoured for v1: the inference stub doesn't *use* these values yet
+# (real homography/segmentation lands with the BST/MMPose/TrackNet pipeline),
+# but the upload + library_predict endpoints accept, validate, log, and echo
+# them so the FE can confirm they reached the server.
+
+class BoundaryPoint(BaseModel):
+    x: float = Field(ge=0.0, le=1.0)
+    y: float = Field(ge=0.0, le=1.0)
+
+
+class StrokeAnnotation(BaseModel):
+    target_frame: int = Field(ge=0)
+    region_start_frame: int = Field(ge=0)
+    region_end_frame: int = Field(ge=0)
+    player_side: Optional[Literal["top", "bottom"]] = None
+
+
+class Markup(BaseModel):
+    architecture: Optional[Literal["bric", "bst"]] = None
+    model_id: Optional[str] = None
+    orientation: Literal["portrait"] = "portrait"
+    video_label: Optional[str] = None
+    boundary: Optional[List[BoundaryPoint]] = None
+    annotations: List[StrokeAnnotation] = Field(default_factory=list)
+    enabled_sides: List[Literal["top", "bottom"]] = Field(default_factory=lambda: ["top", "bottom"])
+    player_top_id: Optional[str] = None
+    player_top_label: Optional[str] = None
+    player_bottom_id: Optional[str] = None
+    player_bottom_label: Optional[str] = None
+
+    @field_validator("boundary")
+    @classmethod
+    def boundary_is_four_points(cls, v):
+        if v is None:
+            return v
+        if len(v) != 4:
+            raise ValueError("boundary must contain exactly 4 points")
+        return v
+
+    @field_validator("annotations")
+    @classmethod
+    def annotation_window_valid(cls, v):
+        for i, a in enumerate(v):
+            if not (a.region_start_frame <= a.target_frame <= a.region_end_frame):
+                raise ValueError(
+                    f"annotations[{i}]: require region_start ≤ target ≤ region_end"
+                )
+        return v
+
+
+class LibraryPredictRequest(BaseModel):
+    clip_stem: str
+    model_id: Optional[str] = None
+    architecture: Optional[Literal["bric", "bst"]] = None
+    markup: Optional[Markup] = None
+
+
+def _parse_markup_json(raw: Optional[str]) -> Optional[dict]:
+    if raw is None or raw == "":
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"markup is not valid JSON: {e}")
+    try:
+        m = Markup.model_validate(parsed)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=f"markup failed validation: {e.errors()}")
+    return m.model_dump(exclude_none=False)
 
 log = logging.getLogger(__name__)
 logging.basicConfig(
@@ -85,9 +159,91 @@ def _process_video(job_id: str, video_path: str, model_name: str):
     log.info("job %s: inference started (model=%s)", job_id, model_name)
     job_store.update(job_id, JobStatus.PROCESSING)
     try:
-        result = run_inference(video_path, model_name)
+        job = job_store.get(job_id)
+        markup = job.markup if job is not None else None
+
+        result = None
+        # Library jobs: try the real BST forward-pass path first. If the
+        # stem is in the index AND the SCP'd collated tensors exist, we
+        # return the model's actual prediction. Anything missing → smart
+        # stub fallback. Upload jobs always go through the smart stub
+        # because there's no real ML pipeline for arbitrary user video.
+        #
+        # Multi-annotation gate: the live BST predict() takes one clip
+        # stem and returns one prediction. When the user marks multiple
+        # strokes we'd produce a strokes[] of length 1 against
+        # annotations[] of length N and trip the FE's count-mismatch
+        # warning. Route those through the smart stub, which generates
+        # one stroke per annotation, until per-annotation forward passes
+        # are wired up.
+        annotation_count = len(((markup or {}).get("annotations")) or [])
+        if (
+            job is not None
+            and job.source == "library"
+            and job.clip_stem
+            and annotation_count <= 1
+        ):
+            try:
+                from .bst_inference import predict as bst_predict, BstInferenceUnavailable
+                live = bst_predict(job.clip_stem, split=None)
+                # Translate live shape → the same {strokes, rally_summary}
+                # envelope the FE already renders.
+                annos = ((markup or {}).get("annotations")) or []
+                starts = [int(a.get("region_start_frame", 0)) for a in annos
+                          if a.get("region_start_frame") is not None]
+                ends = [int(a.get("region_end_frame", 0)) for a in annos
+                        if a.get("region_end_frame") is not None]
+                live_rally_length = (
+                    round(max(0.0, (max(ends) - min(starts)) / 30.0), 1)
+                    if starts and ends else 0.0
+                )
+                # Target frame for the headline stroke comes from the
+                # user's annotation when present; otherwise 0.
+                live_target_frame = int(annos[0].get("target_frame", 0)) if annos else 0
+                live_timestamp = round(live_target_frame / 30.0, 2) if live_target_frame else 0.0
+                result = {
+                    "strokes": [{
+                        "timestamp_sec": live_timestamp,
+                        "stroke_type":   live["predicted_class"],
+                        "confidence":    live["top_k"][0]["confidence"] if live["top_k"] else 0.0,
+                        "stroke_index":  0,
+                        "target_frame":  live_target_frame,
+                        "player_side":   annos[0].get("player_side") if annos else None,
+                        "predicted_class": live["predicted_class"],
+                        "confidence_pct": live["confidence_pct"],
+                        "top_k":          live["top_k"],
+                        "true_class_hint": live["true_class"],
+                        "drawn_from":     live["drawn_from"],
+                    }],
+                    "rally_summary": {
+                        "total_strokes":         1,
+                        "rally_length_seconds":  live_rally_length,
+                    },
+                    "live_inference": True,
+                }
+                log.info("job %s: live BST forward pass succeeded for stem=%s", job_id, job.clip_stem)
+            except (BstInferenceUnavailable, KeyError, ValueError) as e:
+                log.info("job %s: live BST unavailable for stem=%s (%s); falling back to smart stub",
+                         job_id, job.clip_stem, e)
+            except Exception as e:
+                log.exception("job %s: live BST errored for stem=%s; falling back to smart stub: %s",
+                              job_id, job.clip_stem, e)
+
+        if result is None:
+            result = run_inference(video_path, model_name, markup=markup)
+            result["live_inference"] = False
+
+        # Echo the markup sidecar (Gap 1) + source + clip_stem (Gap 2)
+        # into the result envelope so the FE can surface confirmation.
+        if job is not None:
+            if job.markup is not None:
+                result = {**result, "markup_echo": job.markup}
+            if job.source == "library" and job.clip_stem is not None:
+                result = {**result, "clip_stem": job.clip_stem, "source": "library"}
+            elif job.source == "upload":
+                result = {**result, "source": "upload"}
         job_store.update(job_id, JobStatus.COMPLETE, result=result)
-        log.info("job %s: complete", job_id)
+        log.info("job %s: complete (live=%s)", job_id, result.get("live_inference"))
     except Exception as exc:
         job_store.update(job_id, JobStatus.FAILED, error=str(exc))
         log.error("job %s: failed - %s", job_id, exc)
@@ -143,6 +299,10 @@ async def _apply_crop(
 async def upload_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    # Optional Markup sidecar (see Markup model above). Stringified JSON in
+    # the multipart form because FastAPI's multipart parser doesn't accept
+    # nested JSON natively. Parsed + validated by _parse_markup_json.
+    markup: Optional[str] = Form(default=None),
     model: str = Query(default="default"),
     start_sec: Optional[float] = Query(default=None, ge=0, description="Temporal crop start in seconds"),
     end_sec: Optional[float] = Query(default=None, gt=0, description="Temporal crop end in seconds"),
@@ -203,8 +363,76 @@ async def upload_video(
             video_path.unlink(missing_ok=True)
             raise HTTPException(status_code=422, detail=str(exc))
 
-    job_store.create(job_id, filename=file.filename, model_name=model, video_path=str(video_path))
+    markup_dict = _parse_markup_json(markup)
+    if markup_dict is not None:
+        log.info(
+            "job %s: markup received (boundary=%s annotations=%d arch=%s model_id=%s)",
+            job_id,
+            "yes" if markup_dict.get("boundary") else "no",
+            len(markup_dict.get("annotations") or []),
+            markup_dict.get("architecture"),
+            markup_dict.get("model_id"),
+        )
+
+    job_store.create(
+        job_id,
+        filename=file.filename,
+        model_name=model,
+        video_path=str(video_path),
+        markup=markup_dict,
+        source="upload",
+    )
     background_tasks.add_task(_process_video, job_id, str(video_path), model)
+
+    return {"job_id": job_id, "status": "queued"}
+
+
+@app.post("/api/library_predict")
+async def library_predict(req: LibraryPredictRequest, background_tasks: BackgroundTasks):
+    """Run inference against a library clip by its identifier.
+
+    Mirrors /api/upload's job lifecycle so the FE can reuse the same
+    status + results polling. The stubbed inference still runs from
+    inference.py — no real model invocation here. The clip_stem and
+    markup are echoed back in /api/results.
+
+    The clip_stem is opaque: if it matches a known dataset stem in the
+    registry index, the resolved mp4 is used; otherwise the job still
+    runs (the canned stub doesn't read the video), so this endpoint
+    also accepts library YouTube identifiers as a stand-in stem for
+    demo purposes."""
+    from .registry import _build_stem_index  # local import to avoid cycle
+    from .config import BST_CLIPS_DIR
+
+    rel_path = _build_stem_index().get(req.clip_stem)
+    abs_path: Path
+    if rel_path is not None and BST_CLIPS_DIR is not None and (BST_CLIPS_DIR / rel_path).exists():
+        abs_path = BST_CLIPS_DIR / rel_path
+        resolution = "dataset_clip"
+    else:
+        # Stand-in: stub inference doesn't read the file, but we still
+        # surface a stable, non-existent path on the job so logs make sense.
+        abs_path = UPLOAD_DIR / f"library_stub_{req.clip_stem}.mp4"
+        resolution = "stub_no_video"
+
+    markup_dict = req.markup.model_dump(exclude_none=False) if req.markup else None
+    job_id = str(uuid.uuid4())
+    model_name = req.model_id or req.architecture or "default"
+    log.info(
+        "library_predict: job=%s clip=%s model=%s markup=%s resolution=%s",
+        job_id, req.clip_stem, model_name, "yes" if markup_dict else "no", resolution,
+    )
+
+    job_store.create(
+        job_id,
+        filename=f"{req.clip_stem}.mp4",
+        model_name=model_name,
+        video_path=str(abs_path),
+        markup=markup_dict,
+        source="library",
+        clip_stem=req.clip_stem,
+    )
+    background_tasks.add_task(_process_video, job_id, str(abs_path), model_name)
 
     return {"job_id": job_id, "status": "queued"}
 
