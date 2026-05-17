@@ -1,0 +1,565 @@
+{
+  "_mock_data": true,
+  "clips": {
+    "16_1_6_30": {
+      "video_path": "train/Top_smash/16_1_42_4.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set1",
+      "rally": 6,
+      "ball_round": 30,
+      "split": "val",
+      "raw_type_en": "net_shot",
+      "player_side": "Bottom"
+    },
+    "15_2_7_38": {
+      "video_path": "train/Top_smash/18_2_19_16.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set2",
+      "rally": 7,
+      "ball_round": 38,
+      "split": "val",
+      "raw_type_en": "net_shot",
+      "player_side": "Bottom"
+    },
+    "15_1_1_17": {
+      "video_path": "train/Top_smash/3_1_14_9.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set1",
+      "rally": 1,
+      "ball_round": 17,
+      "split": "val",
+      "raw_type_en": "return_net",
+      "player_side": "Top"
+    },
+    "41_2_15_26": {
+      "video_path": "train/Top_smash/3_1_18_3.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set2",
+      "rally": 15,
+      "ball_round": 26,
+      "split": "val",
+      "raw_type_en": "return_net",
+      "player_side": "Bottom"
+    },
+    "7_3_14_37": {
+      "video_path": "train/Top_smash/18_2_19_16.mp4",
+      "match": "Akane_YAMAGUCHI_TAI_Tzu_Ying_All_England_2022_Semis",
+      "set_id": "set3",
+      "rally": 14,
+      "ball_round": 37,
+      "split": "val",
+      "raw_type_en": "smash",
+      "player_side": "Top"
+    },
+    "41_1_25_2": {
+      "video_path": "train/Top_smash/3_1_14_9.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set1",
+      "rally": 25,
+      "ball_round": 2,
+      "split": "val",
+      "raw_type_en": "smash",
+      "player_side": "Bottom"
+    },
+    "6_2_18_24": {
+      "video_path": "train/Top_smash/3_1_37_10.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set2",
+      "rally": 18,
+      "ball_round": 24,
+      "split": "val",
+      "raw_type_en": "wrist_smash",
+      "player_side": "Top"
+    },
+    "36_1_5_40": {
+      "video_path": "train/Top_smash/3_2_6_11.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set1",
+      "rally": 5,
+      "ball_round": 40,
+      "split": "val",
+      "raw_type_en": "wrist_smash",
+      "player_side": "Top"
+    },
+    "14_3_17_21": {
+      "video_path": "train/Bottom_cross_court_net_shot/19_1_22_7.mp4",
+      "match": "LOH_Kean_Yew_LEE_Zii_Jia_World_Championships_2021_Finals",
+      "set_id": "set3",
+      "rally": 17,
+      "ball_round": 21,
+      "split": "val",
+      "raw_type_en": "lob",
+      "player_side": "Top"
+    },
+    "7_1_24_31": {
+      "video_path": "train/Bottom_net_shot/16_2_17_15.mp4",
+      "match": "An_Se_young_Carolina_MARIN_BWF_World_Tour_Finals_2023",
+      "set_id": "set1",
+      "rally": 24,
+      "ball_round": 31,
+      "split": "val",
+      "raw_type_en": "lob",
+      "player_side": "Top"
+    },
+    "50_2_17_28": {
+      "video_path": "train/Bottom_short_service/11_2_13_1.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set2",
+      "rally": 17,
+      "ball_round": 28,
+      "split": "val",
+      "raw_type_en": "clear",
+      "player_side": "Bottom"
+    },
+    "23_3_1_18": {
+      "video_path": "train/Top_drop/14_1_27_8.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set3",
+      "rally": 1,
+      "ball_round": 18,
+      "split": "val",
+      "raw_type_en": "clear",
+      "player_side": "Bottom"
+    },
+    "32_1_17_26": {
+      "video_path": "train/Top_drop/14_1_35_4.mp4",
+      "match": "An_Se_young_Carolina_MARIN_BWF_World_Tour_Finals_2023",
+      "set_id": "set1",
+      "rally": 17,
+      "ball_round": 26,
+      "split": "val",
+      "raw_type_en": "drive",
+      "player_side": "Bottom"
+    },
+    "3_3_6_31": {
+      "video_path": "train/Top_net_shot/11_1_19_2.mp4",
+      "match": "LOH_Kean_Yew_LEE_Zii_Jia_World_Championships_2021_Finals",
+      "set_id": "set3",
+      "rally": 6,
+      "ball_round": 31,
+      "split": "val",
+      "raw_type_en": "drive",
+      "player_side": "Bottom"
+    },
+    "16_2_29_4": {
+      "video_path": "train/Top_smash/11_1_17_9.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set2",
+      "rally": 29,
+      "ball_round": 4,
+      "split": "val",
+      "raw_type_en": "drop",
+      "player_side": "Bottom"
+    },
+    "43_2_16_14": {
+      "video_path": "train/Top_smash/16_1_42_4.mp4",
+      "match": "LOH_Kean_Yew_LEE_Zii_Jia_World_Championships_2021_Finals",
+      "set_id": "set2",
+      "rally": 16,
+      "ball_round": 14,
+      "split": "val",
+      "raw_type_en": "drop",
+      "player_side": "Bottom"
+    },
+    "17_2_6_9": {
+      "video_path": "train/Top_smash/18_2_19_16.mp4",
+      "match": "Akane_YAMAGUCHI_TAI_Tzu_Ying_All_England_2022_Semis",
+      "set_id": "set2",
+      "rally": 6,
+      "ball_round": 9,
+      "split": "val",
+      "raw_type_en": "passive_drop",
+      "player_side": "Bottom"
+    },
+    "38_1_6_23": {
+      "video_path": "train/Top_smash/3_1_14_9.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set1",
+      "rally": 6,
+      "ball_round": 23,
+      "split": "val",
+      "raw_type_en": "passive_drop",
+      "player_side": "Bottom"
+    },
+    "6_3_13_7": {
+      "video_path": "train/Top_smash/3_1_18_3.mp4",
+      "match": "LOH_Kean_Yew_LEE_Zii_Jia_World_Championships_2021_Finals",
+      "set_id": "set3",
+      "rally": 13,
+      "ball_round": 7,
+      "split": "val",
+      "raw_type_en": "push",
+      "player_side": "Bottom"
+    },
+    "33_2_18_9": {
+      "video_path": "train/Top_smash/3_1_37_10.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set2",
+      "rally": 18,
+      "ball_round": 9,
+      "split": "val",
+      "raw_type_en": "push",
+      "player_side": "Bottom"
+    },
+    "18_2_15_16": {
+      "video_path": "train/Top_smash/3_2_6_11.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set2",
+      "rally": 15,
+      "ball_round": 16,
+      "split": "val",
+      "raw_type_en": "rush",
+      "player_side": "Bottom"
+    },
+    "40_3_27_38": {
+      "video_path": "train/Bottom_cross_court_net_shot/19_1_22_7.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set3",
+      "rally": 27,
+      "ball_round": 38,
+      "split": "val",
+      "raw_type_en": "rush",
+      "player_side": "Top"
+    },
+    "18_1_14_32": {
+      "video_path": "train/Bottom_net_shot/16_2_17_15.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set1",
+      "rally": 14,
+      "ball_round": 32,
+      "split": "val",
+      "raw_type_en": "cross_court_net_shot",
+      "player_side": "Top"
+    },
+    "24_2_7_38": {
+      "video_path": "train/Bottom_short_service/11_2_13_1.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set2",
+      "rally": 7,
+      "ball_round": 38,
+      "split": "val",
+      "raw_type_en": "cross_court_net_shot",
+      "player_side": "Top"
+    },
+    "4_1_4_28": {
+      "video_path": "train/Top_drop/14_1_27_8.mp4",
+      "match": "An_Se_young_Carolina_MARIN_BWF_World_Tour_Finals_2023",
+      "set_id": "set1",
+      "rally": 4,
+      "ball_round": 28,
+      "split": "val",
+      "raw_type_en": "short_service",
+      "player_side": "Top"
+    },
+    "5_3_10_26": {
+      "video_path": "train/Top_drop/14_1_35_4.mp4",
+      "match": "An_Se_young_Carolina_MARIN_BWF_World_Tour_Finals_2023",
+      "set_id": "set3",
+      "rally": 10,
+      "ball_round": 26,
+      "split": "val",
+      "raw_type_en": "short_service",
+      "player_side": "Bottom"
+    },
+    "22_1_12_25": {
+      "video_path": "train/Top_net_shot/11_1_19_2.mp4",
+      "match": "An_Se_young_Carolina_MARIN_BWF_World_Tour_Finals_2023",
+      "set_id": "set1",
+      "rally": 12,
+      "ball_round": 25,
+      "split": "val",
+      "raw_type_en": "long_service",
+      "player_side": "Top"
+    },
+    "42_3_12_19": {
+      "video_path": "train/Top_smash/11_1_17_9.mp4",
+      "match": "Akane_YAMAGUCHI_TAI_Tzu_Ying_All_England_2022_Semis",
+      "set_id": "set3",
+      "rally": 12,
+      "ball_round": 19,
+      "split": "val",
+      "raw_type_en": "long_service",
+      "player_side": "Bottom"
+    },
+    "2_2_17_20": {
+      "video_path": "train/Bottom_net_shot/16_2_17_15.mp4",
+      "match": "LOH_Kean_Yew_LEE_Zii_Jia_World_Championships_2021_Finals",
+      "set_id": "set2",
+      "rally": 17,
+      "ball_round": 20,
+      "split": "test",
+      "raw_type_en": "net_shot",
+      "player_side": "Bottom"
+    },
+    "24_2_21_14": {
+      "video_path": "train/Top_net_shot/11_1_19_2.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set2",
+      "rally": 21,
+      "ball_round": 14,
+      "split": "test",
+      "raw_type_en": "net_shot",
+      "player_side": "Bottom"
+    },
+    "45_2_15_4": {
+      "video_path": "train/Bottom_cross_court_net_shot/19_1_22_7.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set2",
+      "rally": 15,
+      "ball_round": 4,
+      "split": "test",
+      "raw_type_en": "return_net",
+      "player_side": "Top"
+    },
+    "34_2_13_24": {
+      "video_path": "train/Bottom_net_shot/16_2_17_15.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set2",
+      "rally": 13,
+      "ball_round": 24,
+      "split": "test",
+      "raw_type_en": "return_net",
+      "player_side": "Top"
+    },
+    "8_3_17_5": {
+      "video_path": "train/Top_smash/11_1_17_9.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set3",
+      "rally": 17,
+      "ball_round": 5,
+      "split": "test",
+      "raw_type_en": "smash",
+      "player_side": "Bottom"
+    },
+    "4_1_2_9": {
+      "video_path": "train/Top_smash/16_1_42_4.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set1",
+      "rally": 2,
+      "ball_round": 9,
+      "split": "test",
+      "raw_type_en": "smash",
+      "player_side": "Bottom"
+    },
+    "34_2_21_4": {
+      "video_path": "train/Bottom_short_service/11_2_13_1.mp4",
+      "match": "Akane_YAMAGUCHI_TAI_Tzu_Ying_All_England_2022_Semis",
+      "set_id": "set2",
+      "rally": 21,
+      "ball_round": 4,
+      "split": "test",
+      "raw_type_en": "wrist_smash",
+      "player_side": "Top"
+    },
+    "30_3_28_31": {
+      "video_path": "train/Top_drop/14_1_27_8.mp4",
+      "match": "Akane_YAMAGUCHI_TAI_Tzu_Ying_All_England_2022_Semis",
+      "set_id": "set3",
+      "rally": 28,
+      "ball_round": 31,
+      "split": "test",
+      "raw_type_en": "wrist_smash",
+      "player_side": "Top"
+    },
+    "45_2_24_18": {
+      "video_path": "train/Top_drop/14_1_35_4.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set2",
+      "rally": 24,
+      "ball_round": 18,
+      "split": "test",
+      "raw_type_en": "lob",
+      "player_side": "Top"
+    },
+    "16_3_11_39": {
+      "video_path": "train/Top_net_shot/11_1_19_2.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set3",
+      "rally": 11,
+      "ball_round": 39,
+      "split": "test",
+      "raw_type_en": "lob",
+      "player_side": "Top"
+    },
+    "35_3_25_10": {
+      "video_path": "train/Top_smash/11_1_17_9.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set3",
+      "rally": 25,
+      "ball_round": 10,
+      "split": "test",
+      "raw_type_en": "clear",
+      "player_side": "Top"
+    },
+    "25_3_17_6": {
+      "video_path": "train/Top_smash/16_1_42_4.mp4",
+      "match": "LOH_Kean_Yew_LEE_Zii_Jia_World_Championships_2021_Finals",
+      "set_id": "set3",
+      "rally": 17,
+      "ball_round": 6,
+      "split": "test",
+      "raw_type_en": "clear",
+      "player_side": "Top"
+    },
+    "24_1_11_7": {
+      "video_path": "train/Top_smash/18_2_19_16.mp4",
+      "match": "An_Se_young_Carolina_MARIN_BWF_World_Tour_Finals_2023",
+      "set_id": "set1",
+      "rally": 11,
+      "ball_round": 7,
+      "split": "test",
+      "raw_type_en": "drive",
+      "player_side": "Top"
+    },
+    "37_3_29_22": {
+      "video_path": "train/Top_smash/3_1_14_9.mp4",
+      "match": "LOH_Kean_Yew_LEE_Zii_Jia_World_Championships_2021_Finals",
+      "set_id": "set3",
+      "rally": 29,
+      "ball_round": 22,
+      "split": "test",
+      "raw_type_en": "drive",
+      "player_side": "Bottom"
+    },
+    "10_2_28_10": {
+      "video_path": "train/Top_drop/14_1_27_8.mp4",
+      "match": "Akane_YAMAGUCHI_TAI_Tzu_Ying_All_England_2022_Semis",
+      "set_id": "set2",
+      "rally": 28,
+      "ball_round": 10,
+      "split": "test",
+      "raw_type_en": "drop",
+      "player_side": "Bottom"
+    },
+    "47_1_4_20": {
+      "video_path": "train/Top_drop/14_1_35_4.mp4",
+      "match": "LOH_Kean_Yew_LEE_Zii_Jia_World_Championships_2021_Finals",
+      "set_id": "set1",
+      "rally": 4,
+      "ball_round": 20,
+      "split": "test",
+      "raw_type_en": "drop",
+      "player_side": "Bottom"
+    },
+    "5_2_7_1": {
+      "video_path": "train/Top_smash/3_1_18_3.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set2",
+      "rally": 7,
+      "ball_round": 1,
+      "split": "test",
+      "raw_type_en": "passive_drop",
+      "player_side": "Bottom"
+    },
+    "6_1_29_19": {
+      "video_path": "train/Top_smash/3_1_37_10.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set1",
+      "rally": 29,
+      "ball_round": 19,
+      "split": "test",
+      "raw_type_en": "passive_drop",
+      "player_side": "Bottom"
+    },
+    "47_3_30_40": {
+      "video_path": "train/Top_smash/3_2_6_11.mp4",
+      "match": "Akane_YAMAGUCHI_TAI_Tzu_Ying_All_England_2022_Semis",
+      "set_id": "set3",
+      "rally": 30,
+      "ball_round": 40,
+      "split": "test",
+      "raw_type_en": "push",
+      "player_side": "Bottom"
+    },
+    "10_2_16_40": {
+      "video_path": "train/Bottom_cross_court_net_shot/19_1_22_7.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set2",
+      "rally": 16,
+      "ball_round": 40,
+      "split": "test",
+      "raw_type_en": "push",
+      "player_side": "Bottom"
+    },
+    "39_1_2_2": {
+      "video_path": "train/Bottom_net_shot/16_2_17_15.mp4",
+      "match": "Kento_MOMOTA_CHOU_Tien_Chen_Fuzhou_Open_2019_Finals",
+      "set_id": "set1",
+      "rally": 2,
+      "ball_round": 2,
+      "split": "test",
+      "raw_type_en": "rush",
+      "player_side": "Bottom"
+    },
+    "8_2_26_20": {
+      "video_path": "train/Bottom_short_service/11_2_13_1.mp4",
+      "match": "An_Se_young_Carolina_MARIN_BWF_World_Tour_Finals_2023",
+      "set_id": "set2",
+      "rally": 26,
+      "ball_round": 20,
+      "split": "test",
+      "raw_type_en": "rush",
+      "player_side": "Bottom"
+    },
+    "35_3_27_2": {
+      "video_path": "train/Bottom_cross_court_net_shot/19_1_22_7.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set3",
+      "rally": 27,
+      "ball_round": 2,
+      "split": "test",
+      "raw_type_en": "cross_court_net_shot",
+      "player_side": "Top"
+    },
+    "8_1_9_10": {
+      "video_path": "train/Top_drop/14_1_27_8.mp4",
+      "match": "An_Se_young_Carolina_MARIN_BWF_World_Tour_Finals_2023",
+      "set_id": "set1",
+      "rally": 9,
+      "ball_round": 10,
+      "split": "test",
+      "raw_type_en": "cross_court_net_shot",
+      "player_side": "Bottom"
+    },
+    "46_3_16_31": {
+      "video_path": "train/Bottom_short_service/11_2_13_1.mp4",
+      "match": "LOH_Kean_Yew_LEE_Zii_Jia_World_Championships_2021_Finals",
+      "set_id": "set3",
+      "rally": 16,
+      "ball_round": 31,
+      "split": "test",
+      "raw_type_en": "short_service",
+      "player_side": "Top"
+    },
+    "24_2_11_14": {
+      "video_path": "train/Top_drop/14_1_35_4.mp4",
+      "match": "Viktor_AXELSEN_Anthony_Sinisuka_GINTING_All_England_2022_Finals",
+      "set_id": "set2",
+      "rally": 11,
+      "ball_round": 14,
+      "split": "test",
+      "raw_type_en": "short_service",
+      "player_side": "Top"
+    },
+    "15_2_26_27": {
+      "video_path": "train/Top_net_shot/11_1_19_2.mp4",
+      "match": "LOH_Kean_Yew_LEE_Zii_Jia_World_Championships_2021_Finals",
+      "set_id": "set2",
+      "rally": 26,
+      "ball_round": 27,
+      "split": "test",
+      "raw_type_en": "long_service",
+      "player_side": "Top"
+    },
+    "38_3_8_35": {
+      "video_path": "train/Top_smash/11_1_17_9.mp4",
+      "match": "An_Se_young_Carolina_MARIN_BWF_World_Tour_Finals_2023",
+      "set_id": "set3",
+      "rally": 8,
+      "ball_round": 35,
+      "split": "test",
+      "raw_type_en": "long_service",
+      "player_side": "Bottom"
+    }
+  }
+}
