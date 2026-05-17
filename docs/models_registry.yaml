@@ -1,0 +1,31 @@
+# Hand-curated registry of FE-facing models.
+# Schema and consumer contract: ../frontend_integration_guide.md  section 1.
+# Add a new entry when a run/serial graduates to user-facing status.
+#
+# Tier 1 (current): the backend reads `predictions/{split}.json` and friends
+# under the run dir, joined with `manifest.yaml` for headline metrics.
+# Tier 2 (later): the same registry drives weight loading + npy lookup.
+#
+# `collated_dir` is relative to the BST_X_COLLATED_DATA_ROOT env var
+# (resolves to /scratch/comp320a/ on UNE HPC).
+# `temperature: 1.0` means no calibration applied yet (raw softmax).
+# Proper temperature-scaling fit is parked at section 6.5 of the long doc.
+
+models:
+  - id: bst_x_v1_wipe_drop_s5
+    display_name: "BST-X v1, wipe_drop run, serial 5 (current best)"
+    description: |
+      14-class no-sides taxonomy (une_merge_v1_nosides). Trained with
+      the augmentation framework v1 (p_flip=0.5, p_jitter=0.3) plus
+      adaptive focal loss. Macro F1 0.748, min F1 0.515 on held-out
+      test (serial 5).
+    run_id: run_20260505_154907
+    serial_no: 5
+    taxonomy: une_merge_v1_nosides
+    split_column: split_v2
+    drop_unknown: true
+    ablation_id: wipe_drop
+    temperature: 1.0
+    manifest_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/manifest.yaml
+    weights_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt
+    collated_dir: ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop

@@ -707,6 +707,11 @@ function TimeframeStep({ video, onComplete }) {
 }
 
 /* ─── Markup Shell ───────────────────────────────────────────────── */
+// `orientation` is fixed to 'portrait' for v1: every official badminton
+// broadcast camera is portrait. See frontend_integration_handoff.md §
+// "About corners" for the contract.
+const ORIENTATION = 'portrait';
+
 export function MarkupScreen({ video, onNext, onBack }) {
   const { t } = useTheme();
   const [step, setStep] = useState(0);
@@ -717,9 +722,18 @@ export function MarkupScreen({ video, onNext, onBack }) {
     { label: 'Timeframe',      desc: 'Isolate stroke segment' },
   ];
 
+  // Tier 3 contract: backend wants `corners` (4 normalised xy points) plus
+  // an `orientation` flag. Click order doesn't matter — backend re-sorts.
+  const buildMarkupPayload = (tf) => ({
+    video,
+    boundary,
+    orientation: ORIENTATION,
+    timeframe: tf,
+  });
+
   const content = [
     <CourtBoundaryStep video={video} onComplete={pts => { setBoundary(pts); setStep(1); }} />,
-    <TimeframeStep video={video} onComplete={tf => onNext({ video, boundary, timeframe: tf })} />,
+    <TimeframeStep video={video} onComplete={tf => onNext(buildMarkupPayload(tf))} />,
   ];
 
   return (
@@ -769,6 +783,17 @@ export function MarkupScreen({ video, onNext, onBack }) {
           );
         })}
       </div>
+
+      {boundary && (
+        <div style={{
+          background: t.surface2, border: `1px solid ${t.border}`,
+          borderRadius: 7, padding: '8px 12px', marginBottom: 12,
+          fontSize: 11, color: t.muted,
+          fontFamily: "'JetBrains Mono', monospace",
+        }}>
+          captured · {boundary.length} corners · orientation {ORIENTATION}
+        </div>
+      )}
 
       <Card style={{ padding: 28 }}>
         {content[step]}

@@ -1,82 +1,307 @@
+import { useState, useEffect } from 'react';
 import { useTheme, Btn, Card } from './shared';
 
-// Real held-out test-set numbers for the picked BST_CG_AP serial.
-// Source: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/
-//         run_20260505_154907/manifest.yaml (best_serials: [5]).
-// Do not edit these by hand — re-export from the manifest if the run changes.
-const TEST_EVAL = {
-  runId: 'run_20260505_154907',
-  serial: 5,
-  variant: 'BST_CG_AP',
-  taxonomy: 'une_merge_v1_nosides',
-  numClasses: 14,
-  numStrokes: 4202,
-  macroF1: 0.7479,
-  minF1: 0.5147,
-  accuracy: 0.7675,
-  top2Accuracy: 0.9407,
-  perClassF1: [
-    ['short_service',         0.9801],
-    ['long_service',          0.9517],
-    ['clear',                 0.9465],
-    ['net_shot',              0.8924],
-    ['return_net',            0.8184],
-    ['lob',                   0.7846],
-    ['rush',                  0.7742],
-    ['drop',                  0.6821],
-    ['passive_drop',          0.6765],
-    ['drive',                 0.6628],
-    ['push',                  0.6546],
-    ['cross_court_net_shot',  0.6130],
-    ['wrist_smash',           0.5186],
-    ['smash',                 0.5147],
-  ],
-};
+/* ─── Per-clip browser (Tier 1, from /api/registry sidecar JSONs) ── */
+// Both val and test have mock predictions via build_mock_artifacts.py, so
+// the split toggle below works against either. For real data: only `test`
+// is emitted by the current eval_dump_predictions.py and only test_metrics
+// land in manifest.yaml. Train + val headline metrics could probably be
+// reconstructed from the per-epoch TensorBoard scalars (final val_macro_f1
+// etc.) rather than re-running eval, but that's a follow-up.
+const SPLITS = ['val', 'test'];
 
-const fmtTime = (s) => {
-  if (!isFinite(s)) return '–:––';
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = Math.floor(s % 60);
-  const mm = String(m).padStart(2, '0');
-  const ss = String(sec).padStart(2, '0');
-  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
-};
-
-/* ─── Pending per-match results placeholder ──────────────────────── */
-function PendingPerMatchCard({ video, timeframe }) {
+function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
   const { t } = useTheme();
+  const [split,        setSplit]        = useState(initialSplit);
+  const [clips,        setClips]        = useState([]);
+  const [total,        setTotal]        = useState(0);
+  const [limit]                         = useState(25); // TODO: Increase to 50 when changeover to real test clips occurs
+  const [offset,       setOffset]       = useState(0);
+  const [listError,    setListError]    = useState(null);
+  const [selectedStem, setSelectedStem] = useState(null);
+  const [detail,       setDetail]       = useState(null);
+  const [detailError,  setDetailError]  = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [errorsOnly,   setErrorsOnly]   = useState(false);
+
+  // Reset to page 1 when filters change.
+  useEffect(() => { setOffset(0); }, [modelId, split, errorsOnly]);
+
+  // Pull the clip list whenever model / split / filter changes. Parent owns
+  // model resolution; we just react to whatever modelId comes through.
+  useEffect(() => {
+    if (!modelId) return;
+    setListError(null);
+    const params = new URLSearchParams({ limit, offset });
+    if (errorsOnly) params.set('errors_only', 'true');
+    fetch(`/api/registry/${modelId}/splits/${split}/clips?${params}`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(data => {
+        const items = data.clips || [];
+        setClips(items);
+        setTotal(data.total ?? 0);
+        setSelectedStem(items[0]?.clip_stem ?? null);
+      })
+      .catch(err => setListError(err.message));
+  }, [modelId, split, errorsOnly, offset, limit]);
+
+  // Pull the selected clip's per-clip JSON.
+  useEffect(() => {
+    if (!modelId || !selectedStem) { setDetail(null); return; }
+    setDetailLoading(true);
+    setDetailError(null);
+    fetch(`/api/registry/${modelId}/splits/${split}/clips/${selectedStem}`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(d => { setDetail(d); setDetailLoading(false); })
+      .catch(err => { setDetailError(err.message); setDetailLoading(false); });
+  }, [modelId, split, selectedStem]);
+
+  if (!modelId && !listError) {
+    return (
+      <Card style={{ padding: 22, marginBottom: 22 }}>
+        <div style={{ fontSize: 12, color: t.muted }}>Loading registry…</div>
+      </Card>
+    );
+  }
+
   return (
-    <Card style={{ padding: 22, marginBottom: 22, borderColor: t.warning + '88', borderWidth: 1.5 }}>
-      <div style={{ fontSize: 11, color: t.warning, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
-        Per-stroke results — pending
+    <Card style={{ padding: 22, marginBottom: 22 }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        marginBottom: 14, gap: 12, flexWrap: 'wrap',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+            Per-clip predictions
+          </span>
+          <div style={{ display: 'inline-flex', gap: 4 }}>
+            {SPLITS.map(s => {
+              const active = s === split;
+              return (
+                <button
+                  key={s}
+                  onClick={() => setSplit(s)}
+                  style={{
+                    background: active ? t.blue : t.surface2,
+                    color: active ? '#fff' : t.muted,
+                    border: `1px solid ${active ? t.blue : t.border}`,
+                    padding: '3px 10px', borderRadius: 4,
+                    fontSize: 11, fontWeight: 600,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    cursor: 'pointer',
+                  }}
+                >
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <label style={{ fontSize: 11, color: t.muted, display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={errorsOnly}
+            onChange={e => setErrorsOnly(e.target.checked)}
+            style={{ accentColor: t.blue }}
+          />
+          Errors only
+        </label>
       </div>
-      <div style={{ fontSize: 14, color: t.text, lineHeight: 1.6 }}>
-        Per-stroke predictions for{' '}
-        <span style={{ fontWeight: 600 }}>{video?.match ?? 'this match'}</span>{' '}
-        are not yet available.
-        {timeframe?.startSec !== undefined && timeframe?.endSec !== undefined && (
-          <> Selected window: {fmtTime(timeframe.startSec)} – {fmtTime(timeframe.endSec)}.</>
-        )}
-      </div>
-      <div style={{ fontSize: 12, color: t.muted, marginTop: 10, lineHeight: 1.6 }}>
-        Stroke-by-stroke predictions, per-match confusion, and class activation maps will appear here once the
-        validation-set inference output (<span style={{ fontFamily: "'JetBrains Mono',monospace" }}>predictions.csv</span>)
-        is delivered. See <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>scratch/real-predictions-data-format.md</span> for the schema.
-      </div>
+
+      {listError && (
+        <div style={{ fontSize: 12, color: t.danger, padding: '8px 12px', background: t.dangerDim, borderRadius: 6 }}>
+          Couldn't load clips: {listError}
+        </div>
+      )}
+
+      {!listError && (
+        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 18 }}>
+          {/* LEFT: list + pagination */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8}}>
+            <div style={{ border: `1px solid ${t.border}`, borderRadius: 6, maxHeight: 480, overflowY: 'auto' }}>
+              {clips.length === 0 && (
+                <div style={{ padding: 12, fontSize: 12, color: t.muted }}>
+                  {errorsOnly ? 'No mispredicted clips in this split.' : 'Loading clips…'}
+                </div>
+              )}
+              {clips.map(c => {
+                const sel = c.clip_stem === selectedStem;
+                return (
+                  <div
+                  key={c.clip_stem}
+                  onClick={() => setSelectedStem(c.clip_stem)}
+                  style={{
+                    padding: '8px 12px',
+                    background: sel ? t.blueDim : 'transparent',
+                    borderLeft: sel ? `3px solid ${t.blue}` : '3px solid transparent',
+                    borderBottom: `1px solid ${t.border}`,
+                    cursor: 'pointer',
+                    fontSize: 12,
+                  }}
+                >
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", color: t.text, marginBottom: 3 }}>
+                      {c.clip_stem}
+                    </div>
+                    <div style={{ color: t.muted, fontSize: 10 }}>
+                      {c.true_class} → {c.predicted_class}
+                      {' '}
+                      <span style={{ color: c.is_correct ? t.success : t.danger, fontWeight: 600 }}>
+                        {c.is_correct ? '✓' : '✗'} {c.confidence_pct}%
+                      </span>
+                    </div>
+                  </div>
+                  );
+                  })}
+            </div>
+            {/* Pagination sits below the list, inside the left column */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              marginTop: 8, fontSize: 11, color: t.muted,
+              }}>
+              <button
+              onClick={() => setOffset(o => Math.max(0, o-limit))}
+              disabled={offset === 0}
+              style={{
+                background: 'none', border: `1px solid ${t.border}`, borderRadius: 4,
+                padding: '3px 10px', fontSize: 11, color: t.text,
+                cursor: offset === 0 ? 'not-allowed' : 'pointer',
+                opacity: offset === 0 ? 0.4 : 1, 
+              }}
+              >
+                ← Prev
+              </button>
+              <span>
+                {total === 0 ? '-' : `${offset + 1}-${Math.min(offset + limit, total)} of ${total}`}
+              </span>
+              <button
+              onClick={() => setOffset(o => o + limit)}
+              disabled={offset + limit >= total}
+              style={{
+                background: 'none', border: `1px solid ${t.border}`, borderRadius: 4,
+                padding: '3px 10px', fontSize: 11, color: t.text,
+                cursor: offset + limit > total ? 'not-allowed' : 'pointer',
+                opacity: offset + limit >= total ? 0.4 : 1, 
+              }}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+
+          {/* RIGHT: clip detail */}
+          <div>
+            {detailLoading && <div style={{ fontSize: 13, color: t.muted }}>Loading clip…</div>}
+            {detailError && <div style={{ fontSize: 13, color: t.danger }}>Couldn't load clip: {detailError}</div>}
+            {!detailLoading && !detailError && detail && <ClipDetail detail={detail} />}
+            {!detailLoading && !detailError && !detail && (
+              <div style={{ fontSize: 13, color: t.muted }}>Pick a clip on the left.</div>
+            )}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
 
-/* ─── Held-out test set evaluation (real numbers from manifest.yaml) ─ */
-function TestEvalCard() {
+function ClipDetail({ detail }) {
   const { t } = useTheme();
+  const [videoError, setVideoError] = useState(false);
+  // Reset the video error gate when the clip changes; otherwise a missing
+  // mock clip would poison subsequent picks that might actually be on disk.
+  useEffect(() => { setVideoError(false); }, [detail.clip_stem]);
+  // Bar widths scale to the strongest class, so the runner-up reads as
+  // "almost as confident" when the model is genuinely torn.
+  const maxConf = Math.max(...detail.top_k.map(k => k.confidence));
+  return (
+    <div>
+      <div style={{
+        marginBottom: 14, background: '#000', borderRadius: 6, overflow: 'hidden',
+        aspectRatio: '16 / 9', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {videoError
+          ? (
+            <div style={{ color: t.muted, fontSize: 12, padding: 16, textAlign: 'center', lineHeight: 1.5 }}>
+              No clip mp4 available on this host.<br/>
+              Set <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>BST_CLIPS_DIR</span> to a directory holding the ShuttleSet clips, or run on UNE HPC.
+            </div>
+          )
+          : (
+            <video
+              src={detail.video_url}
+              controls
+              preload="metadata"
+              onError={() => setVideoError(true)}
+              style={{ width: '100%', height: '100%', display: 'block' }}
+            />
+          )
+        }
+      </div>
+      <div style={{ fontSize: 11, color: t.muted, marginBottom: 6, fontFamily: "'JetBrains Mono',monospace" }}>
+        {detail.match} · {detail.set_id} · rally {detail.rally} · ball round {detail.ball_round}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
+        <span style={{ fontSize: 24, fontWeight: 700, color: t.text }}>{detail.predicted_class}</span>
+        <span style={{ fontSize: 13, color: t.muted }}>predicted</span>
+        <span style={{
+          fontSize: 24, fontWeight: 700, color: t.blue,
+          fontFamily: "'JetBrains Mono',monospace", marginLeft: 'auto',
+        }}>
+          {detail.confidence_pct}%
+        </span>
+      </div>
+      <div style={{ fontSize: 13, color: t.muted, marginBottom: 16 }}>
+        true: <span style={{ color: t.text, fontFamily: "'JetBrains Mono',monospace" }}>{detail.true_class}</span>
+        {' · '}
+        <span style={{ color: detail.is_correct ? t.success : t.danger, fontWeight: 600 }}>
+          {detail.is_correct ? '✓ correct' : '✗ wrong'}
+        </span>
+      </div>
+
+      <div style={{ fontSize: 11, color: t.muted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+        Top-{detail.top_k.length}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {detail.top_k.map((entry, i) => (
+          <div key={entry.class} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 170, fontSize: 12, color: t.text,
+              fontFamily: "'JetBrains Mono',monospace", textAlign: 'right', flexShrink: 0,
+            }}>
+              {entry.class}
+            </div>
+            <div style={{ flex: 1, height: 16, background: t.surface2, borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${(entry.confidence / maxConf) * 100}%`,
+                background: i === 0 ? t.blue : t.pine,
+                borderRadius: 3,
+              }} />
+            </div>
+            <div style={{
+              width: 56, fontSize: 12, fontWeight: 600,
+              fontFamily: "'JetBrains Mono',monospace", color: t.text, textAlign: 'right',
+            }}>
+              {(entry.confidence * 100).toFixed(1)}%
+            </div>
+          </div>
+        ))}
+      </div>
+
+    </div>
+  );
+}
+
+/* ─── Held-out test set evaluation (from /api/registry, no hardcoded numbers) ─ */
+function TestEvalCard({ model }) {
+  const { t } = useTheme();
+  if (!model || !model.test_metrics) return null;
+  const m = model.test_metrics;
   const pct = (x) => (x * 100).toFixed(1) + '%';
   const stats = [
-    { label: 'Macro F1',       value: TEST_EVAL.macroF1.toFixed(3),    color: t.blue },
-    { label: 'Accuracy',       value: pct(TEST_EVAL.accuracy),         color: t.text },
-    { label: 'Top-2 accuracy', value: pct(TEST_EVAL.top2Accuracy),     color: t.text },
-    { label: 'Min F1',         value: TEST_EVAL.minF1.toFixed(3),      color: t.text },
+    { label: 'Macro F1',       value: m.macro_f1.toFixed(3),    color: t.blue },
+    { label: 'Accuracy',       value: pct(m.accuracy),          color: t.text },
+    { label: 'Top-2 accuracy', value: pct(m.top2_accuracy),     color: t.text },
+    { label: 'Min F1',         value: m.min_f1.toFixed(3),      color: t.text },
   ];
   const Mono = ({ children }) => (
     <span style={{ fontFamily: "'JetBrains Mono',monospace", color: t.text }}>{children}</span>
@@ -87,9 +312,7 @@ function TestEvalCard() {
         Held-out test set evaluation
       </div>
       <div style={{ fontSize: 12, color: t.muted, marginBottom: 16, lineHeight: 1.6 }}>
-        Run <Mono>{TEST_EVAL.runId}</Mono> · serial {TEST_EVAL.serial} · variant <Mono>{TEST_EVAL.variant}</Mono>
-        {' '}· taxonomy <Mono>{TEST_EVAL.taxonomy}</Mono>
-        {' '}· {TEST_EVAL.numClasses} classes · {TEST_EVAL.numStrokes.toLocaleString()} test strokes.
+        {model.display_name} · {model.num_classes} classes · taxonomy <Mono>{model.taxonomy}</Mono>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
         {stats.map((s) => (
@@ -103,17 +326,22 @@ function TestEvalCard() {
   );
 }
 
-/* ─── Per-class F1 on test set (real numbers from manifest.yaml) ──── */
-function PerClassF1Card() {
+/* ─── Per-class F1 on test set (from /api/registry per_class_f1 map) ── */
+function PerClassF1Card({ model }) {
   const { t } = useTheme();
-  const max = Math.max(...TEST_EVAL.perClassF1.map(([, v]) => v));
+  if (!model?.test_metrics?.per_class_f1) return null;
+  // Sort desc so the strongest classes read top-down; bar widths scale to
+  // the max so small differences between weak classes are still visible.
+  const entries = Object.entries(model.test_metrics.per_class_f1)
+    .sort(([, a], [, b]) => b - a);
+  const max = Math.max(...entries.map(([, v]) => v));
   return (
     <Card style={{ padding: 22 }}>
       <div style={{ fontSize: 11, color: t.muted, marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
         Per-class F1 — test set
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {TEST_EVAL.perClassF1.map(([cls, f1]) => (
+        {entries.map(([cls, f1]) => (
           <div key={cls} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
               width: 170, fontSize: 12, color: t.text,
@@ -144,9 +372,26 @@ function PerClassF1Card() {
 export function ResultsScreen({ task, onNew }) {
   const { t } = useTheme();
 
-  const markup = task?.markup;
-  const video = markup?.video;
-  const timeframe = markup?.timeframe;
+  // Resolve active model from /api/registry, so TestEvalCard +
+  // PerClassF1Card get full test_metrics (configure-screen's toModelCard
+  // strips those for the picker). Prefer the model the user picked in
+  // configure; if no task (dev-jump) or no picked id, fall back to first.
+  const pickedId = task?.models?.find(m => task?.enabled?.[m.id])?.id ?? null;
+  const [activeModel, setActiveModel] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/registry')
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(data => {
+        if (!alive) return;
+        const models = data.models || [];
+        const picked = (pickedId && models.find(m => m.id === pickedId)) || models[0];
+        setActiveModel(picked || null);
+      })
+      .catch(() => { if (alive) setActiveModel(null); });
+    return () => { alive = false; };
+  }, [pickedId]);
 
   return (
     <div style={{ maxWidth: 1120, margin: '0 auto', padding: 32 }}>
@@ -160,9 +405,9 @@ export function ResultsScreen({ task, onNew }) {
         <Btn variant="secondary" size="sm" onClick={onNew}>New Analysis</Btn>
       </div>
 
-      <PendingPerMatchCard video={video} timeframe={timeframe} />
-      <TestEvalCard />
-      <PerClassF1Card />
+      <Tier1ClipBrowser modelId={activeModel?.id} />
+      <TestEvalCard model={activeModel} />
+      <PerClassF1Card model={activeModel} />
     </div>
   );
 }

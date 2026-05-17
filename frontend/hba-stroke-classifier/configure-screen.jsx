@@ -1,31 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTheme, Btn, Card, Badge, SectionHeader } from './shared';
 
-/* ─── Model definitions ─────────────────────────────────────────── */
-const MODELS = [
-  {
-    id: 'A',
-    name: 'Model A — BST',
-    subtitle: 'MMPose keypoints + TrackNetV3 shuttle → TCN → Transformer',
-    tags: [{ label: 'TCN', color: 'blue' }, { label: 'Transformer', color: 'blue' }, { label: 'Pose+Shuttle', color: 'pine' }],
-    description: 'Badminton Stroke-type Transformer (BST). Dilated TCN front-end over 17-joint COCO keypoints (MMPose) and TrackNetV3 shuttle trajectory, followed by a temporal / cross / interactional transformer stack. Variants: BST_0, PPF, CG, AP, CG_AP.',
-    stats: [
-      { label: 'Architecture', value: 'TCN + Transformer' },
-      { label: 'Inputs',       value: 'Pose + Shuttle' },
+/* ─── Registry adapter ───────────────────────────────────────────── */
+// /api/registry returns architecture-agnostic model entries. We map each
+// into the visual model-card shape the existing UI uses, so adding a new
+// model (e.g. Architecture 2 later) needs no card changes.
+function toModelCard(entry) {
+  const macro = entry.test_metrics?.macro_f1;
+  const min   = entry.test_metrics?.min_f1;
+  const acc   = entry.test_metrics?.accuracy;
+  return {
+    id:       entry.id,
+    name:     entry.display_name,
+    subtitle: `${entry.taxonomy} · ${entry.ablation_id}`,
+    tags: [
+      { label: 'BST-X',                          color: 'blue' },
+      { label: entry.taxonomy,                   color: 'pine' },
+      { label: `${entry.num_classes}-class`,     color: 'muted' },
     ],
-  },
-  {
-    id: 'B',
-    name: 'Model B — TBD',
-    subtitle: 'Second model — to be confirmed',
-    tags: [{ label: 'Reserved', color: 'muted' }],
-    description: 'Reserved slot for a second classification model. No architecture committed yet.',
+    description: entry.description,
     stats: [
-      { label: 'Architecture', value: 'TBD' },
+      ...(macro != null ? [{ label: 'Macro F1', value: macro.toFixed(3) }] : []),
+      ...(min   != null ? [{ label: 'Min F1',   value: min.toFixed(3)   }] : []),
+      ...(acc   != null ? [{ label: 'Accuracy', value: acc.toFixed(3)   }] : []),
     ],
-    disabled: true,
-  },
-];
+  };
+}
 
 /* ─── Model card ─────────────────────────────────────────────────── */
 function ModelCard({ model, enabled, disabled, onToggle }) {
@@ -108,12 +108,32 @@ function ParamSlider({ label, hint, value, min, max, step, onChange, fmt }) {
 /* ─── Configure Screen ───────────────────────────────────────────── */
 export function ConfigureScreen({ markup, onSubmit, onBack }) {
   const { t } = useTheme();
-  const [enabled,    setEnabled]    = useState({ A: true, B: false });
-  const [taskName,   setTaskName]   = useState(
+  const [models,    setModels]    = useState([]);
+  const [loadError, setLoadError] = useState(null);
+  const [enabled,   setEnabled]   = useState({});
+  const [taskName,  setTaskName]  = useState(
     `Analysis — ${markup?.video?.match?.split(' vs ')[0] ?? 'Video'} — ${new Date().toLocaleDateString('en-AU')}`
   );
 
-  const anyEnabled = enabled.A || enabled.B;
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/registry')
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(data => {
+        if (!alive) return;
+        const items = (data.models || []).map(toModelCard);
+        setModels(items);
+        // Default: first model on, rest off. Tier 1 ships with one anyway.
+        const init = {};
+        items.forEach((m, i) => { init[m.id] = i === 0; });
+        setEnabled(init);
+      })
+      .catch(err => { if (alive) setLoadError(err.message); });
+    return () => { alive = false; };
+  }, []);
+
+  const anyEnabled = Object.values(enabled).some(Boolean);
+  const toggle = id => setEnabled(prev => ({ ...prev, [id]: !prev[id] }));
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: 32 }}>
@@ -127,19 +147,31 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
           <div style={{ fontSize: 13, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Classification Models
           </div>
-          {MODELS.map(m => (
+          {loadError && (
+            <div style={{ fontSize: 12, color: t.danger, padding: '8px 12px', background: t.dangerDim, borderRadius: 6 }}>
+              Couldn't load model registry: {loadError}
+            </div>
+          )}
+          {!loadError && models.length === 0 && (
+            <div style={{ fontSize: 12, color: t.muted, padding: '8px 12px' }}>
+              Loading models…
+            </div>
+          )}
+          {models.map(m => (
             <ModelCard
               key={m.id}
               model={m}
               enabled={enabled[m.id]}
-              disabled={m.disabled}
-              onToggle={() => {}}
+              disabled={false}
+              onToggle={() => toggle(m.id)}
             />
           ))}
-          <div style={{ fontSize: 11, color: t.muted, lineHeight: 1.5 }}>
-            Only Model A is currently available for inference. A second model slot is reserved for future work.
-          </div>
-          {!anyEnabled && (
+          {models.length > 0 && (
+            <div style={{ fontSize: 11, color: t.muted, lineHeight: 1.5 }}>
+              Models come from <code>docs/models_registry.yaml</code>. Add a new entry there to surface it here.
+            </div>
+          )}
+          {!anyEnabled && models.length > 0 && (
             <div style={{ fontSize: 12, color: t.danger, padding: '8px 12px', background: t.dangerDim, borderRadius: 6 }}>
               Select at least one model to continue.
             </div>
@@ -183,7 +215,7 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
             </div>
           </Card>
 
-          <Btn disabled={!anyEnabled} onClick={() => onSubmit({ markup, enabled, taskName })}>
+          <Btn disabled={!anyEnabled} onClick={() => onSubmit({ markup, enabled, taskName, models })}>
             Submit for Analysis →
           </Btn>
           <Btn variant="secondary" onClick={onBack}>← Back</Btn>
@@ -343,11 +375,11 @@ export function ProgressScreen({ task, onComplete }) {
           </div>
         </Card>
 
-        {MODELS.filter(m => !m.disabled).map(m => {
-          // Model inference is stage index 2 (52% – 80%). Models must not
-          // appear to start running until the pipeline reaches that stage.
-          const startAt    = m.id === 'A' ? 52 : 60;
-          const completeAt = m.id === 'A' ? 78 : 76;
+        {(task?.models || []).filter(m => task?.enabled?.[m.id]).map((m, i) => {
+          // Model inference sits in stage 2 (52-80% of overall pipeline pct).
+          // Stagger each enabled model a bit so multi-model jobs look distinct.
+          const startAt    = 52 + i * 4;
+          const completeAt = 78 - i * 2;
           const span       = Math.max(1, completeAt - startAt);
           const modelPct   = Math.max(0, Math.min(100, ((pct - startAt) / span) * 100));
           const active     = pct > startAt;
@@ -356,7 +388,7 @@ export function ProgressScreen({ task, onComplete }) {
             <Card key={m.id} style={{ padding: 18, gridColumn: '1 / -1' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Model {m.id}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{m.name}</div>
                   <div style={{ fontSize: 11, color: t.muted }}>{m.subtitle}</div>
                 </div>
                 <Badge color={complete ? 'green' : active ? 'blue' : 'muted'}>

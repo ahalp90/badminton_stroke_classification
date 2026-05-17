@@ -22,6 +22,7 @@ from .config import (
 )
 from .inference import run_inference
 from .jobs import JobStatus, JobStore
+from .registry import router as registry_router
 
 log = logging.getLogger(__name__)
 logging.basicConfig(
@@ -76,6 +77,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(registry_router)
 
 
 def _process_video(job_id: str, video_path: str, model_name: str):
