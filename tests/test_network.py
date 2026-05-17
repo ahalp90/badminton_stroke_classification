@@ -7,7 +7,7 @@ Architecture-level tests only — the pretrained backbone download
 import pytest
 import torch
 
-from bric.network import BRICNetwork
+from bric.network import _COURT_ENCODERS, _SHUTTLE_ENCODERS, BRICNetwork
 from shared.taxonomy import DEFAULT_TAXONOMY, TAXONOMIES, TAXONOMY_RAW_35
 
 
@@ -73,6 +73,60 @@ class TestVariantFlags:
         assert full.rgb_norm.normalized_shape == (512,)
 
 
+class TestShuttleEncoderVariants:
+    @pytest.mark.parametrize(
+        ('encoder', 'expected_shuttle_dim'),
+        [('mean', 64), ('stats', 192), ('tcn', 64)],
+    )
+    def test_encoder_dims_propagate_to_fusion(self, encoder, expected_shuttle_dim):
+        net = BRICNetwork(
+            pretrained=False, use_shuttle=True, shuttle_encoder=encoder,
+        )
+        assert net.shuttle_encoder.output_dim == expected_shuttle_dim
+        assert net.shuttle_norm.normalized_shape == (expected_shuttle_dim,)
+        assert net.fusion_dim == 512 + expected_shuttle_dim
+        assert net.shuttle_encoder_name == encoder
+
+    def test_unknown_encoder_rejected(self):
+        with pytest.raises(ValueError, match='shuttle_encoder must be one of'):
+            BRICNetwork(pretrained=False, use_shuttle=True, shuttle_encoder='xattn')
+
+    def test_encoder_name_is_none_when_shuttle_disabled(self):
+        net = BRICNetwork(pretrained=False, use_shuttle=False, shuttle_encoder='tcn')
+        assert net.shuttle_encoder_name is None
+        assert net.shuttle_encoder is None
+
+    def test_all_registered_encoders_have_output_dim(self):
+        # Guard rail: anyone adding a new encoder must declare output_dim.
+        for name, cls in _SHUTTLE_ENCODERS.items():
+            assert hasattr(cls, 'output_dim'), f'{name} encoder missing output_dim'
+
+
+class TestCourtEncoderVariants:
+    @pytest.mark.parametrize('encoder', ['snapshot', 'tcn'])
+    def test_encoder_dims_propagate_to_fusion(self, encoder):
+        net = BRICNetwork(
+            pretrained=False, use_court=True, court_encoder=encoder,
+        )
+        assert net.court_encoder.output_dim == 64
+        assert net.court_norm.normalized_shape == (64,)
+        assert net.fusion_dim == 512 + 64
+        assert net.court_encoder_name == encoder
+
+    def test_unknown_court_encoder_rejected(self):
+        with pytest.raises(ValueError, match='court_encoder must be one of'):
+            BRICNetwork(pretrained=False, use_court=True, court_encoder='xattn')
+
+    def test_court_encoder_name_is_none_when_court_disabled(self):
+        net = BRICNetwork(pretrained=False, use_court=False, court_encoder='tcn')
+        assert net.court_encoder_name is None
+        assert net.court_encoder is None
+
+    def test_all_registered_court_encoders_have_output_dim(self):
+        for name, cls in _COURT_ENCODERS.items():
+            assert hasattr(cls, 'output_dim'), f'{name} encoder missing output_dim'
+
+
 class TestForwardPass:
     def test_rgb_only_e2e(self, model):
         rgb = torch.randn(1, 3, 32, 224, 224)
@@ -80,16 +134,25 @@ class TestForwardPass:
             out = model(rgb)
         assert out.shape == (1, model.num_classes)
 
-    def test_full_fusion_forward(self):
+    @pytest.mark.parametrize('court_encoder', ['snapshot', 'tcn'])
+    def test_full_fusion_forward(self, court_encoder):
         net = BRICNetwork(
             pretrained=False, use_shuttle=True, use_court=True,
+            court_encoder=court_encoder,
         ).eval()
         rgb = torch.randn(2, 3, 32, 112, 112)
         shuttle = torch.randn(2, 50, 5)
         shuttle_length = torch.tensor([50, 30], dtype=torch.long)
-        court = torch.randn(2, 3)
+        court_snapshot = torch.randn(2, 3)
+        court_sequence = torch.randn(2, 50, 3)
+        court_sequence_length = torch.tensor([50, 30], dtype=torch.long)
         with torch.no_grad():
-            out = net(rgb, shuttle=shuttle, shuttle_length=shuttle_length, court=court)
+            out = net(
+                rgb, shuttle=shuttle, shuttle_length=shuttle_length,
+                court_snapshot=court_snapshot,
+                court_sequence=court_sequence,
+                court_sequence_length=court_sequence_length,
+            )
         assert out.shape == (2, net.num_classes)
 
     def test_shuttle_required_when_enabled(self):
@@ -104,10 +167,24 @@ class TestForwardPass:
         with torch.no_grad(), pytest.raises(ValueError, match='use_court=True'):
             net(rgb)
 
-    def test_masked_pool_invariant_to_padding(self):
-        # frame_mlp(0) is non-zero due to bias terms, so unmasked-mean
+    def test_partial_court_inputs_rejected(self):
+        # All three court fields must be provided; passing only some
+        # raises rather than silently degrading.
+        net = BRICNetwork(pretrained=False, use_court=True).eval()
+        rgb = torch.randn(1, 3, 32, 112, 112)
+        with torch.no_grad(), pytest.raises(ValueError, match='use_court=True'):
+            net(rgb, court_snapshot=torch.randn(1, 3))  # missing sequence + length
+
+    @pytest.mark.parametrize('encoder', ['mean', 'stats'])
+    def test_per_frame_encoders_invariant_to_padding(self, encoder):
+        # frame_mlp(0) is non-zero due to bias terms, so unmasked pooling
         # would shift toward padding. The mask must zero those positions.
-        net = BRICNetwork(pretrained=False, use_shuttle=True).eval()
+        # The tcn encoder is NOT invariant under this test because the conv
+        # kernel sees padding values via its receptive field — that's a
+        # known and accepted property of the encoder, not a bug.
+        net = BRICNetwork(
+            pretrained=False, use_shuttle=True, shuttle_encoder=encoder,
+        ).eval()
         real = torch.randn(1, 10, 5)
         padded = torch.cat([real, torch.zeros(1, 20, 5)], dim=1)
         length = torch.tensor([10], dtype=torch.long)

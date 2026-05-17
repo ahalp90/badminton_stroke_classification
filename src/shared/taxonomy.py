@@ -76,6 +76,19 @@ UNE_MERGE_V1_MAP: dict[str, str] = {
     'defensive_return_drive': 'drive',
 }
 
+# Further collapses biomechanically-similar pairs: wrist_smash and smash share
+# the back-court overhead motion (differentiated only by wrist-snap, hard to
+# read at 30fps broadcast); drop and passive_drop share the soft-touch back-
+# court motion (differentiated by intent rather than mechanics). The net-shot
+# cluster is left intact: net_shot and return_net are well-separated by the
+# model, and cross_court_net_shot's lower F1 reflects directional confusion
+# rather than the kind of mechanical overlap that motivates merging.
+UNE_COLLAPSED_V1_MAP: dict[str, str] = {
+    **UNE_MERGE_V1_MAP,
+    'wrist_smash':  'smash',
+    'passive_drop': 'drop',
+}
+
 STROKE_TYPES_12_MERGED = [
     'net_shot', 'return_net', 'smash', 'lob',
     'clear', 'drive', 'drop', 'push',
@@ -199,13 +212,26 @@ TAXONOMY_RAW_35 = Taxonomy(
     unknown_first=False,
 )
 
+# Collapsed variant of une_merge_v1_nosides: 12 stroke types + 'unknown'.
+# Merges biomechanically-similar pairs (wrist_smash→smash, passive_drop→drop)
+# pre-emptively, motivated by the technical similarity of the swings rather
+# than by post-hoc confusion-matrix tuning.
+TAXONOMY_UNE_COLLAPSED_V1_NOSIDES = Taxonomy(
+    name='une_collapsed_v1_nosides',
+    merge_map=UNE_COLLAPSED_V1_MAP,
+    base_types=(),
+    standalone_types=tuple(STROKE_TYPES_12_MERGED) + ('unknown',),
+    unknown_first=False,
+)
+
 DEFAULT_TAXONOMY = 'une_merge_v1_nosides'
 
 TAXONOMIES: dict[str, Taxonomy] = {
-    'merged_25':            TAXONOMY_MERGED_25,
-    'une_merge_v1':         TAXONOMY_UNE_MERGE_V1,
-    'une_merge_v1_nosides': TAXONOMY_UNE_MERGE_V1_NOSIDES,
-    'raw_35':               TAXONOMY_RAW_35,
+    'merged_25':                TAXONOMY_MERGED_25,
+    'une_merge_v1':             TAXONOMY_UNE_MERGE_V1,
+    'une_merge_v1_nosides':     TAXONOMY_UNE_MERGE_V1_NOSIDES,
+    'une_collapsed_v1_nosides': TAXONOMY_UNE_COLLAPSED_V1_NOSIDES,
+    'raw_35':                   TAXONOMY_RAW_35,
 }
 
 

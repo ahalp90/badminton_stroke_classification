@@ -20,6 +20,8 @@ The contiguous-window functions return (start, end) where end is EXCLUSIVE —
 
 from __future__ import annotations
 
+import numpy as np
+
 
 def clip_window_seconds(
     target_frame: int,
@@ -126,14 +128,15 @@ def subsample_indices(
         raise ValueError(f"n must be >= 1, got n={n}")
 
     if n == 1:
-        idxs = [int(round(target_frame))]
+        idxs = np.array([target_frame])
     else:
         half_span_frames = (coverage_sec * fps) / 2.0
-        window_start = target_frame - half_span_frames
-        window_end = target_frame + half_span_frames
-        step = (window_end - window_start) / (n - 1)
-        idxs = [int(round(window_start + i * step)) for i in range(n)]
+        idxs = np.linspace(
+            target_frame - half_span_frames,
+            target_frame + half_span_frames,
+            n,
+        )
 
     if total_frames is not None:
-        idxs = [max(0, min(total_frames - 1, i)) for i in idxs]
-    return idxs
+        idxs = np.clip(idxs, 0, total_frames - 1)
+    return idxs.round().astype(int).tolist()

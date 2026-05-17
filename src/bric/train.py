@@ -147,7 +147,9 @@ def _forward_for_variant(model: BRICNetwork, batch: dict[str, Any]) -> torch.Ten
         kwargs['shuttle'] = batch['shuttle']
         kwargs['shuttle_length'] = batch['shuttle_length']
     if model.use_court:
-        kwargs['court'] = batch['court']
+        kwargs['court_snapshot'] = batch['court_snapshot']
+        kwargs['court_sequence'] = batch['court_sequence']
+        kwargs['court_sequence_length'] = batch['court_sequence_length']
     return model(batch['rgb'], **kwargs)
 
 
@@ -248,8 +250,74 @@ def _resolve_taxonomy(name: str) -> Taxonomy:
     return TAXONOMIES[name]
 
 
-def _build_run_id(variant: str, seed: int) -> str:
-    return f'{datetime.now().strftime("%Y%m%d_%H%M%S")}_{variant}_{seed}'
+def _build_run_id(
+    variant: str, taxonomy: str, seed: int,
+    *,
+    shuttle_encoder: str | None = None,
+    shuttle_window: str | None = None,
+    court_encoder: str | None = None,
+) -> str:
+    """Build a unique run identifier.
+
+    Variant token gains hyphenated suffixes for any enabled auxiliary
+    lane's encoder + window choice, so re-runs with different settings
+    on the same variant + taxonomy + seed don't collide on disk. Order
+    is fixed: shuttle encoder, shuttle window, court encoder.
+    """
+    suffix_parts: list[str] = []
+    if shuttle_encoder is not None:
+        suffix_parts.append(shuttle_encoder)
+    if shuttle_window is not None:
+        suffix_parts.append(shuttle_window)
+    if court_encoder is not None:
+        suffix_parts.append(court_encoder)
+    variant_token = variant
+    if suffix_parts:
+        variant_token = f'{variant}-' + '-'.join(suffix_parts)
+    parts = [
+        datetime.now().strftime('%Y%m%d_%H%M%S'),
+        variant_token,
+        taxonomy,
+        str(seed),
+    ]
+    return '_'.join(parts)
+
+
+def _count_parameters(model: nn.Module) -> dict[str, int]:
+    """Per-component parameter counts for the manifest.
+
+    Surfaces the cost breakdown for honest BST-comparison reporting:
+    backbone (Kinetics-pretrained R(2+1)D-18) dominates; auxiliary
+    encoders and classifier are negligible by comparison.
+    """
+    counts = {
+        'total':       sum(p.numel() for p in model.parameters()),
+        'trainable':   sum(p.numel() for p in model.parameters() if p.requires_grad),
+        'backbone':    sum(p.numel() for p in model.backbone.parameters()),
+        'classifier':  sum(p.numel() for p in model.classifier.parameters()),
+        'shuttle_encoder': (
+            sum(p.numel() for p in model.shuttle_encoder.parameters())
+            if model.shuttle_encoder is not None else 0
+        ),
+        'court_encoder': (
+            sum(p.numel() for p in model.court_encoder.parameters())
+            if model.court_encoder is not None else 0
+        ),
+    }
+    return counts
+
+
+def _gpu_info(device: torch.device) -> dict[str, Any]:
+    """Capture GPU SKU + capability for the manifest, or empty for non-CUDA."""
+    if device.type != 'cuda':
+        return {}
+    idx = torch.cuda.current_device()
+    props = torch.cuda.get_device_properties(idx)
+    return {
+        'name': props.name,
+        'capability': f'{props.major}.{props.minor}',
+        'total_memory_gb': round(props.total_memory / (1024 ** 3), 2),
+    }
 
 
 def _select_device() -> torch.device:
@@ -310,6 +378,12 @@ def _build_manifest(
                 ),
                 'amp_dtype': 'bfloat16' if use_amp else 'fp32',
                 'color_jitter': jitter_enabled,
+                'max_gpu_fraction': args.max_gpu_fraction,
+                'early_stop_patience': args.early_stop_patience,
+                'min_epochs': args.min_epochs,
+                'shuttle_encoder': args.shuttle_encoder if use_shuttle else None,
+                'shuttle_window': args.shuttle_window if use_shuttle else None,
+                'court_encoder': args.court_encoder if use_court else None,
             },
         },
     }
@@ -334,9 +408,25 @@ def _append_metrics(path: Path, row: dict[str, Any], header: list[str]) -> None:
 def run_training(args: argparse.Namespace) -> None:
     seed_everything(args.seed)
     device = _select_device()
+    # Voluntary VRAM cap for coexistence on shared GPUs without a scheduler.
+    # PyTorch will refuse allocations beyond the cap (effectively a self-imposed
+    # OOM ceiling), leaving headroom for other tenants on the same device.
+    if args.max_gpu_fraction < 1.0 and device.type == 'cuda':
+        torch.cuda.set_per_process_memory_fraction(
+            args.max_gpu_fraction,
+            device=torch.cuda.current_device(),
+        )
     use_shuttle, use_court = _VARIANTS[args.variant]
     taxonomy = _resolve_taxonomy(args.taxonomy)
-    run_id = _build_run_id(args.variant, args.seed)
+    shuttle_encoder = args.shuttle_encoder if use_shuttle else None
+    shuttle_window = args.shuttle_window if use_shuttle else None
+    court_encoder = args.court_encoder if use_court else None
+    run_id = _build_run_id(
+        args.variant, taxonomy.name, args.seed,
+        shuttle_encoder=shuttle_encoder,
+        shuttle_window=shuttle_window,
+        court_encoder=court_encoder,
+    )
 
     experiment_dir = _EXPERIMENTS_DIR / run_id
     experiment_dir.mkdir(parents=True, exist_ok=True)
@@ -344,7 +434,9 @@ def run_training(args: argparse.Namespace) -> None:
     print(f'[bric.train] run_id={run_id}', flush=True)
     print(f'[bric.train] device={device} variant={args.variant} taxonomy={taxonomy.name}',
           flush=True)
-    print(f'[bric.train] use_shuttle={use_shuttle} use_court={use_court}', flush=True)
+    print(f'[bric.train] use_shuttle={use_shuttle} use_court={use_court} '
+          f'shuttle_encoder={shuttle_encoder} shuttle_window={shuttle_window} '
+          f'court_encoder={court_encoder}', flush=True)
 
     # Overfit mode forces jitter off so memorisation against the same N
     # samples is well-defined; per-call jitter would re-randomise every read.
@@ -352,9 +444,11 @@ def run_training(args: argparse.Namespace) -> None:
     color_jitter = _ClipColorJitter() if jitter_enabled else None
     train_ds: ShuttleSetDataset | Subset = ShuttleSetDataset(
         split='train', taxonomy=taxonomy, rgb_transform=color_jitter,
+        shuttle_window=args.shuttle_window,
     )
     val_ds: ShuttleSetDataset | Subset = ShuttleSetDataset(
         split='val', taxonomy=taxonomy, rgb_transform=None,
+        shuttle_window=args.shuttle_window,
     )
 
     if args.overfit is not None:
@@ -381,6 +475,8 @@ def run_training(args: argparse.Namespace) -> None:
     model = BRICNetwork(
         taxonomy=taxonomy, pretrained=True,
         use_shuttle=use_shuttle, use_court=use_court,
+        shuttle_encoder=args.shuttle_encoder,
+        court_encoder=args.court_encoder,
     ).to(device)
 
     # Discriminative LRs: pretrained backbone gets a smaller LR than the
@@ -414,6 +510,14 @@ def run_training(args: argparse.Namespace) -> None:
         run_id=run_id, device=device,
         started_at=datetime.now().isoformat(timespec='seconds'),
     )
+    # Compute-cost reporting: parameter counts + GPU info. Captured up front
+    # so the manifest is self-describing even if training crashes mid-run.
+    manifest['model_size'] = {
+        'parameters':  _count_parameters(model),
+        'fusion_dim':  model.fusion_dim,
+        'num_classes': model.num_classes,
+    }
+    manifest['training']['gpu'] = _gpu_info(device)
     _write_manifest(experiment_dir / 'manifest.yaml', manifest)
 
     metrics_path = experiment_dir / 'metrics.csv'
@@ -423,6 +527,12 @@ def run_training(args: argparse.Namespace) -> None:
     ]
     best_f1 = -1.0
     best_epoch = -1
+    epochs_since_improvement = 0
+    stopped_early = False
+    epoch_times: list[float] = []
+
+    if device.type == 'cuda':
+        torch.cuda.reset_peak_memory_stats(device=torch.cuda.current_device())
 
     for epoch in range(args.epochs):
         epoch_start = time.time()
@@ -435,6 +545,7 @@ def run_training(args: argparse.Namespace) -> None:
         )
         scheduler.step()
         epoch_seconds = time.time() - epoch_start
+        epoch_times.append(epoch_seconds)
         lr = optimizer.param_groups[0]['lr']
 
         row = {
@@ -459,6 +570,7 @@ def run_training(args: argparse.Namespace) -> None:
         if val_metrics['val_macro_f1'] > best_f1:
             best_f1 = val_metrics['val_macro_f1']
             best_epoch = epoch
+            epochs_since_improvement = 0
             torch.save(
                 {
                     'epoch': epoch,
@@ -467,16 +579,47 @@ def run_training(args: argparse.Namespace) -> None:
                     'variant': args.variant,
                     'use_shuttle': use_shuttle,
                     'use_court': use_court,
+                    'shuttle_encoder': args.shuttle_encoder if use_shuttle else None,
+                    'shuttle_window': args.shuttle_window if use_shuttle else None,
+                    'court_encoder': args.court_encoder if use_court else None,
                     'taxonomy': taxonomy.name,
                     'classes': classes,
                     'run_id': run_id,
                 },
                 experiment_dir / _CHECKPOINT_FILENAME,
             )
+        else:
+            epochs_since_improvement += 1
+
+        if (
+            args.early_stop_patience > 0
+            and epoch + 1 >= args.min_epochs
+            and epochs_since_improvement >= args.early_stop_patience
+        ):
+            stopped_early = True
+            print(
+                f'[bric.train] EARLY STOP at epoch {epoch} '
+                f'({epochs_since_improvement} epochs without improvement; '
+                f'best epoch={best_epoch} best_val_macro_f1={best_f1:.4f})',
+                flush=True,
+            )
+            break
 
     manifest['training']['finished_at'] = datetime.now().isoformat(timespec='seconds')
     manifest['training']['best_val_macro_f1'] = best_f1
     manifest['training']['best_epoch'] = best_epoch
+    manifest['training']['stopped_early'] = stopped_early
+    manifest['training']['actual_epochs'] = epoch + 1
+    # Compute-cost aggregates — for honest BST efficiency comparison.
+    manifest['training']['total_train_seconds'] = round(sum(epoch_times), 1)
+    manifest['training']['mean_epoch_seconds'] = (
+        round(sum(epoch_times) / len(epoch_times), 1) if epoch_times else 0.0
+    )
+    if device.type == 'cuda':
+        peak_bytes = torch.cuda.max_memory_allocated(
+            device=torch.cuda.current_device(),
+        )
+        manifest['training']['peak_gpu_memory_gb'] = round(peak_bytes / (1024 ** 3), 2)
     _write_manifest(experiment_dir / 'manifest.yaml', manifest)
 
     print(
@@ -523,6 +666,49 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument('--workers', type=int, default=4)
     p.add_argument('--seed', type=int, default=42)
+    p.add_argument(
+        '--max-gpu-fraction', type=float, default=1.0,
+        help='Voluntary cap on PyTorch VRAM use as a fraction of total GPU memory '
+             '(e.g. 0.6 = 24 GB on a 40 GB A100). Use to share an unsupervised '
+             'GPU with other tenants. Default 1.0 (no cap).',
+    )
+    p.add_argument(
+        '--shuttle-encoder', choices=('mean', 'stats', 'tcn'), default='mean',
+        help='Which shuttle-encoder variant to instantiate when use_shuttle is '
+             'true. mean (baseline, per-frame MLP + masked mean), stats (MLP + '
+             'masked [mean,std,max] pool), tcn (dilated 1D conv + masked mean). '
+             'Ignored when the variant does not use shuttle.',
+    )
+    p.add_argument(
+        '--court-encoder', choices=('snapshot', 'tcn'), default='snapshot',
+        help='Which court-encoder variant to instantiate when use_court is true. '
+             'snapshot (MLP over single-frame position at target_frame — '
+             'baseline) or tcn (dilated 1D conv over court-position sequence '
+             'across the shot window). Ignored when the variant does not use '
+             'court.',
+    )
+    p.add_argument(
+        '--shuttle-window', choices=('between_hits', 'outgoing_only'),
+        default='between_hits',
+        help='Which frame range to use for the shuttle trajectory. '
+             'between_hits (default) spans previous-hit -> next-hit + eps, '
+             'including the incoming leg from the previous shot. outgoing_only '
+             'spans target_frame -> next-hit + eps, isolating this stroke\'s '
+             'outgoing flight. Ignored when the variant does not use shuttle.',
+    )
+    p.add_argument(
+        '--early-stop-patience', type=int, default=0, metavar='N',
+        help='Stop training if val_macro_f1 has not improved for N consecutive '
+             'epochs. 0 disables early stopping (run the full --epochs budget).',
+    )
+    p.add_argument(
+        '--min-epochs', type=int, default=0, metavar='N',
+        help='Do not consider early stopping until at least N epochs have '
+             'completed. Insurance against premature plateaus — e.g. with '
+             '--min-epochs 30 --early-stop-patience 15, the run is guaranteed '
+             'to complete 30 epochs then stops once val_macro_f1 has not '
+             'improved for 15 consecutive epochs. 0 disables the floor.',
+    )
     p.add_argument(
         '--overfit', type=int, default=None, metavar='N',
         help='Train + eval on the same first N samples; loss should drop near zero.',
