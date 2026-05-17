@@ -112,7 +112,7 @@ the latest GPU-specific optimisations.
 ## 5. Run the BRIC smoke test
 
 ```bash
-uv run python -m scripts.bric.smoke_test
+uv run python -m bric.smoke_test
 ```
 
 This script checks:
@@ -125,7 +125,7 @@ This script checks:
    `torchvision.models.video`)
 6. OpenCV importable
 7. BRIC's own modules (`shared.taxonomy`, `shared.court`,
-   `perception.video_io`) import cleanly
+   `shared.video_io`) import cleanly
 
 Expected output ends with:
 
@@ -146,7 +146,7 @@ the smoke test any time you want to verify the env is still healthy
 git pull
 
 # Re-verify env after pulling (cheap)
-uv run python -m scripts.bric.smoke_test
+uv run python -m bric.smoke_test
 
 # Run training
 uv run python -m bric.train --overfit 32 --epochs 30   # sanity check

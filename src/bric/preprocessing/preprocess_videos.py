@@ -21,8 +21,8 @@ Outputs two caches per source video:
                                                  per stroke
 
 Shuttle (TrackNetV3 → ``training/bric/cache/shuttle/<vid>.npz``) is produced
-by ``scripts.bric.extract_shuttle`` separately, operating on the per-rally
-clips from ``scripts.slice_rallies``.
+by ``bric.preprocessing.extract_shuttle`` separately, operating on the per-rally
+clips from ``bric.preprocessing.slice_rallies``.
 
 Why one pass, in-memory: the source videos are 1-2hr broadcast mp4s but
 the actual play is ~30 min per video, ~4-5× less work than processing
@@ -46,11 +46,11 @@ shared GPU. Default is 1 for predictable debugging output. Use shell
 parallelism (``xargs -P``) instead when you want per-job log files.
 
 Usage:
-    python -m scripts.bric.preprocess_videos                    # all vids serial
-    python -m scripts.bric.preprocess_videos --vid 1            # one vid
-    python -m scripts.bric.preprocess_videos --vid 1 2 3        # several
-    python -m scripts.bric.preprocess_videos --workers 8        # 8 vids at once
-    python -m scripts.bric.preprocess_videos --force            # ignore caches
+    python -m bric.preprocessing.preprocess_videos                    # all vids serial
+    python -m bric.preprocessing.preprocess_videos --vid 1            # one vid
+    python -m bric.preprocessing.preprocess_videos --vid 1 2 3        # several
+    python -m bric.preprocessing.preprocess_videos --workers 8        # 8 vids at once
+    python -m bric.preprocessing.preprocess_videos --force            # ignore caches
 """
 from __future__ import annotations
 
@@ -64,10 +64,10 @@ import cv2
 import numpy as np
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / 'src'))
 
-from perception.players import DEFAULT_YOLO_WEIGHTS  # noqa: E402
+from bric.perception.players import DEFAULT_YOLO_WEIGHTS  # noqa: E402
 from shared.court import (  # noqa: E402
     convert_homogeneous,
     load_all_court_info,

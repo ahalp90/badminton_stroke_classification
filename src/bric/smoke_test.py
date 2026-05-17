@@ -5,10 +5,10 @@ Verifies the training environment is ready: ML stack works on the available
 accelerator AND BRIC's own modules import cleanly.
 
 Run from the project root after `uv sync --extra bric`:
-    uv run python -m scripts.bric.smoke_test
+    uv run python -m bric.smoke_test
 
 Or from an activated venv:
-    python -m scripts.bric.smoke_test
+    python -m bric.smoke_test
 
 What it checks:
   1. Platform basics
@@ -18,7 +18,7 @@ What it checks:
   5. R(2+1)D-18 forward pass on the accelerator (Kinetics-400 pretrained)
   6. OpenCV importable
   7. BRIC's own modules import cleanly (shared.taxonomy, shared.court,
-     perception.video_io)
+     shared.video_io)
 
 Exits 0 on full success, 1 on first failure with a clear diagnostic.
 """
@@ -170,7 +170,7 @@ except Exception as e:
 
 
 # ---------------------------------------------------------------------------
-# 6. OpenCV import (used by perception.video_io)
+# 6. OpenCV import (used by shared.video_io)
 # ---------------------------------------------------------------------------
 banner('6. OpenCV')
 try:
@@ -201,10 +201,10 @@ except Exception as e:
     fail('shared.court failed to import', e)
 
 try:
-    from perception import video_io
-    info(f'perception.video_io: VideoInfo dataclass present = {hasattr(video_io, "VideoInfo")}')
+    from shared import video_io
+    info(f'shared.video_io: VideoInfo dataclass present = {hasattr(video_io, "VideoInfo")}')
 except Exception as e:
-    fail('perception.video_io failed to import', e)
+    fail('shared.video_io failed to import', e)
 
 ok('BRIC modules importable')
 

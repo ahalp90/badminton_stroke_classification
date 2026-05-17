@@ -1,6 +1,6 @@
 """Run TrackNetV3 on per-rally clips; accumulate into per-vid shuttle cache.
 
-Operates on the rally clips produced by ``scripts.slice_rallies``. For
+Operates on the rally clips produced by ``bric.preprocessing.slice_rallies``. For
 each vid:
 
   1. Find all rally clips for that vid (``<vid>_<set>_<rally>.mp4``)
@@ -24,9 +24,9 @@ Why per-rally instead of full source video:
 Idempotency: skip vids whose cache exists. ``--force`` to redo.
 
 Usage:
-    uv run python -m scripts.bric.extract_shuttle              # all vids
-    uv run python -m scripts.bric.extract_shuttle --vid 1
-    uv run python -m scripts.bric.extract_shuttle --workers 8
+    uv run python -m bric.preprocessing.extract_shuttle              # all vids
+    uv run python -m bric.preprocessing.extract_shuttle --vid 1
+    uv run python -m bric.preprocessing.extract_shuttle --workers 8
 """
 from __future__ import annotations
 
@@ -40,11 +40,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / 'src'))
 
-from perception.shuttle import extract_shuttle  # noqa: E402
-from perception.video_io import get_video_info  # noqa: E402
+from bric.perception.shuttle import extract_shuttle  # noqa: E402
+from shared.video_io import get_video_info  # noqa: E402
 
 SHOTS_MASTER_PATH = REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'annotations' / 'shots_master.csv'
 RAW_VIDEO_DIR = REPO_ROOT / 'training' / 'data' / 'shuttleset' / 'raw_video'
@@ -104,7 +104,7 @@ def process_one_vid(vid: int, master: pd.DataFrame, force: bool = False) -> None
     rally_clips = sorted(RALLY_CLIPS_DIR.glob(f'{vid}_*.mp4'))
     if not rally_clips:
         print(f'vid={vid}: no rally clips found in {RALLY_CLIPS_DIR}; '
-              f'run scripts.slice_rallies first', flush=True)
+              f'run bric.preprocessing.slice_rallies first', flush=True)
         return
 
     # Pre-allocate dense per-vid arrays sized to source video length.

@@ -18,8 +18,8 @@ for the deployment workflow.
 
 Source data is the ShuttleSet release under
 `training/data/shuttleset/`, preprocessed into per-source-video NPZ
-caches and per-stroke RGB tensors by `scripts/bric/preprocess_videos.py`
-and `scripts/bric/extract_shuttle.py`. The dataset reads from these
+caches and per-stroke RGB tensors by `src/bric/preprocessing/preprocess_videos.py`
+and `src/bric/preprocessing/extract_shuttle.py`. The dataset reads from these
 caches; no decoding or perception happens at training time.
 
 ---

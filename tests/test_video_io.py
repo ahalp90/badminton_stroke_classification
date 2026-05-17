@@ -1,4 +1,4 @@
-"""Unit tests for `perception.video_io`.
+"""Unit tests for `shared.video_io`.
 
 Focus is on `write_frame_thumbnail` since the read primitives
 (`get_video_info`, `read_frame_at`, `iter_frames`, `read_frames`) are
@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 import pytest
 
-from perception.video_io import (
+from shared.video_io import (
     get_video_info,
     read_frame_at,
     write_frame_thumbnail,

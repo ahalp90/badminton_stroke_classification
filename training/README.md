@@ -1,11 +1,11 @@
 # `training/`
 
-Source data, derived caches, and per-architecture experiment records.
+Source training data, per-architecture caches, and experiment records.
 Required to train a model; not required by a serving host.
 
 ```
 training/
-├── data/                       source training data (shared across architectures)
+├── data/                       source training data (shared)
 └── <arch>/
     ├── cache/                  re-derivable preprocessing per architecture
     └── experiments/<run_id>/   training run record + weights
@@ -19,21 +19,28 @@ Source training data. The ShuttleSet release lives under
 ```
 training/data/shuttleset/
 ├── annotations/    upstream CSVs (per-match, video metadata, flaw records)
-├── raw_video/      source mp4s 
-├── rally_clips/    per-rally mp4s sliced from raw_video for shuttle extraction
-└── clips/          per-stroke mp4s 
+├── raw_video/      source mp4s
+├── rally_clips/    per-rally mp4s
+└── clips/          per-stroke mp4s
 ```
 
 Annotations are checked in at the directory level (`.gitkeep`); video
 files are gitignored and rsync'd onto the training host. See
-`scripts/slice_rallies.py` for how `rally_clips/` is produced.
+`src/bric/preprocessing/slice_rallies.py` for how `rally_clips/` is produced.
 
-## `<arch>/cache/`
+## Per-architecture
 
-Per-architecture preprocessing caches. Re-derivable from `data/` and
-the architecture's preprocessing scripts; not checked in.
+Each architecture has its own training pipeline. Current state:
 
-For BRIC:
+- **BRIC** uses this tree — see [BRIC layout](#bric-layout) below.
+- **BST** organises its training data and experiments under
+  `src/bst_refactor/`; see that subproject's own documentation.
+
+### BRIC layout
+
+`training/bric/cache/` — per-architecture preprocessing caches.
+Re-derivable from `data/` and BRIC's preprocessing scripts; not
+checked in.
 
 ```
 training/bric/cache/
@@ -43,14 +50,12 @@ training/bric/cache/
 ```
 
 Caches are content-addressable by the source video they derive from;
-running the producing script (`scripts/bric/preprocess_videos.py`,
-`scripts/bric/extract_shuttle.py`) on the same input is idempotent.
+re-running the producing script (`src/bric/preprocessing/preprocess_videos.py`,
+`src/bric/preprocessing/extract_shuttle.py`) on the same input is idempotent.
 
-## `<arch>/experiments/<run_id>/`
-
-One directory per training run, written by the architecture's training
-entry point (e.g. `python -m bric.train`). Contains everything needed
-to identify the run, reproduce its evaluation, and deploy its model:
+`training/bric/experiments/<run_id>/` — one directory per training
+run, written by `python -m bric.train`. Contains everything needed to
+identify the run, reproduce its evaluation, and deploy its model:
 
 ```
 training/bric/experiments/<run_id>/
@@ -60,24 +65,53 @@ training/bric/experiments/<run_id>/
 └── best.pt          best-on-val-macro-F1 model weights
 ```
 
-A run directory is the deployment unit. To deploy a chosen run, point
-the corresponding `runtime/deployed/<arch>/` slot at it — see
-`runtime/README.md` for the symlink / rsync workflow.
+## Deploying a new model variant (the hot path)
+
+This is the framework's genuinely pluggable unit: a new training run
+of an existing architecture goes live with zero code changes.
+
+For architectures that use this tree's `experiments/<run_id>/`
+convention (currently BRIC):
+
+1. Train a new run → produces `training/<arch>/experiments/<run_id>/`
+   with `manifest.yaml`, `best.pt`, `metrics.csv`.
+2. Symlink or rsync the run into `runtime/deployed/<arch>/` —
+   see [`runtime/README.md`](../runtime/README.md).
+3. Add a registry entry to `docs/models_registry.yaml`.
+4. Backend dispatcher loads the manifest at boot; frontend renders the
+   new variant from registry data.
+
+No code changes. New checkpoint → live in production.
 
 ## Adding a new architecture
 
-A new architecture (`<arch>`) follows the same shape as `bric/`:
+A new architecture is a project, not a drop-in. It requires:
 
-1. Create `training/<arch>/cache/` and `training/<arch>/experiments/`
-   subdirectories with `.gitkeep` markers.
-2. Add the architecture's preprocessing scripts under `scripts/`,
-   writing into `training/<arch>/cache/`.
-3. Add the architecture's training entry point. It must write its
-   experiment dir to `training/<arch>/experiments/<run_id>/` with the
-   manifest schema declared above so the deployment workflow applies
-   uniformly.
-4. Update `.gitignore` to track the new subdirectories' `.gitkeep`
-   files following the existing pattern.
-5. Register the architecture in the API's inference dispatcher
-   (`src/api/inference.py`) keyed on the manifest's `architecture`
-   field.
+- A new `src/<arch>/` package (dataset, network, train, infer, eval)
+  designed for its own input shape and training loop
+- Registration in `src/api/inference.py`'s handler dispatcher
+- Its own preprocessing scripts and any perception infra it needs
+- Optionally adopting the `training/<arch>/` and
+  `runtime/deployed/<arch>/` conventions for the deployment hot-path
+
+The conventions in this tree (experiment manifest schema, cache
+layout per arch, deployment symlink/rsync workflow) are **opt-in**:
+an architecture that adopts them inherits the hot-deployable variant
+workflow. An architecture that doesn't manages its own conventions.
+
+See `src/bric/` for one implementation that uses this tree;
+`src/bst_refactor/` for one that maintains its own.
+
+## Shared conventions
+
+For architectures that opt into this tree:
+
+- **Experiment manifest schema** — each
+  `<arch>/experiments/<run_id>/manifest.yaml` should declare
+  `architecture`, `taxonomy`, `variant`, `classes`, hyperparameters,
+  seed, and git SHA. Lets `runtime/deployed/<arch>/` slots point at
+  any run uniformly.
+- **Cache idempotency** — caches should be content-addressable on
+  their source so re-running producing scripts is safe.
+- **`.gitignore` pattern** — `<dir>/*` plus `!<dir>/.gitkeep` keeps
+  the structure in git without committing data.
