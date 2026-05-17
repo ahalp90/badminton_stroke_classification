@@ -6,12 +6,20 @@ services:
     # Run as the host user so bind-mounted files are readable/writable by the container
     # process. UID/GID come from the shell environment (bash sets these automatically).
     # If hot-reload has permission errors, run: export UID GID && docker compose up
-    user: "${UID:-1000}:${GID:-1000}"
+    # LOCAL-ONLY PATCH (do not commit): user: line disabled on Windows where $UID/$GID
+    # are not exported by PowerShell. Container runs as root; bind mount handles perms
+    # via Docker Desktop's translation layer.
+    # user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - .:/app
       - pip-cache:/root/.cache/pip
       # Uncomment when inference is wired up and you need to test against real data:
       # - /srv/dev-disk-by-uuid-2d4dc55c-51cd-46ae-a477-544cf0f76bb5/320_cosc594_data:/data/cosc594:ro
+      # LOCAL-ONLY PATCH (do not commit): mount inspect_clips for the video endpoint.
+      - ./scratch/inspect_clips:/app/clips:ro
+      # LOCAL-ONLY PATCH (do not commit): mount SCP'd collated tensors for
+      # the real BST forward-pass path (src/api/bst_inference.py).
+      - ./scratch/bst_inputs:/app/bst_inputs:ro
     ports:
       - "24082:8000"
       # MLflow port commented out for now. Aim is currently being used for experiment
@@ -20,6 +28,8 @@ services:
       # - "5000:5000"
     environment:
       - CORS_ORIGINS=http://localhost:5173,http://localhost:24082
+      - UPLOAD_DIR=/app/uploads
+      - BST_CLIPS_DIR=/app/clips
 
   frontend:
     image: node:20-alpine
