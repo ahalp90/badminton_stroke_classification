@@ -5,10 +5,10 @@ import json
 import torch
 import yaml
 from pathlib import Path
-from typing import Any
 
 from torcheval.metrics.functional import multiclass_f1_score
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from bric.dataset import ShuttleSetDataset, collate_strokes
 from bric.network import BRICNetwork
@@ -66,7 +66,7 @@ def main():
 
     preds, labels = [], []
     with torch.no_grad():
-        for batch in loader:
+        for batch in tqdm(loader, desc='test', leave=False):
             batch = _move_batch(batch, device)
             logits = _forward_for_variant(model, batch)
             preds.append(logits.argmax(1).cpu())
