@@ -13,6 +13,7 @@ from tqdm import tqdm
 from bric.dataset import ShuttleSetDataset, collate_strokes
 from bric.network import BRICNetwork
 from bric.train import _resolve_taxonomy, _move_batch, _forward_for_variant
+from shared.eval_metrics import plot_confusion_matrix
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _EXPERIMENTS = _REPO_ROOT / 'training' / 'bric' / 'experiments'
@@ -83,6 +84,12 @@ def main():
     out_path.parent.mkdir(exist_ok=True)
     out_path.write_text(json.dumps(out, indent=2))
     print(json.dumps(out, indent=2)) 
+    class_names = manifest['config']['classes']
+    plot_confusion_matrix(
+        y_true=labels.numpy(), y_pred=preds.numpy(),
+        class_names=class_names, model_name=args.run_id,
+        save_name=str(run_dir / 'eval' / 'test'),
+    )
 
 if __name__ == '__main__':
-      main()
+    main()
