@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 
 from bric.dataset import ShuttleSetDataset, collate_strokes
 from bric.network import BRICNetwork
+from bric.train import _resolve_taxonomy
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _EXPERIMENTS = _REPO_ROOT / 'training' / 'bric' / 'experiments'
@@ -49,7 +50,8 @@ def main():
     args = _parse_args()
     run_dir = _EXPERIMENTS / args.run_id
     manifest = yaml.safe_load((run_dir / 'manifest.yaml').read_text())
-    taxonomy = manifest['config']['taxonomy']
+    taxonomy_name = manifest['config']['taxonomy']
+    taxonomy = _resolve_taxonomy(taxonomy_name)
     n_classes = len(manifest['config']['classes'])
     use_shuttle = manifest['config']['use_shuttle']
     use_court = manifest['config']['use_court']
