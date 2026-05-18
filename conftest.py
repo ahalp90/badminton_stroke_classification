@@ -5,3 +5,5 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src" / "bst_refactor"))
 # Allow imports like `from model.tempose import ...` used inside stroke_classification
 sys.path.insert(0, str(Path(__file__).parent / "src" / "bst_refactor" / "stroke_classification"))
+# Allow imports like `from shared.temporal import ...` for BRIC packages.
+sys.path.insert(0, str(Path(__file__).parent / "src"))
