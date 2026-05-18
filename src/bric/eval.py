@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 
 from bric.dataset import ShuttleSetDataset, collate_strokes
 from bric.network import BRICNetwork
-from bric.train import _resolve_taxonomy
+from bric.train import _resolve_taxonomy, _move_batch, _forward_for_variant
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _EXPERIMENTS = _REPO_ROOT / 'training' / 'bric' / 'experiments'
@@ -33,17 +33,6 @@ def _select_device() -> torch.device:
     if torch.backends.mps.is_available():
         return torch.device('mps')
     return torch.device('cpu')
-
-def _forward_for_variant(model: BRICNetwork, batch: dict[str, Any]) -> torch.Tensor:
-    kwargs: dict[str, Any] = {}
-    if model.use_shuttle:
-        kwargs['shuttle'] = batch['shuttle']
-        kwargs['shuttle_length'] = batch['shuttle_length']
-    if model.use_court:
-        kwargs['court_snapshot'] = batch['court_snapshot']
-        kwargs['court_sequence'] = batch['court_sequence']
-        kwargs['court_sequence_length'] = batch['court_sequence_length']
-    return model(batch['rgb'], **kwargs)
 
 def main():
     device = _select_device()
@@ -78,6 +67,7 @@ def main():
     preds, labels = [], []
     with torch.no_grad():
         for batch in loader:
+            batch = _move_batch(batch, device)
             logits = _forward_for_variant(model, batch)
             preds.append(logits.argmax(1).cpu())
             labels.append(batch['label'].cpu())
