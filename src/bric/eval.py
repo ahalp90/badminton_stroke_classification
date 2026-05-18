@@ -91,3 +91,6 @@ def main():
     out_path.parent.mkdir(exist_ok=True)
     out_path.write_text(json.dumps(out, indent=2))
     print(json.dumps(out, indent=2)) 
+
+if __name__ == '__main__':
+      main()
