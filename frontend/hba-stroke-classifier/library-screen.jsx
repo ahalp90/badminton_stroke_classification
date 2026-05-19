@@ -1,27 +1,12 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState } from 'react';
 import { useTheme, Btn, Badge, SectionHeader } from './shared';
+import { toVideo } from './utils/videoTransforms';
+import { BrowseAllModal } from './components/BrowseAllModal';
+import { UploadTab } from './components/upload/UploadTab';
 import matchesData from './data/matches.json';
 
 const frameModules = import.meta.glob('./data/frames/*.jpg', { eager: true, import: 'default' });
 const frameUrl = (id) => frameModules[`./data/frames/${id}.jpg`];
-
-function toVideo(m) {
-  return {
-    id: m.id,
-    match: m.title,
-    tournament: [m.tournament, m.year, m.round].filter(Boolean).join(' '),
-    duration: '—',
-    strokes: m.strokes,
-    annotated: true,
-    youtubeId: m.youtubeId,
-    url: m.url,
-    fps: m.fps,
-    sets: m.sets,
-    year: m.year,
-    round: m.round,
-    strokeTimes: m.strokeTimes || [],
-  };
-}
 
 const CURATED = matchesData.filter(m => m.curated).map(toVideo);
 const ALL = matchesData.map(toVideo);
@@ -73,251 +58,6 @@ function VideoCard({ video, selected, onSelect }) {
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         <Badge color="green">Annotated</Badge>
         <Badge color="blue">{video.strokes} strokes</Badge>
-      </div>
-    </div>
-  );
-}
-
-function BrowseAllModal({ onSelect, onClose }) {
-  const { t } = useTheme();
-  const [query, setQuery] = useState('');
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return ALL;
-    return ALL.filter(v =>
-      v.match.toLowerCase().includes(q) ||
-      v.tournament.toLowerCase().includes(q)
-    );
-  }, [query]);
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 100, padding: 32,
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: t.surface, border: `1px solid ${t.border}`,
-          borderRadius: 12, width: 'min(640px, 100%)', maxHeight: '80vh',
-          display: 'flex', flexDirection: 'column',
-          boxShadow: '0 24px 60px rgba(0,0,0,0.55)',
-        }}
-      >
-        <div style={{
-          padding: '18px 20px', borderBottom: `1px solid ${t.border}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14,
-        }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: t.text }}>Match Library</div>
-            <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>
-              {filtered.length} of {ALL.length} matches
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none', border: 'none', color: t.muted,
-              fontSize: 22, cursor: 'pointer', padding: 4, lineHeight: 1,
-            }}
-            aria-label="Close"
-          >×</button>
-        </div>
-
-        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${t.border}` }}>
-          <input
-            autoFocus
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search by player or tournament…"
-            style={{
-              width: '100%', padding: '10px 12px',
-              background: t.surface2, border: `1px solid ${t.border}`,
-              borderRadius: 7, color: t.text, fontSize: 13,
-              fontFamily: "'Space Grotesk', sans-serif", outline: 'none',
-            }}
-          />
-        </div>
-
-        <div style={{ overflowY: 'auto', padding: '8px 0' }}>
-          {filtered.length === 0 && (
-            <div style={{ padding: '32px 20px', textAlign: 'center', color: t.muted, fontSize: 13 }}>
-              No matches found.
-            </div>
-          )}
-          {filtered.map(v => (
-            <button
-              key={v.id}
-              onClick={() => onSelect(v)}
-              style={{
-                width: '100%', padding: '10px 20px',
-                background: 'none', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14,
-                textAlign: 'left', color: t.text,
-                fontFamily: "'Space Grotesk', sans-serif",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = t.surface2}
-              onMouseLeave={e => e.currentTarget.style.background = 'none'}
-            >
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: t.text, marginBottom: 2 }}>
-                  {v.match}
-                </div>
-                <div style={{ fontSize: 11, color: t.muted }}>{v.tournament}</div>
-              </div>
-              <div style={{
-                fontSize: 11, color: t.muted, whiteSpace: 'nowrap',
-                fontFamily: "'JetBrains Mono', monospace",
-              }}>
-                {v.strokes} strokes
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const UPLOAD_STAGES = [
-  { id: 'upload',  label: 'Uploading video',        ms: 1600 },
-  { id: 'meta',    label: 'Extracting metadata',    ms: 900  },
-  { id: 'frames',  label: 'Decoding key frames',    ms: 1200 },
-  { id: 'ready',   label: 'Preparing for markup',   ms: 600  },
-];
-
-function UploadingPanel({ filename, onDone }) {
-  const { t } = useTheme();
-  const [stage, setStage] = useState(0);
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    if (stage >= UPLOAD_STAGES.length) {
-      const id = setTimeout(onDone, 200);
-      return () => clearTimeout(id);
-    }
-    setProgress(0);
-    const start = Date.now();
-    const dur = UPLOAD_STAGES[stage].ms;
-    const tick = setInterval(() => {
-      const f = Math.min(1, (Date.now() - start) / dur);
-      setProgress(f);
-      if (f >= 1) {
-        clearInterval(tick);
-        setStage(s => s + 1);
-      }
-    }, 50);
-    return () => clearInterval(tick);
-  }, [stage, onDone]);
-
-  return (
-    <div style={{
-      background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10,
-      padding: '24px 28px',
-    }}>
-      <div style={{
-        display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 18,
-      }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{filename}</div>
-        <div style={{ fontSize: 12, color: t.muted, fontFamily: "'JetBrains Mono', monospace" }}>
-          {Math.min(stage, UPLOAD_STAGES.length - 1) + 1} / {UPLOAD_STAGES.length}
-        </div>
-      </div>
-
-      {UPLOAD_STAGES.map((s, i) => {
-        const done = i < stage;
-        const active = i === stage;
-        const pct = active ? progress : done ? 1 : 0;
-        return (
-          <div key={s.id} style={{ marginBottom: 12 }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5,
-              fontSize: 12, color: done ? t.success : active ? t.text : t.muted,
-            }}>
-              <span style={{
-                display: 'inline-flex', width: 16, height: 16, borderRadius: '50%',
-                alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                background: done ? t.success : active ? t.blue : 'transparent',
-                border: `1.5px solid ${done ? t.success : active ? t.blue : t.border}`,
-                color: '#fff', fontSize: 9, fontWeight: 700,
-              }}>
-                {done ? '✓' : active ? '' : ''}
-              </span>
-              <span style={{ flex: 1, fontWeight: active ? 600 : 400 }}>{s.label}</span>
-              <span style={{
-                fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
-                color: t.muted, opacity: done || active ? 1 : 0.5,
-              }}>
-                {Math.round(pct * 100)}%
-              </span>
-            </div>
-            <div style={{ height: 3, background: t.surface2, borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', width: `${pct * 100}%`,
-                background: done ? t.success : t.blue,
-                transition: active ? 'width 0.05s linear' : 'width 0.2s ease',
-              }} />
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function UploadTab({ onUpload }) {
-  const { t } = useTheme();
-  const [dragOver, setDragOver] = useState(false);
-  const [uploading, setUploading] = useState(null);
-
-  const startMockUpload = () => {
-    setDragOver(false);
-    const random = ALL[Math.floor(Math.random() * ALL.length)];
-    const filename = `match_${Date.now()}.mp4`;
-    setUploading({ filename, video: { ...random, id: 'upload_' + Date.now(), uploadedAs: random.match } });
-  };
-
-  if (uploading) {
-    return (
-      <UploadingPanel
-        filename={uploading.filename}
-        onDone={() => onUpload(uploading.video)}
-      />
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div
-        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={e => { e.preventDefault(); startMockUpload(); }}
-        onClick={startMockUpload}
-        style={{
-          border: `2px dashed ${dragOver ? t.blue : t.border}`,
-          borderRadius: 12, padding: '52px 32px', textAlign: 'center',
-          background: dragOver ? t.blueDim : t.surface2,
-          transition: 'all 0.2s', cursor: 'pointer',
-        }}
-      >
-        <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.7 }}>⬆</div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 6 }}>
-          Drop video here, or click to browse
-        </div>
-        <div style={{ fontSize: 12, color: t.muted }}>MP4, MOV, AVI · up to 10 GB</div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 12, padding: '14px 16px', background: t.surface2, borderRadius: 8, border: `1px solid ${t.border}` }}>
-        <div style={{ fontSize: 20 }}>ℹ</div>
-        <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.6 }}>
-          Demo mode — uploaded videos are stand-ins for matches in the library.
-          The classifier will run against an annotated match so validation metrics stay meaningful.
-        </div>
       </div>
     </div>
   );
@@ -408,13 +148,14 @@ export function LibraryScreen({ onNext }) {
 
           {browsing && (
             <BrowseAllModal
+              items={ALL}
               onSelect={v => { setSelected(v); setBrowsing(false); }}
               onClose={() => setBrowsing(false)}
             />
           )}
         </>
       ) : (
-        <UploadTab onUpload={v => onNext(v)} />
+        <UploadTab videos={ALL} onUpload={v => onNext(v)} />
       )}
     </div>
   );

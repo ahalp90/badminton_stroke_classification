@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { ThemeProvider, useTheme, NavBar, ScreenErrorBoundary } from './shared';
 import { LibraryScreen } from './library-screen';
 import { MarkupScreen } from './markup-screen';
-import { ConfigureScreen, ProgressScreen } from './configure-screen';
+import { ConfigureScreen } from './configure-screen';
+import { ProgressScreen } from './progress-screen';
 import { ResultsScreen } from './results-screen';
 import { ProjectScreen } from './project-screen';
 
