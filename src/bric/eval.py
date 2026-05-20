@@ -48,10 +48,12 @@ def main():
     shuttle_encoder = manifest['training']['hparams'].get('shuttle_encoder', 'mean')
     court_encoder = manifest['training']['hparams'].get('court_encoder', 'null')
     shuttle_window = manifest['training']['hparams'].get('shuttle_window', 'between_hits')
-    
+    court_window = manifest['training']['hparams'].get('court_window') or 'between_hits'
+
     ds: ShuttleSetDataset = ShuttleSetDataset(
     split='test', taxonomy=taxonomy, rgb_transform=None,
     shuttle_window=shuttle_window,
+    court_window=court_window,
 )
     model = BRICNetwork(
     taxonomy=taxonomy, pretrained=False,
