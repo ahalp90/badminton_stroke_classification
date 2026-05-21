@@ -27,7 +27,7 @@ COPY requirements.txt .
 # Without this, pip pulls the default CUDA-enabled torch (~2GB of nvidia packages)
 # which is useless on a machine with no GPU. The CPU wheel is ~300MB instead.
 # When requirements.txt runs, torch is already satisfied so pip skips it.
-RUN pip install --upgrade pip && \
+RUN python -m pip install --upgrade pip && \
     pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
     pip install -r requirements.txt
 
