@@ -152,6 +152,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.get("/health")(lambda: {"status": "ok"})
+
 app.include_router(registry_router)
 
 
