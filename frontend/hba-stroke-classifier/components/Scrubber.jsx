@@ -3,9 +3,12 @@ import { useTheme } from '../shared';
 import { fmtTime } from '../utils/format';
 
 /* ─── Scrubber: buffered + density-binned pips + click-drag seek ─── */
+// `strokes` is the list of user-marked annotations [{id, startSec, targetSec,
+// endSec}]; `activeId` picks which one renders handles + the saturated blue.
+// `strokeTimes` is the unrelated dataset-level density overlay (kept).
 export function Scrubber({
   duration, currentTime, loaded,
-  startSec, endSec, targetSec,
+  strokes, activeId, onSelectStroke,
   strokeTimes, showPips, onSeek,
 }) {
   const { t } = useTheme();
@@ -141,13 +144,41 @@ export function Scrubber({
               width: `${loaded * 100}%`, background: t.muted, opacity: 0.35,
             }} />
           )}
-          {startSec !== null && endSec !== null && (
-            <div style={{
-              position: 'absolute', top: 0, bottom: 0, borderRadius: 2,
-              left: `${pct(startSec)}%`, width: `${Math.max(0, pct(endSec) - pct(startSec))}%`,
-              background: t.blue,
-            }} />
-          )}
+          {/* Inactive stroke regions first (muted gray), so the active region
+              paints over them when ranges overlap. */}
+          {(strokes || []).filter(s => s.id !== activeId).map(s => (
+            s.startSec !== null && s.endSec !== null && (
+              <div
+                key={s.id}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  onSelectStroke && onSelectStroke(s.id);
+                }}
+                title={`Stroke · click to edit`}
+                style={{
+                  position: 'absolute', top: 0, bottom: 0, borderRadius: 2,
+                  left: `${pct(s.startSec)}%`,
+                  width: `${Math.max(0, pct(s.endSec) - pct(s.startSec))}%`,
+                  background: t.muted, opacity: 0.45,
+                  cursor: 'pointer',
+                }}
+              />
+            )
+          ))}
+          {(strokes || []).filter(s => s.id === activeId).map(s => (
+            s.startSec !== null && s.endSec !== null && (
+              <div
+                key={s.id}
+                style={{
+                  position: 'absolute', top: 0, bottom: 0, borderRadius: 2,
+                  left: `${pct(s.startSec)}%`,
+                  width: `${Math.max(0, pct(s.endSec) - pct(s.startSec))}%`,
+                  background: t.blue,
+                  pointerEvents: 'none',
+                }}
+              />
+            )
+          ))}
         </div>
 
         {/* Playhead */}
@@ -159,32 +190,35 @@ export function Scrubber({
             boxShadow: '0 0 4px rgba(0,0,0,0.6)',
           }} />
         )}
-
-        {/* S / ◉ / E markers (click to seek) */}
-        {[
-          { val: startSec,  label: 'S', color: t.blue },
-          { val: targetSec, label: '◉', color: t.warning },
-          { val: endSec,    label: 'E', color: t.blue },
-        ].map((h) => h.val !== null && (
-          <div
-            key={h.label}
-            onClick={(e) => { e.stopPropagation(); onSeek(h.val); }}
-            onMouseDown={(e) => e.stopPropagation()}
-            title={`Seek to ${fmtTime(h.val)}`}
-            style={{
-              position: 'absolute', top: '50%', left: `${pct(h.val)}%`,
-              transform: 'translate(-50%, -50%)',
-              width: 16, height: 26, borderRadius: 4,
-              background: h.color, color: '#fff',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 10, fontWeight: 700,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-            }}
-          >
-            {h.label}
-          </div>
-        ))}
-      </div>
+        {/* S / ◉ / E markers (active stroke only) */}
+        {(() => {
+          const active = (strokes || []).find(s => s.id === activeId);
+          if (!active) return null;
+          return [
+            { val: active.startSec,  label: 'S', color: t.blue },
+            { val: active.targetSec, label: '◉', color: t.warning },
+            { val: active.endSec,    label: 'E', color: t.blue },
+          ].map((h) => h.val !== null && (
+            <div
+              key={h.label}
+              onClick={(e) => { e.stopPropagation(); onSeek(h.val); }}
+              onMouseDown={(e) => e.stopPropagation()}
+              title={`Seek to ${fmtTime(h.val)}`}
+              style={{
+                position: 'absolute', top: '50%', left: `${pct(h.val)}%`,
+                transform: 'translate(-50%, -50%)',
+                width: 16, height: 26, borderRadius: 4,
+                background: h.color, color: '#fff',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10, fontWeight: 700,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+              }}
+            >
+              {h.label}
+            </div>
+          ));
+        })()}
+    </div>
         </div>
       </div>
     </div>

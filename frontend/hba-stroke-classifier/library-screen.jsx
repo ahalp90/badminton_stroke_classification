@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme, Btn, Badge, SectionHeader } from './shared';
 import { toVideo } from './utils/videoTransforms';
 import { BrowseAllModal } from './components/BrowseAllModal';
 import { UploadTab } from './components/upload/UploadTab';
+import { rehydrateSessionFromIDB } from './utils/uploadStorage';
 import matchesData from './data/matches.json';
 
 const frameModules = import.meta.glob('./data/frames/*.jpg', { eager: true, import: 'default' });
@@ -69,11 +70,18 @@ export function LibraryScreen({ onNext }) {
   const [selected, setSelected] = useState(null);
   const [browsing, setBrowsing] = useState(false);
 
+  // Defensive: also kick off a rehydrate from IndexedDB when the screen
+  // mounts, in case the module-level kick-off raced ahead of the React
+  // tree being live. No-op when SESSION_FILES is already populated.
+  useEffect(() => {
+    rehydrateSessionFromIDB().catch(() => { /* noop */ });
+  }, []);
+
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', padding: 32 }}>
       <SectionHeader
         title="Select Match Video"
-        subtitle="Choose from our match library or upload your own footage."
+        subtitle={`Showing ${CURATED.length} recent matches - browse all to see the full library to upload your own footage.`}
       />
 
       <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, marginBottom: 24 }}>
@@ -96,6 +104,12 @@ export function LibraryScreen({ onNext }) {
 
       {tab === 'library' ? (
         <>
+          <div style={{
+            fontSize: 11, color: t.muted, marginBottom: 10,
+            textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600,
+          }}>
+            Recent matches
+          </div>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',

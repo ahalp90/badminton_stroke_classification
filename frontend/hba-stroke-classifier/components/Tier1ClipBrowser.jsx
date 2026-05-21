@@ -13,12 +13,10 @@ const SPLITS = ['val', 'test'];
  // reconstructed from the per-epoch TensorBoard scalars (final val_macro_f1
  // etc.) rather than re-running eval, but that's a follow-up.
 
-export function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
+export function Tier1ClipBrowser({ modelId, split, onSplitChange }) {
   const { t } = useTheme();
-  const [split,        setSplit]        = useState(initialSplit);
   const [selectedStem, setSelectedStem] = useState(null);
   const [errorsOnly,   setErrorsOnly]   = useState(false);
-
   const { clips, total, offset, setOffset, limit, error: listError} = useClipList({ modelId, split, errorsOnly });
   const { detail, loading: detailLoading, error: detailError }      = useClipDetail({ modelId, split, selectedStem });
 
@@ -50,7 +48,7 @@ export function Tier1ClipBrowser({ modelId, initialSplit = 'test' }) {
               return (
                 <button
                   key={s}
-                  onClick={() => setSplit(s)}
+                  onClick={() => onSplitChange(s)}
                   style={{
                     background: active ? t.blue : t.surface2,
                     color: active ? '#fff' : t.muted,

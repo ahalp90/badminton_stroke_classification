@@ -21,8 +21,9 @@ export function ClipDetail({ detail }) {
       }}>
         {videoError ? (
             <div style={{ color: t.muted, fontSize: 12, padding: 16, textAlign: 'center', lineHeight: 1.5 }}>
-                No clip mp4 available on this host.<br/>
-                Set <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>BST_CLIPS_DIR</span> to a directory holding the ShuttleSet clips, or run on UNE HPC.
+                Video available for this clip on the current host.<br/>
+                The backend serves clips from <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>BST_CLIPS_DIR</span>;
+                only clips whose mp4 is present there will play.
             </div>
             ) : (
             <video

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useTheme, Card, Badge, SectionHeader } from './shared';
+import { useTheme, Btn, Card, Badge, SectionHeader } from './shared';
 
 /* ─── Progress Screen ────────────────────────────────────────────── */
 const PIPELINE_STAGES = [
@@ -22,14 +22,263 @@ const LOG_EVENTS = [
   { at: 100, msg: '✓ Analysis complete' },
 ];
 
+/* ─── Markup payload builder ─────────────────────────────────────────
+ * Translates the wizard's in-memory state into the schema documented in
+ * docs/api_contract.md on feat/bric-pipeline. The backend validates this
+ * via the Pydantic Markup model in src/api/main.py.
+ *
+ * Frames are derived as seconds × fps. Library matches carry an explicit
+ * fps in matches.json; uploads fall back to 30 fps (the canned stub
+ * echoes whatever we send anyway).
+ *
+ * Markup state shape is the new multi-stroke form: `markup.annotations`
+ * is a list of {id, startSec, targetSec, endSec}. A migration branch
+ * below also handles the legacy single-stroke `markup.timeframe` shape
+ * so in-flight sessions don't break across this change. */
+function buildMarkupPayload(task) {
+  const m = task?.markup;
+  if (!m) return null;
+  const video = m.video;
+  const boundary = Array.isArray(m.boundary) && m.boundary.length === 4
+    ? m.boundary.map(p => ({ x: p.x, y: p.y }))
+    : null;
+  const fps = video?.fps && video.fps > 0 ? video.fps : 30;
+
+  // Resolve the in-memory annotation list, with migration from the old
+  // single-`timeframe` shape and legacy `markup.player` (1/2 → top/bottom).
+  let strokes = Array.isArray(m.annotations) ? m.annotations : null;
+  if (!strokes && m.timeframe) {
+    const tf = m.timeframe;
+    strokes = [{ startSec: tf.startSec, targetSec: tf.targetSec, endSec: tf.endSec }];
+  }
+  strokes = strokes || [];
+  const playerSide = m.playerSide
+    ?? (m.player === 1 ? 'top' : m.player === 2 ? 'bottom' : null);
+
+  // Drop any half-set stroke before sending — the FE guards against this
+  // at the Confirm Timeframe button, but the migration path can produce
+  // half-set entries from old persisted state.
+  const annotations = strokes
+    .filter(a =>
+      a && a.startSec != null && a.targetSec != null && a.endSec != null
+    )
+    .map(a => ({
+      target_frame: Math.round(a.targetSec * fps),
+      region_start_frame: Math.round(a.startSec * fps),
+      region_end_frame: Math.round(a.endSec * fps),
+      player_side: playerSide,
+    }));
+
+  // Pick the first enabled model from Configure as the explicit choice;
+  // architecture defaults to 'bst' (the only one in registry today).
+  const enabledModel = (task?.models || []).find(mm => task?.enabled?.[mm.id]) || null;
+  return {
+    architecture: 'bst',
+    model_id: enabledModel?.id ?? null,
+    orientation: m.orientation || 'portrait',
+    video_label: video?.filename || video?.match || null,
+    boundary,
+    annotations,
+    enabled_sides: ['top', 'bottom'],
+  };
+}
+
 export function ProgressScreen({ task, onComplete }) {
   const { t } = useTheme();
+  const file = task?.markup?.video?.file ?? null;
+  const videoSource = task?.markup?.video?.source ?? null;
+  const isUploadRun = !!file && videoSource === 'upload';
+  const isLibraryRun = !file && videoSource === 'library';
+  const realRun = isUploadRun || isLibraryRun;
   const [pct,    setPct]    = useState(0);
   const [stage,  setStage]  = useState(0);
   const [log,    setLog]    = useState([]);
+  const [error,  setError]  = useState(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const logRef = useRef(null);
 
+  const appendLog = (msg, at = null) => setLog(l => [...l, {
+    msg,
+    at: at,
+    time: new Date().toLocaleTimeString('en-AU', {hour12: false}),
+  }]);
+
+  // ── Real path: drive progress from /api/upload (or /api/library_predict)
+  // + /api/status + /api/results. The two submission shapes differ but
+  // share the same job-poll lifecycle, so most of this effect is shared.
   useEffect(() => {
+
+    if (!realRun) return;
+    let aborted = false;
+    let pollId = null;
+    setError(null);
+    setLog([]);
+    setPct(0);
+    setStage(0);
+
+    const markupPayload = buildMarkupPayload(task);
+
+    const run = async () => {
+      try {
+        let upRes;
+        if (isUploadRun) {
+          appendLog(`Uploading ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)…`);
+          // The query-param `model` is the *backend execution* model and
+          // must be in _available_models() (.pt stems + "default"). The
+          // registry-level model_id is conceptually different and rides
+          // inside the markup JSON sidecar — see Gap 1. Always use
+          // "default" here; if the FE later needs to pick a specific
+          // checkpoint, gate it on _available_models output.
+          const params = new URLSearchParams({ model: 'default' });
+          // Trim the upload to the bounding span across every marked stroke.
+          // Legacy `markup.timeframe` (single-stroke shape) is still honoured
+          // so sessions mid-flight across this change keep working.
+          const strokes = Array.isArray(task?.markup?.annotations)
+            ? task.markup.annotations
+            : (task?.markup?.timeframe ? [task.markup.timeframe] : []);
+          const starts = strokes
+            .map(s => s?.startSec)
+            .filter(v => v != null);
+          const ends = strokes
+            .map(s => s?.endSec)
+            .filter(v => v != null);
+          if (starts.length) params.set('start_sec', String(Math.min(...starts)));
+          if (ends.length && Math.max(...ends) > (starts.length ? Math.min(...starts) : 0)) {
+            params.set('end_sec', String(Math.max(...ends)));
+          }
+          // XHR rather than fetch so we get upload-progress events for the
+          // visible byte-flow phase (fetch doesn't surface them).
+          upRes = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `/api/upload?${params.toString()}`);
+            xhr.upload.addEventListener('progress', (e) => {
+              if (aborted || !e.lengthComputable) return;
+              const frac = e.loaded / e.total;
+              setPct(5 + frac * 25);  // 5% → 30% covers upload phase
+            });
+            xhr.addEventListener('load', () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try { resolve(JSON.parse(xhr.responseText)); }
+                catch (e) { reject(new Error('Malformed upload response')); }
+              } else {
+                let detail = `HTTP ${xhr.status}`;
+                try { detail = JSON.parse(xhr.responseText).detail || detail; } catch { /* noop */ }
+                reject(new Error(detail));
+              }
+            });
+            xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+            xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+            const fd = new FormData();
+            fd.append('file', file, file.name);
+            if (markupPayload) {
+              fd.append('markup', JSON.stringify(markupPayload));
+              appendLog(`Markup sidecar: ${markupPayload.boundary ? '4 corners' : 'no boundary'}, ${markupPayload.annotations.length} annotation(s)`);
+            }
+            xhr.send(fd);
+          });
+        } else {
+          // Library-match path: POST JSON to /api/library_predict. No
+          // upload bytes, so we jump straight to the queued/processing
+          // phase. The clip_stem is the library entry's id; the canned
+          // backend stub doesn't read the video itself.
+          appendLog(`Submitting library clip "${task?.markup?.video?.match || 'clip'}" for inference…`);
+          setPct(20);
+          const body = {
+            clip_stem: task?.markup?.video?.id || task?.markup?.video?.youtubeId,
+            architecture: markupPayload?.architecture || 'bst',
+            model_id: markupPayload?.model_id || null,
+            markup: markupPayload,
+          };
+          const r = await fetch('/api/library_predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (!r.ok) {
+            let detail = `HTTP ${r.status}`;
+            try { detail = (await r.json()).detail || detail; } catch { /* noop */ }
+            throw new Error(detail);
+          }
+          upRes = await r.json();
+          if (markupPayload) {
+            appendLog(`Markup sidecar: ${markupPayload.boundary ? '4 corners' : 'no boundary'}, ${markupPayload.annotations.length} annotation(s)`);
+          }
+        }
+        if (aborted) return;
+        appendLog(`Upload accepted · job ${upRes.job_id.slice(0, 8)}`);
+        setStage(1);
+        setPct(30);
+
+        const jobId = upRes.job_id;
+        let lastStatus = null;
+
+        // Poll /api/status every 250ms until terminal state.
+        await new Promise((resolve, reject) => {
+          pollId = setInterval(async () => {
+            try {
+              const r = await fetch(`/api/status/${jobId}`);
+              if (!r.ok) throw new Error(`Status HTTP ${r.status}`);
+              const s = await r.json();
+              if (s.status !== lastStatus) {
+                lastStatus = s.status;
+                if (s.status === 'queued') {
+                  setStage(1); setPct(p => Math.max(p, 35));
+                  appendLog('Backend status: queued');
+                } else if (s.status === 'processing') {
+                  setStage(2); setPct(p => Math.max(p, 55));
+                  appendLog('Backend status: processing');
+                } else if (s.status === 'complete') {
+                  clearInterval(pollId); pollId = null;
+                  resolve();
+                  return;
+                } else if (s.status === 'failed') {
+                  clearInterval(pollId); pollId = null;
+                  reject(new Error('Backend reported failure'));
+                  return;
+                }
+              }
+              // Slow tick during processing so the bar feels alive without
+              // racing past the backend.
+              setPct(p => (p < 88 ? p + 0.6 : p));
+            } catch (e) {
+              if (pollId) { clearInterval(pollId); pollId = null; }
+              reject(e);
+            }
+          }, 250);
+        });
+        if (aborted) return;
+        appendLog('Inference complete · fetching results');
+        setStage(3); setPct(95);
+
+        const rr = await fetch(`/api/results/${jobId}`);
+        if (!rr.ok) {
+          let detail = `HTTP ${rr.status}`;
+          try { detail = (await rr.json()).detail || detail; } catch { /* noop */ }
+          throw new Error(detail);
+        }
+        const result = await rr.json();
+        if (aborted) return;
+        setPct(100);
+        appendLog(`✓ Done · ${result.strokes?.length ?? 0} stroke(s) returned`, 100);
+        setTimeout(() => { if (!aborted) onComplete(result); }, 800);
+      } catch (e) {
+        if (aborted) return;
+        setError(e.message || String(e));
+        appendLog(`✗ ${e.message || e}`);
+      }
+    };
+    run();
+    return () => {
+      aborted = true;
+      if (pollId) clearInterval(pollId);
+    };
+  }, [realRun, retryNonce]);
+
+  // ── Mock-timer path: library matches with no real file. Untouched
+  // behaviour from before — keeps the demo wizard working when nothing is
+  // uploaded (e.g. user picks from Match Library and walks the wizard).
+  useEffect(() => {
+    if (realRun) return;
     let current = 0;
     const iv = setInterval(() => {
       const increment = Math.random() * 2.8 + 0.6;
@@ -48,17 +297,17 @@ export function ProgressScreen({ task, onComplete }) {
 
       if (current >= 100) {
         clearInterval(iv);
-        setTimeout(onComplete, 1400);
+        setTimeout(() => onComplete(null), 1400);
       }
     }, 280);
     return () => clearInterval(iv);
-  }, []);
+  }, [realRun]);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [log]);
 
-  const done = pct >= 100;
+  const done = pct >= 100 && !error;
 
   return (
     <div style={{ maxWidth: 820, margin: '0 auto', padding: 32 }}>
@@ -66,6 +315,22 @@ export function ProgressScreen({ task, onComplete }) {
         title="Analysis in Progress"
         subtitle={task?.taskName}
       />
+      
+      {error && (
+        <Card style={{ padding: 22, marginBottom: 20, borderColor: t.danger, background: t.dangerDim }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.danger, marginBottom: 4 }}>
+                Analysis failed
+              </div>
+              <div style={{ fontSize: 12, color: t.text, fontFamily: "'JetBrains Mono', monospace" }}>
+                {error}
+              </div>
+            </div>
+            <Btn onClick={() => setRetryNonce(n => n + 1)}>Try again</Btn>
+          </div>
+        </Card>
+      )}
 
       <Card style={{ padding: 26, marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
