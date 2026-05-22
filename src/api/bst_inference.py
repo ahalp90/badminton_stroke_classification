@@ -25,7 +25,6 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from functools import lru_cache
 from pathlib import Path
 from threading import Lock
 

@@ -14,14 +14,12 @@ scratch/inspect_clips/handoff_report.md §9 (Fix 2).
 """
 from __future__ import annotations
 
-import json
 import logging
 import random
 import time
 from pathlib import Path
 from typing import Optional
 
-from .config import REPO_ROOT
 from .registry import _load_registry, _read_json_under_run
 
 log = logging.getLogger(__name__)
