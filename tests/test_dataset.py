@@ -23,6 +23,7 @@ def _make_synthetic_split(
     J: int = 17,
     d: int = 2,
     labels: np.ndarray | None = None,
+    videos_len: np.ndarray | None = None,
     with_clip_stems: bool = True,
 ) -> Path:
     """Write a synthetic collated split dir under ``tmp/train/``.
@@ -30,6 +31,8 @@ def _make_synthetic_split(
     :param tmp: temp dir to write into.
     :param n: number of clips.
     :param labels: per-clip labels; defaults to all-zeros.
+    :param videos_len: per-clip video length; defaults to all-100. Pass an
+        array with some zeros to exercise the zero-length-filter path.
     :param with_clip_stems: if True, write clip_stems.npy alongside; if False,
         omit it to simulate a legacy collation.
     :return: the split dir path (containing the .npy files).
@@ -39,7 +42,8 @@ def _make_synthetic_split(
     np.save(split_dir / "J_only.npy", np.zeros((n, t, m, J, d), dtype=np.float32))
     np.save(split_dir / "pos.npy", np.zeros((n, t, m, 2), dtype=np.float32))
     np.save(split_dir / "shuttle.npy", np.zeros((n, t, 2), dtype=np.float32))
-    np.save(split_dir / "videos_len.npy", np.full(n, 100, dtype=np.int64))
+    videos_len = videos_len if videos_len is not None else np.full(n, 100, dtype=np.int64)
+    np.save(split_dir / "videos_len.npy", videos_len)
     labels = labels if labels is not None else np.zeros(n, dtype=np.int64)
     np.save(split_dir / "labels.npy", labels)
     if with_clip_stems:
@@ -90,6 +94,25 @@ def test_dataset_graceful_none_when_clip_stems_missing():
     assert any('predates' in str(w.message) for w in caught), (
         f'expected a "predates" warning, got: {[str(w.message) for w in caught]}'
     )
+
+
+def test_dataset_clip_stems_after_zero_length_filter():
+    """Zero-length filter (videos_len > 0) extends to clip_stems when present.
+
+    Pins the parallel slicing of clip_stems alongside labels/pose/etc., so a
+    future refactor that drops the clip_stems branch from the filter goes red
+    rather than letting the stem array desync from labels.
+    """
+    n = 4
+    # Two clips have videos_len=0 (will be dropped); two survive.
+    videos_len = np.array([100, 0, 0, 100], dtype=np.int64)
+    with tempfile.TemporaryDirectory() as tmp:
+        _make_synthetic_split(Path(tmp), n=n, videos_len=videos_len)
+        dataset = Dataset_npy_collated(Path(tmp), "train")
+    assert dataset.clip_stems is not None
+    assert len(dataset.clip_stems) == len(dataset.labels) == 2
+    # Rows 0 and 3 survive (videos_len=100); rows 1 and 2 drop (videos_len=0).
+    assert dataset.clip_stems.tolist() == ['stem_0', 'stem_3']
 
 
 def test_dataset_clip_stems_after_partial_train():
