@@ -11,6 +11,7 @@
     const [total,  setTotal]  = useState(0);
     const [offset, setOffset] = useState(0);
     const [error,  setError]  = useState(null);
+    const [isMock, setIsMock] = useState(false);
     
     // Reset to page 1 when filters change.
     useEffect(() => { setOffset(0); }, [modelId, split, errorsOnly]);
@@ -30,10 +31,11 @@
             const items = data.clips || [];
             setClips(items);
             setTotal(data.total ?? 0);
+            setIsMock(!!data._mock_data)
           })
         .catch(err => { if (alive) setError(err.message); });
         return () => { alive = false; };
     }, [modelId, split, errorsOnly, offset]);
 
-    return { clips, total, offset, setOffset, limit: CLIP_LIMIT, error };
+    return { clips, total, offset, setOffset, limit: CLIP_LIMIT, isMock, error };
 }

@@ -17,7 +17,7 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange }) {
   const { t } = useTheme();
   const [selectedStem, setSelectedStem] = useState(null);
   const [errorsOnly,   setErrorsOnly]   = useState(false);
-  const { clips, total, offset, setOffset, limit, error: listError} = useClipList({ modelId, split, errorsOnly });
+  const { clips, total, offset, setOffset, limit, isMock, error: listError} = useClipList({ modelId, split, errorsOnly });
   const { detail, loading: detailLoading, error: detailError }      = useClipDetail({ modelId, split, selectedStem });
 
   useEffect(() => {
@@ -42,6 +42,14 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange }) {
           <span style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
             Per-clip predictions
           </span>
+          {isMock && (
+            <span style={{
+              fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius:4,
+              background: t.warning + '33', color: t.warning, border: `1px solid ${t.warning}55`,
+            }}>
+              mock data
+            </span>
+          )}
           <div style={{ display: 'inline-flex', gap: 4 }}>
             {SPLITS.map(s => {
               const active = s === split;
