@@ -53,7 +53,7 @@ from src.bst_refactor.stroke_classification.preparing_data.shuttleset_dataset im
     Dataset_npy_collated,
 )
 from src.bst_refactor.stroke_classification.model.bst import BST_0
-from src.bst_refactor.pipeline.config import TAXONOMIES, DEFAULT_TAXONOMY
+from src.bst_refactor.pipeline.config import TAXONOMIES, resolve_taxonomy  # noqa: F401
 
 BST_DATA_DIR = os.environ.get("BST_DATA_DIR")
 
@@ -87,7 +87,9 @@ def test_pipeline_dataloader_to_model_forward_pass():
     # downstream pipeline.
     # -------------------------------------------------------------------------
 
-    n_classes = TAXONOMIES[DEFAULT_TAXONOMY].n_classes
+    # Use bst_25 (the largest registered taxonomy) so the head can handle
+    # labels from any post-refactor collation reachable via BST_DATA_DIR.
+    n_classes = resolve_taxonomy('bst_25').n_classes
 
     # Step 4: Load npy dataset.
     # Active configs only collate one pose_style at a time (J_only / JnB_bone /

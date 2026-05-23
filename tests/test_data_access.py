@@ -17,9 +17,11 @@ from pathlib import Path
 import pytest
 
 from pipeline.config import (
-    DEFAULT_TAXONOMY,
     TAXONOMIES,
-    TAXONOMY_UNE_MERGE_V1,
+    TAXONOMY_BST_24,
+    TAXONOMY_BST_25,
+    TAXONOMY_UNE_V1_14,
+    resolve_taxonomy,
 )
 from pipeline.data_access import (
     ClipRecord,
@@ -59,7 +61,7 @@ def _write_clips_csv(csv_path: Path, rows: list[dict]) -> None:
 def _make_fake_dataset(
     tmp: Path,
     rows: list[dict],
-    taxonomy_name: str = DEFAULT_TAXONOMY,
+    taxonomy_name: str = 'bst_25',
     with_shuttle: bool = True,
     with_mmpose: bool = False,
     with_clips: bool = True,
@@ -86,7 +88,7 @@ def _make_fake_dataset(
     mmpose_dir = tmp / 'mmpose_npy_flat' if with_mmpose else None
     csv_path = tmp / 'clips_master.csv'
 
-    taxonomy = TAXONOMIES[taxonomy_name]
+    taxonomy = resolve_taxonomy(taxonomy_name)
     if with_clips:
         clips_dir.mkdir(parents=True, exist_ok=True)
     if with_shuttle:
@@ -145,19 +147,35 @@ SIMPLE_ROWS = [
 # ---------------------------------------------------------------------------
 
 def test_derive_class_label_prefixes_with_player_side():
-    assert _derive_class_label('smash', 'Top', TAXONOMY_UNE_MERGE_V1) == 'Top_smash'
-    assert _derive_class_label('smash', 'Bottom', TAXONOMY_UNE_MERGE_V1) == 'Bottom_smash'
+    """Sided taxonomy: smash maps to Top_/Bottom_ prefixes."""
+    assert _derive_class_label('smash', 'Top', TAXONOMY_BST_25) == 'Top_smash'
+    assert _derive_class_label('smash', 'Bottom', TAXONOMY_BST_25) == 'Bottom_smash'
 
 
 def test_derive_class_label_applies_merge_map():
-    # une_merge_v1 merges back_court_drive -> drive.
+    """bst_25 merges back_court_drive -> drive (per MERGE_MAP_25)."""
     assert _derive_class_label(
-        'back_court_drive', 'Top', TAXONOMY_UNE_MERGE_V1,
+        'back_court_drive', 'Top', TAXONOMY_BST_25,
     ) == 'Top_drive'
 
 
+def test_derive_class_label_applies_bst_25_driven_flight_fix():
+    """driven_flight -> drive on bst_25 (the MERGE_MAP_25 paper-faithful fix
+    vs the legacy buggy driven_flight -> unknown convention).
+    """
+    assert _derive_class_label('driven_flight', 'Top', TAXONOMY_BST_25) == 'Top_drive'
+    assert _derive_class_label('driven_flight', 'Bottom', TAXONOMY_BST_25) == 'Bottom_drive'
+
+
 def test_derive_class_label_standalone_is_unprefixed():
-    assert _derive_class_label('unknown', 'Top', TAXONOMY_UNE_MERGE_V1) == 'unknown'
+    """Side-agnostic types (e.g. unknown) come through unprefixed."""
+    assert _derive_class_label('unknown', 'Top', TAXONOMY_BST_25) == 'unknown'
+
+
+def test_derive_class_label_excluded_returns_none():
+    """raw_type in excluded_base_stroke_types yields None (filtered out)."""
+    assert _derive_class_label('unknown', 'Top', TAXONOMY_BST_24) is None
+    assert _derive_class_label('unknown', 'Top', TAXONOMY_UNE_V1_14) is None
 
 
 # ---------------------------------------------------------------------------
@@ -225,11 +243,15 @@ def test_split_column_switch_changes_assignment():
     assert '1_1_2_1' in v2_val_stems
 
 
-def test_drop_unknown_removes_unknown_rows():
+def test_taxonomy_with_excluded_unknown_drops_unknown_rows():
+    """Under the contractual taxonomy, picking bst_24 (excludes unknown via
+    excluded_base_stroke_types) drops unknown rows; picking bst_25 (keeps
+    unknown) keeps them. No separate drop_unknown flag any more.
+    """
     with tempfile.TemporaryDirectory() as tmp:
-        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
-        with_unknown = get_clip_records(paths)
-        without_unknown = get_clip_records(paths, drop_unknown=True)
+        paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS, taxonomy_name='bst_25')
+        with_unknown = get_clip_records(paths, taxonomy_name='bst_25')
+        without_unknown = get_clip_records(paths, taxonomy_name='bst_24')
     assert any(r.taxonomy_class == 'unknown' for r in with_unknown)
     assert not any(r.taxonomy_class == 'unknown' for r in without_unknown)
     assert len(without_unknown) == len(with_unknown) - 1
@@ -337,7 +359,7 @@ def test_invalid_taxonomy_class_raises():
 def test_invalid_taxonomy_name_raises():
     with tempfile.TemporaryDirectory() as tmp:
         paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
-        with pytest.raises(KeyError, match='taxonomy_name'):
+        with pytest.raises(KeyError, match='not registered and not aliased'):
             get_clip_records(paths, taxonomy_name='does_not_exist')
 
 
@@ -405,9 +427,10 @@ def test_menu_rejects_out_of_range_then_accepts(monkeypatch, capsys):
 
 
 def test_interactive_summary(monkeypatch, capsys):
-    # split_column=split_bst_baseline(1), taxonomy=merged_25(1)[first],
-    # split=all(1), class=all(1), drop_unknown=no(1), output=summary(1)
-    responses = iter(['1', '1', '1', '1', '1', '1'])
+    # split_column=split_bst_baseline(1), taxonomy=bst_25(1)[first],
+    # split=all(1), class=all(1), output=summary(1). No drop_unknown prompt
+    # post-refactor: the taxonomy carries the unknown-exclude rule.
+    responses = iter(['1', '1', '1', '1', '1'])
     monkeypatch.setattr('builtins.input', lambda _: next(responses))
     with tempfile.TemporaryDirectory() as tmp:
         paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
@@ -416,9 +439,9 @@ def test_interactive_summary(monkeypatch, capsys):
 
 
 def test_interactive_file_paths(monkeypatch, capsys):
-    # split_column=split_bst_baseline(1), taxonomy=merged_25(1),
-    # split=train(2), class=all(1), drop_unknown=no(1), output=file paths(2)
-    responses = iter(['1', '1', '2', '1', '1', '2'])
+    # split_column=split_bst_baseline(1), taxonomy=bst_25(1),
+    # split=train(2), class=all(1), output=file paths(2).
+    responses = iter(['1', '1', '2', '1', '2'])
     monkeypatch.setattr('builtins.input', lambda _: next(responses))
     with tempfile.TemporaryDirectory() as tmp:
         paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)

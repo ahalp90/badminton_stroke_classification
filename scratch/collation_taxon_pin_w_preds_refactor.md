@@ -92,15 +92,18 @@ grep -n "class_list\|n_active_classes\|active_class_list" scratch/post_tidy_smok
 # 10. Confirm src/api/registry.py is still reading from extra.arch.active_class_list (the bandaid).
 grep -n "active_class_list\|extra.*arch\|config.*classes" src/api/registry.py
 # Expected: matches reading manifest.extra.arch.active_class_list at the entry
-# build site (around line 91) and preds.active_class_list at the predictions
-# read sites (around lines 199, 228). If 'config.classes' appears here already,
+# build site (around line 96) and preds.active_class_list at the predictions
+# read sites (around lines 204, 233). If 'config.classes' appears here already,
 # someone landed Patch 2 ahead of us; audit Step J before re-doing.
 
-# 11. Confirm the predictions JSON output dir doesn't yet carry real (non-mock) files.
+# 11. Confirm the predictions JSON output dir is still in the placeholder state.
 find src/bst_refactor/stroke_classification/main_on_shuttleset/experiments \
     -name 'test.json' -o -name 'val.json' 2>/dev/null | head -5
-# If real JSONs exist (no '_mock_data: true' field), the post-hoc converter
-# work has already started; audit before treating Step J as fresh.
+# Expected: val.json + test.json at run_20260505_154907/predictions/ with
+# _mock_data: false, _real_stems: true, y_pred a placeholder the live BST
+# endpoint overrides; sibling perclass_stats_{split}.json files alongside.
+# Step J's fallback handles this. If a class_list field appears in the JSON,
+# the post-hoc converter has started; audit before treating Step J as fresh.
 ```
 
 If any check disagrees with the expected output, stop and reconcile. The plan assumes the state these greps confirm.
@@ -131,7 +134,7 @@ The runtime active-class adapter (`derive_active_classes_from_labels` in `bst_co
 1. labels.npy moves to active class space directly. No runtime remap.
 2. `derive_active_classes_from_labels` deletes. Two asserts at train start replace it.
 3. `Taxonomy.unknown_first` deletes. Unknown always sits at index -1 when a taxonomy includes it, enforced by `Taxonomy.__post_init__`.
-4. `Taxonomy` dataclass simplifies down to `classes` (the final ordered list), `merge_map`, `has_sides`, `excludes_raw`. No `base_types` / `standalone_types` / `class_list(side=)` / `active_class_list` / `full_to_active_remap`.
+4. `Taxonomy` dataclass simplifies down to `classes` (the final ordered list), `merge_map`, `has_sides`, `excluded_base_stroke_types`. No `base_types` / `standalone_types` / `class_list(side=)` / `active_class_list` / `full_to_active_remap`.
 
 Independently each cleanup item is its own piece of work; bundled with the forced rebuild they share one rip-and-replace per touched file.
 
@@ -143,7 +146,7 @@ Driven-flight clips themselves were never filtered out at extract time (`build_e
 
 ## Locked decisions
 
-- **Taxonomy dataclass**: shape becomes `name`, `classes` (final ordered tuple, unknown at -1 if present), `merge_map` (None or dict), `has_sides` (bool), `excludes_raw` (frozenset). No `base_types`, no `standalone_types`, no `unknown_first`, no `class_list(side=)`, no `active_class_list`, no `full_to_active_remap` methods. Side prefixing rule lives in a free function consulting a module-level `SIDE_AGNOSTIC_TYPES = frozenset({'unknown'})`.
+- **Taxonomy dataclass**: shape becomes `name`, `classes` (final ordered tuple, unknown at -1 if present), `merge_map` (None or dict), `has_sides` (bool), `excluded_base_stroke_types` (frozenset). No `base_types`, no `standalone_types`, no `unknown_first`, no `class_list(side=)`, no `active_class_list`, no `full_to_active_remap` methods. Side prefixing rule lives in a free function consulting a module-level `SIDE_AGNOSTIC_TYPES = frozenset({'unknown'})`.
 - **MERGE_MAP fix**: `driven_flight: drive`. Paper-faithful for the 25-class.
 - **Unknown class membership is contractual**: `bst_25` (with unknown at index 24) and `bst_24` (no unknown) are separate Taxonomy entries. Same pattern for any other (with-unknown, without-unknown) family pair.
 - **Sides remain contractual** (already settled prior).
@@ -169,10 +172,10 @@ Eight cells. Headline three at 10 serials, rest at 5. All use `ablation_id=taxon
 
 | # | Taxonomy | Split | Drop unk | Serials | Notes |
 |---|---|---|---|---|---|
-| 1 | `shuttleset_18` | `split_v2` | n/a (excludes_raw=unknown) | 5 | Raw 18 types, no sides, no unknown. |
+| 1 | `shuttleset_18` | `split_v2` | n/a (excluded_base_stroke_types=unknown) | 5 | Raw 18 types, no sides, no unknown. |
 | 2 | `bst_25` | `split_v2` | n/a (has_unknown) | 5 | Paper 25-class on project split. Needs unknown sibling dir. |
-| 3 | `bst_24` | `split_v2` | n/a (excludes_raw=unknown) | 5 | Paper 25-class minus unknown. |
-| 4 | `bst_12` | `split_v2` | n/a (excludes_raw=unknown) | 5 | Paper merged collapsed to nosides, no unknown. |
+| 3 | `bst_24` | `split_v2` | n/a (excluded_base_stroke_types=unknown) | 5 | Paper 25-class minus unknown. |
+| 4 | `bst_12` | `split_v2` | n/a (excluded_base_stroke_types=unknown) | 5 | Paper merged collapsed to nosides, no unknown. |
 | 5 | `bst_25` | `split_bst_baseline` | n/a | **10** | Headline paper-comparable baseline. |
 | 6 | `bst_24` | `split_bst_baseline` | n/a | **10** | Headline paper baseline, dropunk. |
 | 7 | `une_v1_14` | `split_v2` | n/a | **10** | Refresh of the active best on the new collation generation (gets clip_stems sidecar + predictions npz). |
@@ -243,7 +246,7 @@ class Taxonomy:
     classes: tuple[str, ...]
     merge_map: dict[str, str] | None
     has_sides: bool
-    excludes_raw: frozenset[str]
+    excluded_base_stroke_types: frozenset[str]
 
     def __post_init__(self):
         if 'unknown' in self.classes:
@@ -272,7 +275,7 @@ TAXONOMY_BST_25 = Taxonomy(
     classes=_sided_classes(STROKE_TYPES_12_MERGED, with_unknown=True),
     merge_map=MERGE_MAP_25,
     has_sides=True,
-    excludes_raw=frozenset(),  # keeps unknown rows
+    excluded_base_stroke_types=frozenset(),  # keeps unknown rows
 )
 
 TAXONOMY_BST_24 = Taxonomy(
@@ -280,7 +283,7 @@ TAXONOMY_BST_24 = Taxonomy(
     classes=_sided_classes(STROKE_TYPES_12_MERGED, with_unknown=False),
     merge_map=MERGE_MAP_25,
     has_sides=True,
-    excludes_raw=frozenset({'unknown'}),
+    excluded_base_stroke_types=frozenset({'unknown'}),
 )
 
 TAXONOMY_BST_12 = Taxonomy(
@@ -288,7 +291,7 @@ TAXONOMY_BST_12 = Taxonomy(
     classes=tuple(STROKE_TYPES_12_MERGED),
     merge_map=MERGE_MAP_25,
     has_sides=False,
-    excludes_raw=frozenset({'unknown'}),
+    excluded_base_stroke_types=frozenset({'unknown'}),
 )
 
 TAXONOMY_UNE_V1_14 = Taxonomy(
@@ -296,7 +299,7 @@ TAXONOMY_UNE_V1_14 = Taxonomy(
     classes=tuple(STROKE_TYPES_14_UNE_V1),
     merge_map=UNE_MERGE_V1_MAP,
     has_sides=False,
-    excludes_raw=frozenset({'unknown'}),
+    excluded_base_stroke_types=frozenset({'unknown'}),
 )
 
 TAXONOMY_UNE_V1_15 = Taxonomy(
@@ -304,7 +307,7 @@ TAXONOMY_UNE_V1_15 = Taxonomy(
     classes=tuple(STROKE_TYPES_14_UNE_V1) + ('unknown',),
     merge_map=UNE_MERGE_V1_MAP,
     has_sides=False,
-    excludes_raw=frozenset(),
+    excluded_base_stroke_types=frozenset(),
 )
 
 TAXONOMY_SHUTTLESET_18 = Taxonomy(
@@ -312,7 +315,7 @@ TAXONOMY_SHUTTLESET_18 = Taxonomy(
     classes=tuple(STROKE_TYPES_18_RAW),
     merge_map=None,
     has_sides=False,
-    excludes_raw=frozenset({'unknown'}),
+    excluded_base_stroke_types=frozenset({'unknown'}),
 )
 
 TAXONOMIES: dict[str, Taxonomy] = {
@@ -357,11 +360,11 @@ def resolve_taxonomy(name: str) -> Taxonomy:
 def label_for_row(taxonomy: Taxonomy, raw_type: str, side: str) -> int | None:
     """Resolve a per-row class index, or None if the row should be filtered out.
 
-    Used by the collator. excludes_raw drops rows before any merge or side-
+    Used by the collator. excluded_base_stroke_types drops rows before any merge or side-
     prefix step; merge_map applies next; side-prefixing kicks in when
     has_sides=True and the merged type is not in SIDE_AGNOSTIC_TYPES.
     """
-    if raw_type in taxonomy.excludes_raw:
+    if raw_type in taxonomy.excluded_base_stroke_types:
         return None
     merged = (taxonomy.merge_map or {}).get(raw_type, raw_type)
     if taxonomy.has_sides and merged not in SIDE_AGNOSTIC_TYPES:
@@ -458,7 +461,7 @@ Manual rsync of both sibling dirs from engelbart to bourbaki after B2 + B3 finis
 
 Three sub-changes:
 
-1. Replace the manual per-row label derivation (lines 774-803) with a call to `label_for_row` from `pipeline.config`. The CSV-level `drop_unknown` filter at line 768 also goes; `excludes_raw` on the Taxonomy carries the same information, and the per-row check inside `label_for_row` is now the single point that filters.
+1. Replace the manual per-row label derivation (lines 774-803) with a call to `label_for_row` from `pipeline.config`. The CSV-level `drop_unknown` filter at line 768 also goes; `excluded_base_stroke_types` on the Taxonomy carries the same information, and the per-row check inside `label_for_row` is now the single point that filters.
 
 2. Add `unknown_root_dir: Path | None = None` parameter. Per-row branch picks the source dir based on `raw_type_en`:
 
@@ -477,7 +480,7 @@ clip_stems_arr = np.array([Path(b).name for b in data_branches], dtype=object)
 np.save(str(set_dir / 'clip_stems.npy'), clip_stems_arr, allow_pickle=True)
 ```
 
-Also remove the `drop_unknown: bool = False` parameter from `collate_npy`; the equivalent control is now `taxonomy.excludes_raw`.
+Also remove the `drop_unknown: bool = False` parameter from `collate_npy`; the equivalent control is now `taxonomy.excluded_base_stroke_types`.
 
 #### C2. CLI changes to `prepare_train_on_shuttleset.main`
 
@@ -488,7 +491,7 @@ parser.add_argument(
     '--unknown-clip-npy-dir', type=Path, default=None,
     help='Flat per-clip dir for raw_type=="unknown" rows. Routes those clips '
          'through this dir while all others come from --clip-npy-dir. '
-         'Mutually exclusive with a taxonomy that has unknown in excludes_raw.',
+         'Mutually exclusive with a taxonomy that has unknown in excluded_base_stroke_types.',
 )
 parser.add_argument(
     '--ablation-id', required=True,
@@ -502,7 +505,7 @@ Validation:
 
 ```python
 taxonomy = resolve_taxonomy(args.taxonomy)
-if args.unknown_clip_npy_dir is not None and 'unknown' in taxonomy.excludes_raw:
+if args.unknown_clip_npy_dir is not None and 'unknown' in taxonomy.excluded_base_stroke_types:
     parser.error(
         '--unknown-clip-npy-dir is set but taxonomy '
         f'{taxonomy.name!r} excludes unknown rows. Either drop the flag or '
@@ -555,7 +558,7 @@ augmentation,
 expected_active_classes
 ```
 
-Drop `expected_active_classes` (lever for the deleted runtime adapter). Drop `drop_unknown` (the taxonomy now carries `excludes_raw`, so this knob has no independent meaning). Keep all other 19 fields.
+Drop `expected_active_classes` (lever for the deleted runtime adapter). Drop `drop_unknown` (the taxonomy now carries `excluded_base_stroke_types`, so this knob has no independent meaning). Keep all other 19 fields.
 
 Default Hyp values change to reference the new taxonomy names. The pre-refactor default of `taxonomy='une_merge_v1_nosides'` becomes `taxonomy='une_v1_14'`; `ablation_id='wipe_drop'` becomes `ablation_id='taxon_pinned_w_preds'`.
 
@@ -855,7 +858,7 @@ Total surface: ~30 lines across two files. Lands alongside the rip; deliver to t
 
 #### J1. Add a `_resolve_class_list` helper
 
-Replace the hardcoded read at `src/api/registry.py:91` with a small resolver that tries the canonical field first, falling back to the legacy bandaid for old BST runs:
+Replace the hardcoded read at `src/api/registry.py:96` with a small resolver that tries the canonical field first, falling back to the legacy bandaid for old BST runs:
 
 ```python
 def _resolve_class_list(manifest: dict) -> list[str]:
@@ -878,7 +881,7 @@ def _resolve_class_list(manifest: dict) -> list[str]:
 Then in the registry-entry builder:
 
 ```python
-# Current (line 91, will be removed):
+# Current (line 96, will be removed):
 # class_list = manifest.get("extra", {}).get("arch", {}).get("active_class_list", [])
 
 # Replacement:
@@ -890,14 +893,14 @@ class_list = _resolve_class_list(manifest)
 The post-hoc converter (parked for later) will emit `class_list` as the canonical per-clip JSON field, matching the registry-entry field name in `docs/api_contract.md`. The handler reads either name for back-compat with the existing mock JSONs during the transition:
 
 ```python
-# Current (lines 199, 228, will be removed):
+# Current (lines 204, 233, will be removed):
 # class_list = preds.get("active_class_list", [])
 
 # Replacement:
 class_list = preds.get("class_list") or preds.get("active_class_list", [])
 ```
 
-Two sites need updating (the `/clips` endpoint at line 199 and the `/clips/{stem}` endpoint at line 228).
+Two sites need updating (the `/clips` endpoint at line 204 and the `/clips/{stem}` endpoint at line 233).
 
 #### J3. `src/api/inference.py` JSON field back-compat
 
@@ -1096,7 +1099,7 @@ New tests to add:
 
 - `test_taxonomy_unknown_at_minus_one`: parametrize over `TAXONOMIES.values()`, assert `'unknown' not in t.classes or t.classes[-1] == 'unknown'`.
 - `test_taxonomy_post_init_rejects_wrong_position`: construct a Taxonomy with `('a', 'unknown', 'b')` and assert it raises.
-- `test_label_for_row_drives_taxonomy`: parametrize over `(taxonomy, raw_type, side) -> expected_index`. Covers driven_flight -> drive on bst_25 (the fix), unknown -> None on excludes_raw taxonomies, etc.
+- `test_label_for_row_drives_taxonomy`: parametrize over `(taxonomy, raw_type, side) -> expected_index`. Covers driven_flight -> drive on bst_25 (the fix), unknown -> None on excluded_base_stroke_types taxonomies, etc.
 - `test_resolve_taxonomy_aliases`: assert that each alias key returns the right object.
 - `test_label_coverage_assert_failure_modes`: build a minimal Task-like environment with synthetic labels missing one class and assert the new assert fires with the expected message.
 
