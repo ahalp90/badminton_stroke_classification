@@ -112,6 +112,7 @@ End-of-refactor sweep targets. Updated as new finds emerge during execution.
 - `scratch/architecture_notes/unknown_channel_fix_review.md` (archived design doc, deprecated symbol refs; pure history)
 - `scratch/architecture_notes/completed_general_refactors/data_access_integration_plan.md` (archived design doc, deprecated symbol refs; pure history)
 - `src/bst_refactor/validation_scripts/README.md` (line 163 references `derive_ablation_id`)
+- `scratch/research/dump_videos_len.py` (uses old `derive_npy_collated_dir_basename` signature; TypeError on invocation; ad-hoc inspection script Ariel likely reaches for during X3D-S work — fix when next touched)
 
 ## 2026-05-23: multi-agent verification round
 
@@ -231,3 +232,64 @@ No code commits between B1 and Step C. Ops only:
 - B2: `raw_extract.py` against the new stems list -> `/scratch/comp320a/ShuttleSet_keypoints_raw_unknown/`. ~1.5 hours.
 - B3: `apply_heuristic.py` against that raw dir -> `/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor_unknown/`.
 - B4: rsync both sibling dirs to bourbaki.
+
+## 2026-05-23: B2 ran on bourbaki, B3 surfaced the real lazy-import blocker
+
+User ran B2 on bourbaki (not engelbart — my earlier "engelbart" pointer was wrong; per project memory, bourbaki is the actual extract host). Clean: 1278/1278 processed, 60-minute wall time, four over-detection warnings (audience-behind-players, normal).
+
+B3 then crashed:
+
+```
+File ".../heuristics/sticky_anchor.py", line 335, in apply
+    from preparing_data.prepare_train_on_shuttleset import (
+File ".../preparing_data/prepare_train_on_shuttleset.py", line 34, in <module>
+    from pipeline.config import (
+```
+
+The lazy import I previously verified as "absent in apply_heuristic.py" was actually inside `sticky_anchor.py:332-337` — same structural concern Agent 3 flagged before B1 push, just at a different file/line than the agent claimed. I anchored my "Verified false" on the wrong file; Agent 3's structural call was correct. Correction: the Step C work (rewriting prepare_train_on_shuttleset.py properly) is the right unblock, not a hot-fix.
+
+## 2026-05-23: Step C committed
+
+`collate_npy` routes per-row through `label_for_row`: `excluded_base_stroke_types` drops what `drop_unknown` used to (gone from CLI + signature); `merge_map` + side rule fire next. New `unknown_root_dir` param routes `raw_type=='unknown'` rows through a sibling per-clip dir, for `bst_25` / `une_v1_15` cells against the `_unknown` sibling extract.
+
+`clip_stems.npy` sidecar saves alongside `labels.npy`, row-aligned. `Dataset_npy_collated` loads it with graceful None fallback for legacy collations (warnings.warn); `adjust_to_partial_train_set` mirrors the per-class slicing.
+
+CLI: `--drop-unknown` gone, `--ablation-id` required, `--unknown-clip-npy-dir` added; `resolve_taxonomy` handles legacy aliases at the writer entry (writer-side `choices=list(TAXONOMIES.keys())` restricts to canonical names anyway, so legacy aliases fail with `invalid choice` before reaching resolve_taxonomy).
+
+### Symmetric unknown-dir validation (post-agent hardening)
+
+Three Plan agents reviewed Step C before commit. All three agreed the diff is correctness-clean and B3 is unblocked. Agent 3 surfaced one important design subtlety: `bst_25` / `une_v1_15` (keepunk taxonomies) without `--unknown-clip-npy-dir` silently drops the 1,278 unknown rows via the missing-file branch (label_for_row keeps them alive, but `_pos.npy` doesn't exist under the canonical extract). Plan acknowledges that bst_25 / une_v1_15 cells must supply `--unknown-clip-npy-dir`, but didn't enforce it at the boundary.
+
+Fixed both ways:
+- `collate_npy` body: `if taxonomy.has_unknown and unknown_root_dir is None: raise ValueError(...)` (with a clear message naming the sibling extract + the bst_24 / une_v1_14 escape hatch).
+- `main()` argparse: same check via `parser.error(...)` at the CLI surface.
+
+Symmetric with the existing `unknown_root_dir set + taxonomy excludes unknown` validation. Both directions error loud now.
+
+### Other Step C hardenings (post-agent)
+
+- `label_for_row`: bare `tuple.index` ValueError replaced with a descriptive raise naming `taxonomy.name`, `raw_type`, `side`, derived `label_str`, and the full classes list. `from e` preserves the original traceback chain. New test (`test_label_for_row_raises_descriptive_error_on_missing_class`) pins the contract.
+- `collate_npy` per-row loop wraps `label_for_row` with a real `except ValueError` that adds clip stem context and re-raises via `from e`. Not a silent swallow.
+- WARNING message for missing per-clip files: the "or {unknown_root_dir} for unknown rows" hint now only prints when `unknown_root_dir is not None` (was printing "or None for unknown rows" otherwise — cosmetic confusion).
+- `_make_synthetic_split` test helper extended to accept a `videos_len` array. New test (`test_dataset_clip_stems_after_zero_length_filter`) pins the parallel slicing of `clip_stems` alongside the other arrays when the zero-length filter fires.
+
+107 pytest cases green (was 103 before the hardenings + 2 new tests).
+
+### Step D resume case still gated
+
+`run_20260505_154907` resume needs Step D7's `bst_train.py:803` patch (`hyp.taxonomy` recorded string instead of `taxonomy.name` resolved) so the weight filename lookup hits the legacy on-disk filename. Step C alone gets the Dataset side right (graceful None for clip_stems, labels load as-is); Step D7 closes the loop.
+
+### Next
+
+B3 retry on bourbaki against the new `_unknown` raw extract:
+
+```
+PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+    python -m preparing_data.apply_heuristic \
+    --raw-dir /scratch/comp320a/ShuttleSet_keypoints_raw_unknown \
+    --output-dir /scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor_unknown \
+    --heuristic sticky_anchor \
+    --clips-csv notebooks/clips_master.csv
+```
+
+Then B4 (cross-node sync if needed for Step C training cells), then Step D when ready.

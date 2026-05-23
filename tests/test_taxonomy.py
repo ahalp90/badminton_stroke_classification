@@ -252,6 +252,29 @@ def test_side_agnostic_types_constant_contains_unknown():
     assert 'unknown' in SIDE_AGNOSTIC_TYPES
 
 
+def test_label_for_row_raises_descriptive_error_on_missing_class():
+    """When the derived label_str isn't in taxonomy.classes (misconfigured
+    merge_map or class list), label_for_row raises a ValueError naming the
+    taxonomy, raw_type, side, and derived label_str. Bare tuple.index would
+    just say 'x not in tuple' which is useless when chasing a config bug.
+    """
+    # Synthetic taxonomy whose merge_map produces a label_str absent from classes.
+    tax = Taxonomy(
+        name='test_misconfigured',
+        classes=('only_one',),
+        merge_map={'smash': 'something_else'},  # 'something_else' not in classes
+        has_sides=False,
+        excluded_base_stroke_types=frozenset(),
+    )
+    with pytest.raises(ValueError) as exc_info:
+        label_for_row(tax, 'smash', 'Top')
+    msg = str(exc_info.value)
+    assert 'test_misconfigured' in msg, msg
+    assert 'something_else' in msg, msg
+    assert 'smash' in msg, msg
+    assert 'Top' in msg, msg
+
+
 def test_label_for_row_filters_before_merge():
     """excluded_base_stroke_types fires BEFORE merge_map.
 
