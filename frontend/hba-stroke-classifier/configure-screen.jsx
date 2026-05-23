@@ -132,10 +132,20 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
               <Badge color={markup?.video?.annotated ? 'green' : 'muted'}>
                 {markup?.video?.annotated ? 'Annotated' : 'Unannotated'}
               </Badge>
-              <Badge color="blue">Player {markup?.player ?? '—'}</Badge>
-              {markup?.timeframe && (
+              <Badge color="blue">
+                {markup?.playerSide
+                  ? `Player ${markup.playerSide}`
+                  : (markup?.player === 1 ? 'Player top'
+                    : markup?.player === 2 ? 'Player bottom'
+                    : 'Player —')}
+              </Badge>
+              {Array.isArray(markup?.annotations) && markup.annotations.length > 0 ? (
+                <Badge color ="pine">
+                  {markup.annotations.length} stroke{markup.annotations.length == 1 ? '' : 's'}
+                </Badge>
+              ) : markup?.timeframe ? (
                 <Badge color="pine">{markup.timeframe.duration}s segment</Badge>
-              )}
+              ) : null}
             </div>
           </Card>
 

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useTheme } from '../shared';
+import { MyUploadsList } from './upload/MyUploadsList';
 
 export function BrowseAllModal({ items, onSelect, onClose }) {
   const { t } = useTheme();
@@ -37,9 +38,9 @@ export function BrowseAllModal({ items, onSelect, onClose }) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14,
         }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: t.text }}>Match Library</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: t.text }}>Browse Videos</div>
             <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>
-              {filtered.length} of {items.length} matches
+              Match library + your uploaded files
             </div>
           </div>
           <button
@@ -51,56 +52,77 @@ export function BrowseAllModal({ items, onSelect, onClose }) {
             aria-label="Close"
           >×</button>
         </div>
+        <div style={{ overflowY: 'auto'}}>
+          <div style={{
+            padding: '14px 20px 6px',
+            fontSize: 11, color: t.muted,
+            textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600,
+          }}>
+            My Uploads
+          </div>
+          <MyUploadsList onSelect={onSelect} />
 
-        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${t.border}` }}>
-          <input
-            autoFocus
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search by player or tournament…"
-            style={{
-              width: '100%', padding: '10px 12px',
-              background: t.surface2, border: `1px solid ${t.border}`,
-              borderRadius: 7, color: t.text, fontSize: 13,
-              fontFamily: "'Space Grotesk', sans-serif", outline: 'none',
-            }}
-          />
-        </div>
+          <div style={{
+            padding: '14px 20px 6px',
+            fontSize: 11, color: t.muted,
+            textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600,
+            borderTop: `1px solid ${t.border}`,
+            marginTop: 6,
+          }}>
+            Match Library — {filtered.length} of {items.length}
+          </div>
 
-        <div style={{ overflowY: 'auto', padding: '8px 0' }}>
-          {filtered.length === 0 && (
-            <div style={{ padding: '32px 20px', textAlign: 'center', color: t.muted, fontSize: 13 }}>
-              No matches found.
-            </div>
-          )}
-          {filtered.map(v => (
-            <button
-              key={v.id}
-              onClick={() => onSelect(v)}
+          <div style={{ padding: '10px 20px 12px' }}>
+            <input
+              autoFocus
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search by player or tournament…"
               style={{
-                width: '100%', padding: '10px 20px',
-                background: 'none', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14,
-                textAlign: 'left', color: t.text,
-                fontFamily: "'Space Grotesk', sans-serif",
+                width: '100%', padding: '10px 12px',
+                background: t.surface2, border: `1px solid ${t.border}`,
+                borderRadius: 7, color: t.text, fontSize: 13,
+                fontFamily: "'Space Grotesk', sans-serif", outline: 'none',
+                boxSizing: 'border-box',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = t.surface2}
-              onMouseLeave={e => e.currentTarget.style.background = 'none'}
-            >
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: t.text, marginBottom: 2 }}>
-                  {v.match}
+            />
+          </div>
+
+          <div style={{ paddingBottom: 12 }}>
+            {filtered.length === 0 && (
+              <div style={{ padding: '20px 20px', textAlign: 'center', color: t.muted, fontSize: 13 }}>
+                No matches found.
                 </div>
-                <div style={{ fontSize: 11, color: t.muted }}>{v.tournament}</div>
-              </div>
-              <div style={{
-                fontSize: 11, color: t.muted, whiteSpace: 'nowrap',
-                fontFamily: "'JetBrains Mono', monospace",
-              }}>
-                {v.strokes} strokes
-              </div>
-            </button>
-          ))}
+            )}
+            {filtered.map(v => (
+              <button
+                key={v.id}
+                onClick={() => onSelect(v)}
+                style={{
+                  width: '100%', padding: '10px 20px',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14,
+                  textAlign: 'left', color: t.text,
+                  fontFamily: "'Space Grotesk', sans-serif",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = t.surface2}
+                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+              >
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: t.text, marginBottom: 2 }}>
+                    {v.match}
+                  </div>
+                  <div style={{ fontSize: 11, color: t.muted }}>{v.tournament}</div>
+                </div>
+                <div style={{
+                  fontSize: 11, color: t.muted, whiteSpace: 'nowrap',
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}>
+                  {v.strokes} strokes
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

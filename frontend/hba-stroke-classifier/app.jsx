@@ -9,14 +9,12 @@ import { ProjectScreen } from './project-screen';
 
 const ORDER = ['library', 'markup', 'configure', 'progress', 'results'];
 
+// Dev fixtures for downstream-stage jumping after a real video is selected.
+// `video` is deliberately not in here — forward navigation without a chosen
+// video now blocks instead of substituting a dummy (Fix 1: the Rick Astley
+// YouTube fallback was being perceived as "the Upload Video tab auto-selects
+// a dummy"). User must pick from Library or upload a file first.
 const DEV_FIXTURES = {
-  video: {
-    youtubeId: 'dQw4w9WgXcQ',
-    match: 'Player One vs Player Two',
-    tournament: 'Demo Tournament 2026',
-    annotated: true,
-    strokeTimes: [],
-  },
   markup: {
     player: 1,
     timeframe: { duration: 30 },
@@ -57,15 +55,17 @@ function HBAStrokeClassifier() {
       setScreen(target);
       return;
     }
-    const v = video ?? DEV_FIXTURES.video;
-    const m = markup ?? { ...DEV_FIXTURES.markup, video: v };
+    // Forward navigation requires a real video. No dummy fallback - the 
+    // user must explicitly select from the Match Library or upload a file 
+    // first (Fix 1).
+    if (!video) return;
+    const m = markup ?? { ...DEV_FIXTURES.markup, video };
     const t = task ?? { ...DEV_FIXTURES.task, markup: m };
-    if (!video) setVideo(v);
     if (dst >= ORDER.indexOf('configure') && !markup) setMarkup(m);
     if (dst >= ORDER.indexOf('progress') && !task) setTask(t);
     setScreen(target);
   };
-
+ 
   const { t } = useTheme();
 
   const screens = {
@@ -91,7 +91,10 @@ function HBAStrokeClassifier() {
     progress: (
       <ProgressScreen
         task={task}
-        onComplete={() => setScreen('results')}
+        onComplete={(result) => {
+          if (result) setTask(prev => ({ ...prev, uploadResult: result }));
+          setScreen('results');
+        }}
       />
     ),
     results: (

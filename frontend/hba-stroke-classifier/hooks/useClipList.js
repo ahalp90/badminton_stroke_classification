@@ -4,7 +4,7 @@
    */
   import { useState, useEffect } from 'react';
 
-  const CLIP_LIMIT = 25; // TODO: Increase to 50 when changeover to real test clips occurs
+  const CLIP_LIMIT = 30; // TODO: 28 clips per split fit on a single page; bump to 50 once real test clips land
 
   export function useClipList({ modelId, split, errorsOnly }) {
     const [clips,  setClips]  = useState([]);

@@ -119,3 +119,14 @@ yolo*.pt
 
 # Ultralytics training/predict default output dir
 runs/
+
+# Video uploads — contents are runtime artefacts, not tracked. Directory is tracked via .gitkeep.
+uploads/*
+!uploads/.gitkeep
+
+# Claude Code local workspace settings
+.claude/
+frontend/.claude/
+
+# Local-only large data SCP'd from Engelbart (542MB collations)
+scratch/bst_inputs/

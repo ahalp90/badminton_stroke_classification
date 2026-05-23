@@ -9,6 +9,7 @@
 export function toVideo(m) {
   return {
     id: m.id,
+    source: 'library',
     match: m.title,
     tournament: [m.tournament, m.year, m.round].filter(Boolean).join(' '),
     duration: '—',
