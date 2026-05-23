@@ -69,6 +69,7 @@ export function LibraryScreen({ onNext }) {
   const [tab, setTab] = useState('library');
   const [selected, setSelected] = useState(null);
   const [browsing, setBrowsing] = useState(false);
+  const [testMatchIds, setTestMatchIds] = useState(null);
 
   // Defensive: also kick off a rehydrate from IndexedDB when the screen
   // mounts, in case the module-level kick-off raced ahead of the React
@@ -76,6 +77,38 @@ export function LibraryScreen({ onNext }) {
   useEffect(() => {
     rehydrateSessionFromIDB().catch(() => { /* noop */ });
   }, []);
+
+  // Fetch test split clips and extract unique match values
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/registry')
+      .then(response => response.ok? response.json() : Promise.reject())
+      .then(data => {
+        const modelId = data?.models?.find(m => m.is_default)?.id
+        ?? data?.models?.[0]?.id;
+        if (!modelId || !alive) return;
+        return fetch(`/api/registry/${modelId}/splits/test/clips?limit=500`)
+          .then(response => response.ok ? response.json() : Promise.reject())
+          .then(clips => {
+            if (!alive) return;
+            const matchSet = new Set((clips.clips || []).map(c => c.match));
+            setTestMatchIds(matchSet);
+          });
+      })
+      .catch(() => {
+        if (alive) setTestMatchIds(new Set()); });
+    return () => { alive = false; };
+  }, []);
+
+  // Filter ALL to only matches that appear in the test split
+  // While loading (testMatchIds === null) show everything so the UI is not blank
+  const inTestSplit = (video) => {
+    if (!testMatchIds) return true;
+    const key = video.match?.replace(/ /g, '_').toLowerCase();
+    const result = [...testMatchIds].some(m => m.toLowerCase().startsWith(key));
+    return result;
+  };
+  const LIBRARY = ALL.filter(inTestSplit);
 
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', padding: 32 }}>
@@ -138,7 +171,7 @@ export function LibraryScreen({ onNext }) {
               onMouseEnter={e => { e.currentTarget.style.color = t.text; e.currentTarget.style.borderColor = t.blue; }}
               onMouseLeave={e => { e.currentTarget.style.color = t.muted; e.currentTarget.style.borderColor = t.border; }}
             >
-              Browse all {ALL.length} matches →
+              Browse all {LIBRARY.length} matches →
             </button>
           </div>
 
@@ -162,14 +195,14 @@ export function LibraryScreen({ onNext }) {
 
           {browsing && (
             <BrowseAllModal
-              items={ALL}
+              items={LIBRARY}
               onSelect={v => { setSelected(v); setBrowsing(false); }}
               onClose={() => setBrowsing(false)}
             />
           )}
         </>
       ) : (
-        <UploadTab videos={ALL} onUpload={v => onNext(v)} />
+        <UploadTab onUpload={v => onNext(v)} />
       )}
     </div>
   );
