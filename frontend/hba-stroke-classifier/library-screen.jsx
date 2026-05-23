@@ -9,7 +9,6 @@ import matchesData from './data/matches.json';
 const frameModules = import.meta.glob('./data/frames/*.jpg', { eager: true, import: 'default' });
 const frameUrl = (id) => frameModules[`./data/frames/${id}.jpg`];
 
-const CURATED = matchesData.filter(m => m.curated).map(toVideo);
 const ALL = matchesData.map(toVideo);
 
 function VideoCard({ video, selected, onSelect }) {
@@ -109,12 +108,13 @@ export function LibraryScreen({ onNext }) {
     return result;
   };
   const LIBRARY = ALL.filter(inTestSplit);
+  const CURATED_LIBRARY = LIBRARY.slice(0, 3);
 
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', padding: 32 }}>
       <SectionHeader
         title="Select Match Video"
-        subtitle={`Showing ${CURATED.length} recent matches - browse all to see the full library to upload your own footage.`}
+        subtitle={`Showing ${CURATED_LIBRARY.length} recent matches - browse all to see the full library to upload your own footage.`}
       />
 
       <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, marginBottom: 24 }}>
@@ -148,7 +148,7 @@ export function LibraryScreen({ onNext }) {
             gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
             gap: 14, marginBottom: 16,
           }}>
-            {CURATED.map(v => (
+            {CURATED_LIBRARY.map(v => (
               <VideoCard
                 key={v.id}
                 video={v}
