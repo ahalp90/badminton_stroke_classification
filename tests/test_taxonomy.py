@@ -88,7 +88,7 @@ def test_taxonomy_n_classes_expected_per_taxonomy():
 
 def test_taxonomy_post_init_rejects_unknown_mid_list():
     """A Taxonomy with unknown anywhere but index -1 must raise on construction."""
-    with pytest.raises(AssertionError, match='unknown must sit at index -1'):
+    with pytest.raises(ValueError, match='unknown must sit at index -1'):
         Taxonomy(
             name='bad_middle',
             classes=('a', 'unknown', 'b'),
@@ -100,7 +100,7 @@ def test_taxonomy_post_init_rejects_unknown_mid_list():
 
 def test_taxonomy_post_init_rejects_unknown_at_index_zero():
     """The historical 'unknown at index 0' (BST paper convention) must also raise."""
-    with pytest.raises(AssertionError, match='unknown must sit at index -1'):
+    with pytest.raises(ValueError, match='unknown must sit at index -1'):
         Taxonomy(
             name='bad_first',
             classes=('unknown', 'a', 'b'),
@@ -250,6 +250,26 @@ def test_label_for_row_keeps_unknown_when_not_in_excluded():
 def test_side_agnostic_types_constant_contains_unknown():
     """SIDE_AGNOSTIC_TYPES is the canonical 'never prefixed at label time' set."""
     assert 'unknown' in SIDE_AGNOSTIC_TYPES
+
+
+def test_label_for_row_filters_before_merge():
+    """excluded_base_stroke_types fires BEFORE merge_map.
+
+    Build a synthetic taxonomy where a raw type sits in BOTH the excluded set
+    AND the merge_map. Confirm label_for_row returns None (filter won), not
+    a merged index (merge won). Pins the operation order; a future refactor
+    that reversed it would silently keep these rows under the merged label.
+    """
+    tax = Taxonomy(
+        name='test_filter_first',
+        classes=('a', 'b', 'c'),
+        merge_map={'driven_flight': 'a'},
+        has_sides=False,
+        excluded_base_stroke_types=frozenset({'driven_flight'}),
+    )
+    # Both rules apply to driven_flight: exclude says drop, merge says map to 'a'.
+    # Filter-first contract: drop wins -> None.
+    assert label_for_row(tax, 'driven_flight', 'Top') is None
 
 
 # ---------------------------------------------------------------------------

@@ -194,3 +194,40 @@ Pre-existing dep issues outside Step A scope: `build_dataset` chain wants `cv2`,
 ### Pivot for Step B
 
 Re-extract the 1,278 unknown clips on engelbart. `scripts/build_extract_stems.py` gains `--only-unknown`; raw_extract + apply_heuristic run against the sibling dir; rsync to bourbaki. No code commit between B1 and B2 (B2-B4 are pure ops).
+
+## 2026-05-23: Step B1 committed + Step A tidies
+
+`scripts/build_extract_stems.py` gains `--only-unknown`. Mutex with `--keep-unknown` via parser.error before any I/O. Smoke-tested all four flag combinations:
+
+- default (no mode flag): 30,487 stems written
+- `--keep-unknown`: 31,765 stems (default + 1,278 unknown)
+- `--only-unknown --keep-busted`: 1,278 stems (matches clips_master.csv unknown count)
+- `--only-unknown --keep-unknown`: parser.error fires before any I/O
+
+Bundled two tidies on Step A's surface in the same commit:
+
+- `Taxonomy.__post_init__` raises `ValueError` instead of asserting (asserts strip under `python -O`; the unknown-at-minus-one contract needs to fire in prod regardless).
+- `label_for_row`'s filter-before-merge order pinned by a new test (`test_label_for_row_filters_before_merge`): synthetic taxonomy with a raw type in both `excluded_base_stroke_types` and `merge_map`, the filter early-returns, merge never fires.
+
+71 cases pass in test_taxonomy.py (was 67 pre-commit; added the filter-first test + the post_init tests still pass under the new ValueError contract).
+
+### Pre-push agent verification
+
+Three Plan agents reviewed the diff before push. Verdict: Step B1 is correctness-clean and the engelbart workflow is safe to run.
+
+Agent 3 raised a "NO-GO" blocker claiming `apply_heuristic.py:335-337` lazy-imports `normalize_joints` from `prepare_train_on_shuttleset.py` (which still has broken Step-A imports). **Verified false** — no such lazy import exists in apply_heuristic.py or sticky_anchor.py. The only reference to `prepare_train_on_shuttleset` in apply_heuristic is a docstring comment at line 7. Agent 3 hallucinated the import chain.
+
+Other real findings, none blocking:
+
+- Step C/D files (`prepare_train_on_shuttleset.py`, `bst_train.py`, `bst_common.py`, `bst_infer.py`, `model/bst.py`, two validation scripts) all still import deleted symbols. **Intentional per plan, fail-loud on import.** Not in Step B's call graph.
+- Live resume case `une_merge_v1_nosides -> une_v1_14` verified bit-for-bit safe (manifest's recorded `active_class_list` matches `STROKE_TYPES_14_UNE_V1` exactly).
+- Lossy alias cases (`merged_25 -> bst_25`, `une_merge_v1 -> une_v1_15`, `raw_35 -> bst_25`) acknowledged in plan; user declined adding `warnings.warn` (overkill for scenarios that aren't happening).
+- `_make_fake_dataset` in test_data_access would TypeError on `Path / None` if a future test passes `bst_24` + unknown row. Loud failure mode preserved by design (not patched).
+
+### Next: B2-B4 on engelbart
+
+No code commits between B1 and Step C. Ops only:
+
+- B2: `raw_extract.py` against the new stems list -> `/scratch/comp320a/ShuttleSet_keypoints_raw_unknown/`. ~1.5 hours.
+- B3: `apply_heuristic.py` against that raw dir -> `/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor_unknown/`.
+- B4: rsync both sibling dirs to bourbaki.
