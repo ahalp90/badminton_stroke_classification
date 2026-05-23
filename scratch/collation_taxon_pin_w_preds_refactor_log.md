@@ -293,3 +293,56 @@ PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
 ```
 
 Then B4 (cross-node sync if needed for Step C training cells), then Step D when ready.
+
+## 2026-05-23: B3 + B4 done, env-var defaults landed, Step C sanity collation surfaced cells 2 + 8 are dead
+
+### B3 + B4
+
+B3 (`apply_heuristic`) ran clean on bourbaki against the new sibling extract: 1278/1278 processed, 30s wall, 0 skips. Output at `/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor_unknown/`. B4 (rsync to engelbart) skipped for now -- decision deferred until Step D / Step E runner picks a training host.
+
+### Env-var defaults commit (`d438c74`)
+
+Follow-up to Step C: `prepare_train_on_shuttleset.py` was still defaulting paths to project-root constants (`CLIPS_OUTPUT_DIR`, etc.) instead of reading the BST_* env vars from `.env`. Patched to call `load_repo_dotenv()` at the top of main() and route argparse defaults through `env_path` / `env_path_or_none` helpers (promoted from underscore-private in `data_access.py`). New `BST_X_COLLATED_DATA_ROOT` drives the collation output root; falls back to in-repo `preparing_data/` for local dev. `scratch_layout.md` documents the new vars. Also added `test_dataset_clip_stems_after_zero_length_filter` -- the test gap from Step C closed in the same commit.
+
+Required ad-hoc step on bourbaki: user added `BST_X_COLLATED_DATA_ROOT=/scratch/comp320a/` and `BST_SHUTTLE_CSV_DIR=/scratch/comp320a/ShuttleSet/shuttle_csv` to their `.env`. The repo `.env.example` doesn't carry these new vars yet (see `feedback_env_example_stale` memory).
+
+### Step C sanity collation -- bst_25 + split_v2
+
+Ran the new collator on bourbaki against bst_25 + split_v2. Numbers came back at train=22,743 / val=5,250 / test=4,210 = **32,203**, which is exactly the non-unknown count from clips_master.csv. Zero `WARNING: N clips had no flat per-clip files` — the 1,278 unknown rows weren't dropped at the file-existence check, they were filtered out at the CSV split filter (`clips_df[clips_df['split_v2'] == set_name]`) BEFORE label_for_row.
+
+Root cause: `shuttleset_splits_v2.csv` is 14-class only (32,203 rows) by design. `clips_master.csv`'s `split_v2` column has NaN for all 1,278 unknown rows; `scripts/build_shots_master.py:178-184` asserts `n_no_v2 == n_unknown` as a hard-fail invariant. `split_bst_baseline` IS unknown-complete (875 train / 241 val / 162 test) because it's built from a vid→split mapping that inherits per-match regardless of class.
+
+Implications for the cells:
+- Pairing a `has_unknown=True` taxonomy with `split_v2` produces a collation with an empty 25th (or 15th) class -- numerically identical to the bst_24 / une_v1_14 variant with a dead output neuron. Cells 2 (bst_25 + split_v2) and 8 (une_v1_15 + split_v2) are functionally redundant.
+- Cell 5 (bst_25 + split_bst_baseline) remains the meaningful keepunk evaluation; it carries the 1,278 unknowns naturally.
+
+### Decisions taken 2026-05-23
+
+- Drop cells 2 and 8 from the plan. Cell numbering preserved (no 3→2 renumbering).
+- Cell 3 (bst_24 + split_v2) KEPT -- it's the valid project-split bst_24 baseline.
+- Plan doc cells table updated to reflect the 6-cell roster (cells 1, 3, 4, 5, 6, 7); 45 serials at 25 min/serial ≈ 19 hours wall.
+- The bst_25 + split_v2 collation produced during sanity check is to be deleted (user has the rm command); pending action when user is back at the bourbaki terminal.
+- Future Claude sessions: see new memory `project_split_v2_unknown_design.md` so this isn't re-discovered next session.
+
+### Status going into next session
+
+- Step A ✓ committed (`1d98949`)
+- Step B1 ✓ committed (`6a6fff5`)
+- Step B2 + B3 ✓ ops on bourbaki (sibling extract at `/scratch/comp320a/ShuttleSet_keypoints_*_unknown/`)
+- Step B4 — pending, optional rsync to engelbart
+- Step C ✓ committed (`977a485`)
+- Env-var defaults ✓ committed (`d438c74`)
+- Step C sanity collation done, found split_v2 gap, cells 2 + 8 dropped
+- bst_25+split_v2 collation pending deletion (`rm -rf /scratch/comp320a/ShuttleSet_data_bst_25/npy_taxon_pinned_w_preds`)
+- Step D — not yet started (train + infer surface rewrite)
+- Step E — not yet started (collation_runner + session config)
+- Step F — partial (test_taxonomy + test_dataset done; inference smoke + api tests pending Step D / J)
+- Step G — pending (finishing-touch doc sweep)
+- Step J — not yet started (FE handler reconciliation)
+
+### Next session pick-up
+
+1. Delete the bst_25+split_v2 collation per the rm command above.
+2. Update Step E's runner config (when it lands) to use the 6-cell roster, not 8.
+3. Either dive into Step D (train surface rewrite) or do the 6 collations under the current contract first.
+4. Plan doc reflects the 6-cell decision; memory captures the split_v2 design fact; refactor log carries today's chronology. Should be readable cold.

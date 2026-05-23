@@ -168,20 +168,20 @@ Driven-flight clips themselves were never filtered out at extract time (`build_e
 
 ## Cells to run
 
-Eight cells. Headline three at 10 serials, rest at 5. All use `ablation_id=taxon_pinned_w_preds`.
+Six cells. Headline three at 10 serials, rest at 5. All use `ablation_id=taxon_pinned_w_preds`.
 
 | # | Taxonomy | Split | Drop unk | Serials | Notes |
 |---|---|---|---|---|---|
 | 1 | `shuttleset_18` | `split_v2` | n/a (excluded_base_stroke_types=unknown) | 5 | Raw 18 types, no sides, no unknown. |
-| 2 | `bst_25` | `split_v2` | n/a (has_unknown) | 5 | Paper 25-class on project split. Needs unknown sibling dir. |
 | 3 | `bst_24` | `split_v2` | n/a (excluded_base_stroke_types=unknown) | 5 | Paper 25-class minus unknown. |
 | 4 | `bst_12` | `split_v2` | n/a (excluded_base_stroke_types=unknown) | 5 | Paper merged collapsed to nosides, no unknown. |
 | 5 | `bst_25` | `split_bst_baseline` | n/a | **10** | Headline paper-comparable baseline. |
 | 6 | `bst_24` | `split_bst_baseline` | n/a | **10** | Headline paper baseline, dropunk. |
 | 7 | `une_v1_14` | `split_v2` | n/a | **10** | Refresh of the active best on the new collation generation (gets clip_stems sidecar + predictions npz). |
-| 8 | `une_v1_15` | `split_v2` | n/a (has_unknown) | 5 | With-unknown variant of the 14-class for completeness. |
 
-Wall-clock estimate at 25 min/serial on engelbart: 5×5 + 3×10 = 55 serials, ~23 hours total. Doable in two overnights.
+Wall-clock estimate at 25 min/serial on engelbart: 3×5 + 3×10 = 45 serials, ~19 hours total. Doable in two overnights.
+
+**Dropped cells 2 (`bst_25` + `split_v2`) and 8 (`une_v1_15` + `split_v2`)**: surfaced 2026-05-23 when the Step C bst_25+split_v2 dry run came back with 32,203 clips (= non-unknown total). Investigation showed `shuttleset_splits_v2.csv` is 14-class only and `clips_master.csv`'s `split_v2` column carries NaN for all 1,278 unknown rows by design (build_shots_master.py:178-184 enforces this as a hard-fail invariant). Pairing a `has_unknown=True` taxonomy with `split_v2` produces a collation with an empty 25th class -- numerically identical to the bst_24 / une_v1_14 variant with a wasted output neuron. Cell 5 (bst_25 + split_bst_baseline) remains the meaningful keepunk evaluation; split_bst_baseline's vid→split mapping carries unknowns naturally (875 train / 241 val / 162 test = 1,278). Cell numbering preserved (no renumbering 3→2 etc.) so referenced run IDs and log entries stay legible. The bst_25+split_v2 collation produced during the Step C verification (`/scratch/comp320a/ShuttleSet_data_bst_25/npy_taxon_pinned_w_preds/`) is to be deleted; not used downstream.
 
 ## Step-by-step plan
 
