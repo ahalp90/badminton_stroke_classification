@@ -220,6 +220,7 @@ def list_clips(
         "total": len(summaries),
         "limit": limit,
         "offset": offset,
+        "_mock_data": preds.get("_mock_data", False),
         "clips": summaries[offset:offset + limit],
     }
 
