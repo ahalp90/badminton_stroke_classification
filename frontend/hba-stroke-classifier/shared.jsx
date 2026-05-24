@@ -90,7 +90,7 @@ export function NavBar({ screen, onNavigate }) {
       display: 'flex',
       alignItems: 'center',
       padding: '0 24px',
-      height: 56,
+      height: 72,
       position: 'sticky',
       top: 0,
       zIndex: 100,
@@ -99,11 +99,11 @@ export function NavBar({ screen, onNavigate }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginRight: 28, flexShrink: 0 }}>
         <img
           src={logoSrc}
-          style={{ height: 26, filter: dark ? 'none' : 'invert(1) brightness(0.15)' }}
+          style={{ height: 48, filter: dark ? 'none' : 'invert(1) brightness(0.15)' }}
           alt="HBA"
         />
         <div style={{ width: 1, height: 24, background: t.border }} />
-        <span style={{ color: t.muted, fontSize: 12, fontWeight: 500, letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+        <span style={{ color: t.muted, fontSize: 13, fontWeight: 500, letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
           Stroke Classifier
         </span>
       </div>
