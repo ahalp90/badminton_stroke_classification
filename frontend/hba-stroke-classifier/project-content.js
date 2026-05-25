@@ -26,6 +26,7 @@ export const sections = [
   { id: 'method', label: 'Method' },
   { id: 'training', label: 'Training' },
   { id: 'results', label: 'Results' },
+  { id: 'model-evaluation', label: 'Live Evaluation' },
   { id: 'improvements', label: 'Improvements' },
   { id: 'team', label: 'Team' },
 ];

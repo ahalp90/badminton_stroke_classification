@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import { useTheme, Card, SectionHeader } from './shared';
+import { ModelEvaluationPanel } from './components/ModelEvaluationPanel';
 import {
   sections,
   overview,
@@ -144,6 +146,16 @@ const allSections = [overview, dataset, method, training, results, improvements,
 
 export function ProjectScreen() {
   const { t } = useTheme();
+  const [models, setModels] = useState([]);
+
+  // Fetch all registered models
+  useEffect(() => {
+    fetch('/api/registry')
+      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(data => setModels(data.models || []))
+      .catch(() => {});
+  }, []);
+
   const placeholderCount = allSections.filter(s => s.placeholder).length;
   const hasPlaceholders = placeholderCount > 0;
 
@@ -241,6 +253,21 @@ export function ProjectScreen() {
             <SectionHeading tag="results" title={results.title} placeholder={results.placeholder} />
             <Prose body={results.body} />
             <MetricsTable headers={results.table.headers} rows={results.table.rows} />
+          </section>
+
+          <section>
+            <SectionHeading tag="model-evaluation" title="Live Model Evaluation" placeholder={false} />
+            <p style={{ fontSize: 14, color: t.muted, marginBottom: 16, lineHeight: 1.65 }}>
+              Interactive clip browser and per-class metrics for each registered model.
+            </p>
+            {models.map(model => (
+              <div key={model.id} style={{ marginBottom: 32 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: t.text, marginBottom: 12 }}>
+                  {model.display_name}
+                </h3>
+                <ModelEvaluationPanel modelId={model.id} model={model} />
+              </div>
+            ))}
           </section>
 
           <section>

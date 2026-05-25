@@ -37,7 +37,7 @@ export function ClipDetail({ detail }) {
         }
       </div>
 
-      <div style={{ fontSize: 11, color: t.muted, marginBottom: 6, fontFamily: "'JetBrains Mono',monospace" }}>
+      <div style={{ fontSize: 11, color: t.muted, marginBottom: 6, fontFamily: "'JetBrains Mono',monospace", wordBreak: 'break-all', overflow: 'hidden' }}>
         {detail.match} · {detail.set_id} · rally {detail.rally} · ball round {detail.ball_round}
       </div>
 

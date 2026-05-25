@@ -165,7 +165,7 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange }) {
           </div>
 
           {/* RIGHT: clip detail */}
-          <div>
+          <div style={{ minWidth: 0 }}>
             {detailLoading && <div style={{ fontSize: 13, color: t.muted }}>Loading clip…</div>}
             {detailError && <div style={{ fontSize: 13, color: t.danger }}>Couldn't load clip: {detailError}</div>}
             {!detailLoading && !detailError && detail && <ClipDetail detail={detail} />}
