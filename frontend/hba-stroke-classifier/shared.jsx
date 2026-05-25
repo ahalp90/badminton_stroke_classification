@@ -81,7 +81,7 @@ export function NavBar({ screen, onNavigate }) {
     { id: 'results',   label: 'Results' },
   ];
   const stepIndex = steps.findIndex(s => s.id === screen);
-  // const projectActive = screen === 'project'; // restore with the Project button below
+  const projectActive = screen === 'project';
 
   return (
     <nav style={{
@@ -146,10 +146,7 @@ export function NavBar({ screen, onNavigate }) {
         })}
       </div>
 
-      {/* Project showcase button hidden until placeholder content is filled in.
-          The 'project' screen is unreachable while this is commented out (there
-          is no URL route to it). Uncomment to restore. */}
-      {/* <button
+      <button
         onClick={() => onNavigate('project')}
         style={{
           background: projectActive ? t.blueDim : 'transparent',
@@ -166,7 +163,7 @@ export function NavBar({ screen, onNavigate }) {
         }}
       >
         Project
-      </button> */}
+      </button>
 
       <button
         onClick={() => setDark(d => !d)}
