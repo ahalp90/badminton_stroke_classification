@@ -7,13 +7,20 @@ import { ProgressScreen } from './progress-screen';
 import { ResultsScreen } from './results-screen';
 import { ProjectScreen } from './project-screen';
 
+// ──── Wizard stage order ─────────────────────────────────────────────────────────────────────────
+/** Ordered list of wizard stages (excludes Project showcase) */
 const ORDER = ['library', 'markup', 'configure', 'progress', 'results'];
 
-// Dev fixtures for downstream-stage jumping after a real video is selected.
-// `video` is deliberately not in here — forward navigation without a chosen
-// video now blocks instead of substituting a dummy (Fix 1: the Rick Astley
-// YouTube fallback was being perceived as "the Upload Video tab auto-selects
-// a dummy"). User must pick from Library or upload a file first.
+// ──── Dev fixtures ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Stub data used during development to allow downstream stage-jumping after a video is selected
+ * 
+ * NOTE: `video` is deliberately excluded - forward navigation without a chose video now blocks 
+ * (user must pick from Library or upload a file)
+ * 
+ * TODO: Remove DEV_FIXTURES during clean-up, when live inference implementation complete
+ */
 const DEV_FIXTURES = {
   markup: {
     player: 1,
@@ -25,12 +32,15 @@ const DEV_FIXTURES = {
   },
 };
 
+// ──── Component ──────────────────────────────────────────────────────────────────────────────────
 function HBAStrokeClassifier() {
+  // ──── Wizard state ─────────────────────────────────────────────────────────────────────────────
   const [screen, setScreen] = useState('library');
   const [video,  setVideo]  = useState(null);
   const [markup, setMarkup] = useState(null);
   const [task,   setTask]   = useState(null);
 
+  // ──── Actions ──────────────────────────────────────────────────────────────────────────────────
   const resetAll = () => {
     setVideo(null);
     setMarkup(null);
@@ -44,11 +54,7 @@ function HBAStrokeClassifier() {
       setScreen('project');
       return;
     }
-    // Returning to the wizard from the Project page: restore wizard state.
-    if (screen === 'project') {
-      setScreen(target);
-      return;
-    }
+    
     const cur = ORDER.indexOf(screen);
     const dst = ORDER.indexOf(target);
     if (dst <= cur) {
@@ -57,15 +63,16 @@ function HBAStrokeClassifier() {
     }
     // Forward navigation requires a real video. No dummy fallback - the 
     // user must explicitly select from the Match Library or upload a file 
-    // first (Fix 1).
+    // first.
     if (!video) return;
     const m = markup ?? { ...DEV_FIXTURES.markup, video };
-    const t = task ?? { ...DEV_FIXTURES.task, markup: m };
+    const s = task ?? { ...DEV_FIXTURES.task, markup: m };
     if (dst >= ORDER.indexOf('configure') && !markup) setMarkup(m);
-    if (dst >= ORDER.indexOf('progress') && !task) setTask(t);
+    if (dst >= ORDER.indexOf('progress') && !task) setTask(s);
     setScreen(target);
   };
- 
+
+  // ──── Render ─────────────────────────────────────────────────────────────────────────────
   const { t } = useTheme();
 
   const screens = {
@@ -84,7 +91,7 @@ function HBAStrokeClassifier() {
     configure: (
       <ConfigureScreen
         markup={markup}
-        onSubmit={t => { setTask(t); setScreen('progress'); }}
+        onSubmit={s => { setTask(s); setScreen('progress'); }}
         onBack={() => setScreen('markup')}
       />
     ),
@@ -100,7 +107,7 @@ function HBAStrokeClassifier() {
     results: (
       <ResultsScreen
         task={task}
-        onNew={() => { setScreen('library'); setVideo(null); setMarkup(null); setTask(null); }}
+        onNew={resetAll}
       />
     ),
     project: <ProjectScreen />,
