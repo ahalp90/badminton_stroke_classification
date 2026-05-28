@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTheme, Card } from '../shared';
 import { Tier1ClipBrowser } from "./Tier1ClipBrowser";
+import { splitLabel } from '../utils/format';
 
 /* ─── Model-level reference: aggregate metrics (from /api/registry) ─ */
 // Renamed and re-framed (Fix 3): these numbers describe the *model*,
@@ -13,8 +14,8 @@ function TestEvalCard({ model, split }) {
   const Mono = ({ children }) => (
     <span style={{ fontFamily: "'JetBrains Mono',monospace", color: t.text }}>{children}</span>
   );
-  const heading = `Model performance — ${split} set`;
-  const subtitle = `How ${model.display_name} performed across the full ${split} set. Same numbers for every analysis — they describe the model, not this video.`;
+  const heading = `Model performance — ${splitLabel(split)} set`;
+  const subtitle = `How ${model.display_name} performed across the full ${splitLabel(split)} set. Same numbers for every analysis — they describe the model, not this video.`;
   const m = model[`${split}_metrics`];
   const hasMetrics = m && typeof m.macro_f1 === 'number';
   const pct = (x) => (x * 100).toFixed(1) + '%';
@@ -45,7 +46,7 @@ function TestEvalCard({ model, split }) {
         </div>
       ) : (
         <div style={{ fontSize: 13, color: t.muted, padding: '8px 0' }}>
-          No {split} metrics available for this model.
+          No {splitLabel(split)} metrics available for this model.
         </div>
       )}
     </Card>
@@ -58,7 +59,7 @@ function TestEvalCard({ model, split }) {
 function PerClassF1Card({ model, split }) {
   const { t } = useTheme();
   if (!model) return null;
-  const heading = `Model per-class F1 — ${split} set`;
+  const heading = `Model per-class F1 — ${splitLabel(split)} set`;
   const subtitle = `Per-class strength of the model. Lower bars indicate classes it confuses more often.`;
   const perClass = model[`${split}_metrics`]?.per_class_f1;
   const hasData = perClass && Object.keys(perClass).length > 0;
@@ -103,7 +104,7 @@ function PerClassF1Card({ model, split }) {
           </div>
       ) : (
         <div style={{ fontSize: 13, color: t.muted, padding: '8px 0' }}>
-          No {split} per-class F1 available for this model.
+          No {splitLabel(split)} per-class F1 available for this model.
         </div>
       )}
       </Card>
@@ -114,7 +115,7 @@ export function ModelEvaluationPanel({ modelId, model }) {
     const [split, setSplit] = useState('test');
     return (
         <>
-          <Tier1ClipBrowser modelId={modelId} split={split} onSplitChange={setSplit} />
+          <Tier1ClipBrowser modelId={modelId} split={split} onSplitChange={setSplit} livePredictions={model?.live_predictions} />
           <TestEvalCard model={model} split={split}/>
           <PerClassF1Card model={model} split={split}/>
         </>

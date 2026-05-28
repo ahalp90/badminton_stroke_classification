@@ -1,3 +1,8 @@
+// Human-facing labels for the dataset splits. The raw keys ('val'/'test')
+// stay as-is for data lookups (e.g. `${split}_metrics`); these are display-only.
+export const SPLIT_LABELS = { val: 'Validation', test: 'Test' };
+export const splitLabel = (s) => SPLIT_LABELS[s] ?? s;
+
 export const fmtTime = (s) => {
   if (!isFinite(s)) return '–:––';
   const h = Math.floor(s / 3600);
