@@ -8,16 +8,19 @@
  * @param {} entry 
  * @returns 
  */
+const ARCH_LABELS = { 'bst-x': 'BST-X', 'bric': 'BRIC' };
+
 export function toModelCard(entry) {
   const macro = entry.test_metrics?.macro_f1;
   const min   = entry.test_metrics?.min_f1;
   const acc   = entry.test_metrics?.accuracy;
+  const arch  = entry.architecture ?? 'bst-x';
   return {
     id:       entry.id,
     name:     entry.display_name,
     subtitle: `${entry.taxonomy} · ${entry.ablation_id}`,
     tags: [
-      { label: 'BST-X',                          color: 'blue' },
+      { label: ARCH_LABELS[arch] ?? arch.toUpperCase(), color: 'blue' },
       { label: entry.taxonomy,                   color: 'pine' },
       { label: `${entry.num_classes}-class`,     color: 'muted' },
     ],

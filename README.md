@@ -137,7 +137,7 @@ Each training run writes a manifest, per-serial metrics, and TensorBoard events 
 
 ## API + frontend
 
-`docker compose up --build` brings up the FastAPI backend (port 24082) and the Vite frontend (port 5173). Dev compose proxies the frontend through to the backend; prod compose adds an nginx-fronted setup with cloudflare tunnel. Current state: the API + frontend wiring runs end-to-end, but the inference path is stubbed (returns canned predictions). Integration with the trained classifier is in progress. Test suite: `pytest tests/`.
+`docker compose up --build` brings up the FastAPI backend (port 24082) and the React frontend (port 5173). Dev compose proxies the frontend through to the backend; prod compose adds an nginx-fronted setup with cloudflare tunnel. Current state: the API + frontend wiring runs end-to-end, but the inference path is stubbed (returns canned predictions). Integration with the trained classifier is in progress. Test suite: `pytest tests/`.
 
 ## Team and acknowledgements
 

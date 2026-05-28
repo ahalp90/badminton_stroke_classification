@@ -2,22 +2,22 @@ import { useState, useEffect } from 'react';
 import { useTheme, Card } from '../shared';
 import { useClipList, useClipDetail } from '../hooks';
 import { ClipDetail } from './ClipDetail';
+import { SPLIT_LABELS } from '../utils/format';
 
 const SPLITS = ['val', 'test'];
 
-/* ─── Per-clip browser (Tier 1, from /api/registry sidecar JSONs) ── */
-// Both val and test have mock predictions via build_mock_artifacts.py, so
-// the split toggle below works against either. For real data: only `test`
-// is emitted by the current eval_dump_predictions.py and only test_metrics
- // land in manifest.yaml. Train + val headline metrics could probably be
- // reconstructed from the per-epoch TensorBoard scalars (final val_macro_f1
- // etc.) rather than re-running eval, but that's a follow-up.
+/* ─── Per-clip browser (Tier 1, from /api/registry) ── */
+// Renders only when live per-clip predictions are available for the selected
+// split (`livePredictions[split]`); the /clips list endpoint then serves real
+// forward-pass predictions. When live inference isn't available the browser is
+// replaced by an honest note — we never show placeholder predictions.
 
-export function Tier1ClipBrowser({ modelId, split, onSplitChange }) {
+export function Tier1ClipBrowser({ modelId, split, onSplitChange, livePredictions }) {
   const { t } = useTheme();
+  const live = !!livePredictions?.[split];
   const [selectedStem, setSelectedStem] = useState(null);
   const [errorsOnly,   setErrorsOnly]   = useState(false);
-  const { clips, total, offset, setOffset, limit, isMock, error: listError} = useClipList({ modelId, split, errorsOnly });
+  const { clips, total, offset, setOffset, limit, error: listError } = useClipList({ modelId, split, errorsOnly, enabled: live });
   const { detail, loading: detailLoading, error: detailError }      = useClipDetail({ modelId, split, selectedStem });
 
   useEffect(() => {
@@ -42,15 +42,7 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange }) {
           <span style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
             Per-clip predictions
           </span>
-          {isMock && (
-            <span style={{
-              fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius:4,
-              background: t.warning + '33', color: t.warning, border: `1px solid ${t.warning}55`,
-            }}>
-              mock data
-            </span>
-          )}
-          <div style={{ display: 'inline-flex', gap: 4 }}>
+          <div style={{ display: 'inline-flex', border: `1px solid ${t.border}`, borderRadius: 5, overflow: 'hidden' }}>
             {SPLITS.map(s => {
               const active = s === split;
               return (
@@ -58,30 +50,42 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange }) {
                   key={s}
                   onClick={() => onSplitChange(s)}
                   style={{
+                    minWidth: 92, textAlign: 'center',
                     background: active ? t.blue : t.surface2,
                     color: active ? '#fff' : t.muted,
-                    border: `1px solid ${active ? t.blue : t.border}`,
-                    padding: '3px 10px', borderRadius: 4,
+                    border: 'none',
+                    padding: '4px 12px',
                     fontSize: 11, fontWeight: 600,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "'Space Grotesk', sans-serif",
                     cursor: 'pointer',
                   }}
                 >
-                  {s}
+                  {SPLIT_LABELS[s]}
                 </button>
               );
             })}
           </div>
         </div>
-        <label style={{ fontSize: 11, color: t.muted, display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={errorsOnly}
-            onChange={e => setErrorsOnly(e.target.checked)}
-            style={{ accentColor: t.blue }}
-          />
-          Errors only
-        </label>
+        {/* The "Errors only" filter only acts on the live clip list, so hide it
+            when live per-clip predictions aren't available — otherwise it sits
+            above the "not available" note and silently does nothing. */}
+        {live && (
+          <label style={{ fontSize: 11, color: t.muted, display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={errorsOnly}
+              onChange={e => setErrorsOnly(e.target.checked)}
+              style={{ accentColor: t.blue }}
+            />
+            Errors only
+          </label>
+        )}
+      </div>
+
+      <div style={{ fontSize: 11, color: t.muted, lineHeight: 1.5, marginBottom: 14 }}>
+        ⓘ <strong style={{ color: t.text }}>Test</strong> = unseen players — the real-world score.{' '}
+        <strong style={{ color: t.text }}>Validation</strong> is the tuning split; it shares players with
+        training, so it reads a little higher.
       </div>
 
       {listError && (
@@ -90,7 +94,7 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange }) {
         </div>
       )}
 
-      {!listError && (
+      {!listError && live && (
         <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 18 }}>
           {/* LEFT: list + pagination */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8}}>
@@ -173,6 +177,16 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange }) {
               <div style={{ fontSize: 13, color: t.muted }}>Pick a clip on the left.</div>
             )}
           </div>
+        </div>
+      )}
+      {!listError && !live && (
+        <div style={{
+          fontSize: 13, color: t.muted, lineHeight: 1.6,
+          padding: '12px 14px', background: t.surface2, borderRadius: 6,
+        }}>
+          Live per-clip predictions for the <strong>{split}</strong> set run on
+          the analysis server and aren&apos;t available in this environment.
+          The metrics above are computed over the full {split} set.
         </div>
       )}
     </Card>

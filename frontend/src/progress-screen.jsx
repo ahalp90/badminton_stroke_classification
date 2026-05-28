@@ -22,6 +22,8 @@ const LOG_EVENTS = [
   { at: 100, msg: '✓ Analysis complete' },
 ];
 
+// TODO: add second model (BRIC)
+
 /* ─── Markup payload builder ─────────────────────────────────────────
  * Translates the wizard's in-memory state into the schema documented in
  * docs/api_contract.md on feat/bric-pipeline. The backend validates this
@@ -418,13 +420,18 @@ export function ProgressScreen({ task, onComplete }) {
 
         {(task?.models || []).filter(m => task?.enabled?.[m.id]).map((m, i) => {
           // Model inference sits in stage 2 (52-80% of overall pipeline pct).
-          // Stagger each enabled model a bit so multi-model jobs look distinct.
-          const startAt    = 52 + i * 4;
-          const completeAt = 78 - i * 2;
+          // Per-model progress is synthetic — the backend status is global —
+          // so stagger only the START to keep multi-model jobs visually
+          // distinct, but have every enabled model COMPLETE together at the
+          // end of the inference phase. Anchoring `complete` to the overall
+          // `done` flag guarantees no model bar is ever left blue/Running once
+          // the run has finished (and stops the i=0 model lagging the rest).
+          const completeAt = 78;
+          const startAt    = Math.min(52 + i * 4, completeAt - 4);
           const span       = Math.max(1, completeAt - startAt);
           const modelPct   = Math.max(0, Math.min(100, ((pct - startAt) / span) * 100));
           const active     = pct > startAt;
-          const complete   = pct > completeAt;
+          const complete   = done || pct >= completeAt;
           return (
             <Card key={m.id} style={{ padding: 18, gridColumn: '1 / -1' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>

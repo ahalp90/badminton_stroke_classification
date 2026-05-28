@@ -1,5 +1,5 @@
 # Hand-curated registry of FE-facing models.
-# Schema and consumer contract: ../frontend_integration_guide.md  section 1.
+# Schema and consumer contract: ../scratch/frontend_integration_handoff.md  section 1.
 # Add a new entry when a run/serial graduates to user-facing status.
 #
 # Tier 1 (current): the backend reads `predictions/{split}.json` and friends
@@ -29,3 +29,32 @@ models:
     manifest_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/manifest.yaml
     weights_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt
     collated_dir: ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop
+
+  # ── BRIC (R(2+1)D-18 RGB + fusion). Placeholder: no run trained yet,
+  #    and the fields below diverge from the BST schema — see the notes
+  #    on each. The Tier 1 loader (src/api/registry.py) reads the BST
+  #    manifest shape, so this entry needs loader work before it serves.
+  #
+  # TODO(update once a BRIC run graduates):
+  #   1. run_id / manifest_path / weights_path are placeholders — repoint
+  #      at the real training/bric/experiments/<run_id> dir.
+  #   2. Add real metrics: the BRIC manifest uses config.classes +
+  #      training.* (not BST's serials[]/extra.arch), so registry.py
+  #      _summarise_model must branch on `architecture` to read them —
+  #      until then this card shows empty metrics / 0 classes.
+  - id: bric_rgb_shuttle_v1
+    display_name: "BRIC v1, rgb_shuttle variant (not yet trained)"
+    description: |
+      14-class no-sides taxonomy (une_merge_v1_nosides). R(2+1)D-18 RGB
+      backbone (Kinetics-400 pretrained, fine-tuned end-to-end) fused
+      with shuttle-trajectory features. Metrics pending the first
+      graduated training run.
+    architecture: bric              # discriminator BST entries don't carry (see notes)
+    run_id: 20260516_193000_rgb_shuttle_42   # BRIC format: <ts>_<variant>_<seed>
+    variant: rgb_shuttle            # BRIC's variation axis; replaces ablation_id
+    taxonomy: une_merge_v1_nosides
+    num_classes: 14                 # declared fallback: no manifest yet to derive from
+    drop_unknown: true
+    temperature: 1.0
+    manifest_path: training/bric/experiments/20260516_193000_rgb_shuttle_42/manifest.yaml
+    weights_path: training/bric/experiments/20260516_193000_rgb_shuttle_42/best.pt

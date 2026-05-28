@@ -5,7 +5,7 @@ import { MarkupScreen } from './markup-screen';
 import { ConfigureScreen } from './configure-screen';
 import { ProgressScreen } from './progress-screen';
 import { ResultsScreen } from './results-screen';
-import { ProjectScreen } from './project-screen';
+import { ModelResultsScreen } from './model-results-screen';
 
 // ──── Wizard stage order ─────────────────────────────────────────────────────────────────────────
 /** Ordered list of wizard stages (excludes Project showcase) */
@@ -49,12 +49,12 @@ function HBAStrokeClassifier() {
   };
 
   const navigate = target => {
-    // The Project showcase is outside the wizard pipeline — jump freely.
-    if (target === 'project') {
-      setScreen('project');
+    // The Model Results page is outside the wizard pipeline — jump freely.
+    if (target === 'model-results') {
+      setScreen('model-results');
       return;
     }
-    
+
     const cur = ORDER.indexOf(screen);
     const dst = ORDER.indexOf(target);
     if (dst <= cur) {
@@ -110,7 +110,7 @@ function HBAStrokeClassifier() {
         onNew={resetAll}
       />
     ),
-    project: <ProjectScreen />,
+    'model-results': <ModelResultsScreen />,
   };
 
   return (

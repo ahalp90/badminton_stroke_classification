@@ -3,32 +3,6 @@ import { useTheme, Btn, Card, Badge, SectionHeader } from './shared';
 import { toModelCard } from './utils/adapters';
 import { ModelCard } from './components/ModelCard';
 
-/* ─── Param slider ───────────────────────────────────────────────── */
-function ParamSlider({ label, hint, value, min, max, step, onChange, fmt }) {
-  const { t } = useTheme();
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <div>
-          <span style={{ fontSize: 13, color: t.text }}>{label}</span>
-          {hint && <span style={{ fontSize: 11, color: t.muted, marginLeft: 6 }}>{hint}</span>}
-        </div>
-        <span style={{ fontSize: 13, fontWeight: 700, color: t.blue, fontFamily: "'JetBrains Mono', monospace" }}>
-          {fmt ? fmt(value) : value}
-        </span>
-      </div>
-      <input
-        type="range" min={min} max={max} step={step} value={value}
-        onChange={e => onChange(Number(e.target.value))}
-        style={{ width: '100%', accentColor: t.blue }}
-      />
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: t.muted }}>
-        <span>{fmt ? fmt(min) : min}</span><span>{fmt ? fmt(max) : max}</span>
-      </div>
-    </div>
-  );
-}
-
 /* ─── Configure Screen ───────────────────────────────────────────── */
 export function ConfigureScreen({ markup, onSubmit, onBack }) {
   const { t } = useTheme();
@@ -102,7 +76,10 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
           )}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Task
+          </div>
           <Card style={{ padding: 18 }}>
             <div style={{ fontSize: 12, color: t.muted, marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Task Label</div>
             <input
@@ -117,13 +94,6 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
             />
           </Card>
 
-          <Card style={{ padding: 18 }}>
-            <div style={{ fontSize: 12, color: t.muted, marginBottom: 16, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Parameters</div>
-            <div style={{ fontSize: 11, color: t.muted, lineHeight: 1.5 }}>
-              Using default model parameters.
-            </div>
-          </Card>
-
           <Card style={{ padding: 16 }}>
             <div style={{ fontSize: 12, color: t.muted, marginBottom: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Input Summary</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 2 }}>{markup?.video?.match}</div>
@@ -132,13 +102,9 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
               <Badge color={markup?.video?.annotated ? 'green' : 'muted'}>
                 {markup?.video?.annotated ? 'Annotated' : 'Unannotated'}
               </Badge>
-              <Badge color="blue">
-                {markup?.playerSide
-                  ? `Player ${markup.playerSide}`
-                  : (markup?.player === 1 ? 'Player top'
-                    : markup?.player === 2 ? 'Player bottom'
-                    : 'Player —')}
-              </Badge>
+              {markup?.playerSide && (
+                <Badge color="blue">{`Player ${markup.playerSide}`}</Badge>
+              )}
               {Array.isArray(markup?.annotations) && markup.annotations.length > 0 ? (
                 <Badge color ="pine">
                   {markup.annotations.length} stroke{markup.annotations.length == 1 ? '' : 's'}
