@@ -5,7 +5,7 @@ import { MarkupScreen } from './markup-screen';
 import { ConfigureScreen } from './configure-screen';
 import { ProgressScreen } from './progress-screen';
 import { ResultsScreen } from './results-screen';
-import { ProjectScreen } from './project-screen';
+import { ModelResultsScreen } from './model-results-screen';
 
 const ORDER = ['library', 'markup', 'configure', 'progress', 'results'];
 
@@ -39,13 +39,13 @@ function HBAStrokeClassifier() {
   };
 
   const navigate = target => {
-    // The Project showcase is outside the wizard pipeline — jump freely.
-    if (target === 'project') {
-      setScreen('project');
+    // The Model Results page is outside the wizard pipeline — jump freely.
+    if (target === 'model-results') {
+      setScreen('model-results');
       return;
     }
-    // Returning to the wizard from the Project page: restore wizard state.
-    if (screen === 'project') {
+    // Returning to the wizard from the Model Results page: restore wizard state.
+    if (screen === 'model-results') {
       setScreen(target);
       return;
     }
@@ -103,7 +103,7 @@ function HBAStrokeClassifier() {
         onNew={() => { setScreen('library'); setVideo(null); setMarkup(null); setTask(null); }}
       />
     ),
-    project: <ProjectScreen />,
+    'model-results': <ModelResultsScreen />,
   };
 
   return (

@@ -7,6 +7,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Safety net against horizontal page scroll (e.g. a wide nav row): `clip`
+   trims overflow without creating a scroll container, so the sticky NavBar
+   keeps working — unlike `overflow-x: hidden`, which would break it. */
+html, body { overflow-x: clip; }
+
+/* NavBar: below this breakpoint the wizard-step text labels collapse to just
+   the numbered circles (with hover tooltips), so the whole row fits without
+   horizontal scrolling and the right-hand controls stay on screen. */
+@media (max-width: 900px) {
+  .nav-step-label { display: none; }
+}
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(107,127,163,0.35); border-radius: 3px; }

@@ -70,6 +70,28 @@ export function ThemeProvider({ children }) {
 
 export function useTheme() { return useContext(ThemeContext); }
 
+/* Sun/moon icons for the theme toggle. Inline SVG (no icon-lib dep);
+   stroke uses currentColor so they inherit the button's text color. */
+function SunIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  );
+}
+
+function MoonIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
+// TODO: maybe refactor NavBar to component
 export function NavBar({ screen, onNavigate }) {
   const { t, dark, setDark } = useTheme();
 
@@ -81,7 +103,7 @@ export function NavBar({ screen, onNavigate }) {
     { id: 'results',   label: 'Results' },
   ];
   const stepIndex = steps.findIndex(s => s.id === screen);
-  const projectActive = screen === 'project';
+  const modelResultsActive = screen === 'model-results';
 
   return (
     <nav style={{
@@ -108,7 +130,7 @@ export function NavBar({ screen, onNavigate }) {
         </span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: 2, minWidth: 0, overflowX: 'auto' }}>
         {steps.map((step, i) => {
           const done     = i < stepIndex;
           const active   = i === stepIndex;
@@ -116,6 +138,7 @@ export function NavBar({ screen, onNavigate }) {
           return (
             <button
               key={step.id}
+              title={step.label}
               onClick={() => !disabled && onNavigate(step.id)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 7,
@@ -140,21 +163,25 @@ export function NavBar({ screen, onNavigate }) {
               }}>
                 {done ? '✓' : i + 1}
               </span>
-              {step.label}
+              <span className="nav-step-label">{step.label}</span>
             </button>
           );
         })}
       </div>
 
       <button
-        onClick={() => onNavigate('project')}
+        onClick={() => onNavigate('model-results')}
         style={{
-          background: projectActive ? t.blueDim : 'transparent',
-          border: `1px solid ${projectActive ? t.blue : t.border}`,
+          background: modelResultsActive ? t.blueDim : 'transparent',
+          border: `1px solid ${modelResultsActive ? t.blue : t.border}`,
           borderRadius: 7,
-          padding: '6px 12px',
+          height: 32,
+          padding: '0 12px',
+          boxSizing: 'border-box',
+          display: 'inline-flex',
+          alignItems: 'center',
           cursor: 'pointer',
-          color: projectActive ? t.blue : t.text,
+          color: modelResultsActive ? t.blue : t.text,
           fontSize: 12,
           fontWeight: 600,
           fontFamily: "'Space Grotesk', sans-serif",
@@ -162,20 +189,22 @@ export function NavBar({ screen, onNavigate }) {
           flexShrink: 0,
         }}
       >
-        Project
+        Model Results
       </button>
 
       <button
         onClick={() => setDark(d => !d)}
+        title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+        aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
         style={{
-          background: t.surface2, border: `1px solid ${t.border}`,
-          borderRadius: 7, padding: '6px 12px', cursor: 'pointer',
-          color: t.muted, fontSize: 12, fontWeight: 500,
-          fontFamily: "'Space Grotesk', sans-serif",
+          background: 'transparent', border: `1px solid ${t.border}`,
+          borderRadius: 7, width: 32, height: 32, padding: 0, boxSizing: 'border-box',
+          cursor: 'pointer', color: t.text, lineHeight: 1,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
         }}
       >
-        {dark ? '𖤓 Light' : '☾ Dark'}
+        {dark ? <SunIcon /> : <MoonIcon />}
       </button>
     </nav>
   );
