@@ -5,6 +5,18 @@ from fastapi.testclient import TestClient
 
 from src.api.main import app
 
+# TODO(coverage): this suite only exercises the upload flow (which always
+# routes to the smart stub in inference.py) plus the validation/404 paths.
+# The real ML and registry-serving logic is untested here:
+#   - POST /api/library_predict  -> live BST forward pass (bst_inference.predict)
+#   - GET  /api/registry[/...]   -> registry/manifest/sidecar JSON serving
+#   - GET  /api/clips/{stem}/video -> FileResponse with Range support
+# The stub-fallback paths for these are testable without the heavy
+# checkpoint/tensors. Also note: test_upload_returns_queued and
+# test_full_job_lifecycle currently fail unless UPLOAD_DIR exists — it
+# defaults to the Docker path /app/uploads and the module-level TestClient
+# doesn't trigger the lifespan startup that mkdir's it.
+
 client = TestClient(app)
 
 _DUMMY_VIDEO = ("test_video.mp4", io.BytesIO(b"fake video content"), "video/mp4")
@@ -100,3 +112,73 @@ def test_get_models_returns_list():
     assert "models" in body
     for model in body["models"]:
         assert "path" not in model, "Internal file paths must not be exposed"
+
+
+def test_available_splits_empty_without_inputs(monkeypatch, tmp_path):
+    import src.api.bst_inference as bi
+    monkeypatch.setattr(bi, "BST_INPUTS_DIR", tmp_path)
+    assert bi.available_splits() == set()
+
+
+def test_available_splits_detects_present_split(monkeypatch, tmp_path):
+    import src.api.bst_inference as bi
+    (tmp_path / "test").mkdir()
+    (tmp_path / "test" / "JnB_bone.npy").write_bytes(b"")
+    monkeypatch.setattr(bi, "BST_INPUTS_DIR", tmp_path)
+    assert bi.available_splits() == {"test"}
+
+
+def test_registry_bst_status_and_live_predictions():
+    resp = client.get("/api/registry")
+    assert resp.status_code == 200
+    models = {m["id"]: m for m in resp.json()["models"]}
+
+    bst = models["bst_x_v1_wipe_drop_s5"]
+    assert bst["status"] == "available"
+    # No scratch/bst_inputs in the test env => no live predictions, metrics still real.
+    assert bst["live_predictions"] == {"test": False, "val": False}
+    assert bst["test_metrics"]["macro_f1"] == 0.7479
+
+
+def test_registry_bric_is_pending_with_no_live():
+    resp = client.get("/api/registry")
+    models = {m["id"]: m for m in resp.json()["models"]}
+    bric = models["bric_rgb_shuttle_v1"]
+    assert bric["status"] == "pending"
+    assert bric["live_predictions"] == {"test": False, "val": False}
+
+
+def test_list_clips_serves_live_predictions(monkeypatch):
+    from src.api import registry as reg
+    import src.api.bst_inference as bi
+    monkeypatch.setattr(reg, "_live_splits", lambda: {"test"})
+    monkeypatch.setattr(
+        bi, "predict",
+        lambda stem, split: {
+            "predicted_class": "smash", "true_class": "smash", "confidence_pct": 88,
+        },
+    )
+    resp = client.get("/api/registry/bst_x_v1_wipe_drop_s5/splits/test/clips?limit=3")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["live"] is True
+    assert len(body["clips"]) > 0
+    for c in body["clips"]:
+        assert c["predicted_class"] == "smash"
+        assert c["is_correct"] is True
+        assert c["confidence_pct"] == 88
+
+
+def test_list_clips_not_live_omits_predictions(monkeypatch):
+    from src.api import registry as reg
+    monkeypatch.setattr(reg, "_live_splits", lambda: set())
+    resp = client.get("/api/registry/bst_x_v1_wipe_drop_s5/splits/test/clips?limit=3")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["live"] is False
+    assert "_mock_data" not in body
+    for c in body["clips"]:
+        assert c["predicted_class"] is None
+        assert c["is_correct"] is None
+        assert c["confidence_pct"] is None
+        assert c["true_class"] is not None  # ground truth is real
