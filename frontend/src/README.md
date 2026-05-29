@@ -11,21 +11,21 @@ The interface walks through a four-step pipeline:
 
 ## Models
 
-| Model | Architecture | Status |
-|---|---|---|
-| Model A | MMPose keypoints + TrackNetV3 shuttle → TCN → Transformer (BST) | Active |
-| Model B | TBD | Reserved — no architecture committed |
+| Model   | Architecture                                                    | Status                               |
+| ------- | --------------------------------------------------------------- | ------------------------------------ |
+| Model A | MMPose keypoints + TrackNetV3 shuttle → TCN → Transformer (BST) | Active                               |
+| Model B | TBD                                                             | Reserved — no architecture committed |
 
 ## Integration
 
 This is a standalone React component tree. Drop it into any React project:
 
 ```jsx
-import './hba-stroke-classifier/styles.css';
-import App from './hba-stroke-classifier/app';
+import './styles.css'
+import App from './app'
 
 function MyPage() {
-  return <App />;
+  return <App />
 }
 ```
 
@@ -57,5 +57,5 @@ The logo is imported in `shared.jsx` as `./uploads/logo-1777443863198.png`. Move
 The UI ships with dark and light themes, toggled via the navbar button. Theme tokens are exported from `shared.jsx` as `DARK` and `LIGHT` if you need to reference them elsewhere.
 
 ```js
-import { DARK, LIGHT } from './shared';
+import { DARK, LIGHT } from './shared'
 ```
