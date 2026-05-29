@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTheme, Btn, Badge, SectionHeader } from './shared';
 import { toVideo } from './utils/videoTransforms';
 import { BrowseAllModal } from './components/BrowseAllModal';
@@ -9,8 +9,15 @@ import matchesData from './data/matches.json';
 const frameModules = import.meta.glob('./data/frames/*.jpg', { eager: true, import: 'default' });
 const frameUrl = (id) => frameModules[`./data/frames/${id}.jpg`];
 
+// ──── Module-level constants ─────────────────────────────────────────────────────────────────────
+const CURATED_COUNT = 3;
+// TODO: Request a dedicated matches endpoint from the API — currently we fetch clips and extract
+// unique match names, but the API caps limit at 500. With ~4200 test clips this risks missing
+// some of the 6 test match videos
+const CLIP_FETCH_LIMIT = 500;
 const ALL = matchesData.map(toVideo);
 
+/** Thumbnail card for single match video. Highlights on hover; shows a checkmark when selected. */
 function VideoCard({ video, selected, onSelect }) {
   const { t } = useTheme();
   const [hov, setHov] = useState(false);
@@ -65,19 +72,23 @@ function VideoCard({ video, selected, onSelect }) {
 
 export function LibraryScreen({ onNext }) {
   const { t } = useTheme();
+
+  // ──── Screen state ─────────────────────────────────────────────────────────────────────────────
   const [tab, setTab] = useState('library');
   const [selected, setSelected] = useState(null);
   const [browsing, setBrowsing] = useState(false);
   const [testMatchIds, setTestMatchIds] = useState(null);
+  const [browseHov, setBrowseHov] = useState(false);
 
-  // Defensive: also kick off a rehydrate from IndexedDB when the screen
-  // mounts, in case the module-level kick-off raced ahead of the React
-  // tree being live. No-op when SESSION_FILES is already populated.
+  // ──── Session rehydration ──────────────────────────────────────────────────────────────────────
+  // Defensive rehydrate from IndexedDB on mount, in case the module-level
+  // call raced ahead of the React tree. No-op if SESSION_FILES is already populated.
   useEffect(() => {
     rehydrateSessionFromIDB().catch(() => { /* noop */ });
   }, []);
 
-  // Fetch test split clips and extract unique match values
+  // ──── Test split fetch ─────────────────────────────────────────────────────────────────────────
+  // Fetch test split clips and extract unique match values.
   useEffect(() => {
     let alive = true;
     fetch('/api/registry')
@@ -86,7 +97,7 @@ export function LibraryScreen({ onNext }) {
         const modelId = data?.models?.find(m => m.is_default)?.id
         ?? data?.models?.[0]?.id;
         if (!modelId || !alive) return;
-        return fetch(`/api/registry/${modelId}/splits/test/clips?limit=500`)
+        return fetch(`/api/registry/${modelId}/splits/test/clips?limit=${CLIP_FETCH_LIMIT}`)
           .then(response => response.ok ? response.json() : Promise.reject())
           .then(clips => {
             if (!alive) return;
@@ -95,26 +106,35 @@ export function LibraryScreen({ onNext }) {
           });
       })
       .catch(() => {
-        if (alive) setTestMatchIds(new Set()); });
+        if (alive) setTestMatchIds(new Set()); 
+      });
     return () => { alive = false; };
   }, []);
 
-  // Filter ALL to only matches that appear in the test split
-  // While loading (testMatchIds === null) show everything so the UI is not blank
-  const inTestSplit = (video) => {
-    if (!testMatchIds) return true;
-    const key = video.match?.replace(/ /g, '_').toLowerCase();
-    const result = [...testMatchIds].some(m => m.toLowerCase().startsWith(key));
-    return result;
-  };
-  const LIBRARY = ALL.filter(inTestSplit);
-  const CURATED_LIBRARY = LIBRARY.slice(0, 3);
+  // ──── Derived state ────────────────────────────────────────────────────────────────────────────
+  // Filter ALL to only matches that appear in the test split.
+  // While loading (testMatchIds === null) show everything so the UI is not blank.
+  const LIBRARY = useMemo(
+    () => ALL.filter(video => {
+      if (!testMatchIds) return true;
+      // Normalise match name to match the format used in clip metadata (snake_case, lowercase).
+      const key = video.match?.replace(/ /g, '_').toLowerCase();
+      return [...testMatchIds].some(m => m.toLowerCase().startsWith(key));
+    }),
+    [testMatchIds]
+  );
 
+  const CURATED_LIBRARY = useMemo(
+    () => LIBRARY.slice(0, CURATED_COUNT),
+    [LIBRARY]
+  );
+
+  // ──── Render ───────────────────────────────────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', padding: 32 }}>
       <SectionHeader
         title="Select Match Video"
-        subtitle={`Showing ${CURATED_LIBRARY.length} recent matches - browse all to see the full library to upload your own footage.`}
+        subtitle='Showing recent matches — browse all to see the full library, or upload your own footage.'
       />
 
       <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, marginBottom: 24 }}>
@@ -161,15 +181,17 @@ export function LibraryScreen({ onNext }) {
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
             <button
               onClick={() => setBrowsing(true)}
+              onMouseEnter={() => setBrowseHov(true)}
+              onMouseLeave={() => setBrowseHov(false)}
               style={{
-                background: 'none', border: `1px solid ${t.border}`,
-                color: t.muted, padding: '10px 18px', borderRadius: 7,
+                background: 'none',
+                border: `1px solid ${browseHov ? t.blue : t.border}`,
+                color: browseHov ? t.text : t.muted,
+                padding: '10px 18px', borderRadius: 7,
                 fontSize: 13, cursor: 'pointer',
                 fontFamily: "'Space Grotesk', sans-serif",
                 transition: 'all 0.15s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.color = t.text; e.currentTarget.style.borderColor = t.blue; }}
-              onMouseLeave={e => { e.currentTarget.style.color = t.muted; e.currentTarget.style.borderColor = t.border; }}
             >
               Browse all {LIBRARY.length} matches →
             </button>
