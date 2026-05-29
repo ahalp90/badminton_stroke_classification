@@ -66,6 +66,7 @@ function VideoCard({ video, selected, onSelect }) {
   );
 }
 
+// ──── Component ──────────────────────────────────────────────────────────────────────────────────
 export function LibraryScreen({ onNext }) {
   const { t } = useTheme();
 

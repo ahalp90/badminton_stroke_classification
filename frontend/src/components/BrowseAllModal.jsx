@@ -2,10 +2,47 @@ import { useState, useMemo } from 'react';
 import { useTheme } from '../shared';
 import { MyUploadsList } from './upload/MyUploadsList';
 
+/** Single match row in the browse modal. Highlights on hover. */
+function MatchRow({ video, onSelect }) {
+  const { t } = useTheme();
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={() => onSelect(video)}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        width: '100%', padding: '10px 20px',
+        background: hov ? t.surface2 : 'none',
+        border: 'none', cursor: 'pointer',
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14,
+        textAlign: 'left', color: t.text,
+        fontFamily: "'Space Grotesk', sans-serif",
+      }}
+    >
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: t.text, marginBottom: 2 }}>
+          {video.match}
+        </div>
+        <div style={{ fontSize: 11, color: t.muted }}>{video.tournament}</div>
+      </div>
+      <div style={{
+        fontSize: 11, color: t.muted, whiteSpace: 'nowrap',
+        fontFamily: "'JetBrains Mono', monospace",
+      }}>
+        {video.strokes} strokes
+      </div>
+    </button>
+  );
+}
+
+/** Search modal showing all library matches and user uploads.
+ * Clicking the backdrop closes the modal. */
 export function BrowseAllModal({ items, onSelect, onClose }) {
   const { t } = useTheme();
   const [query, setQuery] = useState('');
 
+  // ──── Search filter ────────────────────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
@@ -52,7 +89,7 @@ export function BrowseAllModal({ items, onSelect, onClose }) {
             aria-label="Close"
           >×</button>
         </div>
-        <div style={{ overflowY: 'auto'}}>
+        <div style={{ overflowY: 'auto' }}>
           <div style={{
             padding: '14px 20px 6px',
             fontSize: 11, color: t.muted,
@@ -92,35 +129,10 @@ export function BrowseAllModal({ items, onSelect, onClose }) {
             {filtered.length === 0 && (
               <div style={{ padding: '20px 20px', textAlign: 'center', color: t.muted, fontSize: 13 }}>
                 No matches found.
-                </div>
+              </div>
             )}
             {filtered.map(v => (
-              <button
-                key={v.id}
-                onClick={() => onSelect(v)}
-                style={{
-                  width: '100%', padding: '10px 20px',
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14,
-                  textAlign: 'left', color: t.text,
-                  fontFamily: "'Space Grotesk', sans-serif",
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = t.surface2}
-                onMouseLeave={e => e.currentTarget.style.background = 'none'}
-              >
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: t.text, marginBottom: 2 }}>
-                    {v.match}
-                  </div>
-                  <div style={{ fontSize: 11, color: t.muted }}>{v.tournament}</div>
-                </div>
-                <div style={{
-                  fontSize: 11, color: t.muted, whiteSpace: 'nowrap',
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}>
-                  {v.strokes} strokes
-                </div>
-              </button>
+              <MatchRow key={v.id} video={v} onSelect={onSelect} />
             ))}
           </div>
         </div>
