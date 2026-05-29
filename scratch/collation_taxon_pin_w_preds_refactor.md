@@ -1220,12 +1220,13 @@ Important: the `class_list` returned by `registry.py` for a given model entry co
 
 - `/scratch/comp320a/ShuttleSet_keypoints_raw_unknown/` (1,278 stems × 5 raw npy = ~6,400 files)
 - `/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor_unknown/` (1,278 stems × 3 clean npy)
-- `/scratch/comp320a/ShuttleSet_data_bst_25/npy_taxon_pinned_w_preds/{train,val,test}/`
-- `/scratch/comp320a/ShuttleSet_data_bst_24/npy_taxon_pinned_w_preds/{train,val,test}/`
-- `/scratch/comp320a/ShuttleSet_data_bst_12/npy_taxon_pinned_w_preds/{train,val,test}/`
-- `/scratch/comp320a/ShuttleSet_data_shuttleset_18/npy_taxon_pinned_w_preds/{train,val,test}/`
-- `/scratch/comp320a/ShuttleSet_data_une_v1_14/npy_taxon_pinned_w_preds/{train,val,test}/`
-- `/scratch/comp320a/ShuttleSet_data_une_v1_15/npy_taxon_pinned_w_preds/{train,val,test}/`
+Split is folded into the basename (`npy_{split}_{ablation_id}`, see the 2026-05-30 log entry), so the two bst_24 cells don't collide. Six dirs, one per cell:
+- `/scratch/comp320a/ShuttleSet_data_shuttleset_18/npy_v2_taxon_pinned_w_preds/{train,val,test}/` (cell 1)
+- `/scratch/comp320a/ShuttleSet_data_bst_24/npy_v2_taxon_pinned_w_preds/{train,val,test}/` (cell 3)
+- `/scratch/comp320a/ShuttleSet_data_bst_12/npy_v2_taxon_pinned_w_preds/{train,val,test}/` (cell 4)
+- `/scratch/comp320a/ShuttleSet_data_bst_25/npy_bst_baseline_taxon_pinned_w_preds/{train,val,test}/` (cell 5)
+- `/scratch/comp320a/ShuttleSet_data_bst_24/npy_bst_baseline_taxon_pinned_w_preds/{train,val,test}/` (cell 6)
+- `/scratch/comp320a/ShuttleSet_data_une_v1_14/npy_v2_taxon_pinned_w_preds/{train,val,test}/` (cell 7)
 - Plus `clip_stems.npy` alongside `labels.npy` in every collated `{split}/` dir.
 - Per cell: `experiments/run_<ts>/predictions/<split>_serial_<n>.npz` for serials 1..N, with non-best pruned manually after the runner finishes.
 

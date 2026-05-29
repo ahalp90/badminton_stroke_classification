@@ -346,3 +346,28 @@ Implications for the cells:
 2. Update Step E's runner config (when it lands) to use the 6-cell roster, not 8.
 3. Either dive into Step D (train surface rewrite) or do the 6 collations under the current contract first.
 4. Plan doc reflects the 6-cell decision; memory captures the split_v2 design fact; refactor log carries today's chronology. Should be readable cold.
+
+## 2026-05-30: split folded into the collated dir basename (collision fix + collation prep)
+
+Picking up to run the 6 collations. Stashed the unrelated x3d/xai working-tree changes first (`git stash` "x3d_xai") for a clean tree.
+
+Reading the writer path logic surfaced a real collision the plan missed. The collated dir is `ShuttleSet_data_<tax>/npy_<ablation_id>/` and `derive_npy_collated_dir_basename` built the basename from `use_3d_pose`/`seq_len`/`ablation_id` only, no split. So cell 3 (bst_24 + split_v2) and cell 6 (bst_24 + split_bst_baseline) both resolved to `ShuttleSet_data_bst_24/npy_taxon_pinned_w_preds/` and would have clobbered each other. (The plan's on-disk artefact list at .md:1223 still showed one bst_24 entry plus the dropped une_v1_15 cell, so it predated both the cells-2/8 drop and this collision.)
+
+Fix, chosen over hand-suffixing the ablation_id per cell: fold the split into the basename automatically.
+- `derive_npy_collated_dir_basename` gains a required `split_column` param; basename is now `npy_[3d_][seq{N}_]{split}_{ablation_id}` with `{split}` = `split_column.removeprefix('split_')` (`split_v2` -> `v2`, `split_bst_baseline` -> `bst_baseline`). config.py:465.
+- Writer caller passes `split_column=args.split_column` (prepare_train_on_shuttleset.py:1165). The `--split-column` CLI arg already existed; nothing new at the CLI.
+- All 6 cells now share `--ablation-id taxon_pinned_w_preds`; the split arg disambiguates. No manual per-cell tag juggling.
+
+Resulting dirs (collision gone):
+- shuttleset_18 / v2        -> ShuttleSet_data_shuttleset_18/npy_v2_taxon_pinned_w_preds
+- bst_24 / v2               -> ShuttleSet_data_bst_24/npy_v2_taxon_pinned_w_preds
+- bst_12 / v2               -> ShuttleSet_data_bst_12/npy_v2_taxon_pinned_w_preds
+- une_v1_14 / v2            -> ShuttleSet_data_une_v1_14/npy_v2_taxon_pinned_w_preds
+- bst_25 / bst_baseline     -> ShuttleSet_data_bst_25/npy_bst_baseline_taxon_pinned_w_preds
+- bst_24 / bst_baseline     -> ShuttleSet_data_bst_24/npy_bst_baseline_taxon_pinned_w_preds
+
+Tests: added `test_derive_npy_collated_dir_basename_folds_split` (both splits + a 3d + a seq30 case) and `test_bst_24_split_variants_get_distinct_basenames` (pins the collision fix) in test_taxonomy.py. Refreshed the CANDIDATE_REAL_DIRS probe paths to the split-encoded names, else they'd silently skip once the collations land. Green in the cicd venv: test_taxonomy 77 passed / 4 skipped, test_data_access + test_dataset 35 passed.
+
+Step D reader implication (flagged, not fixed now): bst_train.py:1073 already calls `derive_npy_collated_dir_basename(split_column=hyp.split_column, ...)` -- the pre-Step-A call shape it was never moved off -- so re-adding the param re-aligns reader with writer for the new cells. But bst_train is still broken pending Step D (imports the removed `derive_ablation_id` at line 39), and legacy dirs (`npy_wipe_drop`, `npy_<tax>_<split>_dropunk`) carry no split tag, so the Step D reader rewrite needs either a fallback for pre-split names or a re-collation of the legacy runs it wants to resume. Nothing that currently works regresses: the run_20260505_154907 resume is already dead pending Step D, and cell 7 re-collates + retrains that best on the new generation anyway.
+
+bst_25 sanity collation: already deleted last week, so cell 5 has a clean target dir.
