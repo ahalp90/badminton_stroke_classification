@@ -11,10 +11,6 @@ const frameUrl = (id) => frameModules[`./data/frames/${id}.jpg`];
 
 // ──── Module-level constants ─────────────────────────────────────────────────────────────────────
 const CURATED_COUNT = 3;
-// TODO: Request a dedicated matches endpoint from the API — currently we fetch clips and extract
-// unique match names, but the API caps limit at 500. With ~4200 test clips this risks missing
-// some of the 6 test match videos
-const CLIP_FETCH_LIMIT = 500;
 const ALL = matchesData.map(toVideo);
 
 /** Thumbnail card for single match video. Highlights on hover; shows a checkmark when selected. */
@@ -88,7 +84,7 @@ export function LibraryScreen({ onNext }) {
   }, []);
 
   // ──── Test split fetch ─────────────────────────────────────────────────────────────────────────
-  // Fetch test split clips and extract unique match values.
+  // Fetch unique match names from the test split.
   useEffect(() => {
     let alive = true;
     fetch('/api/registry')
@@ -97,12 +93,11 @@ export function LibraryScreen({ onNext }) {
         const modelId = data?.models?.find(m => m.is_default)?.id
         ?? data?.models?.[0]?.id;
         if (!modelId || !alive) return;
-        return fetch(`/api/registry/${modelId}/splits/test/clips?limit=${CLIP_FETCH_LIMIT}`)
+        return fetch(`/api/registry/${modelId}/splits/test/matches`)
           .then(response => response.ok ? response.json() : Promise.reject())
-          .then(clips => {
+          .then(data => {
             if (!alive) return;
-            const matchSet = new Set((clips.clips || []).map(c => c.match));
-            setTestMatchIds(matchSet);
+            setTestMatchIds(new Set(data.matches));
           });
       })
       .catch(() => {
