@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react';
 import { useTheme } from '../../shared';
-import { UploadingPanel } from './UploadingPanel';
 import { recordUpload, useStoredUploads, toUploadVideo } from '../../utils/uploadStorage';
 
 const ACCEPTED_VIDEO_TYPES = 'video/mp4,video/quicktime,video/x-msvideo,video/*';
@@ -12,34 +11,22 @@ export function UploadTab({ onUpload }) {
 
   // ──── State ────────────────────────────────────────────────────────────────────────────────────
   const [dragOver, setDragOver] = useState(false);
-  const [uploading, setUploading] = useState(null);
   const fileInputRef = useRef(null);
   const stored = useStoredUploads();
 
   // ──── Actions ──────────────────────────────────────────────────────────────────────────────────
-  /** Stages a file for upload; switches view to Uploading Panel. */
+  /** Stages a file for upload - saves file metadata to IndexedDB and advances the wizard. */
   const acceptFile = (file) => {
     if (!file) return;
     setDragOver(false);
-    setUploading({ filename: file.name, file });
+    // recordUpload saves metadata to IndexedDB (for the My Uploads list) and returns an
+    // entry used to create the video object for the wizard - the actual backend upload
+    // happens later in ProgressScreen on Submit.
+    const entry = recordUpload(file);
+    onUpload(toUploadVideo(entry));
   };
 
   // ──── Render ───────────────────────────────────────────────────────────────────────────────────
-  if (uploading) {
-    return (
-      <UploadingPanel
-        filename={uploading.filename}
-        onDone={() => {
-          // recordUpload saves metadata to IndexedDB (for the My Uploads list) and returns an
-          // entry used to create the video object for the wizard  - the actual backend upload 
-          // happens later in ProgressScreen on Submit.
-          const entry = recordUpload(uploading.file);
-          onUpload(toUploadVideo(entry));
-        }}
-      />
-    );
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <input
