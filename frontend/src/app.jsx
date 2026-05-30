@@ -8,7 +8,7 @@ import { ResultsScreen } from './results-screen';
 import { ModelResultsScreen } from './model-results-screen';
 
 // ──── Wizard stage order ─────────────────────────────────────────────────────────────────────────
-/** Ordered list of wizard stages (excludes Project showcase) */
+/** Ordered list of wizard stages (excludes Model Results showcase) */
 const ORDER = ['library', 'markup', 'configure', 'progress', 'results'];
 
 // ──── Dev fixtures ───────────────────────────────────────────────────────────────────────────────
@@ -19,13 +19,12 @@ const ORDER = ['library', 'markup', 'configure', 'progress', 'results'];
  * NOTE: `video` is deliberately excluded - forward navigation without a chose video now blocks 
  * (user must pick from Library or upload a file)
  * 
+ * NOTE: `markup` is deliberately excluded — the user must complete the markup steps before
+ * configure is accessible.
+ * 
  * TODO: Remove DEV_FIXTURES during clean-up, when live inference implementation complete
  */
 const DEV_FIXTURES = {
-  markup: {
-    player: 1,
-    timeframe: { duration: 30 },
-  },
   task: {
     taskName: 'Demo task — fixture',
     enabled: { A: true, B: false },
@@ -48,31 +47,52 @@ function HBAStrokeClassifier() {
     setScreen('library');
   };
 
+  /**
+   * NavBar navigation handler. Normal wizard progression (onNext/onBack inside each screen)
+   * calls setScreen directly and never goes through here - this is only for navbar jumps.
+   * 
+   * Guards (in order):
+   *  1. Jumping to Model Results - always allowed.
+   *  2. Returning from Model Results - allowed subject to wizard state:
+   *        no video          → library only
+   *        video, no markup  → library or markup
+   *        video + markup    → library, markup, or configure (and beyond once task exists)
+   *  3. Backward within wizard - always allowed.
+   *  4. Forward without a video - blocked.
+   *  5. Forward past markup without saved markup - blocked.
+   *  6. Otherwise - advance, seeding task fixture if needed.
+   *  TODO: Update Step 6 prior to deployment.
+   */
   const navigate = target => {
-    // The Model Results page is outside the wizard pipeline — jump freely.
+    // Guard 1: Model Results page is outside the wizard pipeline — jump freely.
     if (target === 'model-results') {
       setScreen('model-results');
       return;
     }
-    // Returning to the wizard from the Project page: restore wizard state.
+
+    // Guard 2: Returning from Model Results - cap by wizard state.
     if (screen === 'model-results') {
+      if (!video) { setScreen('library'); return; }
+      if (ORDER.indexOf(target) >= ORDER.indexOf('configure') && !markup) return;
       setScreen(target);
       return;
     }
 
+    // Guard 3: Backward navigation within the wizard is always allowed.
     const cur = ORDER.indexOf(screen);
     const dst = ORDER.indexOf(target);
     if (dst <= cur) {
       setScreen(target);
       return;
     }
-    // Forward navigation requires a real video. No dummy fallback - the 
-    // user must explicitly select from the Match Library or upload a file 
-    // first.
+    // Guard 4: Forward navigation requires a real video.
     if (!video) return;
-    const m = markup ?? { ...DEV_FIXTURES.markup, video };
-    const s = task ?? { ...DEV_FIXTURES.task, markup: m };
-    if (dst >= ORDER.indexOf('configure') && !markup) setMarkup(m);
+
+    // Guard 5: Reaching configure or beyond requires completed markup.
+    if (dst >= ORDER.indexOf('configure') && !markup) return;
+
+    // Guard 6: Advance, seeding task fixture if jumping past configure.
+    const s = task ?? { ...DEV_FIXTURES.task };
     if (dst >= ORDER.indexOf('progress') && !task) setTask(s);
     setScreen(target);
   };
