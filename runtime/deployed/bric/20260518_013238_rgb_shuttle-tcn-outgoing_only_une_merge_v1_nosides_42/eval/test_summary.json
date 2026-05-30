@@ -1,0 +1,104 @@
+{
+  "architecture": "bric",
+  "run_id": "20260518_013238_rgb_shuttle-tcn-outgoing_only_une_merge_v1_nosides_42",
+  "num_strokes": 4191,
+  "evaluated_at": "2026-05-25T00:22:05",
+  "config": {
+    "variant": "rgb_shuttle",
+    "use_shuttle": true,
+    "shuttle_encoder": "tcn",
+    "use_court": false,
+    "court_encoder": "snapshot",
+    "taxonomy": "une_merge_v1_nosides",
+    "classes": [
+      "net_shot",
+      "return_net",
+      "smash",
+      "wrist_smash",
+      "lob",
+      "clear",
+      "drive",
+      "drop",
+      "passive_drop",
+      "push",
+      "rush",
+      "cross_court_net_shot",
+      "short_service",
+      "long_service"
+    ]
+  },
+  "metrics": {
+    "macro_f1": 0.7305429577827454,
+    "min_f1": 0.408791184425354,
+    "accuracy": 0.7575757503509521,
+    "top2_accuracy": 0.8888093829154968,
+    "per_class_f1": {
+      "net_shot": 0.8992356061935425,
+      "return_net": 0.8004314303398132,
+      "smash": 0.6510851383209229,
+      "wrist_smash": 0.408791184425354,
+      "lob": 0.7872509956359863,
+      "clear": 0.8953341841697693,
+      "drive": 0.5314009785652161,
+      "drop": 0.641686201095581,
+      "passive_drop": 0.6778711676597595,
+      "push": 0.5894134640693665,
+      "rush": 0.7441860437393188,
+      "cross_court_net_shot": 0.6666666865348816,
+      "short_service": 0.9825242757797241,
+      "long_service": 0.951724112033844
+    },
+    "top_confusions": [
+      {
+        "true": "push",
+        "predicted": "lob",
+        "count": 153
+      },
+      {
+        "true": "wrist_smash",
+        "predicted": "smash",
+        "count": 110
+      },
+      {
+        "true": "smash",
+        "predicted": "wrist_smash",
+        "count": 56
+      },
+      {
+        "true": "lob",
+        "predicted": "push",
+        "count": 53
+      },
+      {
+        "true": "drive",
+        "predicted": "return_net",
+        "count": 37
+      },
+      {
+        "true": "passive_drop",
+        "predicted": "drop",
+        "count": 37
+      },
+      {
+        "true": "drive",
+        "predicted": "push",
+        "count": 36
+      },
+      {
+        "true": "net_shot",
+        "predicted": "return_net",
+        "count": 34
+      },
+      {
+        "true": "return_net",
+        "predicted": "net_shot",
+        "count": 30
+      },
+      {
+        "true": "drop",
+        "predicted": "wrist_smash",
+        "count": 26
+      }
+    ]
+  }
+}

@@ -41,6 +41,9 @@ _RGB_STD = np.array([0.22803, 0.22145, 0.216989], dtype=np.float32).reshape(3, 1
 
 _VALID_SPLITS = ('train', 'val', 'test')
 _VALID_SHUTTLE_WINDOWS = ('between_hits', 'outgoing_only')
+_VALID_COURT_WINDOWS = ('between_hits', 'pre_shot')
+
+_PRE_SHOT_EPS_FRAMES = 5
 
 
 def _to_half_court(x_full: float, y_full: float, side_lc: str) -> tuple[float, float]:
@@ -104,6 +107,7 @@ class ShuttleSetDataset(Dataset):
         require_shuttle_cache: bool = True,
         rgb_transform: Callable[[np.ndarray], np.ndarray] | None = None,
         shuttle_window: str = 'between_hits',
+        court_window: str = 'between_hits',
     ) -> None:
         if split not in _VALID_SPLITS:
             raise ValueError(f'split must be one of {_VALID_SPLITS}, got {split!r}')
@@ -111,6 +115,11 @@ class ShuttleSetDataset(Dataset):
             raise ValueError(
                 f'shuttle_window must be one of {_VALID_SHUTTLE_WINDOWS}, '
                 f'got {shuttle_window!r}'
+            )
+        if court_window not in _VALID_COURT_WINDOWS:
+            raise ValueError(
+                f'court_window must be one of {_VALID_COURT_WINDOWS}, '
+                f'got {court_window!r}'
             )
 
         self.split = split
@@ -123,6 +132,9 @@ class ShuttleSetDataset(Dataset):
         # 'between_hits': previous-hit to next-hit + eps (full rally context)
         # 'outgoing_only': target_frame to next-hit + eps (just this shot's flight)
         self.shuttle_window = shuttle_window
+        # 'between_hits': previous-hit to next-hit (full window)
+        # 'pre_shot': previous-hit to target_frame + small eps (incoming approach)
+        self.court_window = court_window
 
         self.classes = self.taxonomy.trainable_class_list()
         self._class_to_idx = {c: i for i, c in enumerate(self.classes)}
@@ -344,8 +356,13 @@ class ShuttleSetDataset(Dataset):
         court_snapshot = self._build_court_snapshot(
             s['vid'], s['frame_num'], s['player_side'],
         )
+        court_end = (
+            min(s['frame_num'] + _PRE_SHOT_EPS_FRAMES, s['shuttle_end_f'])
+            if self.court_window == 'pre_shot'
+            else s['shuttle_end_f']
+        )
         court_sequence = self._build_court_sequence(
-            s['vid'], s['shuttle_start_f'], s['shuttle_end_f'], s['player_side'],
+            s['vid'], s['shuttle_start_f'], court_end, s['player_side'],
         )
         return {
             'rgb':                   torch.from_numpy(rgb),
