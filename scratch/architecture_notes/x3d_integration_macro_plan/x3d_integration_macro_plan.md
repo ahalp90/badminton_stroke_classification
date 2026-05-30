@@ -1,5 +1,17 @@
 # X3D-S Wrist-Crop Fusion: Macro Plan
 
+## TLDR (state as of 2026-05-06)
+
+Six-stage roadmap to land an X3D-S wrist-crop branch fused with BST. The macro plan surfaces every question per stage; per-stage detail lives in dedicated docs.
+
+- **Stage 1 — Hit-frame metadata derivation:** dedicated plan landed at `stage_1_hit_frame_derivation.md`. Method A (CSV correlation) + Method B' (shuttle direction reversal cross-referenced against player wrist-velocity peaks per Liu et al. 2023). No code yet.
+- **Stage 2 — Wrist-loss assessment + dominant-wrist preflight:** dedicated plan landed at `stage_2_wrist_loss_assessment.md`. The handedness + Top/Bottom-keypoint-convention prelim is fully scoped: 27-player handedness data sourced from Wikipedia (3 lefties: Marin, Momota, Katethong; rest right-handed); spec'd a static-bias L/R diagnostic and an inter-frame L/R consistency diagnostic; the inter-frame script is written and code-reviewed at `src/bst_refactor/validation_scripts/keypoint_lr_interframe_diagnostic.py`. The wrist-loss-rate measurement proper has not started yet.
+- **Stages 3-6:** still as scoped in the per-stage sections below; no dedicated docs yet.
+
+What's blocking what: Stage 1 unblocks Stages 2-4. Stage 2 unblocks Stage 3.B (dominant-wrist heuristic). Stage 4 unblocks Stage 5. Stage 5 + Stage 6 are the actual model training.
+
+This is the macro doc. It's deliberately a living index; per-stage docs carry the implementation detail. Updates land here when a stage gates open or close.
+
 ## Context
 
 BST plateau is signal-bound on the smash↔wrist_smash pair: pose-2D throws away the racket-pixel motion that distinguishes a wrist-flick from a full-arm smash, and the train-test gap concentrates on this pair (14-18 pp) while pose-distinctive classes generalise to within 1-2 pp at 0.95+ test F1. X3D-S on a wrist crop is the planned signal-side intervention. Capacity-side and loss-side levers have been mapped; the wipe-drop fix lifted both pair members for the first time without a trade-off, but the residual gap is still where this branch lives.
@@ -35,7 +47,9 @@ Things that aren't a stage of their own but must land before any stage runs.
 
 ## Stage 1 — Hit-frame metadata derivation
 
-**Goal**: produce a sidecar `hit_frame_idx.npy` per split (train/val/test), aligned to the existing collated tensors, plus a diagnostic comparison between Method A and Method B.
+**Status**: detailed plan landed at `stage_1_hit_frame_derivation.md`. Method A scaffold exists; Method B' (shuttle + wrist cross-reference per Liu et al. 2023) spec'd; no code yet. See the dedicated doc for the full plan, validation harness spec, sidecar layout, and open questions.
+
+**Goal**: produce a sidecar `hit_frame_idx.npy` per split (train/val/test), aligned to the existing collated tensors, plus a diagnostic comparison between Method A and Method B'.
 
 **Existing entry point**: `src/bst_refactor/validation_scripts/hit_frame_lookup.py` already implements Method A's CSV-correlation logic (per-clip → 0-based hit-frame index in the clip on disk). It is library-shaped, not yet wired to a sidecar writer.
 
@@ -56,6 +70,8 @@ Things that aren't a stage of their own but must land before any stage runs.
 **Dependencies**: none. Self-contained on existing CSV + collated trees. Stages 2-4 all depend on this output.
 
 ## Stage 2 — Wrist-keypoint loss assessment and interpolation viability
+
+**Status**: dedicated plan opens at `stage_2_wrist_loss_assessment.md`. Section 1 (handedness + Top/Bottom keypoint convention preflight) is complete in scope: 27-player handedness data landed at `stage_2_outputs/player_handedness.csv`, static-bias L/R diagnostic spec'd, inter-frame L/R diagnostic script written and code-reviewed. Section 2 onwards (the actual ±19-frame wrist-loss-rate measurement) not yet drafted; will land when Stage 1 + Stage 2's preflight complete.
 
 **Goal**: empirically decide whether wrist-keypoint interpolation is worth building, by quantifying loss rate specifically in the X3D-S window (±19 frames around hit) for the dominant wrist of the labelled player.
 

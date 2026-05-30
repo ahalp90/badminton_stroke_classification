@@ -6,8 +6,8 @@ session_name: taxon_pinned_w_preds_2026_05
 # cells apart. A training-time ablation tag would go in an optional per-cell
 # `ablation_id:` (none of these cells use one).
 #
-# Wall-clock estimate at ~25 min/serial on engelbart: 3x5 + 3x10 = 45 serials,
-# ~19 hours. Two overnights. After the runner finishes, prune the non-best
+# Wall-clock estimate at ~25 min/serial on engelbart: 6x5 = 30 serials,
+# ~13 hours (one overnight). After the runner finishes, prune the non-best
 # serials' predictions npz per cell (keep predictions/<split>_serial_<best>.npz).
 cells:
   - name: shuttleset_18_v2
@@ -32,16 +32,16 @@ cells:
     taxonomy: bst_25
     split_column: split_bst_baseline
     collation_id: taxon_pinned_w_preds
-    n_serials: 10
+    n_serials: 5
 
   - name: bst_24_baseline
     taxonomy: bst_24
     split_column: split_bst_baseline
     collation_id: taxon_pinned_w_preds
-    n_serials: 10
+    n_serials: 5
 
   - name: une_v1_14_v2
     taxonomy: une_v1_14
     split_column: split_v2
     collation_id: taxon_pinned_w_preds
-    n_serials: 10
+    n_serials: 5
