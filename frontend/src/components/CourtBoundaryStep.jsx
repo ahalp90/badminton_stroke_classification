@@ -1,17 +1,26 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useTheme, Btn } from "../shared";
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTheme, Btn } from '../shared';
 
 const frameModules = import.meta.glob('../data/frames/*.jpg', { eager: true, import: 'default' });
 const frameUrl = (id) => frameModules[`../data/frames/${id}.jpg`];
 
-/* ─── Step 1: Court Boundary ─────────────────────────────────────── */
+const W = 640;
+const H = 360;
+const LOUPE_SIZE = 130;
+const LOUPE_ZOOM = 4;
+const DEFAULT_CORNERS = [
+  { x: 0.17, y: 0.30 },
+  { x: 0.83, y: 0.30 },
+  { x: 0.93, y: 0.92 },
+  { x: 0.07, y: 0.92 },
+];
+
+/** Step 1 of markup: interactive canvas for aligning the court boundary quadrilateral.
+ * Supports both library (image frame) and uploaded (video frame) sources. */
 export function CourtBoundaryStep({ video, onComplete }) {
   const { t } = useTheme();
   const canvasRef = useRef(null);
   const loupeRef = useRef(null);
-  const W = 640, H = 360;
-  const LOUPE_SIZE = 130;
-  const LOUPE_ZOOM = 4;
   // sourceRef holds either an HTMLImageElement (library/youtube) or an
   // HTMLVideoElement (upload). drawImage accepts both, and we read intrinsic
   // dimensions via .naturalWidth/.videoWidth in the loupe code below.
@@ -19,12 +28,7 @@ export function CourtBoundaryStep({ video, onComplete }) {
   const hiddenVideoRef = useRef(null);
   const isUpload = video?.source === 'upload' && !!video?.objectURL;
 
-  const [pts, setPts] = useState([
-    { x: 0.17, y: 0.30 },
-    { x: 0.83, y: 0.30 },
-    { x: 0.93, y: 0.92 },
-    { x: 0.07, y: 0.92 },
-  ]);
+  const [pts, setPts] = useState(DEFAULT_CORNERS);
   const [dragging, setDragging] = useState(null);
   const [cursor, setCursor] = useState(null); // {x,y} in canvas coords while dragging
   const [confirmed, setConfirmed] = useState(false);
@@ -179,8 +183,9 @@ export function CourtBoundaryStep({ video, onComplete }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <p style={{ fontSize: 13, color: t.muted, lineHeight: 1.6 }}>
-        Drag the <span style={{ color: t.blue, fontWeight: 600 }}>four corner handles</span> to align the
-        quadrilateral with the court boundary edges. This homography transform normalises inputs across varied camera angles.
+        Drag the <span style={{ color: t.blue, fontWeight: 600 }}>four corner handles</span> to 
+        align the quadrilateral with the court boundary edges. This homography transform 
+        normalises inputs across varied camera angles.
       </p>
 
       <div style={{ position: 'relative' }}>
@@ -261,10 +266,7 @@ export function CourtBoundaryStep({ video, onComplete }) {
           variant="secondary"
           onClick={() => {
             setConfirmed(false);
-            setPts([
-              { x: 0.17, y: 0.30 }, { x: 0.83, y: 0.30 },
-              { x: 0.93, y: 0.92 }, { x: 0.07, y: 0.92 },
-            ]);
+            setPts(DEFAULT_CORNERS);
           }}
         >
           Reset

@@ -1,23 +1,30 @@
 import { useState, useEffect, useRef } from 'react';
-import { useTheme } from '../shared';
+import { useTheme, Btn } from '../shared';
 import { fmtTime } from '../utils/format';
 import { loadYouTubeAPI } from '../utils/youtube';
 import { Scrubber } from './Scrubber';
 import { StrokePillStrip } from './StrokePillStrip';
 
-/* ─── Step 2: Timeframe ──────────────────────────────────────────── */
-// Default ±50-frame window at the implicit 30 fps demo rate (the markup
-// contract doesn't carry fps, see configure-screen's buildMarkupPayload).
+// ──── Constants ──────────────────────────────────────────────────────────────────────────────────
+// Default ±50-frame window at the implicit 30 fps demo rate (the markup contract does not carry 
+// fps, see configure-screen's buildMarkupPayload).
 const DEFAULT_HALF_WINDOW_SEC = 50 / 30;
 
+/** Generates a unique id for a new stroke annotation. */
 const newStrokeId = () => `a${Date.now()}${Math.floor(Math.random() * 1e4)}`;
 
+/** Step 2 of markup: video scrubber for marking stroke start, target and end times.
+ *  Supports both uploaded videos (HTML5) and library matches (YouTube IFrame). */
 export function TimeframeStep({ video, onComplete }) {
   const { t } = useTheme();
   const isUpload = video?.source === 'upload' && !!video?.objectURL;
+
+  // ──── Refs ─────────────────────────────────────────────────────────────────────────────────────
   const playerHostRef = useRef(null);
   const playerRef     = useRef(null);
   const videoElRef    = useRef(null);
+
+  // ──── Video player state ───────────────────────────────────────────────────────────────────────
   const [ready, setReady] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -25,11 +32,11 @@ export function TimeframeStep({ video, onComplete }) {
   const [loaded, setLoaded] = useState(0);
   const [showPips, setShowPips] = useState(true);
 
-  // Multi-stroke state: a list of annotations, each with seconds-based
-  // start/target/end handles. The conversion to integer frames happens
-  // later in configure-screen's buildMarkupPayload using the video's fps.
-  // Initial id is a literal so both useState slots seed with the same
-  // value without reading a ref during render (React 19 lint rule).
+  // ──── Annotation state ─────────────────────────────────────────────────────────────────────────
+  // Multi-stroke state: a list of annotations, each with seconds-based start/target/end handles. 
+  // The conversion to integer frames happens later in configure-screen's buildMarkupPayload using the 
+  // video's fps. Initial id is a literal so both useState slots seed with the same value without 
+  // reading a ref during render (React 19 lint rule).
   const [annotations, setAnnotations] = useState(() => [
     { id: 'init', startSec: null, targetSec: null, endSec: null },
   ]);
@@ -42,6 +49,7 @@ export function TimeframeStep({ video, onComplete }) {
   const targetSec = active?.targetSec ?? null;
   const endSec    = active?.endSec    ?? null;
 
+  // ──── Video setup ──────────────────────────────────────────────────────────────────────────────
   // HTML5 <video> path — uploaded files use the local objectURL.
   useEffect(() => {
     if (!isUpload) return;
@@ -124,6 +132,7 @@ export function TimeframeStep({ video, onComplete }) {
     };
   }, [isUpload, video?.youtubeId]);
 
+  // ──── Video player controls ────────────────────────────────────────────────────────────────────
   const seekTo = (s) => {
     if (isUpload) {
       const vid = videoElRef.current;
@@ -170,6 +179,7 @@ export function TimeframeStep({ video, onComplete }) {
       ? (videoElRef.current?.currentTime ?? 0)
       : (playerRef.current?.getCurrentTime?.() ?? 0);
 
+  // ──── Annotation handlers ──────────────────────────────────────────────────────────────────────
   const setHandle = (which) => {
     if (!active) return;
     const now = getCurrentTimeNow();
@@ -238,6 +248,7 @@ export function TimeframeStep({ video, onComplete }) {
     setPendingDeleteId(null);
   };
 
+  // ──── Derived state ────────────────────────────────────────────────────────────────────────────
   const isAnnotationComplete = (a) =>
     a.startSec !== null && a.targetSec !== null && a.endSec !== null;
   const isAnnotationValid = (a) =>
@@ -265,6 +276,7 @@ export function TimeframeStep({ video, onComplete }) {
     return false;
   })();
 
+  // ──── Render ───────────────────────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <p style={{ fontSize: 13, color: t.muted, lineHeight: 1.6 }}>
