@@ -1,0 +1,279 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useTheme, Btn } from "../shared";
+
+const frameModules = import.meta.glob('../data/frames/*.jpg', { eager: true, import: 'default' });
+const frameUrl = (id) => frameModules[`../data/frames/${id}.jpg`];
+
+/* ─── Step 1: Court Boundary ─────────────────────────────────────── */
+export function CourtBoundaryStep({ video, onComplete }) {
+  const { t } = useTheme();
+  const canvasRef = useRef(null);
+  const loupeRef = useRef(null);
+  const W = 640, H = 360;
+  const LOUPE_SIZE = 130;
+  const LOUPE_ZOOM = 4;
+  // sourceRef holds either an HTMLImageElement (library/youtube) or an
+  // HTMLVideoElement (upload). drawImage accepts both, and we read intrinsic
+  // dimensions via .naturalWidth/.videoWidth in the loupe code below.
+  const sourceRef = useRef(null);
+  const hiddenVideoRef = useRef(null);
+  const isUpload = video?.source === 'upload' && !!video?.objectURL;
+
+  const [pts, setPts] = useState([
+    { x: 0.17, y: 0.30 },
+    { x: 0.83, y: 0.30 },
+    { x: 0.93, y: 0.92 },
+    { x: 0.07, y: 0.92 },
+  ]);
+  const [dragging, setDragging] = useState(null);
+  const [cursor, setCursor] = useState(null); // {x,y} in canvas coords while dragging
+  const [confirmed, setConfirmed] = useState(false);
+  const [sourceLabel, setSourceLabel] = useState('Reference frame · drag handles to align');
+
+  useEffect(() => {
+    if (isUpload) {
+      const vid = hiddenVideoRef.current;
+      if (!vid) return;
+      const onReady = () => {
+        sourceRef.current = vid;
+        // Seek to a representative early frame (first frame can be black).
+        try {
+          const target = Math.min(0.5, (vid.duration || 1) / 2);
+          if (Math.abs(vid.currentTime - target) > 0.01) vid.currentTime = target;
+        } catch { /* noop */ }
+        setSourceLabel(`Uploaded frame · ${video.filename || 'video'}`);
+        draw();
+      };
+      const onSeeked = () => draw();
+      if (vid.readyState >= 2) onReady();
+      else vid.addEventListener('loadeddata', onReady, { once: true });
+      vid.addEventListener('seeked', onSeeked);
+      return () => {
+        vid.removeEventListener('loadeddata', onReady);
+        vid.removeEventListener('seeked', onSeeked);
+      };
+    }
+    const src = frameUrl(video?.youtubeId);
+    if (!src) return;
+    const img = new Image();
+    img.src = src;
+    img.onload = () => { sourceRef.current = img; draw(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [video?.youtubeId, video?.objectURL, isUpload]);
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+
+    if (sourceRef.current) {
+      try { ctx.drawImage(sourceRef.current, 0, 0, W, H); }
+      catch { ctx.fillStyle = '#0E1422'; ctx.fillRect(0, 0, W, H); }
+    } else {
+      ctx.fillStyle = '#0E1422';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    const px = pts.map(p => ({ x: p.x * W, y: p.y * H }));
+
+    ctx.beginPath();
+    px.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.closePath();
+    ctx.fillStyle = confirmed ? 'rgba(34,197,94,0.18)' : 'rgba(37,99,235,0.18)';
+    ctx.fill();
+    ctx.strokeStyle = confirmed ? '#22C55E' : '#3B82F6';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    px.forEach((p, i) => {
+      const radius = dragging === i ? 11 : 8;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = confirmed ? '#22C55E' : (dragging === i ? '#60A5FA' : '#2563EB');
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    });
+  }, [pts, dragging, confirmed]);
+
+  useEffect(() => { draw(); }, [draw]);
+
+  // Render the magnifier loupe whenever the dragged corner moves.
+  useEffect(() => {
+    const lc = loupeRef.current;
+    if (!lc || dragging === null || !sourceRef.current) return;
+    const ctx = lc.getContext('2d');
+    const src = sourceRef.current;
+    // Image uses naturalWidth/Height; Video uses videoWidth/Height.
+    const intrW = src.naturalWidth || src.videoWidth || W;
+    const intrH = src.naturalHeight || src.videoHeight || H;
+    const p = pts[dragging];
+    const cx = p.x * intrW;
+    const cy = p.y * intrH;
+    const cropSize = LOUPE_SIZE / LOUPE_ZOOM;
+    ctx.clearRect(0, 0, LOUPE_SIZE, LOUPE_SIZE);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(LOUPE_SIZE / 2, LOUPE_SIZE / 2, LOUPE_SIZE / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(
+      src,
+      cx - cropSize / 2, cy - cropSize / 2, cropSize, cropSize,
+      0, 0, LOUPE_SIZE, LOUPE_SIZE
+    );
+    ctx.restore();
+    // Crosshair
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(LOUPE_SIZE / 2, LOUPE_SIZE / 2 - 10);
+    ctx.lineTo(LOUPE_SIZE / 2, LOUPE_SIZE / 2 + 10);
+    ctx.moveTo(LOUPE_SIZE / 2 - 10, LOUPE_SIZE / 2);
+    ctx.lineTo(LOUPE_SIZE / 2 + 10, LOUPE_SIZE / 2);
+    ctx.stroke();
+  }, [pts, dragging]);
+
+  const getCanvasPos = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (W / rect.width),
+      y: (e.clientY - rect.top) * (H / rect.height),
+    };
+  };
+
+  const onMouseDown = e => {
+    const pos = getCanvasPos(e);
+    let nearest = 0, nearestDist = Infinity;
+    pts.forEach((p, i) => {
+      const d = Math.hypot(p.x * W - pos.x, p.y * H - pos.y);
+      if (d < nearestDist) { nearest = i; nearestDist = d; }
+    });
+    setConfirmed(false);
+    setDragging(nearest);
+    setCursor(pos);
+    if (nearestDist >= 16) {
+      // Snap the nearest corner to the click point, then allow dragging.
+      setPts(prev => prev.map((p, i) =>
+        i === nearest
+          ? { x: Math.max(0, Math.min(1, pos.x / W)), y: Math.max(0, Math.min(1, pos.y / H)) }
+          : p
+      ));
+    }
+  };
+
+  const onMouseMove = e => {
+    if (dragging === null) return;
+    const pos = getCanvasPos(e);
+    setCursor(pos);
+    setPts(prev => prev.map((p, i) =>
+      i === dragging
+        ? { x: Math.max(0, Math.min(1, pos.x / W)), y: Math.max(0, Math.min(1, pos.y / H)) }
+        : p
+    ));
+  };
+
+  const onMouseUp = () => { setDragging(null); setCursor(null); };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <p style={{ fontSize: 13, color: t.muted, lineHeight: 1.6 }}>
+        Drag the <span style={{ color: t.blue, fontWeight: 600 }}>four corner handles</span> to align the
+        quadrilateral with the court boundary edges. This homography transform normalises inputs across varied camera angles.
+      </p>
+
+      <div style={{ position: 'relative' }}>
+        {isUpload && (
+          <video
+            ref={hiddenVideoRef}
+            src={video.objectURL}
+            preload="auto"
+            muted
+            playsInline
+            crossOrigin="anonymous"
+            style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+          />
+        )}
+        <canvas
+          ref={canvasRef}
+          width={W} height={H}
+          style={{
+            borderRadius: 8, display: 'block', maxWidth: '100%',
+            cursor: dragging !== null ? 'grabbing' : 'crosshair',
+            background: '#000',
+          }}
+          onMouseDown={onMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={onMouseUp}
+          onMouseLeave={onMouseUp}
+        />
+        <div style={{
+          position: 'absolute', top: 8, left: 8,
+          background: 'rgba(0,0,0,0.65)', color: '#fff',
+          fontSize: 11, padding: '3px 9px', borderRadius: 4,
+          fontFamily: "'JetBrains Mono', monospace",
+          maxWidth: 'calc(100% - 16px)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {sourceLabel}
+        </div>
+        {confirmed && (
+          <div style={{
+            position: 'absolute', bottom: 8, left: 8,
+            background: 'rgba(34,197,94,0.9)', color: '#fff',
+            fontSize: 11, padding: '3px 9px', borderRadius: 4, fontWeight: 600,
+          }}>
+            ✓ Boundary confirmed
+          </div>
+        )}
+        {dragging !== null && cursor && (() => {
+          // Position loupe diagonally offset from the cursor; flip if near edges.
+          const offset = LOUPE_SIZE / 2 + 12;
+          const flipX = cursor.x > W - LOUPE_SIZE - 20;
+          const flipY = cursor.y < LOUPE_SIZE + 20;
+          const left = (cursor.x / W) * 100;
+          const top = (cursor.y / H) * 100;
+          return (
+            <canvas
+              ref={loupeRef}
+              width={LOUPE_SIZE}
+              height={LOUPE_SIZE}
+              style={{
+                position: 'absolute',
+                left: `calc(${left}% + ${flipX ? -offset : offset}px)`,
+                top: `calc(${top}% + ${flipY ? offset : -offset}px)`,
+                transform: 'translate(-50%, -50%)',
+                width: LOUPE_SIZE, height: LOUPE_SIZE,
+                borderRadius: '50%',
+                border: '2px solid rgba(255,255,255,0.9)',
+                boxShadow: '0 4px 18px rgba(0,0,0,0.55)',
+                pointerEvents: 'none',
+                background: '#000',
+              }}
+            />
+          );
+        })()}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <Btn
+          variant="secondary"
+          onClick={() => {
+            setConfirmed(false);
+            setPts([
+              { x: 0.17, y: 0.30 }, { x: 0.83, y: 0.30 },
+              { x: 0.93, y: 0.92 }, { x: 0.07, y: 0.92 },
+            ]);
+          }}
+        >
+          Reset
+        </Btn>
+        {!confirmed
+          ? <Btn onClick={() => setConfirmed(true)}>Confirm Boundary</Btn>
+          : <Btn onClick={() => onComplete(pts)}>Next: Set Timeframe →</Btn>
+        }
+      </div>
+    </div>
+  );
+}
