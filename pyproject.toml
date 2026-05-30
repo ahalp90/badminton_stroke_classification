@@ -69,8 +69,8 @@ bric-runtime = [
 bric-train = [
     "transformers",   # HF get_cosine_schedule_with_warmup; matches BST's pattern
     "torcheval",      # multiclass_f1_score for per-epoch val metrics
-    # Future candidates: wandb / mlflow / aim for experiment tracking,
-    # kornia for GPU augmentations, etc.
+    "matplotlib",     # evaluations
+    "scikit-learn",   # evaluations
 ]
 
 # Convenience meta-extras: install both bric-runtime and bric-train.
