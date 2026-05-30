@@ -1,5 +1,5 @@
 # Hand-curated registry of FE-facing models.
-# Schema and consumer contract: ../frontend_integration_guide.md  section 1.
+# Schema and consumer contract: ../scratch/frontend_integration_handoff.md  section 1.
 # Add a new entry when a run/serial graduates to user-facing status.
 #
 # Tier 1 (current): the backend reads `predictions/{split}.json` and friends
@@ -19,6 +19,7 @@ models:
       the augmentation framework v1 (p_flip=0.5, p_jitter=0.3) plus
       adaptive focal loss. Macro F1 0.748, min F1 0.515 on held-out
       test (serial 5).
+    architecture: bst-x
     run_id: run_20260505_154907
     serial_no: 5
     taxonomy: une_merge_v1_nosides
@@ -29,3 +30,25 @@ models:
     manifest_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/manifest.yaml
     weights_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt
     collated_dir: ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop
+
+  # ── BRIC (R(2+1)D-18 RGB + fusion).  the fields below diverge from 
+  #    the BST schema — see the notes on each. 
+  #    The Tier 1 loader (src/api/registry.py) reads the BST
+  #    manifest shape, so this entry needs loader work before it serves.
+  
+  - id: bric_rgb_shuttle_tcn_outgoing_only_v1
+    display_name: "BRIC v1, rgb_shuttle_tcn_outgoing_only"
+    description: |
+      14-class no-sides taxonomy (une_merge_v1_nosides). R(2+1)D-18 RGB
+      backbone (Kinetics-400 pretrained, fine-tuned end-to-end) fused
+      with shuttle-trajectory features.
+    architecture: bric
+    run_id: 20260518_013238_rgb_shuttle-tcn-outgoing_only_une_merge_v1_nosides_42
+    variant: rgb_shuttle
+    taxonomy: une_merge_v1_nosides
+    split_column: split_v2
+    drop_unknown: true
+    num_classes: 14
+    temperature: 1.0
+    manifest_path: runtime/deployed/bric/20260518_013238_rgb_shuttle-tcn-outgoing_only_une_merge_v1_nosides_42/manifest.yaml
+    weights_path: runtime/deployed/bric/20260518_013238_rgb_shuttle-tcn-outgoing_only_une_merge_v1_nosides_42/best.pt

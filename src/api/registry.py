@@ -53,6 +53,18 @@ def _read_json_under_run(manifest_rel_path: str, *relparts: str) -> dict:
         return json.load(f)
 
 
+def _live_splits() -> set[str]:
+    """Splits where live BST inference is available. Guarded so a torch-less
+    or inference-less deploy degrades to no live predictions — metrics still
+    render. BST-specific until a second live architecture exists."""
+    try:
+        from . import bst_inference
+        return bst_inference.available_splits()
+    except Exception:  # noqa: BLE001 — any import/probe failure => no live
+        log.info("registry: live inference unavailable; predictions disabled")
+        return set()
+
+
 def _get_model_entry(model_id: str) -> dict:
     for m in _load_registry().get("models", []):
         if m.get("id") == model_id:
@@ -83,17 +95,28 @@ def _format_metrics(raw: dict) -> dict:
 
 def _summarise_model(entry: dict) -> dict:
     manifest = _load_manifest(entry["manifest_path"])
-    serial_metrics = next(
-        (s.get("metrics", {}) for s in manifest.get("serials", [])
-         if s.get("serial_no") == entry["serial_no"]),
-        {},
-    )
+    architecture = entry.get("architecture", "bst-x")
+    if architecture == "bst-x":
+        test_metrics_raw = next(
+            (s.get("metrics", {}) for s in manifest.get("serials", [])
+            if s.get("serial_no") == entry["serial_no"]),
+            {},
+        )
+        class_list = manifest.get("extra", {}).get("arch", {}).get("active_class_list", [])
+        status = "available" if manifest.get("serials") else "pending"
+    else:
+        test_summary = _read_json_under_run(entry["manifest_path"], "eval/test_summary.json")
+        test_metrics_raw = test_summary.get("metrics", {})
+        class_list = manifest.get("config", {}).get("classes", [])
+        status = "available" if test_metrics_raw else "pending"
+
     # val_metrics.json is produced by scripts/compute_val_metrics.py, which
     # runs the same checkpoint over /app/bst_inputs/val. Missing file just
     # means the script hasn't been run for this run dir yet — we fall back
     # to {} and the FE shows its "No val metrics available" placeholder.
+    # BRIC does not support val metrics by design.
     val_metrics_raw = _read_json_under_run(entry["manifest_path"], "val_metrics.json")
-    class_list = manifest.get("extra", {}).get("arch", {}).get("active_class_list", [])
+    live = _live_splits() if architecture == "bst-x" and status == "available" else set()
     return {
         "id": entry["id"],
         "display_name": entry.get("display_name", entry["id"]),
@@ -101,15 +124,21 @@ def _summarise_model(entry: dict) -> dict:
         "taxonomy": entry.get("taxonomy"),
         "split_column": entry.get("split_column"),
         "drop_unknown": entry.get("drop_unknown", True),
-        "ablation_id": entry.get("ablation_id"),
+        "ablation_id": entry.get("ablation_id", ""),
+        "architecture": architecture,
         "temperature": entry.get("temperature", 1.0),
-        "num_classes": len(class_list),
+        # Prefer the manifest-derived class list (authoritative once trained);
+        # fall back to the registry's declared count for not-yet-trained models
+        # whose manifest doesn't exist, so the card shows e.g. 14 not 0.
+        "num_classes": len(class_list) or entry.get("num_classes", 0),
         "class_list": class_list,
         "splits_available": ["val", "test"],
-        "test_metrics": _format_metrics(serial_metrics),
+        "status": status,
+        "live_predictions": {s: (s in live) for s in ("test", "val")},
+        "test_metrics": _format_metrics(test_metrics_raw),
         "val_metrics": _format_metrics(val_metrics_raw),
     }
-
+    
 
 def _read_clip_index(entry: dict) -> dict:
     raw = _read_json_under_run(entry["manifest_path"], "clip_index.json")
@@ -150,19 +179,56 @@ def _read_predictions(entry: dict, split: str) -> dict:
     return preds
 
 
-def _build_summary(record: dict, class_list: list, idx_entry: dict) -> dict:
-    y_true = record["y_true"]
-    y_pred = record["y_pred"]
-    top_prob = record["top_k_prob"][0] if record.get("top_k_prob") else 0.0
+def _summary_live(stem: str, live: dict, idx_entry: dict) -> dict:
+    """Per-clip row from a real live forward pass."""
     return {
-        "clip_stem": record["clip_stem"],
-        "true_class": class_list[y_true] if 0 <= y_true < len(class_list) else None,
-        "predicted_class": class_list[y_pred] if 0 <= y_pred < len(class_list) else None,
-        "is_correct": y_true == y_pred,
-        "confidence_pct": int(round(top_prob * 100)),
+        "clip_stem": stem,
+        "true_class": live["true_class"],
+        "predicted_class": live["predicted_class"],
+        "is_correct": live["predicted_class"] == live["true_class"],
+        "confidence_pct": live["confidence_pct"],
         "match": idx_entry.get("match"),
         "split": idx_entry.get("split"),
     }
+
+
+def _summary_no_pred(record: dict, class_list: list, idx_entry: dict) -> dict:
+    """Per-clip row when live inference is unavailable: ground truth only, no
+    predictions. We never serve the placeholder y_pred as if it were real."""
+    y_true = record["y_true"]
+    return {
+        "clip_stem": record["clip_stem"],
+        "true_class": class_list[y_true] if 0 <= y_true < len(class_list) else None,
+        "predicted_class": None,
+        "is_correct": None,
+        "confidence_pct": None,
+        "match": idx_entry.get("match"),
+        "split": idx_entry.get("split"),
+    }
+
+
+def _summaries_for(preds: dict, clip_index: dict, split: str, live: bool) -> list:
+    """Build all per-clip summaries for a split. When live, run a real forward
+    pass per clip (current splits are ~28 clips, so inferring all then
+    filtering/paginating is fine); clips that error are skipped, never faked."""
+    class_list = preds.get("active_class_list", [])
+    out = []
+    bst_inference = None
+    if live:
+        from . import bst_inference
+    for r in preds.get("clips", []):
+        stem = r["clip_stem"]
+        idx_entry = clip_index.get(stem, {})
+        if live:
+            try:
+                p = bst_inference.predict(stem, split)
+            except Exception:  # noqa: BLE001
+                log.exception("list_clips: live inference failed for %s; skipping", stem)
+                continue
+            out.append(_summary_live(stem, p, idx_entry))
+        else:
+            out.append(_summary_no_pred(r, class_list, idx_entry))
+    return out
 
 
 @router.get("/registry")
@@ -201,26 +267,24 @@ def list_clips(
     entry = _get_model_entry(model_id)
     preds = _read_predictions(entry, split)
     clip_index = _read_clip_index(entry)
-    class_list = preds.get("active_class_list", [])
 
-    summaries = [
-        _build_summary(r, class_list, clip_index.get(r["clip_stem"], {}))
-        for r in preds.get("clips", [])
-    ]
+    live = split in _live_splits()
+    summaries = _summaries_for(preds, clip_index, split, live)
+
     if true_class:
         summaries = [s for s in summaries if s["true_class"] == true_class]
     if predicted_class:
         summaries = [s for s in summaries if s["predicted_class"] == predicted_class]
     if errors_only:
-        summaries = [s for s in summaries if not s["is_correct"]]
+        summaries = [s for s in summaries if s["is_correct"] is False]
 
     return {
         "model_id": model_id,
         "split": split,
+        "live": live,
         "total": len(summaries),
         "limit": limit,
         "offset": offset,
-        "_mock_data": preds.get("_mock_data", False),
         "clips": summaries[offset:offset + limit],
     }
 

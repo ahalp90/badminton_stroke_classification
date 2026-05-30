@@ -256,13 +256,14 @@ def _build_run_id(
     shuttle_encoder: str | None = None,
     shuttle_window: str | None = None,
     court_encoder: str | None = None,
+    court_window: str | None = None,
 ) -> str:
     """Build a unique run identifier.
 
     Variant token gains hyphenated suffixes for any enabled auxiliary
     lane's encoder + window choice, so re-runs with different settings
     on the same variant + taxonomy + seed don't collide on disk. Order
-    is fixed: shuttle encoder, shuttle window, court encoder.
+    is fixed: shuttle encoder, shuttle window, court encoder, court window.
     """
     suffix_parts: list[str] = []
     if shuttle_encoder is not None:
@@ -271,6 +272,8 @@ def _build_run_id(
         suffix_parts.append(shuttle_window)
     if court_encoder is not None:
         suffix_parts.append(court_encoder)
+    if court_window is not None:
+        suffix_parts.append(court_window)
     variant_token = variant
     if suffix_parts:
         variant_token = f'{variant}-' + '-'.join(suffix_parts)
@@ -384,6 +387,7 @@ def _build_manifest(
                 'shuttle_encoder': args.shuttle_encoder if use_shuttle else None,
                 'shuttle_window': args.shuttle_window if use_shuttle else None,
                 'court_encoder': args.court_encoder if use_court else None,
+                'court_window': args.court_window if use_court else None,
             },
         },
     }
@@ -421,11 +425,13 @@ def run_training(args: argparse.Namespace) -> None:
     shuttle_encoder = args.shuttle_encoder if use_shuttle else None
     shuttle_window = args.shuttle_window if use_shuttle else None
     court_encoder = args.court_encoder if use_court else None
+    court_window = args.court_window if use_court else None
     run_id = _build_run_id(
         args.variant, taxonomy.name, args.seed,
         shuttle_encoder=shuttle_encoder,
         shuttle_window=shuttle_window,
         court_encoder=court_encoder,
+        court_window=court_window,
     )
 
     experiment_dir = _EXPERIMENTS_DIR / run_id
@@ -436,7 +442,7 @@ def run_training(args: argparse.Namespace) -> None:
           flush=True)
     print(f'[bric.train] use_shuttle={use_shuttle} use_court={use_court} '
           f'shuttle_encoder={shuttle_encoder} shuttle_window={shuttle_window} '
-          f'court_encoder={court_encoder}', flush=True)
+          f'court_encoder={court_encoder} court_window={court_window}', flush=True)
 
     # Overfit mode forces jitter off so memorisation against the same N
     # samples is well-defined; per-call jitter would re-randomise every read.
@@ -445,10 +451,12 @@ def run_training(args: argparse.Namespace) -> None:
     train_ds: ShuttleSetDataset | Subset = ShuttleSetDataset(
         split='train', taxonomy=taxonomy, rgb_transform=color_jitter,
         shuttle_window=args.shuttle_window,
+        court_window=args.court_window,
     )
     val_ds: ShuttleSetDataset | Subset = ShuttleSetDataset(
         split='val', taxonomy=taxonomy, rgb_transform=None,
         shuttle_window=args.shuttle_window,
+        court_window=args.court_window,
     )
 
     if args.overfit is not None:
@@ -582,6 +590,7 @@ def run_training(args: argparse.Namespace) -> None:
                     'shuttle_encoder': args.shuttle_encoder if use_shuttle else None,
                     'shuttle_window': args.shuttle_window if use_shuttle else None,
                     'court_encoder': args.court_encoder if use_court else None,
+                    'court_window': args.court_window if use_court else None,
                     'taxonomy': taxonomy.name,
                     'classes': classes,
                     'run_id': run_id,
@@ -695,6 +704,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
              'including the incoming leg from the previous shot. outgoing_only '
              'spans target_frame -> next-hit + eps, isolating this stroke\'s '
              'outgoing flight. Ignored when the variant does not use shuttle.',
+    )
+    p.add_argument(
+        '--court-window', choices=('between_hits', 'pre_shot'),
+        default='between_hits',
+        help='Which frame range to use for the court (player position) sequence. '
+             'between_hits (default) spans previous-hit -> next-hit, capturing '
+             'pre + post-stroke motion. pre_shot spans previous-hit -> '
+             'target_frame, isolating the player\'s approach INTO the stroke '
+             '(tests the cause-vs-recovery asymmetry hypothesis). Ignored when '
+             'the variant does not use court.',
     )
     p.add_argument(
         '--early-stop-patience', type=int, default=0, metavar='N',
