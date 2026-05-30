@@ -13,15 +13,26 @@ services:
     container_name: badminton-backend
     working_dir: /app
     volumes:
-      # Mount data directory read-only for inference
-      - /srv/dev-disk-by-uuid-2d4dc55c-51cd-46ae-a477-544cf0f76bb5/320_cosc594_data:/data/cosc594:ro
+      # Host dataset directory, mounted read-only for inference.
+      # Set DATA_HOST_DIR in a .env file (see .env.example); compose reads it
+      # automatically. Comment this mount out to run without the dataset
+      # (e.g. a frontend-only smoke test).
+      - ${DATA_HOST_DIR:?set DATA_HOST_DIR in .env to your dataset path}:/data:ro
       # Named volume for uploads so files survive container restarts
       - uploads:/app/uploads
     environment:
       # In prod, same-origin requests through nginx so CORS is not needed,
       # but set to * as a safety net in case anything calls the API directly.
       - CORS_ORIGINS=*
-      - DATA_DIR=/data/cosc594
+      - DATA_DIR=/data
+      # Where the SCP'd live-inference tensors live inside the container.
+      # The code expects: $BST_INPUTS_DIR/{test,val}/{JnB_bone,pos,shuttle,videos_len}.npy
+      # If your DATA_HOST_DIR points directly at a `bst_inputs` tree (with
+      # test/ and val/ at its root), `/data` is correct. If it points at a
+      # parent that contains a `bst_inputs/` folder, change this to
+      # `/data/bst_inputs`. Without this set, the per-clip browser and the
+      # "Errors only" filter stay hidden (live=false on every model).
+      - BST_INPUTS_DIR=/data
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 1
     expose:
       - "8000"
