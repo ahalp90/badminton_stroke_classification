@@ -1,0 +1,21 @@
+# eval_dump_predictions.py is retired
+
+Folded into `bst_infer.py --fe` in the taxon_pinned_w_preds refactor (Step D10).
+The old `.pt` dump (`predictions/serial_<n>.pt` with `y_true` / `y_pred` /
+`active_class_list`) is gone; the replacement writes the same npz schema
+`bst_train` emits at end-of-serial.
+
+Dump predictions for an existing run:
+
+```
+PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+    python -m main_on_shuttleset.bst_infer --fe \
+        --run-dir .../experiments/run_<id> --serial 5 \
+        --fe-output-dir /some/dump/root --splits test
+```
+
+Output: `<dump-root>/<run_id>/predictions/test_serial_5.npz` with
+`logits, y_true, y_pred_top1, topk_idx, class_list, run_id, serial_no, taxonomy_name`.
+
+`confusion_matrix.py` already reads that npz (`y_pred_top1` for argmax preds,
+`class_list` for the labels).

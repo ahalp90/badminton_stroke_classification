@@ -403,3 +403,48 @@ Acted on the two follow-ups they surfaced:
 - Internal-script reader: `collation_id_from_manifest` now in `config.py`. Resolves the collation tag across schemas -- `config.collation_id` (new) -> `config.ablation_id` (legacy explicit) -> `extra.data_provenance.effective_ablation_id` (legacy auto-derived). Reads new-schema collation_id first, so a new manifest's training `ablation_id` is never misread as the collation; the docstring spells out the meaning-flip caveat for callers that also want the training tag. Four unit tests added.
 
 Green: test_taxonomy 81 passed / 4 skipped (cicd venv).
+
+## 2026-05-30: six collations built + verified on bourbaki; Steps A-C done, Step D next
+
+Ran the six collations on bourbaki (in `venv-mmpose`; collation only needs numpy/pandas so it works there, though `venv-bst` is the canonical home). All correct:
+
+- Four split_v2 cells (shuttleset_18, bst_24, bst_12, une_v1_14): 22743 / 5250 / 4210 = **32,203** each. Identical because they share the non-unknown clip set + the split_v2 partition; only the label space differs per taxonomy.
+- bst_24 + split_bst_baseline: 24866 / 4000 / 3337 = 32,203.
+- bst_25 + split_bst_baseline (keepunk, via `--unknown-clip-npy-dir`): 25741 / 4241 / 3499 = **33,481**. The +1,278 over the dropunk baseline cell is exactly the unknowns, split 875 / 241 / 162 = the documented distribution. Unknown routing confirmed to the clip.
+
+Six dirs, no collision (the two bst_24 cells land distinct):
+`ShuttleSet_data_{shuttleset_18,bst_24,bst_12,une_v1_14}/npy_v2_taxon_pinned_w_preds` and `ShuttleSet_data_{bst_25,bst_24}/npy_bst_baseline_taxon_pinned_w_preds`.
+
+Verified deeper than counts: `tests/test_taxonomy.py` in `venv-bst` came back **85 passed / 0 skipped**. On the laptop it was 81 passed / 4 skipped; the 4 real-labels probes un-skip on bourbaki (`/scratch` visible + dirs exist) and passed, asserting labels in `[0, n_classes)` and `clip_stems` row-aligned with `labels` for bst_24 / bst_25 / une_v1_14 + the legacy une_merge_v1_nosides.
+
+Aside on a venv scare: the suite fails to even *collect* in `venv-mmpose` (it imports `model.bst` -> `positional_encodings`, a training dep that venv lacks). That's the wrong venv, not a broken wheel; `venv-bst` is the one for tests/training. Captured in the Venv Paths memory.
+
+**Status:** Steps A-C done + committed (`4c1c3c9`, pushed). Collations done + verified. Step D (the `bst_train` rewrite) is next. Cold-start brief at `scratch/NEXT_SESSION.md`.
+
+## 2026-05-30: Steps D, J, E, G code landed (uncommitted) — train + infer surface rewritten
+
+Did the whole model-side pass in one session on the laptop, smoke-tested in the `badminton-cicd` venv (which turns out to carry the full model stack incl. `positional_encodings`, so the earlier venv-mmpose collection scare doesn't apply here). Nothing committed yet.
+
+**Step D (bst_train + bst_common + bst_infer):**
+- Hyp tuple: `drop_unknown` and `expected_active_classes` gone; `ablation_id` renamed to `collation_id` (the path tag) and a fresh nullable `ablation_id` added as the training-time tag. Defaults `taxonomy='une_v1_14'`, `collation_id='taxon_pinned_w_preds'`, `ablation_id=None`.
+- The runtime active-class adapter (`derive_active_classes_from_labels`) is deleted. `Task._assert_label_coverage` replaces it: train must cover every taxonomy class, val/test must carry nothing train didn't see. Head dim and class list read straight off `taxonomy.n_classes` / `taxonomy.classes`; no more `n_active_classes` / `active_class_list`.
+- `_validate_and_record_arch` + the whole `extra.arch` manifest block are gone. A 2-line `_print_taxonomy_block` logs the taxonomy at run start; the class list now lands in `config.classes` (mirrors BRIC), written at `track_run` time.
+- `dump_topk_predictions` (in bst_common) + `Task.dump_predictions` write per-stroke logits + top-k + ground truth to `predictions/<split>_serial_<n>.npz` for every serial, all three splits, shuffle=False so rows align with `clip_stems.npy`. This is the FE / calibration payload the refactor was for.
+- Per-class val F1 snapshotted at the best-macro epoch and surfaced to the serial manifest (`extra.val_at_best_macro_epoch`); `train_network` now returns `(model, val_at_best)`, threaded through `seek_network_weights`. TB gets `F1_val/<class>` scalars.
+- Weight-file + dir naming uses the recorded `hyp.taxonomy` string (so a legacy resume finds `..._une_merge_v1_nosides.pt`); a resume reads the recorded `npy_collated_dir` from the old manifest's provenance, so pre-split-fold names like `npy_wipe_drop` still resolve.
+- Caught a real reader gap the plan under-specified: bst_train hardcoded the in-repo `preparing_data/` path while the collator writes to `BST_X_COLLATED_DATA_ROOT` (=/scratch/comp320a on bourbaki). bst_train now reads the same env var (load_repo_dotenv + env_path_or_none), else falls back in-repo. Without this the runner would never find the cells. `verify_bst_train_target.py` mirrors the same resolution.
+- Two bugs the smoke caught: bst_train never imported numpy (the new asserts/dump use `np`); and the rogue-label naming `IndexError`d on an out-of-range label (now OOB-safe, matching the old bst_common helper).
+
+**Step D9/D10:** `bst_infer --fe` is the post-hoc batch dump (same npz schema), folding in `eval_dump_predictions.py` which is retired (pointer note left in presentation_prep). `confusion_matrix.py` reads the npz (`y_pred_top1`, `class_list`) instead of the old `.pt`.
+
+**Step J (FE handlers):** `registry._resolve_class_list` reads `config.classes` first, falls back to the legacy `extra.arch.active_class_list` (also lights up BRIC, whose list was never in BST's bandaid block). Predictions-JSON readers accept `class_list` or legacy `active_class_list` (registry x2 + inference.py). `collation_id` / `ablation_id` now read off the manifest config. The shipped mock entry still resolves its 14-class list via the fallback. J4 (the FE-team PR note) is still owed in my own voice.
+
+**Step E:** `collation_runner.py` (no kill/verdict logic, state.json resume) + `scratch/runners/taxon_pinned_w_preds/config.yaml` with the 6-cell roster (5/5/5/10/10/10 = 45 serials). Smoke-stubbed the subprocess: all 6 cells launch with the right `--taxonomy/--split-column/--collation-id` flags.
+
+**Step G (partial):** path-format / Hyp-default stragglers updated (`run_tracker.md`, `validation_scripts/README.md`, `data_pipeline_to_model_train.md` Hyp row). `data_pipeline_to_model_train.md` still has broader Step-A staleness (`class_list()`, `DEFAULT_TAXONOMY`, old taxonomy names) left untouched — separate doc-debt, not scoped here.
+
+**Tests:** +19 across `test_train_surface.py` (coverage assert, npz dump, train_network return), `test_inference_smoke.py` (bst_infer --fe end-to-end, k-clamp), `test_api_registry.py` (`_resolve_class_list` + a live `/api/registry` fallback check), `test_api_inference.py` (JSON field preference). Full suite in the cicd venv: **365 passed, 5 skipped** (the /scratch real-label probes + the missing-clip-stems back-compat), 2 pre-existing `/app/uploads` docker failures in `test_api.py` unrelated to this work.
+
+**Not done (needs bourbaki / a later session):** the actual 6-cell runs via the runner, the non-best npz prune, the run-ID-dependent docs (arch_1_directions headline numbers, models_registry new entries), and the J4 FE PR note. Everything code-side is import-clean and tested on CPU.
+
+Also fixed in passing: `model/bst.py`'s `__main__` smoke (was importing the removed `DEFAULT_TAXONOMY`) and a stale `class_list()` docstring in shuttleset_dataset. One BST-side straggler the Step-A audit missed is **flagged not fixed**: `validation_scripts/mmpose_heuristic_investigation/zeroed_frames_class_audit.py` still calls the removed `taxonomy.standalone_set` + `taxonomy.class_list()`. It's a standalone diagnostic (not imported, not in CI), so it doesn't break anything live, but it needs a real port to `label_for_row` (not a rename) before it'll run again.

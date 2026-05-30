@@ -31,7 +31,7 @@ _STUB_LATENCY_SEC = 3.0
 
 
 def _pick_predictions_pool() -> tuple[list[str], list[dict]]:
-    """Return (active_class_list, list of test-split prediction records).
+    """Return (class_list, list of test-split prediction records).
 
     Uses the first registered model's test predictions. The 56-clip mock
     on this branch is plenty of variety for demo draws; if more models
@@ -41,7 +41,12 @@ def _pick_predictions_pool() -> tuple[list[str], list[dict]]:
     if not models:
         return [], []
     preds = _read_json_under_run(models[0]["manifest_path"], "predictions", "test.json")
-    return preds.get("active_class_list", []), preds.get("clips", [])
+    # Canonical `class_list` (api_contract-aligned, emitted by the post-hoc
+    # converter), falling back to the legacy `active_class_list` for the
+    # pre-refactor mock JSONs. Drop the fallback once all consumed predictions
+    # JSONs have been re-emitted in the new shape.
+    class_list = preds.get("class_list") or preds.get("active_class_list", [])
+    return class_list, preds.get("clips", [])
 
 
 def _build_top_k(record: dict, class_list: list[str]) -> list[dict]:

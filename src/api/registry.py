@@ -81,8 +81,27 @@ def _format_metrics(raw: dict) -> dict:
     }
 
 
+def _resolve_class_list(manifest: dict) -> list:
+    """Source the class list from whichever field the manifest carries.
+
+    Fallback order:
+    1. ``config.classes`` — canonical (post-refactor BST + BRIC manifests).
+    2. ``extra.arch.active_class_list`` — legacy BST runs (pre-refactor); also
+       lights up BRIC entries, whose class list was never in the bandaid block.
+    Empty list when neither is present; the handler then surfaces num_classes=0.
+    """
+    cfg_classes = manifest.get("config", {}).get("classes")
+    if isinstance(cfg_classes, list) and cfg_classes:
+        return cfg_classes
+    legacy = manifest.get("extra", {}).get("arch", {}).get("active_class_list")
+    if isinstance(legacy, list) and legacy:
+        return legacy
+    return []
+
+
 def _summarise_model(entry: dict) -> dict:
     manifest = _load_manifest(entry["manifest_path"])
+    config = manifest.get("config", {})
     serial_metrics = next(
         (s.get("metrics", {}) for s in manifest.get("serials", [])
          if s.get("serial_no") == entry["serial_no"]),
@@ -93,7 +112,7 @@ def _summarise_model(entry: dict) -> dict:
     # means the script hasn't been run for this run dir yet — we fall back
     # to {} and the FE shows its "No val metrics available" placeholder.
     val_metrics_raw = _read_json_under_run(entry["manifest_path"], "val_metrics.json")
-    class_list = manifest.get("extra", {}).get("arch", {}).get("active_class_list", [])
+    class_list = _resolve_class_list(manifest)
     return {
         "id": entry["id"],
         "display_name": entry.get("display_name", entry["id"]),
@@ -101,7 +120,11 @@ def _summarise_model(entry: dict) -> dict:
         "taxonomy": entry.get("taxonomy"),
         "split_column": entry.get("split_column"),
         "drop_unknown": entry.get("drop_unknown", True),
-        "ablation_id": entry.get("ablation_id"),
+        # collation_id / ablation_id are provenance the manifest now owns
+        # (config block); read them off it rather than re-copying into the YAML.
+        # ablation_id is the training-time tag (None for non-ablation runs).
+        "collation_id": config.get("collation_id"),
+        "ablation_id": config.get("ablation_id"),
         "temperature": entry.get("temperature", 1.0),
         "num_classes": len(class_list),
         "class_list": class_list,
@@ -201,7 +224,11 @@ def list_clips(
     entry = _get_model_entry(model_id)
     preds = _read_predictions(entry, split)
     clip_index = _read_clip_index(entry)
-    class_list = preds.get("active_class_list", [])
+    # Canonical `class_list` (api_contract-aligned, emitted by the post-hoc
+    # converter), falling back to the legacy `active_class_list` for the
+    # pre-refactor mock JSONs. Drop the fallback once all consumed predictions
+    # JSONs have been re-emitted in the new shape.
+    class_list = preds.get("class_list") or preds.get("active_class_list", [])
 
     summaries = [
         _build_summary(r, class_list, clip_index.get(r["clip_stem"], {}))
@@ -230,7 +257,8 @@ def get_clip(model_id: str, split: str, stem: str) -> dict:
     entry = _get_model_entry(model_id)
     preds = _read_predictions(entry, split)
     clip_index = _read_clip_index(entry)
-    class_list = preds.get("active_class_list", [])
+    # Canonical `class_list`, legacy `active_class_list` fallback (see /clips).
+    class_list = preds.get("class_list") or preds.get("active_class_list", [])
 
     record = next((r for r in preds.get("clips", []) if r["clip_stem"] == stem), None)
     if record is None:

@@ -29,14 +29,11 @@ Generation tag for all new collations and runs in this pass: `taxon_pinned_w_pre
 
 ## Status
 
-Not 100% locked. Before committing, assess the impact against:
+**Current (2026-05-30):** Steps A-C committed on `feat/taxon-pinned-w-preds` (`4c1c3c9`, pushed) + six collations built/verified. Steps **D, J, E, G(partial)** are now coded and CPU-tested but **uncommitted** in the working tree (full chronology in the log tail). The train + infer surface is rewritten (Hyp `collation_id`/`ablation_id` split, `_assert_label_coverage` replacing the runtime adapter, `config.classes` manifest field, per-stroke npz dump, per-class val F1 capture, `bst_infer --fe`, retired `eval_dump_predictions`), the FE registry/inference resolvers are patched, and `collation_runner.py` + the 6-cell `config.yaml` exist. Full suite: 365 passed / 5 skipped / 2 pre-existing docker failures in the cicd venv. **Next: commit this lot, then run the 6 cells via the runner on bourbaki**, prune non-best npz, and land the run-ID-dependent docs + the J4 FE PR note. Cold-start pickup in `scratch/NEXT_SESSION.md`.
 
-- Architecture 2 train code path (its taxonomy assumptions, its label-space contract with the collator, its training entry point)
-- FE-integration backend (registry shape, manifest reader expectations, predictions consumer)
+The pre-flight impact assessment against the Architecture 2 train path is still in Open Items; nothing in Steps A-J surfaced a conflict. The FE backend reconciliation (Step J) landed behind back-compat fallbacks (the shipped mock entry still resolves), and is for the FE team to review per J4.
 
-The taxonomy-name renames, the manifest schema change (removal of `extra.arch`), the dropped `derive_active_classes_from_labels` adapter, and the new `clip_stems.npy` collation sidecar all need to be vetted against those two surfaces. Lock after the review.
-
-Everything below is the locked-in design pending that assessment.
+Everything below is the locked-in design.
 
 ## Pre-flight verification (run before starting any step)
 
