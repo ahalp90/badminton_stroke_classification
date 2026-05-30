@@ -64,10 +64,18 @@ def _task_with_labels(taxonomy, train, val, test) -> bt.Task:
     return task
 
 
-def _make_collation(root: Path, *, n_bones: int, labels: dict[str, list[int]]) -> Path:
+def _make_collation(
+    root: Path,
+    *,
+    n_bones: int,
+    labels: dict[str, list[int]],
+    videos_len: dict[str, list[int]] | None = None,
+) -> Path:
     """Write a tiny JnB_bone collation under ``root/coll`` with clip_stems.
 
     :param labels: per-split label lists; split set = its keys.
+    :param videos_len: optional per-split video lengths; a 0 marks a clip the
+        dataset will drop at load. Defaults to all-100 (nothing dropped).
     :return: the collation root (``root/coll``).
     """
     coll = root / 'coll'
@@ -80,7 +88,9 @@ def _make_collation(root: Path, *, n_bones: int, labels: dict[str, list[int]]) -
         np.save(sd / 'JnB_bone.npy', rng.standard_normal((n, 100, 2, j_plus_b, 2)).astype(np.float32))
         np.save(sd / 'pos.npy', rng.standard_normal((n, 100, 2, 2)).astype(np.float32))
         np.save(sd / 'shuttle.npy', rng.standard_normal((n, 100, 2)).astype(np.float32))
-        np.save(sd / 'videos_len.npy', np.full(n, 100, dtype=np.int64))
+        vlen = (videos_len or {}).get(split)
+        vlen = np.array(vlen, dtype=np.int64) if vlen is not None else np.full(n, 100, dtype=np.int64)
+        np.save(sd / 'videos_len.npy', vlen)
         np.save(sd / 'labels.npy', np.array(lbls, dtype=np.int64))
         stems = np.array([f'{split}_clip_{i}' for i in range(n)], dtype=object)
         np.save(sd / 'clip_stems.npy', stems, allow_pickle=True)
@@ -128,7 +138,7 @@ def test_assert_label_coverage_fails_on_rogue_eval_label():
 # ---------------------------------------------------------------------------
 
 NPZ_FIELDS = {
-    'logits', 'y_true', 'y_pred_top1', 'topk_idx',
+    'logits', 'y_true', 'y_pred_top1', 'topk_idx', 'clip_stems',
     'class_list', 'run_id', 'serial_no', 'taxonomy_name',
 }
 
@@ -194,6 +204,80 @@ def test_dump_predictions_test_rows_align_with_labels(tmp_path):
     task.dump_predictions(run_dir=run_dir, serial_no=1, k=2)
     npz = np.load(run_dir / 'predictions' / 'test_serial_1.npz', allow_pickle=True)
     assert npz['y_true'].tolist() == test_labels
+
+
+def test_dump_predictions_clip_stems_survive_zero_length_drop(tmp_path):
+    """The npz clip_stems follow the post-drop dataset order, not the raw
+    on-disk clip_stems.npy. A clip the dataset drops (videos_len==0) vanishes
+    from the npz, keeping every later row's stem aligned with its prediction.
+    """
+    torch.manual_seed(0)
+    net, n_bones = build_bst_network(
+        'BST_CG_AP', n_joints=17, pose_style='JnB_bone', in_channels=2,
+        n_class=TAX3.n_classes, seq_len=100, device='cpu',
+    )
+    net.set_schedule_factors(cg_factor=1.0, ap_factor=1.0)
+    # test split: clip index 1 is zero-length -> dropped at load.
+    coll = _make_collation(
+        tmp_path, n_bones=n_bones,
+        labels={'train': [0, 1, 2], 'val': [0, 1, 2], 'test': [0, 1, 2, 0]},
+        videos_len={'test': [100, 0, 100, 100]},
+    )
+    task = bt.Task.__new__(bt.Task)
+    task.taxonomy, task.device, task.net = TAX3, 'cpu', net
+    task.train_loader = DataLoader(Dataset_npy_collated(coll, 'train', 'JnB_bone'), batch_size=4)
+    task.val_loader = DataLoader(Dataset_npy_collated(coll, 'val', 'JnB_bone'), batch_size=4)
+    task.test_loader = DataLoader(Dataset_npy_collated(coll, 'test', 'JnB_bone'), batch_size=4)
+
+    run_dir = tmp_path / 'run_drop'
+    run_dir.mkdir()
+    task.dump_predictions(run_dir=run_dir, serial_no=1, k=2)
+    npz = np.load(run_dir / 'predictions' / 'test_serial_1.npz', allow_pickle=True)
+
+    # Clip 1 (zero-length) dropped: survivors are clips 0, 2, 3, in order.
+    assert npz['clip_stems'].tolist() == ['test_clip_0', 'test_clip_2', 'test_clip_3']
+    assert len(npz['clip_stems']) == len(npz['y_true']) == 3
+    # The raw on-disk sidecar still has all 4, so a naive on-disk index-join
+    # would have misaligned every row from the dropped clip onward.
+    on_disk = np.load(coll / 'test' / 'clip_stems.npy', allow_pickle=True)
+    assert len(on_disk) == 4
+    assert npz['clip_stems'].tolist() != on_disk.tolist()
+
+
+def test_dump_predictions_clip_stems_track_train_partial_reorder(tmp_path):
+    """train_partial<1 regroups the train set by class; the npz clip_stems track
+    that reorder (sourced from the in-memory dataset) and stay aligned with
+    y_true. Covers the second rearrangement, so the dump contract holds for a
+    future data-scaling ablation, not just the default train_partial=1.0 run.
+    """
+    torch.manual_seed(0)
+    net, n_bones = build_bst_network(
+        'BST_CG_AP', n_joints=17, pose_style='JnB_bone', in_channels=2,
+        n_class=TAX3.n_classes, seq_len=100, device='cpu',
+    )
+    net.set_schedule_factors(cg_factor=1.0, ap_factor=1.0)
+    coll = _make_collation(
+        tmp_path, n_bones=n_bones,
+        labels={'train': [0, 1, 2, 0, 1, 2, 0, 1], 'val': [0, 1, 2], 'test': [0]},
+    )
+    # train_partial=0.5 -> adjust_to_partial_train_set groups by class + halves.
+    train_ds = Dataset_npy_collated(coll, 'train', 'JnB_bone', train_partial=0.5)
+    task = bt.Task.__new__(bt.Task)
+    task.taxonomy, task.device, task.net = TAX3, 'cpu', net
+    task.train_loader = DataLoader(train_ds, batch_size=4, shuffle=True)
+    task.val_loader = DataLoader(Dataset_npy_collated(coll, 'val', 'JnB_bone'), batch_size=4)
+    task.test_loader = DataLoader(Dataset_npy_collated(coll, 'test', 'JnB_bone'), batch_size=4)
+
+    run_dir = tmp_path / 'run_partial'
+    run_dir.mkdir()
+    task.dump_predictions(run_dir=run_dir, serial_no=1, k=2)
+    npz = np.load(run_dir / 'predictions' / 'train_serial_1.npz', allow_pickle=True)
+
+    # The npz mirrors the in-memory (post-adjust) dataset exactly, both the
+    # reordered stems and the matching labels.
+    assert npz['clip_stems'].tolist() == train_ds.clip_stems.tolist()
+    assert npz['y_true'].tolist() == train_ds.labels.tolist()
+    assert len(npz['clip_stems']) == len(npz['y_true'])
 
 
 # ---------------------------------------------------------------------------

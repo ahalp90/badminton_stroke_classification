@@ -162,7 +162,7 @@ Driven-flight clips themselves were never filtered out at extract time (`build_e
 - **Back-compat**: `TAXONOMY_ALIASES` table maps legacy names to new objects. Old `/scratch/.../ShuttleSet_data_<old_name>/` dirs stay untouched. Manifest-recorded taxonomy string drives on-disk path construction; alias table drives the Taxonomy-object lookup.
 - **Back-compat phase-out**: noted inline next to the alias table that the intention is to remove entries one-by-one over the coming months as historical runs retire. Manual deletion of paired `ShuttleSet_data_<old>/` dirs goes with each alias removal.
 - **`raw_35` removal**: deleted from `pipeline/config.py` with an inline comment explaining how to reinstate it for paper-Table-F parity.
-- **`.pt` -> `.npz`**: predictions stored as npz. Old `eval_dump_predictions.py` retired; its capability folds into `bst_infer.py` behind a `--fe` flag (which requires `--fe-output-dir`).
+- **`.pt` -> `.npz`**: predictions stored as npz. Old `eval_dump_predictions.py` retired; its capability folds into `bst_infer.py` behind a `--fe` flag. `--fe-output-dir` is an optional override (default writes under the run dir; set it so demo dumps land outside the repo).
 - **Manifest `config.classes` field**: BST manifests gain a `config.classes: [list]` field carrying the resolved class list from `taxonomy.classes`. Mirrors BRIC's existing manifest schema. Provides a self-describing source of truth that the FE registry handler reads without needing to import any taxonomy module. Legacy BST manifests (pre-refactor) keep their `extra.arch.active_class_list` block; the resolver in `registry.py` falls back to it.
 - **Predictions JSON field rename**: the per-clip predictions JSON output by the future post-hoc converter uses `class_list` (matching the api_contract registry-entry field), not `active_class_list`. `registry.py` accepts either field name for back-compat with the existing mock JSONs during the transition.
 - **`src/api/registry.py` patch lands alongside the refactor**: small resolver in the handler reads `class_list` from `manifest.config.classes` (canonical), falling back to `manifest.extra.arch.active_class_list` (legacy BST). Same change incidentally fixes the latent BRIC-handler bug where `registry.py` was only looking in BST's bandaid block.
@@ -841,17 +841,15 @@ New mode for the FE/batch dump use case. Two new flags with the mutual-implicati
 
 ```python
 parser.add_argument('--fe', action='store_true',
-    help='FE/batch dump mode. Requires --fe-output-dir.')
+    help='FE/batch dump mode. Requires --run-dir.')
 parser.add_argument('--fe-output-dir', type=Path, default=None,
-    help='Destination root for FE-mode npz dumps. Required when --fe is set.')
+    help='Optional override for where the dump lands; default is under the run dir.')
 
-if args.fe and args.fe_output_dir is None:
-    parser.error('--fe requires --fe-output-dir <path>')
 if args.fe_output_dir is not None and not args.fe:
     parser.error('--fe-output-dir requires --fe (no implicit dump mode)')
 ```
 
-Output path: `<fe_output_dir>/<run_id>/predictions/<split>_serial_<n>.npz`. Schema identical to what `bst_train.py` emits. Reuses `dump_topk_predictions` from `bst_common.py`.
+Output path: `<run-dir>/inference_runs/<timestamp>/<split>_serial_<n>.npz`, or `<fe_output_dir>/<run_id>/inference_runs/<timestamp>/...` with the override, plus an `inference_manifest.yaml`. Schema identical to what `bst_train.py` emits (9 keys incl. `clip_stems`). Reuses `dump_topk_predictions` from `bst_common.py`.
 
 #### D10. Retire `scratch/presentation_prep/eval_dump_predictions.py`
 

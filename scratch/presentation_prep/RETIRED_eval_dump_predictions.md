@@ -14,8 +14,9 @@ PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
         --fe-output-dir /some/dump/root --splits test
 ```
 
-Output: `<dump-root>/<run_id>/predictions/test_serial_5.npz` with
-`logits, y_true, y_pred_top1, topk_idx, class_list, run_id, serial_no, taxonomy_name`.
+Output: `<dump-root>/<run_id>/inference_runs/<timestamp>/test_serial_5.npz` (plus an
+`inference_manifest.yaml`) with `logits, y_true, y_pred_top1, topk_idx, clip_stems,
+class_list, run_id, serial_no, taxonomy_name`.
 
 `confusion_matrix.py` already reads that npz (`y_pred_top1` for argmax preds,
 `class_list` for the labels).

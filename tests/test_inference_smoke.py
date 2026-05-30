@@ -30,7 +30,7 @@ from torch.utils.data import DataLoader
 
 # The npz schema both dump paths (bst_train end-of-serial, bst_infer --fe) emit.
 NPZ_FIELDS = {
-    'logits', 'y_true', 'y_pred_top1', 'topk_idx',
+    'logits', 'y_true', 'y_pred_top1', 'topk_idx', 'clip_stems',
     'class_list', 'run_id', 'serial_no', 'taxonomy_name',
 }
 
@@ -107,11 +107,17 @@ def test_dump_run_predictions_writes_requested_splits(tmp_path, monkeypatch):
         run_dir=run_dir, serial=5, fe_output_dir=fe_out,
         splits=('val', 'test'), collated_data_root=collated_data_root,
     )
-    assert out_dir == fe_out / 'run_fe_smoke' / 'predictions'
+    # Override base: <fe_output_dir>/<run_id>/inference_runs/<timestamp>/.
+    assert out_dir.parent == fe_out / 'run_fe_smoke' / 'inference_runs'
+    assert out_dir.name.replace('_', '').isdigit()  # YYYYmmdd_HHMMSS
 
     # Only val + test dumped (FE default); train is not.
     written = sorted(p.name for p in out_dir.glob('*.npz'))
     assert written == ['test_serial_5.npz', 'val_serial_5.npz']
+    # The provenance manifest rides alongside the npz.
+    inf = yaml.safe_load((out_dir / 'inference_manifest.yaml').read_text())
+    assert inf['source_run_id'] == 'run_fe_smoke' and inf['serial_no'] == 5
+    assert inf['splits'] == ['val', 'test'] and inf['taxonomy'] == TAX_NAME
 
     taxonomy = resolve_taxonomy(TAX_NAME)
     for split, expected_labels in (('val', [0, 5, 11, 3]), ('test', [7, 2, 9])):
@@ -121,10 +127,32 @@ def test_dump_run_predictions_writes_requested_splits(tmp_path, monkeypatch):
         assert npz['topk_idx'].shape == (len(expected_labels), 5)  # head=12 >= k=5
         # shuffle=False dump keeps the on-disk label order (row-aligned w/ stems).
         assert npz['y_true'].tolist() == expected_labels
+        # No dropped clips in this fixture, so the npz stems equal the on-disk
+        # order; the dump still carries its own clip_stems column for the join.
+        assert npz['clip_stems'].tolist() == [f'{split}_clip_{i}' for i in range(len(expected_labels))]
         assert list(npz['class_list']) == list(taxonomy.classes)
         assert str(npz['run_id']) == 'run_fe_smoke'
         assert int(npz['serial_no']) == 5
         assert str(npz['taxonomy_name']) == TAX_NAME
+
+
+def test_dump_run_predictions_default_lands_in_run_dir_not_predictions(tmp_path, monkeypatch):
+    """With no --fe-output-dir, the dump co-locates under the run's
+    inference_runs/<ts>/ and must NOT touch the training-time predictions/ dir.
+    """
+    monkeypatch.setattr(torch.cuda, 'is_available', lambda: False)
+    run_dir, collated_data_root = _build_fake_run(tmp_path)
+
+    out_dir = bst_infer.dump_run_predictions(
+        run_dir=run_dir, serial=5, fe_output_dir=None,
+        splits=('test',), collated_data_root=collated_data_root,
+    )
+    assert out_dir.parent == run_dir / 'inference_runs'
+    assert (out_dir / 'test_serial_5.npz').exists()
+    assert (out_dir / 'inference_manifest.yaml').exists()
+    # Crucially, the train-time predictions/ dir is untouched (would collide
+    # with bst_train's own per-serial dump if --fe wrote there).
+    assert not (run_dir / 'predictions').exists()
 
 
 def test_dump_run_predictions_missing_serial_exits(tmp_path):
