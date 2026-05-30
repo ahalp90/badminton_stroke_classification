@@ -74,8 +74,9 @@ scratch/sticky_anchor_inspection
 # ---------------------------------------------------------------------------
 
 # runtime/
-runtime/deployed/bric/*
-!runtime/deployed/bric/.gitkeep
+#runtime/deployed/bric/*
+runtime/deployed/bric/*/best.pt
+runtime/deployed/bric/*/eval/stratifications/*
 
 runtime/checkpoints/tracknetv3/*
 !runtime/checkpoints/tracknetv3/.gitkeep

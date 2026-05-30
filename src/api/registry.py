@@ -95,19 +95,28 @@ def _format_metrics(raw: dict) -> dict:
 
 def _summarise_model(entry: dict) -> dict:
     manifest = _load_manifest(entry["manifest_path"])
-    serial_metrics = next(
-        (s.get("metrics", {}) for s in manifest.get("serials", [])
-         if s.get("serial_no") == entry["serial_no"]),
-        {},
-    )
+    architecture = entry.get("architecture", "bst-x")
+    if architecture == "bst-x":
+        test_metrics_raw = next(
+            (s.get("metrics", {}) for s in manifest.get("serials", [])
+            if s.get("serial_no") == entry["serial_no"]),
+            {},
+        )
+        class_list = manifest.get("extra", {}).get("arch", {}).get("active_class_list", [])
+        status = "available" if manifest.get("serials") else "pending"
+    else:
+        test_summary = _read_json_under_run(entry["manifest_path"], "eval/test_summary.json")
+        test_metrics_raw = test_summary.get("metrics", {})
+        class_list = manifest.get("config", {}).get("classes", [])
+        status = "available" if test_metrics_raw else "pending"
+
     # val_metrics.json is produced by scripts/compute_val_metrics.py, which
     # runs the same checkpoint over /app/bst_inputs/val. Missing file just
     # means the script hasn't been run for this run dir yet — we fall back
     # to {} and the FE shows its "No val metrics available" placeholder.
+    # BRIC does not support val metrics by design.
     val_metrics_raw = _read_json_under_run(entry["manifest_path"], "val_metrics.json")
-    class_list = manifest.get("extra", {}).get("arch", {}).get("active_class_list", [])
-    status = "available" if manifest.get("serials") else "pending"
-    live = _live_splits() if status == "available" else set()
+    live = _live_splits() if architecture == "bst-x" and status == "available" else set()
     return {
         "id": entry["id"],
         "display_name": entry.get("display_name", entry["id"]),
@@ -115,8 +124,8 @@ def _summarise_model(entry: dict) -> dict:
         "taxonomy": entry.get("taxonomy"),
         "split_column": entry.get("split_column"),
         "drop_unknown": entry.get("drop_unknown", True),
-        "ablation_id": entry.get("ablation_id"),
-        "architecture": entry.get("architecture", "bst-x"),
+        "ablation_id": entry.get("ablation_id", ""),
+        "architecture": architecture,
         "temperature": entry.get("temperature", 1.0),
         # Prefer the manifest-derived class list (authoritative once trained);
         # fall back to the registry's declared count for not-yet-trained models
@@ -126,10 +135,10 @@ def _summarise_model(entry: dict) -> dict:
         "splits_available": ["val", "test"],
         "status": status,
         "live_predictions": {s: (s in live) for s in ("test", "val")},
-        "test_metrics": _format_metrics(serial_metrics),
+        "test_metrics": _format_metrics(test_metrics_raw),
         "val_metrics": _format_metrics(val_metrics_raw),
     }
-
+    
 
 def _read_clip_index(entry: dict) -> dict:
     raw = _read_json_under_run(entry["manifest_path"], "clip_index.json")
