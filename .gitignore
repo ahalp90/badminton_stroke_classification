@@ -82,6 +82,9 @@ runtime/checkpoints/tracknetv3/*
 runtime/checkpoints/yolo11/*
 !runtime/checkpoints/yolo11/.gitkeep
 
+runtime/clips/*
+!runtime/clips/.gitkeep
+
 runtime/uploads/*
 !runtime/uploads/.gitkeep
 
