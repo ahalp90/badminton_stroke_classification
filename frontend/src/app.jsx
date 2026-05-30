@@ -54,6 +54,11 @@ function HBAStrokeClassifier() {
       setScreen('model-results');
       return;
     }
+    // Returning to the wizard from the Project page: restore wizard state.
+    if (screen === 'model-results') {
+      setScreen(target);
+      return;
+    }
 
     const cur = ORDER.indexOf(screen);
     const dst = ORDER.indexOf(target);
