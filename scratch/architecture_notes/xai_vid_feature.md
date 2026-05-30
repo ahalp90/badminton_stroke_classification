@@ -347,7 +347,7 @@ For Ariel to reconcile before Phase 2 kicks off:
 5. **Output framerate**: source rate or slow-mo. Default = source rate for the supervisor-facing version; slow-mo as a stretch.
 6. **Side-by-side composition method**: numpy hstack in Python (one less dep, fine for ~10s clips) or ffmpeg `hstack` filter post-render (cleaner if the clips have different lengths). Default = ffmpeg if both clips lengths differ by >10 frames.
 
-## Time estimate (Claude + Ariel wall-clock)
+## Time estimate
 
 | Phase | Estimate | Heaviest active-attention |
 |---|---|---|

@@ -17,7 +17,6 @@ from pathlib import Path
 import pytest
 
 from pipeline.config import (
-    TAXONOMIES,
     TAXONOMY_BST_24,
     TAXONOMY_BST_25,
     TAXONOMY_UNE_V1_14,

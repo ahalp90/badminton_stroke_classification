@@ -18,7 +18,6 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from src.api import registry
 from src.api.registry import _resolve_class_list
 from src.api.main import app
 
