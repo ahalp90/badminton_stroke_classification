@@ -140,12 +140,13 @@ def test_registry_bst_status_and_live_predictions():
     assert bst["test_metrics"]["macro_f1"] == 0.7479
 
 
-def test_registry_bric_is_pending_with_no_live():
+def test_registry_bric_status_and_live_predictions():
     resp = client.get("/api/registry")
     models = {m["id"]: m for m in resp.json()["models"]}
-    bric = models["bric_rgb_shuttle_v1"]
-    assert bric["status"] == "pending"
+    bric = models["bric_rgb_shuttle_tcn_outgoing_only_v1"]
+    assert bric["status"] == "available"
     assert bric["live_predictions"] == {"test": False, "val": False}
+    assert bric["test_metrics"]["macro_f1"] == 0.7305
 
 
 def test_list_clips_serves_live_predictions(monkeypatch):
