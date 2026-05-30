@@ -44,6 +44,7 @@ from pipeline.config import (
     TAXONOMY_UNE_V1_15,
     Taxonomy,
     _sided_classes,  # noqa: F401  # private helper, tested below
+    collation_id_from_manifest,
     derive_npy_collated_dir_basename,
     label_for_row,
     resolve_taxonomy,
@@ -409,28 +410,28 @@ def test_class_weights_uniform_when_empty():
 # ---------------------------------------------------------------------------
 # The collator writes ShuttleSet_data_<tax>/<basename>/ and bst_train derives
 # the same <basename> to read it back. Split folds into the name so two cells
-# that share a taxonomy + ablation_id but differ by split (the bst_24 case:
+# that share a taxonomy + collation_id but differ by split (the bst_24 case:
 # split_v2 vs split_bst_baseline) land in distinct dirs instead of colliding.
 
 @pytest.mark.parametrize('kwargs,expected', [
     (
         dict(use_3d_pose=False, seq_len=100,
-             split_column='split_v2', ablation_id='taxon_pinned_w_preds'),
+             split_column='split_v2', collation_id='taxon_pinned_w_preds'),
         'npy_v2_taxon_pinned_w_preds',
     ),
     (
         dict(use_3d_pose=False, seq_len=100,
-             split_column='split_bst_baseline', ablation_id='taxon_pinned_w_preds'),
+             split_column='split_bst_baseline', collation_id='taxon_pinned_w_preds'),
         'npy_bst_baseline_taxon_pinned_w_preds',
     ),
     (
         dict(use_3d_pose=True, seq_len=100,
-             split_column='split_v2', ablation_id='wipe_drop'),
+             split_column='split_v2', collation_id='wipe_drop'),
         'npy_3d_v2_wipe_drop',
     ),
     (
         dict(use_3d_pose=False, seq_len=30,
-             split_column='split_v2', ablation_id='wipe_drop'),
+             split_column='split_v2', collation_id='wipe_drop'),
         'npy_seq30_v2_wipe_drop',
     ),
 ])
@@ -440,12 +441,45 @@ def test_derive_npy_collated_dir_basename_folds_split(kwargs, expected):
 
 
 def test_bst_24_split_variants_get_distinct_basenames():
-    """The collision this fold fixes: the same taxonomy + ablation_id on the
+    """The collision this fold fixes: the same taxonomy + collation_id on the
     two splits must not resolve to the same dir."""
-    common = dict(use_3d_pose=False, seq_len=100, ablation_id='taxon_pinned_w_preds')
+    common = dict(use_3d_pose=False, seq_len=100, collation_id='taxon_pinned_w_preds')
     v2 = derive_npy_collated_dir_basename(split_column='split_v2', **common)
     baseline = derive_npy_collated_dir_basename(split_column='split_bst_baseline', **common)
     assert v2 != baseline
+
+
+# ---------------------------------------------------------------------------
+# Section 6c: collation_id_from_manifest (legacy-manifest fallback for scripts)
+# ---------------------------------------------------------------------------
+
+def test_collation_id_from_manifest_new_schema_returns_collation_id():
+    # New manifest: collation_id is the collation tag; ablation_id (if set) is
+    # the training tag and must NOT be returned as the collation.
+    m = {'config': {'collation_id': 'taxon_pinned_w_preds', 'ablation_id': 'aug_v2'}}
+    assert collation_id_from_manifest(m) == 'taxon_pinned_w_preds'
+
+
+def test_collation_id_from_manifest_legacy_ablation_id():
+    # Pre-refactor: the old ablation_id WAS the collation tag.
+    assert collation_id_from_manifest({'config': {'ablation_id': 'wipe_drop'}}) == 'wipe_drop'
+
+
+def test_collation_id_from_manifest_legacy_auto_derived_uses_effective():
+    # Auto-derived runs left config.ablation_id null; the resolved tag lived in
+    # extra.data_provenance.effective_ablation_id.
+    m = {
+        'config': {'ablation_id': None},
+        'extra': {'data_provenance': {
+            'effective_ablation_id': 'une_merge_v1_nosides_split_v2_dropunk',
+        }},
+    }
+    assert collation_id_from_manifest(m) == 'une_merge_v1_nosides_split_v2_dropunk'
+
+
+def test_collation_id_from_manifest_absent_returns_none():
+    assert collation_id_from_manifest({'config': {}}) is None
+    assert collation_id_from_manifest({}) is None
 
 
 # ---------------------------------------------------------------------------

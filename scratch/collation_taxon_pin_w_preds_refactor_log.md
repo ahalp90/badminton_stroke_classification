@@ -371,3 +371,35 @@ Tests: added `test_derive_npy_collated_dir_basename_folds_split` (both splits + 
 Step D reader implication (flagged, not fixed now): bst_train.py:1073 already calls `derive_npy_collated_dir_basename(split_column=hyp.split_column, ...)` -- the pre-Step-A call shape it was never moved off -- so re-adding the param re-aligns reader with writer for the new cells. But bst_train is still broken pending Step D (imports the removed `derive_ablation_id` at line 39), and legacy dirs (`npy_wipe_drop`, `npy_<tax>_<split>_dropunk`) carry no split tag, so the Step D reader rewrite needs either a fallback for pre-split names or a re-collation of the legacy runs it wants to resume. Nothing that currently works regresses: the run_20260505_154907 resume is already dead pending Step D, and cell 7 re-collates + retrains that best on the new generation anyway.
 
 bst_25 sanity collation: already deleted last week, so cell 5 has a clean target dir.
+
+## 2026-05-30: ablation_id -> collation_id disentanglement (collator renamed now, manifest split deferred to Step D)
+
+Follow-on to the split fold. The path tag was misnamed: it discriminates collation generations, not ablation studies. Split into two orthogonal fields.
+
+- **collation_id**: collation generation (`taxon_pinned_w_preds`, `wipe_drop`). Path + manifest. Discriminates re-collations of the same taxonomy + split. The *value* is unchanged, only the field name, so the six collation dirs are unaffected.
+- **ablation_id**: a new, dedicated training-time tag (augs / loss / wiring on a fixed collation). Manifest-only, never in the path, nullable. Born on the train side; the collator has no ablation concept. Fixes the historical pain where aug runs reused the collation's tag with no breadcrumb of their own (best_model notes literally read "ablation_id=wipe_drop <- aug runs on top of wipe_drop collated").
+
+Renamed now (the live collator + path helper from the previous commit):
+- `config.py` `derive_npy_collated_dir_basename`: param `ablation_id` -> `collation_id`. Output string unchanged (`npy_{split}_{collation_id}`).
+- `prepare_train_on_shuttleset.py`: `--ablation-id` -> `--collation-id`, the derive call, the dry-run print.
+- `test_taxonomy.py`: contract tests + comments.
+
+Green: test_taxonomy 77 passed / 4 skipped (cicd venv). The collation command is now `--collation-id taxon_pinned_w_preds`.
+
+Deferred to Step D / Step J (those exact lines get rewritten there anyway, and bst_train is still broken pending D):
+- bst_train Hyp gains `collation_id` (path tag) + a nullable training `ablation_id`; defaults `collation_id='taxon_pinned_w_preds'`, `ablation_id=None`.
+- Manifest carries both; the old `effective_ablation_id` writer key (bst_common) becomes `collation_id` (auto-derive is gone, so raw == effective, no separate "effective" field needed).
+- FE registry reads both new fields directly, NO legacy fallback (historical runs aren't populated to the FE).
+- The legacy fallback (resolve `collation_id` from an old manifest's `effective_ablation_id`/`ablation_id`, gated so the old `ablation_id` isn't misread as a training tag) lives in a shared `config.py` reader for internal scripts that pull legacy run data.
+
+Plan updated: Locked decisions (the four points), Step A snippet (now matches the implemented signature, incl. dropping the phantom `taxonomy_name` param), Step D1 Hyp, new Step J5, Step E runner config (rebuilt to the 6-cell roster + collation_id; the example had drifted, still listing dropped cells 2 + 8), the artefacts note, open items. `derive_ablation_id` stays referenced as the removed function (not renamed).
+
+## 2026-05-30: verification pass + doc tidy + collation_id_from_manifest helper
+
+Ran two read-only opus verification agents over the disentanglement (one on the live collation pipeline, one on the blast radius + tests + docs). Both confirmed the rename is correctly propagated through everything that runs: the collator + helper are on the new contract, the test suite passes, and crucially no NEW breakage. bst_train.py / verify_bst_train_target.py fail only at *import* on the removed `derive_ablation_id` name (a Step A removal, prior session), independent of this signature change, so they're pre-existing Step-D-deferred breakage, not a regression.
+
+Acted on the two follow-ups they surfaced:
+- Doc tidy (path-format strings -> `npy_[3d_][seq{N}_]{split}_{collation_id}`): `data_pipeline_to_model_train.md`, `bst_infer.py` (example comment), `tests/test_integration.py`, `tests/testing_guide.md`. Left for Step D where they're naturally touched: `run_tracker.md`'s `effective_ablation_id` (manifest writer rename), the data_pipeline Hyp-default table entry, and the `derive_ablation_id` prose in `shared/taxonomy.py` (BRIC-side) + `validation_scripts/README.md`.
+- Internal-script reader: `collation_id_from_manifest` now in `config.py`. Resolves the collation tag across schemas -- `config.collation_id` (new) -> `config.ablation_id` (legacy explicit) -> `extra.data_provenance.effective_ablation_id` (legacy auto-derived). Reads new-schema collation_id first, so a new manifest's training `ablation_id` is never misread as the collation; the docstring spells out the meaning-flip caveat for callers that also want the training tag. Four unit tests added.
+
+Green: test_taxonomy 81 passed / 4 skipped (cicd venv).
