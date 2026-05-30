@@ -81,7 +81,7 @@ export function NavBar({ screen, onNavigate }) {
     { id: 'results',   label: 'Results' },
   ];
   const stepIndex = steps.findIndex(s => s.id === screen);
-  const projectActive = screen === 'project';
+  const evaluationActive = screen === 'evaluation';
 
   return (
     <nav style={{
@@ -147,14 +147,14 @@ export function NavBar({ screen, onNavigate }) {
       </div>
 
       <button
-        onClick={() => onNavigate('project')}
+        onClick={() => onNavigate('evaluation')}
         style={{
-          background: projectActive ? t.blueDim : 'transparent',
-          border: `1px solid ${projectActive ? t.blue : t.border}`,
+          background: evaluationActive ? t.blueDim : 'transparent',
+          border: `1px solid ${evaluationActive ? t.blue : t.border}`,
           borderRadius: 7,
           padding: '6px 12px',
           cursor: 'pointer',
-          color: projectActive ? t.blue : t.text,
+          color: evaluationActive ? t.blue : t.text,
           fontSize: 12,
           fontWeight: 600,
           fontFamily: "'Space Grotesk', sans-serif",
@@ -162,7 +162,7 @@ export function NavBar({ screen, onNavigate }) {
           flexShrink: 0,
         }}
       >
-        Project
+        Model Results
       </button>
 
       <button

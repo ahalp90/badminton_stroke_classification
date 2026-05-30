@@ -1,6 +1,5 @@
-import { useState, useEffect, Fragment } from 'react';
+import { Fragment } from 'react';
 import { useTheme, Btn, Card } from './shared';
-import { ModelEvaluationPanel } from './components/ModelEvaluationPanel';
 
 /* ─── Inference echo card (Items 4 + Gaps 1/2: real /api/results payload) ── */
 function UploadedInferenceCard({ task }) {
@@ -148,30 +147,11 @@ function UploadedInferenceCard({ task }) {
 }
 
 /* ─── Results Shell ──────────────────────────────────────────────── */
+// Wizard terminal screen: shows ONLY inference on the clip the user just
+// uploaded/selected. Whole-set model evaluation moved to its own standalone
+// page (evaluation-screen.jsx) so the two are never confused — see #87 / #83.
 export function ResultsScreen({ task, onNew }) {
   const { t } = useTheme();
-
-  // Resolve active model from /api/registry, so TestEvalCard +
-  // PerClassF1Card get full test_metrics (configure-screen's toModelCard
-  // strips those for the picker). Prefer the model the user picked in
-  // configure; if no task (dev-jump) or no picked id, fall back to first.
-  const pickedId = task?.models?.find(m => task?.enabled?.[m.id])?.id ?? null;
-  const [activeModel, setActiveModel] = useState(null);
-  const [tab, setTab] = useState('prediction');
-
-  useEffect(() => {
-    let alive = true;
-    fetch('/api/registry')
-      .then(response => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
-      .then(data => {
-        if (!alive) return;
-        const models = data.models || [];
-        const picked = (pickedId && models.find(m => m.id === pickedId)) || models[0];
-        setActiveModel(picked || null);
-      })
-      .catch(() => { if (alive) setActiveModel(null); });
-    return () => { alive = false; };
-  }, [pickedId]);
 
   return (
     <div style={{ maxWidth: 1120, margin: '0 auto', padding: 32 }}>
@@ -185,31 +165,10 @@ export function ResultsScreen({ task, onNew }) {
         <Btn variant="secondary" size="sm" onClick={onNew}>New Analysis</Btn>
       </div>
 
-      {/* Tab bar*/}
-      <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, marginBottom: 24 }}>
-        {[['prediction', 'Your Prediction'], ['model', 'Model Performance']].map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            style={{
-              padding: '10px 20px', background: 'none', border: 'none', marginBottom: -1,
-              borderBottom: tab === id ? `2px solid ${t.blue}` : '2px solid transparent',
-              color: tab === id ? t.blue : t.muted,
-              fontSize: 14, fontWeight: tab === id ? 600 : 400,
-              cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif",
-            }}
-            >
-              {label}
-            </button>
-        ))}
-      </div>
-      {tab === 'prediction' ? (
-        <UploadedInferenceCard task={task} />
-      ) : (
-        <ModelEvaluationPanel modelId={activeModel?.id} model={activeModel} />
-      )}
-      </div>
-  )}
+      <UploadedInferenceCard task={task} />
+    </div>
+  );
+}
 
 /* ============================================================================
  * BLOCKED — pending predictions.csv from the engelbart inference run.

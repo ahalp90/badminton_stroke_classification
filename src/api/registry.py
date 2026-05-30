@@ -17,7 +17,7 @@ import yaml
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
-from .config import BST_CLIPS_DIR, REGISTRY_PATH, REPO_ROOT
+from .config import BST_CLIPS_DIR, LOCAL_CLIPS_DIR, REGISTRY_PATH, REPO_ROOT
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
@@ -298,24 +298,42 @@ def get_clip(model_id: str, split: str, stem: str) -> dict:
 
 @router.get("/clips/{stem}/video")
 def get_video(stem: str):
-    """Serve the clip mp4 from BST_CLIPS_DIR.
+    """Serve the clip mp4 for a stem.
 
-    FileResponse handles Range requests automatically, so the <video>
-    element on the FE can scrub. Returns 404 with a hint when the env
-    var is unset (e.g. running natively without /scratch mounted) or
-    when the file isn't on this filesystem (e.g. mocked stems)."""
+    Resolution order:
+      1. Local stem-keyed drop: LOCAL_CLIPS_DIR/<stem>.mp4. Lets you play a
+         handful of real clips locally (dev/demo) without the full ShuttleSet
+         tree or BST_CLIPS_DIR. Keyed by the stable clip_stem, not
+         clip_index's (placeholder) video_path.
+      2. Dataset tree: BST_CLIPS_DIR joined with clip_index's video_path
+         (UNE HPC / mounted box).
+
+    FileResponse handles Range requests automatically, so the <video> element
+    on the FE can scrub. Returns 404 with a hint when neither resolves."""
+    # 1) Local stem-keyed file. The parent-equality check guards against path
+    #    traversal via a crafted stem (e.g. "../secret").
+    local = LOCAL_CLIPS_DIR / f"{stem}.mp4"
+    if local.resolve().parent == LOCAL_CLIPS_DIR.resolve() and local.is_file():
+        return FileResponse(local, media_type="video/mp4")
+
+    # 2) Dataset tree via clip_index video_path + BST_CLIPS_DIR.
     rel_path = _build_stem_index().get(stem)
     if rel_path is None:
         raise HTTPException(
             status_code=404,
-            detail=f"Clip '{stem}' not in any registered model's clip_index.",
+            detail=(
+                f"Clip '{stem}' not in any registered model's clip_index, and "
+                f"no local clip at {local}."
+            ),
         )
     if BST_CLIPS_DIR is None:
         raise HTTPException(
             status_code=404,
             detail=(
-                "BST_CLIPS_DIR env var not set; can't resolve clip mp4 location. "
-                "On UNE HPC this is /scratch/comp320a/ShuttleSet/clips."
+                f"No local clip at {local} and BST_CLIPS_DIR env var not set; "
+                "can't resolve clip mp4 location. Drop <stem>.mp4 into "
+                "clips_local/, or on UNE HPC set "
+                "BST_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips."
             ),
         )
     abs_path = BST_CLIPS_DIR / rel_path
@@ -323,8 +341,8 @@ def get_video(stem: str):
         raise HTTPException(
             status_code=404,
             detail=(
-                f"Clip file not found at {abs_path}. "
-                "Likely a mocked stem or a missing clip on this host."
+                f"Clip file not found at {abs_path}, and no local clip at "
+                f"{local}. Likely a mocked stem or a missing clip on this host."
             ),
         )
     return FileResponse(abs_path, media_type="video/mp4")

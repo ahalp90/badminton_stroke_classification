@@ -130,3 +130,10 @@ frontend/.claude/
 
 # Local-only large data SCP'd from Engelbart (542MB collations)
 scratch/bst_inputs/
+
+# Local-only sample clips for the Model Results per-clip player (dev/demo).
+# Drop <clip_stem>.mp4 here to play it in the UI; clip files are never committed.
+clips_local/*
+!clips_local/.gitkeep
+!clips_local/README.mdCLAUDE.md
+TODO-frontend.md
