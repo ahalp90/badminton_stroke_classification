@@ -48,10 +48,10 @@ This runs all tests except the HPC integration test, which auto-skips when `BST_
 
 - **Prerequisites:** Preprocessed npy dataset (output of `prepare_train_on_shuttleset.py`)
 
-To run, point `BST_DATA_DIR` at an ablation-tagged `npy_[3d_][seq{N}_]{ablation_id}` directory (should contain `train/`, `val/`, `test/` subdirectories). Prefix tags (`3d_`, `seq{N}_`) appear only for non-default configs. Ablation_id encodes the (taxonomy, split, drop_unknown) tuple so multiple ablations coexist:
+To run, point `BST_DATA_DIR` at a collated `npy_[3d_][seq{N}_]{split}_{collation_id}` directory (should contain `train/`, `val/`, `test/` subdirectories). Prefix tags (`3d_`, `seq{N}_`) appear only for non-default configs. Split is folded into the name; `collation_id` is the generation tag, so re-collations of the same taxonomy + split coexist:
 
 ```bash
-BST_DATA_DIR=/scratch/.../npy_une_merge_v1_split_v2_dropunk \
+BST_DATA_DIR=/scratch/.../npy_v2_taxon_pinned_w_preds \
     pytest tests/test_integration.py -v
 ```
 

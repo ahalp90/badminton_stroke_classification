@@ -233,6 +233,8 @@ dependencies = [
 [package.optional-dependencies]
 bric = [
     { name = "lap" },
+    { name = "matplotlib" },
+    { name = "scikit-learn" },
     { name = "torcheval" },
     { name = "transformers" },
     { name = "ultralytics" },
@@ -242,6 +244,8 @@ bric-runtime = [
     { name = "ultralytics" },
 ]
 bric-train = [
+    { name = "matplotlib" },
+    { name = "scikit-learn" },
     { name = "torcheval" },
     { name = "transformers" },
 ]
@@ -270,6 +274,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'dev'" },
     { name = "ipython", marker = "extra == 'dev'" },
     { name = "lap", marker = "extra == 'bric-runtime'", specifier = ">=0.5.12" },
+    { name = "matplotlib", marker = "extra == 'bric-train'" },
     { name = "matplotlib", marker = "extra == 'bst-runtime'" },
     { name = "mlflow", marker = "extra == 'bst-runtime'" },
     { name = "numpy" },
@@ -283,6 +288,7 @@ requires-dist = [
     { name = "python-multipart" },
     { name = "pyyaml" },
     { name = "ruff", marker = "extra == 'dev'" },
+    { name = "scikit-learn", marker = "extra == 'bric-train'" },
     { name = "scikit-learn", marker = "extra == 'bst-runtime'" },
     { name = "scipy" },
     { name = "tensorboard", marker = "extra == 'bst-runtime'" },

@@ -26,3 +26,7 @@ uploads/
 # Exclude notebooks and scratch notes - not needed for serving
 notebooks/
 scratch/
+
+# Exclude traning folders
+
+training/

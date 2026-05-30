@@ -90,6 +90,9 @@ BST_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips
 BST_SHUTTLE_NPY_DIR=/scratch/comp320a/ShuttleSet/shuttle_npy_flat
 BST_MMPOSE_NPY_DIR=/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor
 BST_CLIPS_CSV=/home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+# Optional: override the TrackNetV3 shuttle CSV directory. If unset, the
+# collator falls back to the repo-rooted SHUTTLE_CSV_DIR from pipeline/config.
+BST_SHUTTLE_CSV_DIR=/scratch/comp320a/ShuttleSet/shuttle_csv
 ```
 
 New env var for the FE serving contract (introduced in `frontend_integration_guide.md`):
@@ -98,7 +101,7 @@ New env var for the FE serving contract (introduced in `frontend_integration_gui
 BST_X_COLLATED_DATA_ROOT=/scratch/comp320a/
 ```
 
-Registry entries in `docs/models_registry.yaml` encode `collated_dir` as relative paths under this root (e.g. `ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop`).
+Registry entries in `docs/models_registry.yaml` encode `collated_dir` as relative paths under this root (e.g. `ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop`). `preparing_data/prepare_train_on_shuttleset.py` also reads this when constructing the collation output root (`<BST_X_COLLATED_DATA_ROOT>/ShuttleSet_data_<taxonomy>/npy_<ablation_id>/`); if unset, the collator falls back to the in-repo `preparing_data/ShuttleSet_data_<taxonomy>/` for local dev.
 
 ## Pending additions
 

@@ -1,6 +1,7 @@
-"""Confusion matrix render for the 2026-05-11 supervisor presentation.
+"""Confusion matrix render for the supervisor presentation.
 
-Reads the prediction dump produced by ``eval_dump_predictions.py`` and renders a
+Reads a per-split predictions npz (``<split>_serial_<n>.npz`` produced by
+``bst_train`` at end-of-serial, or post-hoc by ``bst_infer --fe``) and renders a
 dual-panel confusion matrix: precision-normalised (columns sum to 1) and
 recall-normalised (rows sum to 1). Class order is performance-ascending by
 per-class F1 so the smash / wrist_smash pair sits at the bottom-left.
@@ -11,7 +12,7 @@ The 'Blues' colourmap is a single-hue sequential, universally readable
 Usage::
 
     python scratch/presentation_prep/confusion_matrix.py \\
-        --predictions src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/predictions/serial_5.pt
+        --predictions src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_<id>/predictions/test_serial_5.npz
 """
 from __future__ import annotations
 
@@ -20,7 +21,6 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 from sklearn.metrics import confusion_matrix, f1_score
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -91,16 +91,17 @@ def render_panel(fig, ax, matrix: np.ndarray, class_names: list[str],
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--predictions", type=Path, required=True,
-                        help="Path to predictions/serial_<n>.pt dumped by eval_dump_predictions.py")
+                        help="Path to a predictions/<split>_serial_<n>.npz dumped by "
+                             "bst_train (end-of-serial) or bst_infer --fe")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT_PATH)
     args = parser.parse_args()
 
-    payload = torch.load(args.predictions, map_location="cpu", weights_only=False)
-    y_true = payload["y_true"].numpy()
-    y_pred = payload["y_pred"].numpy()
-    class_names = payload["active_class_list"]
-    run_id = payload["run_id"]
-    serial_no = payload["serial_no"]
+    payload = np.load(args.predictions, allow_pickle=True)
+    y_true = payload["y_true"]
+    y_pred = payload["y_pred_top1"]  # argmax preds (top-1 of the top-k dump)
+    class_names = list(payload["class_list"])
+    run_id = str(payload["run_id"])
+    serial_no = int(payload["serial_no"])
     n_classes = len(class_names)
 
     # Per-class F1, then sort ascending. Worst-performing classes end up bottom-left.

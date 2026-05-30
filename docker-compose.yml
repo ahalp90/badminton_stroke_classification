@@ -13,8 +13,6 @@ services:
     volumes:
       - .:/app
       - pip-cache:/root/.cache/pip
-      # Uncomment when inference is wired up and you need to test against real data:
-      # - /srv/dev-disk-by-uuid-2d4dc55c-51cd-46ae-a477-544cf0f76bb5/320_cosc594_data:/data/cosc594:ro
       # LOCAL-ONLY PATCH (do not commit): mount inspect_clips for the video endpoint.
       - ./scratch/inspect_clips:/app/clips:ro
       # LOCAL-ONLY PATCH (do not commit): mount SCP'd collated tensors for
