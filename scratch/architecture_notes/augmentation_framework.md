@@ -14,12 +14,16 @@ claim has a verifiable trace one click away.*
 
 ## TLDR
 
-- **Locked Task 2 set (2026-05-04)**: centreline flip (p=0.5,
-  coupled, COCO bilateral joint-index swap) plus a corrected
-  pos+shuttle constrained-jitter (p=0.2, ±0.05y / ±0.10x cap,
-  layered conditional bounds, joints/bones untouched, zero-frame
-  preservation, shuttle off-screen mirroring). Replaces the broken
-  `RandomTranslation_batch` (joints-only, decoupled, body-deforming).
+- **Locked Task 2 set (2026-05-04; jitter raised to 0.3 on
+  2026-05-05)**: centreline flip (p=0.5, coupled, COCO bilateral
+  joint-index swap) plus a corrected pos+shuttle constrained-jitter
+  (p=0.3, ±0.05y / ±0.10x cap, layered conditional bounds,
+  joints/bones untouched, zero-frame preservation, shuttle
+  off-screen mirroring). Replaces the broken `RandomTranslation_batch`
+  (joints-only, decoupled, body-deforming). Jitter first locked at
+  0.2; raised to 0.3 after run_20260505_154907 (0.3) beat
+  run_20260505_111211 (0.2) by +0.6 macro / +0.3 min, gains in
+  rush/push/drive/lob and no class dropping.
 - **Jitter-off ablation result (2026-05-04, `run_20260504_152529`)**:
   turning the broken `RandomTranslation_batch` off (`prob=0.0`)
   regressed against the wipe_drop best (`run_20260503_172922`) by

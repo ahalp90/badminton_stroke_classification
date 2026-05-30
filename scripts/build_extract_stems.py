@@ -1,12 +1,14 @@
-"""Build the stems list for the bourbaki Phase-2 raw-mmpose extract.
+"""Build the stems list for the bourbaki raw-mmpose extract.
 
 Filters clips_master.csv down to the set of stems that need a fresh
-raw_extract on bourbaki:
+raw_extract on bourbaki. Two filter modes via flags:
 
-  - Drops rows with raw_type_en == 'unknown' (matches the active Hyp's
-    drop_unknown=True; pose data for these clips is never collated).
-  - Excludes the 1,716 hit-zone-busted stems whose raw_phase1 extracts
-    already live on engelbart and will be rsynced in later.
+  - Default (no mode flag): drops raw_type_en == 'unknown' rows plus the
+    1,716 hit-zone-busted stems whose raw_phase1 extracts already live on
+    engelbart. Standard Phase-2 path.
+  - --only-unknown: extracts ONLY the 1,278 unknown clips, as a sibling
+    pass for taxonomies that retain unknown (e.g. bst_25, une_v1_15).
+    Mutually exclusive with --keep-unknown.
 
 Reads the canonical busted list at:
     scratch/architecture_notes/busted_hit_zone_clips_phase1.txt
@@ -16,9 +18,15 @@ Writes one stem per line to --output, ready for raw_extract.py's
 
 Usage (from bourbaki, against the shared /home repo clone):
 
+    # Standard extract (drops unknown + busted)
     /home/ahalperi/.venvs/venv-bst/bin/python \\
         scripts/build_extract_stems.py \\
         --output /scratch/comp320a/ShuttleSet_keypoints_raw/stems_to_extract.txt
+
+    # Sibling extract for the 1,278 unknown clips
+    /home/ahalperi/.venvs/venv-bst/bin/python \\
+        scripts/build_extract_stems.py --only-unknown --keep-busted \\
+        --output /scratch/comp320a/ShuttleSet_keypoints_raw_unknown/stems_unknown.txt
 """
 from __future__ import annotations
 
@@ -64,11 +72,21 @@ def main() -> int:
         help="Don't drop raw_type_en == 'unknown' rows.",
     )
     parser.add_argument(
+        "--only-unknown",
+        action="store_true",
+        help="Include ONLY raw_type_en == 'unknown' rows. "
+             "For sibling extracts on taxonomies that retain unknown. "
+             "Mutually exclusive with --keep-unknown.",
+    )
+    parser.add_argument(
         "--keep-busted",
         action="store_true",
         help="Don't exclude the 1,716 already-extracted hit-zone-busted stems.",
     )
     args = parser.parse_args()
+
+    if args.only_unknown and args.keep_unknown:
+        parser.error("--only-unknown and --keep-unknown are mutually exclusive")
 
     if not args.clips_csv.exists():
         parser.error(f"clips-csv not found: {args.clips_csv}")
@@ -87,9 +105,7 @@ def main() -> int:
         )
 
     total = len(clips)
-    n_unknown = (
-        0 if args.keep_unknown else int((clips["raw_type_en"] == "unknown").sum())
-    )
+    n_unknown_total = int((clips["raw_type_en"] == "unknown").sum())
 
     busted: set[str] = set()
     if not args.keep_busted:
@@ -100,7 +116,9 @@ def main() -> int:
         }
 
     filtered = clips
-    if not args.keep_unknown:
+    if args.only_unknown:
+        filtered = filtered[filtered["raw_type_en"] == "unknown"]
+    elif not args.keep_unknown:
         filtered = filtered[filtered["raw_type_en"] != "unknown"]
     if not args.keep_busted:
         filtered = filtered[~filtered["clip_stem"].isin(busted)]
@@ -111,7 +129,12 @@ def main() -> int:
     stems.to_csv(args.output, index=False, header=False)
 
     print(f"Total clips_master rows:        {total}")
-    print(f"Unknown rows dropped:           {n_unknown}")
+    if args.only_unknown:
+        print(f"Mode:                           --only-unknown ({n_unknown_total} unknown rows in CSV)")
+    elif args.keep_unknown:
+        print(f"Unknown rows kept:              {n_unknown_total}")
+    else:
+        print(f"Unknown rows dropped:           {n_unknown_total}")
     print(f"Busted (already extracted):     {len(busted)}")
     print(f"Stems written:                  {len(stems)} -> {args.output}")
     return 0
