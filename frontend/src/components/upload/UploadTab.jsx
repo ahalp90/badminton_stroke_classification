@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { useTheme } from '../../shared';
 import { recordUpload, useStoredUploads, toUploadVideo } from '../../utils/uploadStorage';
 
-const ACCEPTED_VIDEO_TYPES = 'video/mp4,video/quicktime,video/x-msvideo,video/*';
+import { ACCEPTED_VIDEO_TYPES } from '../../utils/uploadStorage';
 
 /** File upload tab. Accepts drag-and-drop or click-to-browse.
  * Shows a count of past uploads stored on this device with instructions to access them. */

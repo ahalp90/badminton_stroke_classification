@@ -13,6 +13,8 @@
  */
 import { useState, useEffect } from 'react';
 
+export const ACCEPTED_VIDEO_TYPES = 'video/mp4,video/quicktime,video/x-msvideo,video/*';
+
 const UPLOADS_KEY = 'bsc.uploads';
 const SESSION_FILES = new Map(); // id -> { file: File, objectURL: string }
 

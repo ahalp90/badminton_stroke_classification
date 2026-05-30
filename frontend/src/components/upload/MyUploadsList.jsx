@@ -1,27 +1,27 @@
-import { useRef } from 'react'
-import { useTheme } from '../../shared'
-import { bindFileToUpload, deleteUpload, fmtSize, getSessionFile, listStoredUploads, toUploadVideo, useStoredUploads } from '../../utils/uploadStorage';
+import { useRef } from 'react';
+import { useTheme } from '../../shared';
+import { bindFileToUpload, deleteUpload, fmtSize, getSessionFile, listStoredUploads, toUploadVideo, 
+  useStoredUploads, ACCEPTED_VIDEO_TYPES } from '../../utils/uploadStorage';
 
-/* ─── My Uploads section (used inside BrowseAllModal) ───────────── */
+/** List of past uploads stored on this device. Shown inside BrowseAllModal. 
+ * Files missing from the current session show a Re-upload button to rebind them. */
 export function MyUploadsList({ onSelect }) {
   const { t } = useTheme();
+
+  // ──── State ────────────────────────────────────────────────────────────────────────────────────
   const items = useStoredUploads();
   const rebindInputRef = useRef(null);
   const pendingIdRef = useRef(null);
-
-  if (items.length === 0) {
-    return (
-      <div style={{ padding: '14px 20px', fontSize: 12, color: t.muted }}>
-        No uploads yet. Drop a video on the <em>Upload Video</em> tab to add one.
-      </div>
-    );
-  }
-
+  
+  // ──── Actions ──────────────────────────────────────────────────────────────────────────────────
+  /** Triggers the hidden file input for a specific upload entry. */
   const handleRebind = (id) => {
     pendingIdRef.current = id;
     rebindInputRef.current?.click();
   };
 
+  /** Handles file selection for rebinding — associates the chosen file with the existing IndexedDB 
+   * entry so the upload can proceed without creating a duplicate. */
   const onRebindFileChosen = (e) => {
     const file = e.target.files?.[0];
     const id = pendingIdRef.current;
@@ -33,12 +33,21 @@ export function MyUploadsList({ onSelect }) {
     if (entry) onSelect(toUploadVideo(entry));
   };
 
+  // ──── Render ───────────────────────────────────────────────────────────────────────────────────
+  if (items.length === 0) {
+    return (
+      <div style={{ padding: '14px 20px', fontSize: 12, color: t.muted }}>
+        No uploads yet. Drop a video on the <em>Upload Video</em> tab to add one.
+      </div>
+    );
+  }
   return (
     <div>
+      {/* Hidden input for rebinding a session-lost file to an existing upload entry. */}
       <input
         ref={rebindInputRef}
         type="file"
-        accept="video/mp4,video/quicktime,video/x-msvideo,video/*"
+        accept={ACCEPTED_VIDEO_TYPES}
         style={{ display: 'none' }}
         onChange={onRebindFileChosen}
       />
@@ -81,6 +90,7 @@ export function MyUploadsList({ onSelect }) {
             </button>
             <button
               onClick={() => {
+                // confirm() is a blocking native dialog — intentional for a destructive action.
                 if (confirm(`Delete "${entry.filename}" from your uploads list?`)) deleteUpload(entry.id);
               }}
               style={{
