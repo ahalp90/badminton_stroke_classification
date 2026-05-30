@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState } from 'react';
 
+/** Individual stroke pill - shows badge, label, and a delete button on hover or when active.
+ * t is passed as a prop rather than calling useTheme directly, since the parent (StrokePillStrip)
+ * already has it in scope. */
 export function PillButton({ label, badge, badgeColor, isActive, onSelect, onDelete, onContextMenu, t }) {
   const [hover, setHover] = useState(false);
   return (

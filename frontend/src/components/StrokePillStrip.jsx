@@ -1,6 +1,8 @@
-import { PillButton } from "./PillButton";
+import { PillButton } from './PillButton';
 
-/* ─── Stroke pill strip (multi-stroke selector / add / delete) ───── */
+/** Multi-stroke selector strip with add and delete controls.
+ * t is passed as a prop rather than calling useTheme directly, since the parent (TimeframeStep)
+ * already has it in scope. */
 export function StrokePillStrip({
   annotations, activeId, onSelect, onDelete, onAdd,
   pendingDeleteId, onConfirmDelete, onCancelDelete,
