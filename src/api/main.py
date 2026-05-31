@@ -20,6 +20,7 @@ from .config import (
     JOB_TTL_SECONDS,
     MAX_FILE_SIZE_BYTES,
     MAX_FILE_SIZE_MB,
+    MIN_MODEL_INPUT_PX,
     UPLOAD_DIR,
 )
 from .inference import run_inference
@@ -51,6 +52,11 @@ class Markup(BaseModel):
     orientation: Literal["portrait"] = "portrait"
     video_label: Optional[str] = None
     boundary: Optional[List[BoundaryPoint]] = None
+    # Intrinsic source resolution, so the normalised `boundary` can be checked
+    # against the model's minimum input size server-side. Optional: when absent
+    # we skip the boundary resolution check (the FE warns regardless).
+    frame_width: Optional[int] = Field(default=None, ge=1)
+    frame_height: Optional[int] = Field(default=None, ge=1)
     annotations: List[StrokeAnnotation] = Field(default_factory=list)
     enabled_sides: List[Literal["top", "bottom"]] = Field(default_factory=lambda: ["top", "bottom"])
     player_top_id: Optional[str] = None
@@ -97,6 +103,46 @@ def _parse_markup_json(raw: Optional[str]) -> Optional[dict]:
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=f"markup failed validation: {e.errors()}")
     return m.model_dump(exclude_none=False)
+
+
+def _resolution_warnings(
+    markup_dict: Optional[dict],
+    crop_w: Optional[int],
+    crop_h: Optional[int],
+) -> List[str]:
+    """Non-blocking checks that a requested crop meets the model's minimum input
+    resolution (MIN_MODEL_INPUT_PX). We warn rather than reject, so the user can
+    proceed knowingly instead of silently feeding a degraded crop downstream.
+
+    - The pixel crop (crop_w/crop_h) is checked directly.
+    - The normalised court boundary is checked only when the markup carries
+      frame_width/frame_height; its xy bounding box is scaled back to pixels.
+    """
+    warnings: List[str] = []
+    m = MIN_MODEL_INPUT_PX
+
+    if crop_w is not None and crop_h is not None and (crop_w < m or crop_h < m):
+        warnings.append(
+            f"Spatial crop {crop_w}x{crop_h}px is below the {m}x{m}px model input "
+            f"minimum; classification quality may degrade."
+        )
+
+    if markup_dict:
+        boundary = markup_dict.get("boundary")
+        fw, fh = markup_dict.get("frame_width"), markup_dict.get("frame_height")
+        if boundary and fw and fh:
+            xs = [p["x"] for p in boundary]
+            ys = [p["y"] for p in boundary]
+            bbox_w = round((max(xs) - min(xs)) * fw)
+            bbox_h = round((max(ys) - min(ys)) * fh)
+            if bbox_w < m or bbox_h < m:
+                warnings.append(
+                    f"Court boundary crop is ~{bbox_w}x{bbox_h}px on a {fw}x{fh} frame, "
+                    f"below the {m}x{m}px model input minimum; classification quality "
+                    f"may degrade."
+                )
+    return warnings
+
 
 log = logging.getLogger(__name__)
 logging.basicConfig(
@@ -376,6 +422,12 @@ async def upload_video(
             markup_dict.get("model_id"),
         )
 
+    # Non-blocking resolution warnings (model input minimum). Surfaced to the FE
+    # in the response rather than raising, so the user proceeds knowingly.
+    resolution_warnings = _resolution_warnings(markup_dict, crop_w, crop_h)
+    for w in resolution_warnings:
+        log.warning("job %s: %s", job_id, w)
+
     job_store.create(
         job_id,
         filename=file.filename,
@@ -386,7 +438,7 @@ async def upload_video(
     )
     background_tasks.add_task(_process_video, job_id, str(video_path), model)
 
-    return {"job_id": job_id, "status": "queued"}
+    return {"job_id": job_id, "status": "queued", "warnings": resolution_warnings}
 
 
 @app.post("/api/library_predict")
