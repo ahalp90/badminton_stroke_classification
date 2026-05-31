@@ -11,26 +11,6 @@ import { ModelResultsScreen } from './model-results-screen';
 /** Ordered list of wizard stages (excludes Model Results showcase) */
 const ORDER = ['library', 'markup', 'configure', 'progress', 'results'];
 
-// ──── Dev fixtures ───────────────────────────────────────────────────────────────────────────────
-
-/**
- * Stub data used during development to allow downstream stage-jumping after a video is selected
- * 
- * NOTE: `video` is deliberately excluded - forward navigation without a chose video now blocks 
- * (user must pick from Library or upload a file)
- * 
- * NOTE: `markup` is deliberately excluded — the user must complete the markup steps before
- * configure is accessible.
- * 
- * TODO: Remove DEV_FIXTURES during clean-up, when live inference implementation complete
- */
-const DEV_FIXTURES = {
-  task: {
-    taskName: 'Demo task — fixture',
-    enabled: { A: true, B: false },
-  },
-};
-
 // ──── Component ──────────────────────────────────────────────────────────────────────────────────
 function HBAStrokeClassifier() {
   // ──── Wizard state ─────────────────────────────────────────────────────────────────────────────
@@ -54,14 +34,15 @@ function HBAStrokeClassifier() {
    * Guards (in order):
    *  1. Jumping to Model Results - always allowed.
    *  2. Returning from Model Results - allowed subject to wizard state:
-   *        no video          → library only
-   *        video, no markup  → library or markup
-   *        video + markup    → library, markup, or configure (and beyond once task exists)
+   *        no video                → library only
+   *        video, no markup        → library or markup
+   *        video + markup, no task → library, markup, or configure
+   *        video + markup + task   → any wizard screen
    *  3. Backward within wizard - always allowed.
    *  4. Forward without a video - blocked.
    *  5. Forward past markup without saved markup - blocked.
-   *  6. Otherwise - advance, seeding task fixture if needed.
-   *  TODO: Update Step 6 prior to deployment.
+   *  6. Forward past configure without saved task - blocked.
+   *  7. Otherwise - advance.
    */
   const navigate = target => {
     // Guard 1: Model Results page is outside the wizard pipeline — jump freely.
@@ -74,6 +55,7 @@ function HBAStrokeClassifier() {
     if (screen === 'model-results') {
       if (!video) { setScreen('library'); return; }
       if (ORDER.indexOf(target) >= ORDER.indexOf('configure') && !markup) return;
+      if (ORDER.indexOf(target) >= ORDER.indexOf('progress') && !task) return;
       setScreen(target);
       return;
     }
@@ -85,15 +67,18 @@ function HBAStrokeClassifier() {
       setScreen(target);
       return;
     }
+
     // Guard 4: Forward navigation requires a real video.
     if (!video) return;
 
     // Guard 5: Reaching configure or beyond requires completed markup.
     if (dst >= ORDER.indexOf('configure') && !markup) return;
 
-    // Guard 6: Advance, seeding task fixture if jumping past configure.
-    const s = task ?? { ...DEV_FIXTURES.task };
-    if (dst >= ORDER.indexOf('progress') && !task) setTask(s);
+    // Guard 6: Reaching progress or beyond requires a submitted task.
+    if (dst >= ORDER.indexOf('progress') && !task) return;
+
+    // Guard 7: All guards passed - advance.
+    // TODO: May need additional gating here so user cannot click through to Results screen before job is complete - TBD
     setScreen(target);
   };
 
@@ -123,7 +108,7 @@ function HBAStrokeClassifier() {
     progress: (
       <ProgressScreen
         task={task}
-        onComplete={(result) => {
+        onComplete={result => {
           if (result) setTask(prev => ({ ...prev, uploadResult: result }));
           setScreen('results');
         }}

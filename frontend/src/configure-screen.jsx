@@ -3,9 +3,16 @@ import { useTheme, Btn, Card, Badge, SectionHeader } from './shared';
 import { toModelCard } from './utils/adapters';
 import { ModelCard } from './components/ModelCard';
 
-/* ─── Configure Screen ───────────────────────────────────────────── */
+// ──── Configure Screen ───────────────────────────────────────────────────────────────────────────
+/**
+ * Step 3 of the wizard: select classification model/s and label the task before submission.
+ * Fetches available models from the registry API and defaults the first model to enabled.
+ * Submission is blocked until at least one model is selected.
+ */
 export function ConfigureScreen({ markup, onSubmit, onBack }) {
   const { t } = useTheme();
+
+  // ──── State ────────────────────────────────────────────────────────────────────────────────────
   const [models,    setModels]    = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [enabled,   setEnabled]   = useState({});
@@ -13,7 +20,9 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
     `Analysis — ${markup?.video?.match?.split(' vs ')[0] ?? 'Video'} — ${new Date().toLocaleDateString('en-AU')}`
   );
 
+  // ──── Load model registry ──────────────────────────────────────────────────────────────────────
   useEffect(() => {
+    // `alive` flag prevents state updates if the component unmounts before the fetch resolves.
     let alive = true;
     fetch('/api/registry')
       .then(response => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
@@ -21,7 +30,7 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
         if (!alive) return;
         const items = (data.models || []).map(toModelCard);
         setModels(items);
-        // Default: first model on, rest off. Tier 1 ships with one anyway.
+        // Default: first model on, rest off.
         const init = {};
         items.forEach((m, i) => { init[m.id] = i === 0; });
         setEnabled(init);
@@ -30,9 +39,12 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
     return () => { alive = false; };
   }, []);
 
+  // ──── Derived state ────────────────────────────────────────────────────────────────────────────
+  /** True when at least one model is toggled on - gates the submit button. */
   const anyEnabled = Object.values(enabled).some(Boolean);
   const toggle = id => setEnabled(prev => ({ ...prev, [id]: !prev[id] }));
 
+  // ──── Render ───────────────────────────────────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: 32 }}>
       <SectionHeader
@@ -40,6 +52,7 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
         subtitle="Select models and tune parameters before submitting the classification job."
       />
 
+      {/* ──── Model selection ──── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -76,6 +89,7 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
           )}
         </div>
 
+        {/* ──── Task panel ──── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Task
@@ -106,8 +120,8 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
                 <Badge color="blue">{`Player ${markup.playerSide}`}</Badge>
               )}
               {Array.isArray(markup?.annotations) && markup.annotations.length > 0 ? (
-                <Badge color ="pine">
-                  {markup.annotations.length} stroke{markup.annotations.length == 1 ? '' : 's'}
+                <Badge color="pine">
+                  {markup.annotations.length} stroke{markup.annotations.length === 1 ? '' : 's'}
                 </Badge>
               ) : markup?.timeframe ? (
                 <Badge color="pine">{markup.timeframe.duration}s segment</Badge>
