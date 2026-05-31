@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ThemeProvider, useTheme, NavBar, ScreenErrorBoundary } from './shared';
+import { ThemeProvider, useTheme, ScreenErrorBoundary } from './shared';
+import { NavBar } from './components/NavBar';
 import { LibraryScreen } from './library-screen';
 import { MarkupScreen } from './markup-screen';
 import { ConfigureScreen } from './configure-screen';
@@ -34,15 +35,17 @@ function HBAStrokeClassifier() {
    * Guards (in order):
    *  1. Jumping to Model Results - always allowed.
    *  2. Returning from Model Results - allowed subject to wizard state:
-   *        no video                → library only
-   *        video, no markup        → library or markup
-   *        video + markup, no task → library, markup, or configure
-   *        video + markup + task   → any wizard screen
+   *        no video                        → library only
+   *        video, no markup                → library or markup
+   *        video + markup, no task         → library, markup, or configure
+   *        video + markup + task           → up to and including progress
+   *        video + markup + task + result  → any wizard screen
    *  3. Backward within wizard - always allowed.
    *  4. Forward without a video - blocked.
    *  5. Forward past markup without saved markup - blocked.
    *  6. Forward past configure without saved task - blocked.
-   *  7. Otherwise - advance.
+   *  7. Forward past progress without a completed job result - blocked.
+   *  8. Otherwise - advance.
    */
   const navigate = target => {
     // Guard 1: Model Results page is outside the wizard pipeline — jump freely.
@@ -56,6 +59,7 @@ function HBAStrokeClassifier() {
       if (!video) { setScreen('library'); return; }
       if (ORDER.indexOf(target) >= ORDER.indexOf('configure') && !markup) return;
       if (ORDER.indexOf(target) >= ORDER.indexOf('progress') && !task) return;
+      if (ORDER.indexOf(target) >= ORDER.indexOf('results') && !task?.uploadResult) return;
       setScreen(target);
       return;
     }
@@ -77,8 +81,10 @@ function HBAStrokeClassifier() {
     // Guard 6: Reaching progress or beyond requires a submitted task.
     if (dst >= ORDER.indexOf('progress') && !task) return;
 
-    // Guard 7: All guards passed - advance.
-    // TODO: May need additional gating here so user cannot click through to Results screen before job is complete - TBD
+    // Guard 7: Reaching results requires a completed job.
+    if (ORDER.indexOf(target) >= ORDER.indexOf('results') && !task?.uploadResult) return;
+
+    // Guard 8: All guards passed - advance.
     setScreen(target);
   };
 
