@@ -1,0 +1,62 @@
+# AdamW weight-decay sweep on une_v1_14. One cell per lambda; everything else at
+# the bst_train module defaults so weight decay is the only lever: aug flip0.5 /
+# jitter0.3, CDB-F1 tau1 gamma1, cosine + warmup100, 80 epochs, val-improvability
+# gate OFF (inherited, not set here). lambda 0.01 is the in-sweep anchor: same
+# no-decay grouping as the rest, just the old value. It is NOT bit-identical to
+# the gate-off baseline batch (run_20260530_161525 etc.); those trained before
+# the param groups landed, so 0.01 decayed norm/bias/embeddings too. Compare
+# within the sweep and read 0.01 here as the baseline, not that old batch.
+#
+# tau_epoch = 11.25 / lambda against an 80-epoch run (N=22743, batch 128, so
+# M=178 iters/epoch, eta_peak=5e-4): 0.01->~1125 (near-inert, current default),
+# 0.05->~225, 0.1->~112, 0.2->~56, 0.4->~28. Useful zone likely 0.1-0.2; 0.4
+# may underfit from scratch. Full rationale + maths in
+# scratch/architecture_notes/hp_and_aug_speculations_30_05_2026.md (Q2) and the
+# build doc bst_x_wd_sweep.md.
+#
+# 5 cells x 5 serials = 25 runs, ~7.5-10 h on bourbaki (one overnight). state.json
+# is written alongside, so a killed runner resumes without re-running finished
+# serials. Launch (repo root; on bourbaki use venv-bst + set BST_X_COLLATED_DATA_ROOT):
+#   PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+#     python -m main_on_shuttleset.collation_runner scratch/runners/wd_sweep_une_v1_14
+session_name: wd_sweep_une_v1_14_2026_05
+cells:
+  - name: wd_0p01
+    taxonomy: une_v1_14
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.01
+    ablation_id: wd_1e-2_no_wd_norm_bias_embeddings
+    n_serials: 5
+
+  - name: wd_0p05
+    taxonomy: une_v1_14
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.05
+    ablation_id: wd_5e-2
+    n_serials: 5
+
+  - name: wd_0p1
+    taxonomy: une_v1_14
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.1
+    ablation_id: wd_1e-1
+    n_serials: 5
+
+  - name: wd_0p2
+    taxonomy: une_v1_14
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.2
+    ablation_id: wd_2e-1
+    n_serials: 5
+
+  - name: wd_0p4
+    taxonomy: une_v1_14
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.4
+    ablation_id: wd_4e-1
+    n_serials: 5
