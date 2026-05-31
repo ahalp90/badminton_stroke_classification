@@ -583,10 +583,12 @@ result so the frontend's processing-poll loop exercises end-to-end:
 ## Confidence
 
 `confidence_pct` is the model's softmax probability for the top class,
-rounded to an integer in `[0, 100]`. The current implementation ships
-raw (uncalibrated) softmax for all handlers; consumers should treat
-the value as relative ordering rather than a calibrated probability
-until post-hoc temperature scaling is in place.
+rounded to an integer in `[0, 100]`. It ships as raw softmax. For BST-X
+that's the final contract: a calibration check on val and test showed
+raw softmax already matches the model's hit rate closely, so no
+temperature scaling is applied. Treat it as a real probability, not
+just relative ordering. Other handlers (e.g. BRIC) may calibrate
+independently and would document their own scaling.
 
 When the model is genuinely uncertain between close classes (e.g.
 `wrist_smash` vs `smash`), the headline confidence can sit in the 30s

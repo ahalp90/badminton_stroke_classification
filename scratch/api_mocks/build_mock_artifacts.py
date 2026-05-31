@@ -1,8 +1,8 @@
 """Emit mock Tier 1 sidecar JSONs for run_20260505_154907.
 
-Writes five files under the run dir, each carrying `_mock_data: true`:
-  - predictions/val.json + predictions/test.json   (per-clip preds + softmax)
-  - predictions/perclass_stats_val.json + ..._test.json
+Writes five files under <run_dir>/fe_jsons/, each carrying `_mock_data: true`:
+  - val.json + test.json                     (per-clip preds + softmax)
+  - perclass_stats_val.json + ..._test.json
   - clip_index.json
 
 Run from repo root:
@@ -19,7 +19,7 @@ RUN_DIR = Path(
     "src/bst_refactor/stroke_classification/main_on_shuttleset/"
     "experiments/run_20260505_154907"
 )
-PREDICTIONS_DIR = RUN_DIR / "predictions"
+FE_DIR = RUN_DIR / "fe_jsons"
 
 RUN_ID = "run_20260505_154907"
 SERIAL = 5
@@ -186,7 +186,7 @@ def build_perclass_stats(split: str, n_clips: int) -> dict:
 
 
 def main() -> None:
-    PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
+    FE_DIR.mkdir(parents=True, exist_ok=True)
 
     used_stems: set[str] = set()
     full_clip_index = {}
@@ -205,16 +205,16 @@ def main() -> None:
             "temperature": TEMPERATURE,
             "clips": records,
         }
-        (PREDICTIONS_DIR / f"{split}.json").write_text(json.dumps(preds, indent=2))
-        print(f"wrote {PREDICTIONS_DIR / f'{split}.json'} ({len(records)} clips)")
+        (FE_DIR / f"{split}.json").write_text(json.dumps(preds, indent=2))
+        print(f"wrote {FE_DIR / f'{split}.json'} ({len(records)} clips)")
 
         stats = build_perclass_stats(split, len(records))
-        (PREDICTIONS_DIR / f"perclass_stats_{split}.json").write_text(json.dumps(stats, indent=2))
-        print(f"wrote {PREDICTIONS_DIR / f'perclass_stats_{split}.json'}")
+        (FE_DIR / f"perclass_stats_{split}.json").write_text(json.dumps(stats, indent=2))
+        print(f"wrote {FE_DIR / f'perclass_stats_{split}.json'}")
 
     clip_index_out = {"_mock_data": True, "clips": full_clip_index}
-    (RUN_DIR / "clip_index.json").write_text(json.dumps(clip_index_out, indent=2))
-    print(f"wrote {RUN_DIR / 'clip_index.json'} ({len(full_clip_index)} entries)")
+    (FE_DIR / "clip_index.json").write_text(json.dumps(clip_index_out, indent=2))
+    print(f"wrote {FE_DIR / 'clip_index.json'} ({len(full_clip_index)} entries)")
 
 
 if __name__ == "__main__":

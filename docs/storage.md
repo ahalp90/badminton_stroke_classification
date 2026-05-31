@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS strokes (
     target_frame   INTEGER NOT NULL,
     timestamp_sec  REAL NOT NULL,
     predicted_class TEXT NOT NULL,           -- equiv to top_k[0].class in the result JSON
-    confidence_pct INTEGER NOT NULL,         -- 0-100 calibrated headline.
+    confidence_pct INTEGER NOT NULL,         -- 0-100 raw softmax headline.
                                              -- Full top_k array lives in jobs.result
                                              -- JSON only — not denormalised here
                                              -- (variable-length array, awkward in SQL).

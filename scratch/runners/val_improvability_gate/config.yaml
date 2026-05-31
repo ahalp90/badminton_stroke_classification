@@ -1,0 +1,70 @@
+# Val-improvability gate sweep: the gate-on counterpart to the
+# taxon_pinned_w_preds baseline batch. Same six taxon/split cells, same
+# collation, same 5 serials each; the only change is use_val_improvability_gate.
+# So the macro / min-F1 comparison against the gate-off serials from that batch
+# is apples-to-apples (same data, same splits, everything else held).
+#
+# Gate params come from the bst_train Hyp default (smoothing 0.9, margin 0.015,
+# patience 15, min-before-gating 10, revert step 0.2, freeze at 0.75 of the run).
+# The runner only flips the gate on, it does not tune those. Requires
+# adaptive_focal, which all these cells carry by default (CDB-F1 tau1 gamma1).
+#
+# Expect a point or two of macro at best (the honest ceiling from the arc
+# analysis), most likely on une_v1_14 and the shuttleset_18 tail. Watch Revert/{c}
+# in TB to confirm it decays drive/push/wrist_smash and leaves cross_court_net_shot
+# alone. shuttleset_18 is the adversarial case for the tail freeze: it's the only
+# taxonomy with real late-anneal blooms.
+#
+# ~25 min/serial: 6x5 = 30 serials, ~13 h (one overnight), same as the baseline.
+# Launch (repo root; on bourbaki use venv-bst + set BST_X_COLLATED_DATA_ROOT):
+#   PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+#     python -m main_on_shuttleset.collation_runner scratch/runners/val_improvability_gate
+session_name: val_improvability_gate_2026_05
+cells:
+  - name: shuttleset_18_v2
+    taxonomy: shuttleset_18
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    ablation_id: focal_alpha_revert_overallocated
+    use_val_improvability_gate: true
+    n_serials: 5
+
+  - name: bst_24_v2
+    taxonomy: bst_24
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    ablation_id: focal_alpha_revert_overallocated
+    use_val_improvability_gate: true
+    n_serials: 5
+
+  - name: bst_12_v2
+    taxonomy: bst_12
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    ablation_id: focal_alpha_revert_overallocated
+    use_val_improvability_gate: true
+    n_serials: 5
+
+  - name: bst_25_baseline
+    taxonomy: bst_25
+    split_column: split_bst_baseline
+    collation_id: taxon_pinned_w_preds
+    ablation_id: focal_alpha_revert_overallocated
+    use_val_improvability_gate: true
+    n_serials: 5
+
+  - name: bst_24_baseline
+    taxonomy: bst_24
+    split_column: split_bst_baseline
+    collation_id: taxon_pinned_w_preds
+    ablation_id: focal_alpha_revert_overallocated
+    use_val_improvability_gate: true
+    n_serials: 5
+
+  - name: une_v1_14_v2
+    taxonomy: une_v1_14
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    ablation_id: focal_alpha_revert_overallocated
+    use_val_improvability_gate: true
+    n_serials: 5
