@@ -311,7 +311,25 @@ def list_clips(
         "clips": summaries[offset:offset + limit],
     }
 
+@router.get("/registry/{model_id}/splits/{split}/matches")
+def list_matches(model_id: str, split: str) -> dict:
+    """Return unique match names for a split.
 
+    Avoids the frontend having to fetch all clips just to extract match names,
+    and sidesteps the 500 clip limit on /clips. Used by LibraryScreen to filter
+    the match library to only videos in the test set.
+    """
+    _validate_split(split)
+    entry = _get_model_entry(model_id)
+    preds = _read_predictions(entry, split)
+    clip_index = _read_clip_index(entry)
+    matches = sorted({
+        clip_index.get(r["clip_stem"], {}).get("match")
+        for r in preds.get("clips", [])
+        if clip_index.get(r["clip_stem"], {}).get("match")
+    })
+    return {"model_id": model_id, "split": split, "matches": matches}
+    
 @router.get("/registry/{model_id}/splits/{split}/clips/{stem}")
 def get_clip(model_id: str, split: str, stem: str) -> dict:
     _validate_split(split)

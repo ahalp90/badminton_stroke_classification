@@ -7,30 +7,19 @@ import { ProgressScreen } from './progress-screen';
 import { ResultsScreen } from './results-screen';
 import { ModelResultsScreen } from './model-results-screen';
 
+// ──── Wizard stage order ─────────────────────────────────────────────────────────────────────────
+/** Ordered list of wizard stages (excludes Model Results showcase) */
 const ORDER = ['library', 'markup', 'configure', 'progress', 'results'];
 
-// Dev fixtures for downstream-stage jumping after a real video is selected.
-// `video` is deliberately not in here — forward navigation without a chosen
-// video now blocks instead of substituting a dummy (Fix 1: the Rick Astley
-// YouTube fallback was being perceived as "the Upload Video tab auto-selects
-// a dummy"). User must pick from Library or upload a file first.
-const DEV_FIXTURES = {
-  markup: {
-    player: 1,
-    timeframe: { duration: 30 },
-  },
-  task: {
-    taskName: 'Demo task — fixture',
-    enabled: { A: true, B: false },
-  },
-};
-
+// ──── Component ──────────────────────────────────────────────────────────────────────────────────
 function HBAStrokeClassifier() {
+  // ──── Wizard state ─────────────────────────────────────────────────────────────────────────────
   const [screen, setScreen] = useState('library');
   const [video,  setVideo]  = useState(null);
   const [markup, setMarkup] = useState(null);
   const [task,   setTask]   = useState(null);
 
+  // ──── Actions ──────────────────────────────────────────────────────────────────────────────────
   const resetAll = () => {
     setVideo(null);
     setMarkup(null);
@@ -38,34 +27,62 @@ function HBAStrokeClassifier() {
     setScreen('library');
   };
 
+  /**
+   * NavBar navigation handler. Normal wizard progression (onNext/onBack inside each screen)
+   * calls setScreen directly and never goes through here - this is only for navbar jumps.
+   * 
+   * Guards (in order):
+   *  1. Jumping to Model Results - always allowed.
+   *  2. Returning from Model Results - allowed subject to wizard state:
+   *        no video                → library only
+   *        video, no markup        → library or markup
+   *        video + markup, no task → library, markup, or configure
+   *        video + markup + task   → any wizard screen
+   *  3. Backward within wizard - always allowed.
+   *  4. Forward without a video - blocked.
+   *  5. Forward past markup without saved markup - blocked.
+   *  6. Forward past configure without saved task - blocked.
+   *  7. Otherwise - advance.
+   */
   const navigate = target => {
-    // The Model Results page is outside the wizard pipeline — jump freely.
+    // Guard 1: Model Results page is outside the wizard pipeline — jump freely.
     if (target === 'model-results') {
       setScreen('model-results');
       return;
     }
-    // Returning to the wizard from the Model Results page: restore wizard state.
+
+    // Guard 2: Returning from Model Results - cap by wizard state.
     if (screen === 'model-results') {
+      if (!video) { setScreen('library'); return; }
+      if (ORDER.indexOf(target) >= ORDER.indexOf('configure') && !markup) return;
+      if (ORDER.indexOf(target) >= ORDER.indexOf('progress') && !task) return;
       setScreen(target);
       return;
     }
+
+    // Guard 3: Backward navigation within the wizard is always allowed.
     const cur = ORDER.indexOf(screen);
     const dst = ORDER.indexOf(target);
     if (dst <= cur) {
       setScreen(target);
       return;
     }
-    // Forward navigation requires a real video. No dummy fallback - the 
-    // user must explicitly select from the Match Library or upload a file 
-    // first (Fix 1).
+
+    // Guard 4: Forward navigation requires a real video.
     if (!video) return;
-    const m = markup ?? { ...DEV_FIXTURES.markup, video };
-    const t = task ?? { ...DEV_FIXTURES.task, markup: m };
-    if (dst >= ORDER.indexOf('configure') && !markup) setMarkup(m);
-    if (dst >= ORDER.indexOf('progress') && !task) setTask(t);
+
+    // Guard 5: Reaching configure or beyond requires completed markup.
+    if (dst >= ORDER.indexOf('configure') && !markup) return;
+
+    // Guard 6: Reaching progress or beyond requires a submitted task.
+    if (dst >= ORDER.indexOf('progress') && !task) return;
+
+    // Guard 7: All guards passed - advance.
+    // TODO: May need additional gating here so user cannot click through to Results screen before job is complete - TBD
     setScreen(target);
   };
- 
+
+  // ──── Render ─────────────────────────────────────────────────────────────────────────────
   const { t } = useTheme();
 
   const screens = {
@@ -84,14 +101,14 @@ function HBAStrokeClassifier() {
     configure: (
       <ConfigureScreen
         markup={markup}
-        onSubmit={t => { setTask(t); setScreen('progress'); }}
+        onSubmit={s => { setTask(s); setScreen('progress'); }}
         onBack={() => setScreen('markup')}
       />
     ),
     progress: (
       <ProgressScreen
         task={task}
-        onComplete={(result) => {
+        onComplete={result => {
           if (result) setTask(prev => ({ ...prev, uploadResult: result }));
           setScreen('results');
         }}
@@ -100,7 +117,7 @@ function HBAStrokeClassifier() {
     results: (
       <ResultsScreen
         task={task}
-        onNew={() => { setScreen('library'); setVideo(null); setMarkup(null); setTask(null); }}
+        onNew={resetAll}
       />
     ),
     'model-results': <ModelResultsScreen />,

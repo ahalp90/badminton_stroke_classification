@@ -2,22 +2,27 @@ import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../shared';
 import { fmtTime } from '../utils/format';
 
-/* ─── Scrubber: buffered + density-binned pips + click-drag seek ─── */
-// `strokes` is the list of user-marked annotations [{id, startSec, targetSec,
-// endSec}]; `activeId` picks which one renders handles + the saturated blue.
-// `strokeTimes` is the unrelated dataset-level density overlay (kept).
+const ZOOM_LEVELS = [1, 2, 5, 10, 25, 50];
+const TRACK_HEIGHT = 38;
+
+/** Scrubber: buffered + density-binned pips + click-drag seek
+* `strokes` is the list of user-marked annotations [{id, startSec, targetSec, endSec}]; 
+* `activeId` picks which one renders handles + the saturated blue.
+* `strokeTimes` is the unrelated dataset-level density overlay (kept). */
 export function Scrubber({
   duration, currentTime, loaded,
   strokes, activeId, onSelectStroke,
   strokeTimes, showPips, onSeek,
 }) {
   const { t } = useTheme();
+
   const trackRef = useRef(null);
   const scrollRef = useRef(null);
   const draggingRef = useRef(false);
-  const [zoom, setZoom] = useState(1);
-  const ZOOM_LEVELS = [1, 2, 5, 10, 25, 50];
-  const N_BUCKETS = 200 * zoom;
+
+  const [zoom, setZoom] = useState(ZOOM_LEVELS[0]);
+
+  const N_BUCKETS = 200 * zoom; // defined inside component as depends on zoom state
 
   const buckets = (() => {
     if (!duration || !strokeTimes.length) return null;
@@ -28,6 +33,7 @@ export function Scrubber({
     }
     return arr;
   })();
+  
   const bucketMax = buckets ? Math.max(1, ...buckets) : 1;
 
   const pct = (s) => duration > 0 ? (s / duration) * 100 : 0;
@@ -52,8 +58,6 @@ export function Scrubber({
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
   };
-
-  const TRACK_HEIGHT = 38;
 
   // Auto-scroll to keep the playhead visible when zoomed.
   useEffect(() => {

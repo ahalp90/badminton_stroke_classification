@@ -1,39 +1,38 @@
 import { useState, useRef } from 'react';
 import { useTheme } from '../../shared';
-import { UploadingPanel } from './UploadingPanel';
 import { recordUpload, useStoredUploads, toUploadVideo } from '../../utils/uploadStorage';
 
+import { ACCEPTED_VIDEO_TYPES } from '../../utils/uploadStorage';
+
+/** File upload tab. Accepts drag-and-drop or click-to-browse.
+ * Shows a count of past uploads stored on this device with instructions to access them. */
 export function UploadTab({ onUpload }) {
   const { t } = useTheme();
+
+  // ──── State ────────────────────────────────────────────────────────────────────────────────────
   const [dragOver, setDragOver] = useState(false);
-  const [uploading, setUploading] = useState(null);
   const fileInputRef = useRef(null);
   const stored = useStoredUploads();
 
+  // ──── Actions ──────────────────────────────────────────────────────────────────────────────────
+  /** Stages a file for upload - saves file metadata to IndexedDB and advances the wizard. */
   const acceptFile = (file) => {
     if (!file) return;
     setDragOver(false);
-    setUploading({ filename: file.name, file });
+    // recordUpload saves metadata to IndexedDB (for the My Uploads list) and returns an
+    // entry used to create the video object for the wizard - the actual backend upload
+    // happens later in ProgressScreen on Submit.
+    const entry = recordUpload(file);
+    onUpload(toUploadVideo(entry));
   };
 
-  if (uploading) {
-    return (
-      <UploadingPanel
-        filename={uploading.filename}
-        onDone={() => {
-          const entry = recordUpload(uploading.file);
-          onUpload(toUploadVideo(entry));
-        }}
-      />
-    );
-  }
-
+  // ──── Render ───────────────────────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <input
         ref={fileInputRef}
         type="file"
-        accept="video/mp4,video/quicktime,video/x-msvideo,video/*"
+        accept={ACCEPTED_VIDEO_TYPES}
         style={{ display: 'none' }}
         onChange={e => {
           const file = e.target.files?.[0];
@@ -66,7 +65,7 @@ export function UploadTab({ onUpload }) {
         <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.6 }}>
           Your upload stays on this device — the file is sent to the
           backend only when you click <em>Submit for Analysis</em> on the
-          Configure screen. Past uploads appear under <em>My Uploads</em>
+          Configure screen. Past uploads appear under <em>My Uploads </em>
           in the <em>Browse all matches</em> dialog; if you've refreshed,
           re-pick the file to continue using it.
         </div>
