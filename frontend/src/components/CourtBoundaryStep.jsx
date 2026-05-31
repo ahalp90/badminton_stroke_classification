@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme, Btn } from '../shared';
+import { fmtTime } from '../utils/format';
+import { Scrubber } from './Scrubber';
 
 const frameModules = import.meta.glob('../data/frames/*.jpg', { eager: true, import: 'default' });
 const frameUrl = (id) => frameModules[`../data/frames/${id}.jpg`];
@@ -33,6 +35,10 @@ export function CourtBoundaryStep({ video, onComplete }) {
   const [cursor, setCursor] = useState(null); // {x,y} in canvas coords while dragging
   const [confirmed, setConfirmed] = useState(false);
   const [sourceLabel, setSourceLabel] = useState('Reference frame · drag handles to align');
+  // Scrubbing state (uploads only): lets the user seek to a frame where the
+  // court boundary is clearly visible before aligning the quadrilateral.
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
 
   useEffect(() => {
     if (isUpload) {
@@ -40,15 +46,17 @@ export function CourtBoundaryStep({ video, onComplete }) {
       if (!vid) return;
       const onReady = () => {
         sourceRef.current = vid;
+        setDuration(vid.duration || 0);
         // Seek to a representative early frame (first frame can be black).
         try {
           const target = Math.min(0.5, (vid.duration || 1) / 2);
           if (Math.abs(vid.currentTime - target) > 0.01) vid.currentTime = target;
         } catch { /* noop */ }
+        setCurrentTime(vid.currentTime);
         setSourceLabel(`Uploaded frame · ${video.filename || 'video'}`);
         draw();
       };
-      const onSeeked = () => draw();
+      const onSeeked = () => { setCurrentTime(vid.currentTime); draw(); };
       if (vid.readyState >= 2) onReady();
       else vid.addEventListener('loadeddata', onReady, { once: true });
       vid.addEventListener('seeked', onSeeked);
@@ -180,6 +188,22 @@ export function CourtBoundaryStep({ video, onComplete }) {
 
   const onMouseUp = () => { setDragging(null); setCursor(null); };
 
+  // Seek the hidden video to an absolute time (seconds). The 'seeked' listener
+  // installed above redraws the canvas and syncs currentTime once the frame is ready.
+  const seekTo = (s) => {
+    const vid = hiddenVideoRef.current;
+    if (!vid || !duration) return;
+    const clamped = Math.max(0, Math.min(duration, s));
+    setCurrentTime(clamped);
+    try { vid.currentTime = clamped; } catch { /* noop */ }
+  };
+
+  const nudge = (delta) => {
+    const vid = hiddenVideoRef.current;
+    if (!vid) return;
+    seekTo(vid.currentTime + delta);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <p style={{ fontSize: 13, color: t.muted, lineHeight: 1.6 }}>
@@ -260,6 +284,54 @@ export function CourtBoundaryStep({ video, onComplete }) {
           );
         })()}
       </div>
+
+      {isUpload && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: t.surface2, borderRadius: 8, padding: '6px 10px',
+          }}>
+            <span style={{ fontSize: 11, color: t.muted, marginRight: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Scrub
+            </span>
+            {[
+              { label: '−1s',   d: -1 },
+              { label: '−0.1s', d: -0.1 },
+              { label: '+0.1s', d: 0.1 },
+              { label: '+1s',   d: 1 },
+            ].map(b => (
+              <button
+                key={b.label}
+                onClick={() => nudge(b.d)}
+                disabled={!duration}
+                style={{
+                  background: t.surface, border: `1px solid ${t.border}`,
+                  color: t.text, padding: '5px 10px', borderRadius: 5,
+                  fontSize: 12, fontWeight: 600, cursor: duration ? 'pointer' : 'not-allowed',
+                  opacity: duration ? 1 : 0.4,
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                {b.label}
+              </button>
+            ))}
+            <div style={{ marginLeft: 'auto', fontSize: 12, color: t.muted, fontFamily: "'JetBrains Mono', monospace" }}>
+              {fmtTime(currentTime)} / {fmtTime(duration)}
+            </div>
+          </div>
+          <Scrubber
+            duration={duration}
+            currentTime={currentTime}
+            loaded={0}
+            strokes={[]}
+            activeId={null}
+            onSelectStroke={() => {}}
+            strokeTimes={[]}
+            showPips={false}
+            onSeek={seekTo}
+          />
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 10 }}>
         <Btn
