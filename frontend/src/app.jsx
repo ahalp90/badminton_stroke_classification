@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ThemeProvider, useTheme, NavBar, ScreenErrorBoundary } from './shared';
+import { ThemeProvider, useTheme, ScreenErrorBoundary } from './shared';
+import { NavBar } from './components/NavBar';
 import { LibraryScreen } from './library-screen';
 import { MarkupScreen } from './markup-screen';
 import { ConfigureScreen } from './configure-screen';
