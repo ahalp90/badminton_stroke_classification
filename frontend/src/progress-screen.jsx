@@ -44,6 +44,9 @@ function buildMarkupPayload(task) {
   const boundary = Array.isArray(m.boundary) && m.boundary.length === 4
     ? m.boundary.map(p => ({ x: p.x, y: p.y }))
     : null;
+  // Intrinsic source resolution, so the backend can resolution-check the
+  // normalised boundary against the model input minimum.
+  const frameDims = m.frameDims && m.frameDims.w > 0 && m.frameDims.h > 0 ? m.frameDims : null;
   const fps = video?.fps && video.fps > 0 ? video.fps : 30;
 
   // Resolve the in-memory annotation list, with migration from the old
@@ -80,6 +83,8 @@ function buildMarkupPayload(task) {
     orientation: m.orientation || 'portrait',
     video_label: video?.filename || video?.match || null,
     boundary,
+    frame_width: frameDims?.w ?? null,
+    frame_height: frameDims?.h ?? null,
     annotations,
     enabled_sides: ['top', 'bottom'],
   };

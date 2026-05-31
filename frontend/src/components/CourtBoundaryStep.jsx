@@ -8,6 +8,10 @@ const W = 640;
 const H = 360;
 const LOUPE_SIZE = 130;
 const LOUPE_ZOOM = 4;
+// Minimum side length (px) the model pipeline needs from the cropped region:
+// X3D wants 224x224, pose needs comparable resolution. Mirrors the backend's
+// MIN_MODEL_INPUT_PX; below this we warn rather than silently degrade.
+const MIN_INPUT_PX = 224;
 const DEFAULT_CORNERS = [
   { x: 0.17, y: 0.30 },
   { x: 0.83, y: 0.30 },
@@ -33,6 +37,10 @@ export function CourtBoundaryStep({ video, onComplete }) {
   const [cursor, setCursor] = useState(null); // {x,y} in canvas coords while dragging
   const [confirmed, setConfirmed] = useState(false);
   const [sourceLabel, setSourceLabel] = useState('Reference frame · drag handles to align');
+  // Intrinsic source resolution, captured once the frame loads. Drives the
+  // low-resolution warning and is forwarded to the backend so it can run the
+  // same check on the normalised boundary.
+  const [srcDims, setSrcDims] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
     if (isUpload) {
@@ -40,6 +48,7 @@ export function CourtBoundaryStep({ video, onComplete }) {
       if (!vid) return;
       const onReady = () => {
         sourceRef.current = vid;
+        setSrcDims({ w: vid.videoWidth, h: vid.videoHeight });
         // Seek to a representative early frame (first frame can be black).
         try {
           const target = Math.min(0.5, (vid.duration || 1) / 2);
@@ -61,7 +70,11 @@ export function CourtBoundaryStep({ video, onComplete }) {
     if (!src) return;
     const img = new Image();
     img.src = src;
-    img.onload = () => { sourceRef.current = img; draw(); };
+    img.onload = () => {
+      sourceRef.current = img;
+      setSrcDims({ w: img.naturalWidth, h: img.naturalHeight });
+      draw();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [video?.youtubeId, video?.objectURL, isUpload]);
 
@@ -180,6 +193,14 @@ export function CourtBoundaryStep({ video, onComplete }) {
 
   const onMouseUp = () => { setDragging(null); setCursor(null); };
 
+  // Bounding box of the four corners scaled back to source pixels. Null until
+  // the source resolution is known; below MIN_INPUT_PX we warn (non-blocking).
+  const xs = pts.map(p => p.x);
+  const ys = pts.map(p => p.y);
+  const bboxW = srcDims.w ? Math.round((Math.max(...xs) - Math.min(...xs)) * srcDims.w) : null;
+  const bboxH = srcDims.h ? Math.round((Math.max(...ys) - Math.min(...ys)) * srcDims.h) : null;
+  const lowRes = bboxW !== null && bboxH !== null && (bboxW < MIN_INPUT_PX || bboxH < MIN_INPUT_PX);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <p style={{ fontSize: 13, color: t.muted, lineHeight: 1.6 }}>
@@ -261,6 +282,19 @@ export function CourtBoundaryStep({ video, onComplete }) {
         })()}
       </div>
 
+      {lowRes && (
+        <div style={{
+          fontSize: 12, color: t.warning ?? '#D97706', lineHeight: 1.5,
+          background: (t.warning ?? '#D97706') + '1A',
+          border: `1px solid ${(t.warning ?? '#D97706')}55`,
+          borderRadius: 6, padding: '8px 12px',
+        }}>
+          ⚠ The selected region is ~{bboxW}×{bboxH}px on a {srcDims.w}×{srcDims.h} frame,
+          below the {MIN_INPUT_PX}×{MIN_INPUT_PX}px model input minimum. You can still
+          proceed, but classification quality may degrade.
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 10 }}>
         <Btn
           variant="secondary"
@@ -273,7 +307,7 @@ export function CourtBoundaryStep({ video, onComplete }) {
         </Btn>
         {!confirmed
           ? <Btn onClick={() => setConfirmed(true)}>Confirm Boundary</Btn>
-          : <Btn onClick={() => onComplete(pts)}>Next: Set Timeframe →</Btn>
+          : <Btn onClick={() => onComplete(pts, srcDims)}>Next: Set Timeframe →</Btn>
         }
       </div>
     </div>
