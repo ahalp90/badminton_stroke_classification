@@ -133,11 +133,13 @@ def test_registry_bst_status_and_live_predictions():
     assert resp.status_code == 200
     models = {m["id"]: m for m in resp.json()["models"]}
 
-    bst = models["bst_x_v1_wipe_drop_s5"]
+    bst = models["bst_x_une_v1_14_v2"]
     assert bst["status"] == "available"
     # No scratch/bst_inputs in the test env => no live predictions, metrics still real.
     assert bst["live_predictions"] == {"test": False, "val": False}
-    assert bst["test_metrics"]["macro_f1"] == 0.7479
+    assert bst["test_metrics"]["macro_f1"] == 0.7514
+    # Val is read off the manifest (extra.val_at_best_macro_epoch), not a sidecar.
+    assert bst["val_metrics"]["macro_f1"] == 0.7774
 
 
 def test_registry_bric_status_and_live_predictions():
@@ -159,7 +161,7 @@ def test_list_clips_serves_live_predictions(monkeypatch):
             "predicted_class": "smash", "true_class": "smash", "confidence_pct": 88,
         },
     )
-    resp = client.get("/api/registry/bst_x_v1_wipe_drop_s5/splits/test/clips?limit=3")
+    resp = client.get("/api/registry/bst_x_une_v1_14_v2/splits/test/clips?limit=3")
     assert resp.status_code == 200
     body = resp.json()
     assert body["live"] is True
@@ -173,7 +175,7 @@ def test_list_clips_serves_live_predictions(monkeypatch):
 def test_list_clips_not_live_omits_predictions(monkeypatch):
     from src.api import registry as reg
     monkeypatch.setattr(reg, "_live_splits", lambda: set())
-    resp = client.get("/api/registry/bst_x_v1_wipe_drop_s5/splits/test/clips?limit=3")
+    resp = client.get("/api/registry/bst_x_une_v1_14_v2/splits/test/clips?limit=3")
     assert resp.status_code == 200
     body = resp.json()
     assert body["live"] is False

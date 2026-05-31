@@ -307,9 +307,9 @@ Tier 3 could take a while per clip. Depends on the deployment system. Could be h
 
 ## Confidence: what it means, how to render it
 
-`confidence_pct` is the model's calibrated probability for the top class, rounded to an integer between 0 and 100. I've done the work to make this number meaningful: "32% confident" actually means "across all clips where the model says about 32%, it's right about 32% of the time".
+`confidence_pct` is the model's softmax probability for the top class, rounded to an integer between 0 and 100. I checked that this number actually means something: "32% confident" roughly means "across all clips where the model says about 32%, it's right about 32% of the time". So you can treat it as a real confidence, not just a ranking.
 
-*Aside, for the curious:* the model's raw output uses a `softmax` equation that exaggerates differences. The exaggeration helps it train faster. After training I apply something fancier (a literature-grounded post-hoc calibration) to flatten the over-confidence into an honest read. You don't need the maths to consume the API. The calibrated number is what comes back in `confidence_pct`.
+*Aside, for the curious:* neural nets often run over-confident, so I checked whether this one needed a post-hoc fix to flatten it out. It doesn't: straight off the raw softmax, the numbers already line up with how often the model is right. So `confidence_pct` is the plain softmax, no extra step. You don't need any of this to consume the API.
 
 ### Why the headline number can look low
 
@@ -341,7 +341,7 @@ When the model dropdown changes:
 
 - **`class_list` changes.** Based on what the model outputs, you'll want to re-render any panel that shows class names (per-class stats, clip browser filters, the bar chart labels).
 - **Clip pool changes.** You'll want to re-fetch `/api/registry/{model_id}/splits/{split}/clips`. A given clip might appear in val for one model and test for another, depending on how that model was trained. The active model decides.
-- **Confidences re-scale.** The calibration is per-model. Same clip, two models, different confidence numbers.
+- **Confidences differ per model.** Each model has its own softmax, so the same clip can show a different confidence number under a different model.
 
 You never need to know taxonomy details. I think it's easiest just to read `class_list` from the registry response and render against it.
 

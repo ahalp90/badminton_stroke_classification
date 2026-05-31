@@ -53,6 +53,20 @@ def _read_json_under_run(manifest_rel_path: str, *relparts: str) -> dict:
         return json.load(f)
 
 
+# FE sidecar JSONs (clip_index, {split}.json, perclass_stats_{split}.json) live
+# in a different subdir per architecture: BST-X parks them under the run's
+# `fe_jsons/` dir (the taxon_pinned_w_preds refactor), BRIC writes `predictions/`
+# directly under the run dir. Resolve the subdir off the entry's architecture so
+# the readers below stay arch-agnostic.
+_SIDECAR_SUBDIR = {"bst-x": "fe_jsons", "bric": "predictions"}
+
+
+def _sidecar_path(entry: dict, *relparts: str) -> tuple:
+    """Prefix `relparts` with the sidecar subdir for this entry's architecture."""
+    sub = _SIDECAR_SUBDIR.get(entry.get("architecture", "bst-x"), "predictions")
+    return (sub, *relparts)
+
+
 def _live_splits() -> set[str]:
     """Splits where live BST inference is available. Guarded so a torch-less
     or inference-less deploy degrades to no live predictions — metrics still
@@ -117,23 +131,24 @@ def _summarise_model(entry: dict) -> dict:
     architecture = entry.get("architecture", "bst-x")
     # Metrics + status are arch-specific: BST-X reads per-serial manifest
     # metrics; BRIC reads its eval-summary sidecar. Class list is unified below.
+    # Val rides in the BST-X manifest per serial under
+    # extra.val_at_best_macro_epoch, aggregates backfilled to match the test
+    # field set, so it reads off the manifest like test does — no second forward
+    # pass and no val_metrics.json sidecar. BRIC does not support val by design.
     if architecture == "bst-x":
-        test_metrics_raw = next(
-            (s.get("metrics", {}) for s in manifest.get("serials", [])
+        serial = next(
+            (s for s in manifest.get("serials", [])
              if s.get("serial_no") == entry["serial_no"]),
             {},
         )
+        test_metrics_raw = serial.get("metrics", {})
+        val_metrics_raw = serial.get("extra", {}).get("val_at_best_macro_epoch", {})
         status = "available" if manifest.get("serials") else "pending"
     else:
         test_summary = _read_json_under_run(entry["manifest_path"], "eval/test_summary.json")
         test_metrics_raw = test_summary.get("metrics", {})
+        val_metrics_raw = {}
         status = "available" if test_metrics_raw else "pending"
-    # val_metrics.json is produced by scripts/compute_val_metrics.py, which
-    # runs the same checkpoint over /app/bst_inputs/val. Missing file just
-    # means the script hasn't been run for this run dir yet — we fall back
-    # to {} and the FE shows its "No val metrics available" placeholder.
-    # BRIC does not support val metrics by design.
-    val_metrics_raw = _read_json_under_run(entry["manifest_path"], "val_metrics.json")
     class_list = _resolve_class_list(manifest)
     live = _live_splits() if architecture == "bst-x" and status == "available" else set()
     return {
@@ -164,7 +179,7 @@ def _summarise_model(entry: dict) -> dict:
     
 
 def _read_clip_index(entry: dict) -> dict:
-    raw = _read_json_under_run(entry["manifest_path"], "clip_index.json")
+    raw = _read_json_under_run(entry["manifest_path"], *_sidecar_path(entry, "clip_index.json"))
     if not raw:
         raise HTTPException(status_code=404, detail=f"No clip_index for {entry['id']}")
     return _unwrap_clip_index(raw)
@@ -185,7 +200,7 @@ def _build_stem_index() -> dict:
     first model's entry wins; subsequent models just fill any gaps."""
     out: dict[str, str] = {}
     for entry in _load_registry().get("models", []):
-        raw = _read_json_under_run(entry["manifest_path"], "clip_index.json")
+        raw = _read_json_under_run(entry["manifest_path"], *_sidecar_path(entry, "clip_index.json"))
         if not raw:
             continue
         for stem, meta in _unwrap_clip_index(raw).items():
@@ -196,7 +211,7 @@ def _build_stem_index() -> dict:
 
 
 def _read_predictions(entry: dict, split: str) -> dict:
-    preds = _read_json_under_run(entry["manifest_path"], "predictions", f"{split}.json")
+    preds = _read_json_under_run(entry["manifest_path"], *_sidecar_path(entry, f"{split}.json"))
     if not preds:
         raise HTTPException(status_code=404, detail=f"No predictions for {entry['id']} split={split}")
     return preds
@@ -234,7 +249,9 @@ def _summaries_for(preds: dict, clip_index: dict, split: str, live: bool) -> lis
     """Build all per-clip summaries for a split. When live, run a real forward
     pass per clip (current splits are ~28 clips, so inferring all then
     filtering/paginating is fine); clips that error are skipped, never faked."""
-    class_list = preds.get("active_class_list", [])
+    # Canonical `class_list` (post-refactor + BRIC sidecars), legacy
+    # `active_class_list` fallback (matches get_clip).
+    class_list = preds.get("class_list") or preds.get("active_class_list", [])
     out = []
     bst_inference = None
     if live:
@@ -269,7 +286,7 @@ def get_perclass_stats(model_id: str, split: str) -> dict:
     _validate_split(split)
     entry = _get_model_entry(model_id)
     stats = _read_json_under_run(
-        entry["manifest_path"], "predictions", f"perclass_stats_{split}.json"
+        entry["manifest_path"], *_sidecar_path(entry, f"perclass_stats_{split}.json")
     )
     if not stats:
         raise HTTPException(status_code=404, detail=f"No perclass_stats for {model_id} split={split}")

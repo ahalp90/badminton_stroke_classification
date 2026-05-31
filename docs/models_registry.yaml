@@ -2,40 +2,44 @@
 # Schema and consumer contract: ../scratch/frontend_integration_handoff.md  section 1.
 # Add a new entry when a run/serial graduates to user-facing status.
 #
-# Tier 1 (current): the backend reads `predictions/{split}.json` and friends
-# under the run dir, joined with `manifest.yaml` for headline metrics.
+# Tier 1 (current): the backend joins each entry's `manifest.yaml` (headline +
+# val metrics) with its FE sidecar JSONs. BST-X parks those under the run's
+# `fe_jsons/` dir (clip_index, {split}.json, perclass_stats_{split}.json); BRIC
+# uses `predictions/` + `eval/test_summary.json`. See src/api/registry.py.
 # Tier 2 (later): the same registry drives weight loading + npy lookup.
 #
-# `collated_dir` is relative to the BST_X_COLLATED_DATA_ROOT env var
-# (resolves to /scratch/comp320a/ on UNE HPC).
+# Provenance (collation_id, ablation_id) and the class list are read off each
+# entry's manifest `config` block, not duplicated here.
 # `temperature: 1.0` means no calibration applied yet (raw softmax).
 # Proper temperature-scaling fit is parked at section 6.5 of the long doc.
+#
+# Six taxon_pinned_w_preds BST-X cells were trained (taxonomies bst_12/18/24/25
+# and une_v1_14, across v2 + BST-baseline splits). We surface a single BST-X
+# card: une_v1_14 on the v2 split, the cell that matches BRIC's 14-class v2
+# footing for a like-for-like comparison. The other five runs stay on disk
+# under experiments/ and can be added here if we want them user-facing.
 
 models:
-  - id: bst_x_v1_wipe_drop_s5
-    display_name: "BST-X v1, wipe_drop run, serial 5 (current best)"
+  - id: bst_x_une_v1_14_v2
+    display_name: "BST-X, une_v1_14 (v2 split)"
     description: |
-      14-class no-sides taxonomy (une_merge_v1_nosides). Trained with
-      the augmentation framework v1 (p_flip=0.5, p_jitter=0.3) plus
-      adaptive focal loss. Macro F1 0.748, min F1 0.515 on held-out
-      test (serial 5).
+      14-class une_v1_14 taxonomy (bst_12 + wrist_smash + passive_drop),
+      taxon-pinned collation, v2 split. Macro F1 0.751, min F1 0.485,
+      accuracy 0.770 on held-out test (serial 3).
     architecture: bst-x
-    run_id: run_20260505_154907
-    serial_no: 5
-    taxonomy: une_merge_v1_nosides
+    run_id: run_20260531_005535_005154
+    serial_no: 3
+    taxonomy: une_v1_14
     split_column: split_v2
     drop_unknown: true
-    ablation_id: wipe_drop
     temperature: 1.0
-    manifest_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/manifest.yaml
-    weights_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt
-    collated_dir: ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop
+    num_classes: 14
+    manifest_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260531_005535_005154/manifest.yaml
+    weights_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260531_005535_005154/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_3.pt
 
-  # ── BRIC (R(2+1)D-18 RGB + fusion).  the fields below diverge from 
-  #    the BST schema — see the notes on each. 
-  #    The Tier 1 loader (src/api/registry.py) reads the BST
-  #    manifest shape, so this entry needs loader work before it serves.
-  
+  # ── BRIC (R(2+1)D-18 RGB + fusion). Diverges from the BST schema: its
+  #    provenance axis is `config.variant` (not collation/ablation), and it has
+  #    no val by design. The Tier 1 loader reads BRIC's eval/test_summary.json.
   - id: bric_rgb_shuttle_tcn_outgoing_only_v1
     display_name: "BRIC v1, rgb_shuttle_tcn_outgoing_only"
     description: |

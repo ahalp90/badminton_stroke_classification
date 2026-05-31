@@ -765,3 +765,134 @@ def test_pair_cap_none_matches_no_cap_path():
 
     assert torch.allclose(plain.alpha, none_cap.alpha, atol=1e-7)
     assert torch.allclose(plain.alpha, empty_cap.alpha, atol=1e-7)
+
+
+# ---------------------------------------------------------------------------
+# 9. Val-improvability gate: disabled-inert, config validation, seed/EMA/skip,
+#    plateau -> revert-to-exactly-1.0 + climber kept, gating window + one-sided.
+# ---------------------------------------------------------------------------
+
+def _gate_config(**overrides) -> dict:
+    """Small, fast gate config for the tests (short patience/warm-up so a few
+    epochs exercise the full ramp). Override any key per test."""
+    cfg = {
+        'val_f1_smoothing_factor': 0.5,
+        'improvement_margin': 0.02,
+        'patience_epochs': 3,
+        'min_epochs_before_gating': 5,
+        'revert_step_per_epoch': 0.5,
+        'stop_gating_after_fraction': 0.9,
+    }
+    cfg.update(overrides)
+    return cfg
+
+
+def test_gate_disabled_by_default_is_inert(class_names_3):
+    """No gate config: no gate buffers, val_gate_enabled False, and apply_val_gate
+    is a safe no-op that leaves the renormalised alpha untouched."""
+    loss = AdaptiveFocalLoss(n_classes=3, class_names=class_names_3, warm_up_epochs=0)
+    assert loss.val_gate_enabled is False
+    assert not hasattr(loss, 'gate_revert_fraction')
+    assert 'gate_revert_fraction' not in dict(loss.named_buffers())
+
+    loss.update_alpha(torch.tensor([0.2, 0.5, 0.9]))
+    alpha_before = loss.alpha.clone()
+    loss.apply_val_gate(torch.tensor([0.3, 0.6, 0.95]), torch.tensor([True, True, True]))
+    assert torch.equal(loss.alpha, alpha_before)
+
+
+def test_gate_config_validation(class_names_3):
+    """Enabled gate fails loud on missing n_epochs, out-of-range knobs, an empty
+    gating window, and min_epochs_before_gating below the focal warm-up."""
+    with pytest.raises(ValueError, match='n_epochs'):
+        AdaptiveFocalLoss(n_classes=3, class_names=class_names_3,
+                          val_improvability_gate=_gate_config())
+    with pytest.raises(ValueError, match='smoothing'):
+        AdaptiveFocalLoss(n_classes=3, class_names=class_names_3, n_epochs=20,
+                          val_improvability_gate=_gate_config(val_f1_smoothing_factor=1.0))
+    with pytest.raises(ValueError, match='patience'):
+        AdaptiveFocalLoss(n_classes=3, class_names=class_names_3, n_epochs=20,
+                          val_improvability_gate=_gate_config(patience_epochs=0))
+    with pytest.raises(ValueError, match='freeze'):  # freeze (=2) <= min (=5): empty window
+        AdaptiveFocalLoss(n_classes=3, class_names=class_names_3, n_epochs=4,
+                          val_improvability_gate=_gate_config(min_epochs_before_gating=5,
+                                                              stop_gating_after_fraction=0.5))
+    with pytest.raises(ValueError, match='warm_up_epochs'):
+        AdaptiveFocalLoss(n_classes=3, class_names=class_names_3, n_epochs=40, warm_up_epochs=10,
+                          val_improvability_gate=_gate_config(min_epochs_before_gating=5))
+
+
+def test_gate_seeds_then_emas_and_skips_absent(class_names_3):
+    """Smoothed val F1 seeds on the first reading and EMAs after; a class absent
+    from val (present False) is skipped, never seeded."""
+    loss = AdaptiveFocalLoss(
+        n_classes=3, class_names=class_names_3, warm_up_epochs=0, n_epochs=20,
+        val_improvability_gate=_gate_config(val_f1_smoothing_factor=0.5,
+                                            min_epochs_before_gating=0),
+    )
+    present = torch.tensor([True, True, False])         # class c never in val
+    loss.update_alpha(torch.tensor([0.5, 0.5, 0.5]))
+    loss.apply_val_gate(torch.tensor([0.4, 0.8, 0.0]), present)
+    assert loss.gate_smoothed_val_f1[0].item() == pytest.approx(0.4)     # seeded to first reading
+    assert loss.gate_smoothed_val_f1[1].item() == pytest.approx(0.8)
+    assert bool(loss.gate_val_f1_seeded[2]) is False                     # absent: never seeded
+    assert loss.gate_smoothed_val_f1[2].item() == 0.0
+
+    loss.update_alpha(torch.tensor([0.5, 0.5, 0.5]))
+    loss.apply_val_gate(torch.tensor([0.6, 0.8, 0.0]), present)
+    assert loss.gate_smoothed_val_f1[0].item() == pytest.approx(0.5)     # 0.5*0.4 + 0.5*0.6
+    assert bool(loss.gate_val_f1_seeded[2]) is False
+
+
+def test_gate_reverts_plateaued_to_exactly_one_and_keeps_climber(class_names_3):
+    """An over-allocated class held flat on val reverts to EXACTLY 1.0 at full
+    revert (no clawback through the renorm); a still-climbing over-allocated
+    class keeps its boost; mean alpha stays 1.0."""
+    loss = AdaptiveFocalLoss(
+        n_classes=3, class_names=class_names_3, warm_up_epochs=0, n_epochs=40,
+        val_improvability_gate=_gate_config(min_epochs_before_gating=2, patience_epochs=2,
+                                            revert_step_per_epoch=0.5),
+    )
+    present = torch.tensor([True, True, True])
+    for ep in range(1, 12):
+        loss.update_alpha(torch.tensor([0.30, 0.40, 0.95]))         # a, b over-allocated; c easy
+        val = torch.tensor([0.30, min(0.30 + 0.05 * ep, 0.90), 0.93])  # a flat, b climbing
+        loss.apply_val_gate(val, present)
+
+    assert loss.gate_revert_fraction[0].item() == pytest.approx(1.0)       # a fully reverted
+    assert loss.alpha[0].item() == pytest.approx(1.0, abs=1e-4)            # lands at exactly 1.0
+    assert loss.gate_revert_fraction[1].item() == 0.0                      # b never plateaued
+    assert loss.alpha[1].item() > 1.3                                      # b kept (gained) its boost
+    assert loss.alpha.mean().item() == pytest.approx(1.0)
+
+
+def test_gate_window_and_one_sided(class_names_3):
+    """No revert before min_epochs_before_gating; revert fraction frozen after
+    the freeze epoch; a below-mean class is never pulled even when flat."""
+    loss = AdaptiveFocalLoss(
+        n_classes=3, class_names=class_names_3, warm_up_epochs=0, n_epochs=10,
+        val_improvability_gate=_gate_config(min_epochs_before_gating=3, patience_epochs=1,
+                                            revert_step_per_epoch=1.0,
+                                            stop_gating_after_fraction=0.7),  # freeze epoch = 7
+    )
+    present = torch.tensor([True, True, True])
+    flat_val = torch.tensor([0.30, 0.30, 0.95])    # a, b over-allocated + flat; c easy + flat
+
+    for _ in range(1, 4):                          # epochs 1-3: window (3 < epoch < 7) not open
+        loss.update_alpha(torch.tensor([0.30, 0.30, 0.95]))
+        loss.apply_val_gate(flat_val, present)
+    assert loss.gate_revert_fraction.sum().item() == 0.0
+
+    for _ in range(4, 7):                          # epochs 4-6: gating active
+        loss.update_alpha(torch.tensor([0.30, 0.30, 0.95]))
+        loss.apply_val_gate(flat_val, present)
+    assert loss.gate_revert_fraction[0].item() == pytest.approx(1.0)
+    # Easy class below the mean is never pulled (revert stays 0); here it's the
+    # sole non-pulled class, so it legitimately absorbs all the freed budget.
+    assert loss.gate_revert_fraction[2].item() == 0.0
+    revert_at_freeze = loss.gate_revert_fraction.clone()
+
+    for _ in range(7, 10):                         # epochs 7-9: frozen, revert fraction holds
+        loss.update_alpha(torch.tensor([0.30, 0.30, 0.95]))
+        loss.apply_val_gate(flat_val, present)
+    assert torch.equal(loss.gate_revert_fraction, revert_at_freeze)

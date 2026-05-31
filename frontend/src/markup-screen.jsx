@@ -19,6 +19,9 @@ export function MarkupScreen({ video, onNext, onBack }) {
   const { t } = useTheme();
   const [step, setStep] = useState(0);
   const [boundary, setBoundary] = useState(null);
+  // Intrinsic source resolution from the boundary step, forwarded so the
+  // backend can resolution-check the normalised boundary.
+  const [frameDims, setFrameDims] = useState(null);
 
   // Tier 3 contract: backend wants `corners` (4 normalised xy points) plus
   // an `orientation` flag. Click order doesn't matter — backend re-sorts.
@@ -28,13 +31,14 @@ export function MarkupScreen({ video, onNext, onBack }) {
   const buildMarkupPayload = (out) => ({
     video,
     boundary,
+    frameDims,
     orientation: ORIENTATION,
     annotations: out.annotations,
     playerSide: out.playerSide,
   });
 
   const content = [
-    <CourtBoundaryStep video={video} onComplete={pts => { setBoundary(pts); setStep(1); }} />,
+    <CourtBoundaryStep video={video} onComplete={(pts, dims) => { setBoundary(pts); setFrameDims(dims); setStep(1); }} />,
     <TimeframeStep video={video} onComplete={out => onNext(buildMarkupPayload(out))} />,
   ];
 

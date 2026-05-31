@@ -22,6 +22,11 @@ MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
 
+# Minimum side length (pixels) the model pipeline needs from a cropped region:
+# X3D wants 224x224, and pose estimation needs comparable resolution. Below this
+# we warn rather than silently feed a degraded crop. Env-overridable.
+MIN_MODEL_INPUT_PX = int(os.getenv("MIN_MODEL_INPUT_PX", "224"))
+
 EXPERIMENTS_DIR = Path(
     os.getenv(
         "EXPERIMENTS_DIR",

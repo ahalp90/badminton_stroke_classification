@@ -755,3 +755,87 @@ Park status: design is complete, prompt is satisfied, ready to
 re-enter when class-weighting + manually-alpha focal cells have
 landed. No `bst_train.py` edits made yet (per the user's "docs only"
 instruction in the design pass).
+
+---
+
+## 9. Val-improvability gate (added 2026-05-31)
+
+This section post-dates the original design pass above. The loss was built and run, and a six-cell arc analysis (`scratch/architecture_notes/alpha_arc_analysis/`) confirmed, at scale and across taxonomies, the failure mode §8 anticipated under "Train F1 vs val F1 drift". The val-improvability gate is the fix. It's off by default; a terser, decision-focused version of this writeup is in `hp_and_aug_speculations_30_05_2026.md` Q4.
+
+### The problem, in plain English
+
+The per-class alpha is driven by **train** F1, and train F1 turns out to be a poor proxy for whether a class can still improve where it counts (on val). Two things go wrong, both late in training:
+
+- A tiny class **memorises** its handful of train clips: train F1 climbs while val F1 sits flat at the floor. driven_flight (42 clips) is the clean example, +0.24 train F1 across the back half of the run against 0.00 val the whole way.
+- A confusable class **overfits**: train F1 keeps creeping up while val plateaus. wrist_smash and the drive/push pair do this.
+
+Because the multipliers renormalise to mean 1.0, the budget is zero-sum. As the easy classes saturate their train F1 and release their share, the renorm pours it onto whatever has the worst *train* F1, which is exactly these plateaued/memorising classes. So the back half of every run spends its budget concentrating weight on classes that don't move on val, while macro sits flat. The numbers: across all six cells, 53-84% of the above-mean alpha budget ends up on classes that had already stopped improving on val by the time macro plateaued.
+
+### What the gate does, in plain English
+
+Watch each class's **val** F1. Once a class has stopped improving on val, decay its multiplier back down toward the mean of 1.0 and hand the freed budget to the classes still climbing. A class still gaining on val keeps its full multiplier; a plateaued one gives its surplus back. Same idea as early stopping or ReduceLROnPlateau, applied per class to the multiplier rather than to the whole run or the learning rate.
+
+### Why a val signal, and why best-so-far rather than a slope
+
+The thing we want to detect, "still fitting train but no longer generalising", is the train-val gap widening, and you can't measure a generalisation gap without held-out data. A train-only proxy can't work, because on exactly these classes train F1 keeps rising; the overfitting is the problem. Two things we did not use:
+
+- **The train-val gap as the trigger.** A positive gap is also just train leading val (normal for any class early on), so gating on it conflates "overfit and stalled" with "overfit but val still climbing" and would punish a class that's still gaining. The gate keys on val improvement directly instead.
+- **A val-F1 slope.** The slowest legitimate climber, cross_court_net_shot, gains ~0.001/epoch against a per-epoch val bounce of ±0.02-0.05, so a slope estimate needs ~30-40 epochs to clear that noise and would wrongly decay it. The gate instead tracks whether the *smoothed* val F1 set a new best (by a margin) within a patience window. Its failure mode is the safe one: a noise-high only delays a decay, it never wrongly triggers one.
+
+### The mechanism
+
+Once per epoch, after validation:
+
+```
+smoothed_val_f1[c] = ema(smoothed_val_f1[c], val_f1[c])    # seed on first reading
+if smoothed_val_f1[c] beats its running best by `margin`:  reset patience
+else:                                                      patience[c] += 1
+if patience[c] >= patience_epochs and class c is over-allocated (alpha > 1):
+    revert_fraction[c] ramps up      # toward fully reverting
+else:
+    revert_fraction[c] ramps down    # recovery
+# pull each over-allocated class toward 1.0 by its revert fraction,
+# then give the freed budget only to the classes NOT pulled this epoch
+```
+
+Three properties matter:
+
+- **One-sided.** Only classes above the mean (over-allocated) are pulled down; a saturated below-mean class is left alone.
+- **No clawback.** A fully-reverted class lands at exactly 1.0 (mean weight, trained normally, not abandoned). The freed budget goes only to the classes that weren't pulled, never back to the de-prioritised class through the renorm.
+- **Recoverable.** The revert ramps gradually and ramps back the moment a class sets a new val high, so a slow climber briefly mistaken for plateaued recovers on its own.
+
+### Why the patience and window defaults
+
+- **Patience is pinned by the slowest real climber.** cross_court clears the margin only every ~15-20 epochs, so patience has to sit above that or it gets decayed between its legitimate new highs. Default patience 15, margin 0.015, smoothing 0.9 (the same ~6.6-epoch half-life as the F1 EMA in §3).
+- **Don't gate too early.** No decay before epoch 10, so the early adaptive boost that gets the rare classes off the ground is left intact. Enforced to be at least the focal warm-up.
+- **Freeze in the anneal tail.** The arc analysis found the last stretch of training does real work for exactly the worst classes: as the cosine LR goes to 0, defensive_return_drive and wrist_smash gain +0.05-0.06 in the final ~12 epochs on shuttleset_18. So the gate freezes past 0.75 of the run rather than the run being cut, leaving those late blooms alone. Revert step 0.2 (a tripped class fully reverts over 5 epochs).
+
+### Methodology note
+
+This drives a training hyperparameter (the per-class multiplier) off a val statistic, the same family as ReduceLROnPlateau (LR off val loss) and early stopping (halt off val). It's also closer to CDB's *original* difficulty signal: the published CDB used held-out accuracy, and §1's swap to train F1 is what introduced the gap-blindness this gate corrects. It is not training on val labels, and test stays held out, so the reported number stays honest; the one real cost is that val becomes a slightly less independent early-stopping signal. Disclose the val-gating in any writeup.
+
+### Config and turning it on
+
+Off by default. The knobs live in a `val_improvability_gate` dict in the `Hyp` block, visible even when disabled:
+
+```
+use_val_improvability_gate=False,
+val_improvability_gate={
+    'val_f1_smoothing_factor': 0.9,
+    'improvement_margin': 0.015,
+    'patience_epochs': 15,
+    'min_epochs_before_gating': 10,
+    'revert_step_per_epoch': 0.2,
+    'stop_gating_after_fraction': 0.75,
+}
+```
+
+Turn it on with `use_val_improvability_gate=True`, `--val-improvability-gate` on the bst_train CLI, or `use_val_improvability_gate: true` on a `collation_runner` cell. It requires adaptive_focal (it modulates that alpha; bst_train raises if the gate is on with plain CE). TensorBoard logs `Revert/{c}` per class so the gate's action is visible, and `Alpha/{c}` shows the gated multiplier.
+
+### Honest ceiling
+
+Even a perfect gate buys a point or two of macro. The classes it feeds (the still-climbing mid-tier) are themselves mostly half-plateaued, driven_flight stays at 0 (42 clips, unrecoverable by reweighting), and wrist_smash stays confusable. The levers that move those are the inputs (the planned X3D wrist crop) and the taxonomy merge, not a loss knob. The gate tidies the budget around that ceiling; it doesn't lift it.
+
+### Status
+
+Built 2026-05-31 (`apply_val_gate` in this module plus the wiring in `bst_train.py` and the `collation_runner` forward). Off by default, not yet run. Unit tests in `tests/test_adaptive_focal.py` section 9; two independent reviews passed. Full analysis, tables and figures in `scratch/architecture_notes/alpha_arc_analysis/`.

@@ -18,7 +18,11 @@ export function toModelCard(entry) {
   return {
     id:       entry.id,
     name:     entry.display_name,
-    subtitle: `${entry.taxonomy} · ${entry.ablation_id}`,
+    // Provenance subtitle from whatever the entry actually carries. ablation_id
+    // is null for non-ablation runs (and for BRIC), so filter falsy parts out
+    // rather than rendering "taxonomy · null". split is included so models that
+    // differ only by split (e.g. the two bst_24 cells) stay distinguishable.
+    subtitle: [entry.taxonomy, entry.split_column, entry.ablation_id].filter(Boolean).join(' · '),
     tags: [
       { label: ARCH_LABELS[arch] ?? arch.toUpperCase(), color: 'blue' },
       { label: entry.taxonomy,                   color: 'pine' },

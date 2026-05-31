@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme, Btn } from '../shared';
+import { fmtTime } from '../utils/format';
+import { Scrubber } from './Scrubber';
 
 const frameModules = import.meta.glob('../data/frames/*.jpg', { eager: true, import: 'default' });
 const frameUrl = (id) => frameModules[`../data/frames/${id}.jpg`];
@@ -8,6 +10,10 @@ const W = 640;
 const H = 360;
 const LOUPE_SIZE = 130;
 const LOUPE_ZOOM = 4;
+// Minimum side length (px) the model pipeline needs from the cropped region:
+// X3D wants 224x224, pose needs comparable resolution. Mirrors the backend's
+// MIN_MODEL_INPUT_PX; below this we warn rather than silently degrade.
+const MIN_INPUT_PX = 224;
 const DEFAULT_CORNERS = [
   { x: 0.17, y: 0.30 },
   { x: 0.83, y: 0.30 },
@@ -33,6 +39,14 @@ export function CourtBoundaryStep({ video, onComplete }) {
   const [cursor, setCursor] = useState(null); // {x,y} in canvas coords while dragging
   const [confirmed, setConfirmed] = useState(false);
   const [sourceLabel, setSourceLabel] = useState('Reference frame · drag handles to align');
+  // Intrinsic source resolution, captured once the frame loads. Drives the
+  // low-resolution warning and is forwarded to the backend so it can run the
+  // same check on the normalised boundary.
+  const [srcDims, setSrcDims] = useState({ w: 0, h: 0 });
+  // Scrubbing state (uploads only): lets the user seek to a frame where the
+  // court boundary is clearly visible before aligning the quadrilateral.
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
 
   useEffect(() => {
     if (isUpload) {
@@ -40,15 +54,18 @@ export function CourtBoundaryStep({ video, onComplete }) {
       if (!vid) return;
       const onReady = () => {
         sourceRef.current = vid;
+        setSrcDims({ w: vid.videoWidth, h: vid.videoHeight });
+        setDuration(vid.duration || 0);
         // Seek to a representative early frame (first frame can be black).
         try {
           const target = Math.min(0.5, (vid.duration || 1) / 2);
           if (Math.abs(vid.currentTime - target) > 0.01) vid.currentTime = target;
         } catch { /* noop */ }
+        setCurrentTime(vid.currentTime);
         setSourceLabel(`Uploaded frame · ${video.filename || 'video'}`);
         draw();
       };
-      const onSeeked = () => draw();
+      const onSeeked = () => { setCurrentTime(vid.currentTime); draw(); };
       if (vid.readyState >= 2) onReady();
       else vid.addEventListener('loadeddata', onReady, { once: true });
       vid.addEventListener('seeked', onSeeked);
@@ -61,7 +78,11 @@ export function CourtBoundaryStep({ video, onComplete }) {
     if (!src) return;
     const img = new Image();
     img.src = src;
-    img.onload = () => { sourceRef.current = img; draw(); };
+    img.onload = () => {
+      sourceRef.current = img;
+      setSrcDims({ w: img.naturalWidth, h: img.naturalHeight });
+      draw();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [video?.youtubeId, video?.objectURL, isUpload]);
 
@@ -180,11 +201,35 @@ export function CourtBoundaryStep({ video, onComplete }) {
 
   const onMouseUp = () => { setDragging(null); setCursor(null); };
 
+  // Seek the hidden video to an absolute time (seconds). The 'seeked' listener
+  // installed above redraws the canvas and syncs currentTime once the frame is ready.
+  const seekTo = (s) => {
+    const vid = hiddenVideoRef.current;
+    if (!vid || !duration) return;
+    const clamped = Math.max(0, Math.min(duration, s));
+    setCurrentTime(clamped);
+    try { vid.currentTime = clamped; } catch { /* noop */ }
+  };
+
+  const nudge = (delta) => {
+    const vid = hiddenVideoRef.current;
+    if (!vid) return;
+    seekTo(vid.currentTime + delta);
+  };
+
+  // Bounding box of the four corners scaled back to source pixels. Null until
+  // the source resolution is known; below MIN_INPUT_PX we warn (non-blocking).
+  const xs = pts.map(p => p.x);
+  const ys = pts.map(p => p.y);
+  const bboxW = srcDims.w ? Math.round((Math.max(...xs) - Math.min(...xs)) * srcDims.w) : null;
+  const bboxH = srcDims.h ? Math.round((Math.max(...ys) - Math.min(...ys)) * srcDims.h) : null;
+  const lowRes = bboxW !== null && bboxH !== null && (bboxW < MIN_INPUT_PX || bboxH < MIN_INPUT_PX);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <p style={{ fontSize: 13, color: t.muted, lineHeight: 1.6 }}>
-        Drag the <span style={{ color: t.blue, fontWeight: 600 }}>four corner handles</span> to 
-        align the quadrilateral with the court boundary edges. This homography transform 
+        Drag the <span style={{ color: t.blue, fontWeight: 600 }}>four corner handles</span> to
+        align the quadrilateral with the court boundary edges. This homography transform
         normalises inputs across varied camera angles.
       </p>
 
@@ -261,6 +306,67 @@ export function CourtBoundaryStep({ video, onComplete }) {
         })()}
       </div>
 
+      {isUpload && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: t.surface2, borderRadius: 8, padding: '6px 10px',
+          }}>
+            <span style={{ fontSize: 11, color: t.muted, marginRight: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Scrub
+            </span>
+            {[
+              { label: '−1s',   d: -1 },
+              { label: '−0.1s', d: -0.1 },
+              { label: '+0.1s', d: 0.1 },
+              { label: '+1s',   d: 1 },
+            ].map(b => (
+              <button
+                key={b.label}
+                onClick={() => nudge(b.d)}
+                disabled={!duration}
+                style={{
+                  background: t.surface, border: `1px solid ${t.border}`,
+                  color: t.text, padding: '5px 10px', borderRadius: 5,
+                  fontSize: 12, fontWeight: 600, cursor: duration ? 'pointer' : 'not-allowed',
+                  opacity: duration ? 1 : 0.4,
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                {b.label}
+              </button>
+            ))}
+            <div style={{ marginLeft: 'auto', fontSize: 12, color: t.muted, fontFamily: "'JetBrains Mono', monospace" }}>
+              {fmtTime(currentTime)} / {fmtTime(duration)}
+            </div>
+          </div>
+          <Scrubber
+            duration={duration}
+            currentTime={currentTime}
+            loaded={0}
+            strokes={[]}
+            activeId={null}
+            onSelectStroke={() => {}}
+            strokeTimes={[]}
+            showPips={false}
+            onSeek={seekTo}
+          />
+        </div>
+      )}
+
+      {lowRes && (
+        <div style={{
+          fontSize: 12, color: t.warning ?? '#D97706', lineHeight: 1.5,
+          background: (t.warning ?? '#D97706') + '1A',
+          border: `1px solid ${(t.warning ?? '#D97706')}55`,
+          borderRadius: 6, padding: '8px 12px',
+        }}>
+          ⚠ The selected region is ~{bboxW}×{bboxH}px on a {srcDims.w}×{srcDims.h} frame,
+          below the {MIN_INPUT_PX}×{MIN_INPUT_PX}px model input minimum. You can still
+          proceed, but classification quality may degrade.
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 10 }}>
         <Btn
           variant="secondary"
@@ -273,7 +379,7 @@ export function CourtBoundaryStep({ video, onComplete }) {
         </Btn>
         {!confirmed
           ? <Btn onClick={() => setConfirmed(true)}>Confirm Boundary</Btn>
-          : <Btn onClick={() => onComplete(pts)}>Next: Set Timeframe →</Btn>
+          : <Btn onClick={() => onComplete(pts, srcDims)}>Next: Set Timeframe →</Btn>
         }
       </div>
     </div>

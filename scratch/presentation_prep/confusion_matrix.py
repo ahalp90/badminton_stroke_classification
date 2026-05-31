@@ -33,6 +33,8 @@ RUN_LABELS: dict[str, str] = {
     "run_20260505_154907": "aug v1 + p_jit=0.3",
     "run_20260503_172922": "shuttle_zero_fix [wipe_drop]",
     "run_20260430_170325": "first nosides (Phase 2 LS=0.1)",
+    "run_20260530_225714_593038": "bst_24 baseline (drop unknown)",
+    "run_20260530_210600_435552": "bst_25 baseline (keep unknown)",
 }
 
 
@@ -94,7 +96,12 @@ def main():
                         help="Path to a predictions/<split>_serial_<n>.npz dumped by "
                              "bst_train (end-of-serial) or bst_infer --fe")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT_PATH)
+    parser.add_argument("--figsize", type=str, default="20,9",
+                        help="W,H in inches; bump for taxonomies with many classes (e.g. 28,13 for ~24)")
+    parser.add_argument("--font-size", type=int, default=9,
+                        help="tick and cell-annotation font size")
     args = parser.parse_args()
+    fig_w, fig_h = (float(v) for v in args.figsize.split(","))
 
     payload = np.load(args.predictions, allow_pickle=True)
     y_true = payload["y_true"]
@@ -123,7 +130,7 @@ def main():
     row_sums = cm_sorted.sum(axis=1, keepdims=True)
     recall_m = np.divide(cm_sorted, row_sums, out=np.zeros_like(cm_sorted), where=row_sums > 0)
 
-    fig, (ax_p, ax_r) = plt.subplots(1, 2, figsize=(20, 9))
+    fig, (ax_p, ax_r) = plt.subplots(1, 2, figsize=(fig_w, fig_h))
     common_name = RUN_LABELS.get(run_id)
     run_id_block = f"{common_name} ({run_id})" if common_name else run_id
     fig.suptitle(
@@ -135,11 +142,11 @@ def main():
     render_panel(fig, ax_p, precision_m, sorted_names,
                  "precision-normalised (cols sum to 1)",
                  "by prediction[col], truths were these:",
-                 primary_axis="x")
+                 primary_axis="x", font_size=args.font_size)
     render_panel(fig, ax_r, recall_m, sorted_names,
                  "recall-normalised (rows sum to 1)",
                  "by truth[row], predictions were these:",
-                 primary_axis="y")
+                 primary_axis="y", font_size=args.font_size)
 
     # rect reserves top strip for suptitle; without it, tight_layout overlaps suptitle
     # with the panel titles + italic subtitles.
