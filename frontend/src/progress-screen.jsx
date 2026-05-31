@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTheme, Btn, Card, Badge, SectionHeader } from './shared';
 
-/* ─── Progress Screen ────────────────────────────────────────────── */
+// ──── Constants ──────────────────────────────────────────────────────────────────────────────────
 const PIPELINE_STAGES = [
   { label: 'Preprocessing',      desc: 'Extracting frames · normalising court perspective' },
   { label: 'Feature Extraction', desc: 'Object detection · keypoint graphs · shuttle tracking' },
@@ -9,6 +9,8 @@ const PIPELINE_STAGES = [
   { label: 'Postprocessing',     desc: 'Aggregating results · computing evaluation metrics' },
 ];
 
+// Mock log events used by the fallback timer path only.
+// TODO: Remove along with mock path during clean-up once real pipeline is confirmed stable.
 const LOG_EVENTS = [
   { at:  0, msg: 'Job submitted — loading video segment…' },
   { at:  4, msg: 'Applying court boundary homography transform' },
@@ -24,19 +26,17 @@ const LOG_EVENTS = [
 
 // TODO: add second model (BRIC)
 
-/* ─── Markup payload builder ─────────────────────────────────────────
- * Translates the wizard's in-memory state into the schema documented in
- * docs/api_contract.md on feat/bric-pipeline. The backend validates this
- * via the Pydantic Markup model in src/api/main.py.
+// ──── Markup payload builder ─────────────────────────────────────────────────────────────────────
+/**
+ * Translates the wizard's in-memory state into the schema documented in docs/api_contract.md on 
+ * feat/bric-pipeline. The backend validates this via the Pydantic Markup model in src/api/main.py.
  *
- * Frames are derived as seconds × fps. Library matches carry an explicit
- * fps in matches.json; uploads fall back to 30 fps (the canned stub
- * echoes whatever we send anyway).
+ * Frames are derived as seconds × fps. Library matches carry an explicit fps in matches.json; 
+ * uploads fall back to 30 fps (the canned stub echoes whatever we send anyway).
  *
- * Markup state shape is the new multi-stroke form: `markup.annotations`
- * is a list of {id, startSec, targetSec, endSec}. A migration branch
- * below also handles the legacy single-stroke `markup.timeframe` shape
- * so in-flight sessions don't break across this change. */
+ * Markup state shape is the new multi-stroke form: `markup.annotations` is a list of 
+ * {id, startSec, targetSec, endSec}. A migration branch below also handles the legacy 
+ * single-stroke `markup.timeframe` shape so in-flight sessions don't break across this change. */
 function buildMarkupPayload(task) {
   const m = task?.markup;
   if (!m) return null;
@@ -57,9 +57,8 @@ function buildMarkupPayload(task) {
   const playerSide = m.playerSide
     ?? (m.player === 1 ? 'top' : m.player === 2 ? 'bottom' : null);
 
-  // Drop any half-set stroke before sending — the FE guards against this
-  // at the Confirm Timeframe button, but the migration path can produce
-  // half-set entries from old persisted state.
+  // Drop any half-set stroke before sending — frontend guards against this at the Confirm Timeframe 
+  // button, but the migration path can produce half-set entries from old persisted state.
   const annotations = strokes
     .filter(a =>
       a && a.startSec != null && a.targetSec != null && a.endSec != null
@@ -72,7 +71,7 @@ function buildMarkupPayload(task) {
     }));
 
   // Pick the first enabled model from Configure as the explicit choice;
-  // architecture defaults to 'bst' (the only one in registry today).
+  // architecture defaults to 'bst'.
   const enabledModel = (task?.models || []).find(mm => task?.enabled?.[mm.id]) || null;
   return {
     architecture: 'bst',
@@ -85,13 +84,30 @@ function buildMarkupPayload(task) {
   };
 }
 
+// ──── Component ──────────────────────────────────────────────────────────────────────────────────
+/**
+ * Step 4 of the wizard: submits the job and polls for completion.
+ * 
+ * Two execution paths:
+ *   Real path  — fires when task has a valid video source (upload or library).
+ *                POSTs to /api/upload or /api/library_predict, polls /api/status,
+ *                fetches /api/results, then calls onComplete(result).
+ *   Mock path  — fires when realRun is false (task null/malformed).
+ *                Drives progress via a synthetic timer. Should not fire in
+ *                normal use now that DEV_FIXTURES are removed.
+ *                TODO: Remove during clean-up once real pipeline is confirmed stable.
+ */
 export function ProgressScreen({ task, onComplete }) {
   const { t } = useTheme();
+
+  // ──── Derived run type ─────────────────────────────────────────────────────────────────────────
   const file = task?.markup?.video?.file ?? null;
   const videoSource = task?.markup?.video?.source ?? null;
   const isUploadRun = !!file && videoSource === 'upload';
   const isLibraryRun = !file && videoSource === 'library';
   const realRun = isUploadRun || isLibraryRun;
+
+  // ──── State ────────────────────────────────────────────────────────────────────────────────────
   const [pct,    setPct]    = useState(0);
   const [stage,  setStage]  = useState(0);
   const [log,    setLog]    = useState([]);
@@ -105,11 +121,11 @@ export function ProgressScreen({ task, onComplete }) {
     time: new Date().toLocaleTimeString('en-AU', {hour12: false}),
   }]);
 
-  // ── Real path: drive progress from /api/upload (or /api/library_predict)
-  // + /api/status + /api/results. The two submission shapes differ but
-  // share the same job-poll lifecycle, so most of this effect is shared.
+  // ──── Real path ────────────────────────────────────────────────────────────────────────────────
+  // Drives progress from /api/upload (or /api/library_predict) + /api/status + /api/results. 
+  // The two submission shapes differ but share the same job-poll lifecycle, so most of this effect 
+  // is shared.
   useEffect(() => {
-
     if (!realRun) return;
     let aborted = false;
     let pollId = null;
@@ -125,11 +141,10 @@ export function ProgressScreen({ task, onComplete }) {
         let upRes;
         if (isUploadRun) {
           appendLog(`Uploading ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)…`);
-          // The query-param `model` is the *backend execution* model and
-          // must be in _available_models() (.pt stems + "default"). The
-          // registry-level model_id is conceptually different and rides
-          // inside the markup JSON sidecar — see Gap 1. Always use
-          // "default" here; if the FE later needs to pick a specific
+          // The query-param `model` is the *backend execution* model and must be in 
+          // _available_models() (.pt stems + "default"). The registry-level model_id is 
+          // conceptually different and rides inside the markup JSON sidecar — see Gap 1. 
+          // Always use "default" here; if the frontend later needs to pick a specific
           // checkpoint, gate it on _available_models output.
           const params = new URLSearchParams({ model: 'default' });
           // Trim the upload to the bounding span across every marked stroke.
@@ -148,8 +163,8 @@ export function ProgressScreen({ task, onComplete }) {
           if (ends.length && Math.max(...ends) > (starts.length ? Math.min(...starts) : 0)) {
             params.set('end_sec', String(Math.max(...ends)));
           }
-          // XHR rather than fetch so we get upload-progress events for the
-          // visible byte-flow phase (fetch doesn't surface them).
+          // XHR rather than fetch - needed for upload-progress events for the
+          // visible byte-flow phase (fetch does not surface them).
           upRes = await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', `/api/upload?${params.toString()}`);
@@ -179,9 +194,8 @@ export function ProgressScreen({ task, onComplete }) {
             xhr.send(fd);
           });
         } else {
-          // Library-match path: POST JSON to /api/library_predict. No
-          // upload bytes, so we jump straight to the queued/processing
-          // phase. The clip_stem is the library entry's id; the canned
+          // Library-match path: POST JSON to /api/library_predict. No upload bytes - jump straight 
+          // to the queued/processing phase. The clip_stem is the library entry's id; the canned
           // backend stub doesn't read the video itself.
           appendLog(`Submitting library clip "${task?.markup?.video?.match || 'clip'}" for inference…`);
           setPct(20);
@@ -206,6 +220,7 @@ export function ProgressScreen({ task, onComplete }) {
             appendLog(`Markup sidecar: ${markupPayload.boundary ? '4 corners' : 'no boundary'}, ${markupPayload.annotations.length} annotation(s)`);
           }
         }
+
         if (aborted) return;
         appendLog(`Upload accepted · job ${upRes.job_id.slice(0, 8)}`);
         setStage(1);
@@ -274,11 +289,13 @@ export function ProgressScreen({ task, onComplete }) {
       aborted = true;
       if (pollId) clearInterval(pollId);
     };
-  }, [realRun, retryNonce]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [realRun, retryNonce]); // task and onComplete intentionally omitted, effect must not re-run mid-job
 
-  // ── Mock-timer path: library matches with no real file. Untouched
-  // behaviour from before — keeps the demo wizard working when nothing is
-  // uploaded (e.g. user picks from Match Library and walks the wizard).
+  // ──── Mock path ────────────────────────────────────────────────────────────────────────────────
+  // Fallback timer path for when realRun is false. Should not fire in normal use now that 
+  // DEV_FIXTURES are removed - kept as a safety net. 
+  // TODO: Remove during clean-up once real pipeline is confirmed stable.
   useEffect(() => {
     if (realRun) return;
     let current = 0;
@@ -303,12 +320,15 @@ export function ProgressScreen({ task, onComplete }) {
       }
     }, 280);
     return () => clearInterval(iv);
-  }, [realRun]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realRun]); // onComplete intentionally omitted - effect must not re-run mid-job
 
+  // ──── Auto-scroll log ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [log]);
 
+  // ──── Render ───────────────────────────────────────────────────────────────────────────────────
   const done = pct >= 100 && !error;
 
   return (
@@ -334,6 +354,7 @@ export function ProgressScreen({ task, onComplete }) {
         </Card>
       )}
 
+      {/* ── Progress bar ── */}
       <Card style={{ padding: 26, marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div>
@@ -361,6 +382,7 @@ export function ProgressScreen({ task, onComplete }) {
         )}
       </Card>
 
+      {/* ── Pipeline stages ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
         <Card style={{ padding: 20 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
@@ -394,6 +416,7 @@ export function ProgressScreen({ task, onComplete }) {
           </div>
         </Card>
 
+        {/* ── Activity log ── */}
         <Card style={{ padding: 20, display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
             Activity Log
@@ -418,14 +441,14 @@ export function ProgressScreen({ task, onComplete }) {
           </div>
         </Card>
 
+        {/* ── Per-model progress bars ── */}
         {(task?.models || []).filter(m => task?.enabled?.[m.id]).map((m, i) => {
           // Model inference sits in stage 2 (52-80% of overall pipeline pct).
-          // Per-model progress is synthetic — the backend status is global —
-          // so stagger only the START to keep multi-model jobs visually
-          // distinct, but have every enabled model COMPLETE together at the
-          // end of the inference phase. Anchoring `complete` to the overall
-          // `done` flag guarantees no model bar is ever left blue/Running once
-          // the run has finished (and stops the i=0 model lagging the rest).
+          // Per-model progress is synthetic — the backend status is global — so stagger only the 
+          // START to keep multi-model jobs visually distinct, but have every enabled model COMPLETE
+          // together at the end of the inference phase. Anchoring `complete` to the overall `done` 
+          // flag guarantees no model bar is ever left blue/Running once the run has finished (and
+          // stops the i=0 model lagging the rest).
           const completeAt = 78;
           const startAt    = Math.min(52 + i * 4, completeAt - 4);
           const span       = Math.max(1, completeAt - startAt);
