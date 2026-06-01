@@ -15,6 +15,16 @@ REGISTRY_PATH = Path(
 _clips_dir = os.getenv("BST_CLIPS_DIR")
 BST_CLIPS_DIR: Path | None = Path(_clips_dir) if _clips_dir else None
 
+# Optional: a flat, stem-keyed directory of sample clips for the Model Results
+# per-clip player — files are named "<clip_stem>.mp4" directly (e.g.
+# clips_local/24_3_8_2.mp4). Lets you play a handful of real clips locally
+# without recreating the full ShuttleSet tree or setting BST_CLIPS_DIR, and is
+# keyed by the stable clip_stem rather than clip_index's placeholder
+# video_path. Defaults to <repo>/clips_local; its contents are gitignored.
+LOCAL_CLIPS_DIR = Path(
+    os.getenv("BST_LOCAL_CLIPS_DIR", str(REPO_ROOT / "clips_local"))
+)
+
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/app/uploads"))
 
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "1024"))
