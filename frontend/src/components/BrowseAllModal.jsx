@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useTheme } from '../shared';
 import { MyUploadsList } from './upload/MyUploadsList';
+import { useStoredUploads } from '../utils/uploadStorage';
 
 /** Single match row in the browse modal. Highlights on hover. */
 function MatchRow({ video, onSelect }) {
@@ -41,6 +42,7 @@ function MatchRow({ video, onSelect }) {
 export function BrowseAllModal({ items, onSelect, onClose }) {
   const { t } = useTheme();
   const [query, setQuery] = useState('');
+  const uploads = useStoredUploads();
 
   // ──── Search filter ────────────────────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -95,7 +97,7 @@ export function BrowseAllModal({ items, onSelect, onClose }) {
             fontSize: 11, color: t.muted,
             textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600,
           }}>
-            My Uploads
+            My Uploads ({uploads.length})
           </div>
           <MyUploadsList onSelect={onSelect} />
 
