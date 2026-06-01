@@ -1,0 +1,162 @@
+# Two ablation families in one session. SET 1 (gate off) extends the une-only
+# AdamW wd sweep to its two endpoints (1e-2, 4e-1) across the five other
+# taxonomy/splits (une itself is already swept, see below).
+# SET 2 (gate on) crosses the same two endpoints with the val-improvability gate
+# -- the focal_alpha_revert_overallocated arm -- on three priority taxonomies.
+# norm/bias/embeddings stay out of decay throughout (now the bst_train default,
+# so it rides every cell); 1e-2 is the in-sweep baseline value, 4e-1 the min-F1
+# endpoint that cleared 0.5 for wrist_smash on une. collation_id is shared;
+# split_column folds into the on-disk dir name to keep the two bst_24 cells apart.
+#
+# une, since it's not obvious from the commit history: SET 1 skips it -- the prior
+# wd sweep already covered une gate-off at both endpoints with this same
+# exclusion (run_20260531_201350 @ 1e-2, run_20260601_021234 @ 4e-1). SET 2 keeps
+# its une cells though: the earlier gate-on une run (run_20260601_023543) trained
+# on the live checkout at 91867ab, which predates the decay exclusion, while the
+# wd sweep ran the exclusion from a worktree. So a gate+exclusion une run is new.
+#
+# 16 cells x 5 serials = 80 runs, ~33 h single-node at ~25 min/serial. state.json
+# resumes a killed runner without re-running finished serials. To split across
+# both nodes, copy this dir and trim each side's cells (or run a worktree per the
+# parallel-sweep runbook); leave bst_train.py frozen while any batch runs.
+# Launch (repo root; on bourbaki/engelbart use venv-bst + set BST_X_COLLATED_DATA_ROOT):
+#   PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+#     python -m main_on_shuttleset.collation_runner scratch/runners/wd_endpoints_taxa_x_gate
+session_name: wd_endpoints_taxa_x_gate_2026_06
+cells:
+  # SET 1 -- gate off, wd endpoints across all six taxonomy/splits.
+  - name: shuttleset_18_v2_wd1e-2
+    taxonomy: shuttleset_18
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.01
+    ablation_id: wd_norms_bias_embeddings_excluded_1e-2
+    n_serials: 5
+
+  - name: shuttleset_18_v2_wd4e-1
+    taxonomy: shuttleset_18
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.4
+    ablation_id: wd_norms_bias_embeddings_excluded_4e-1
+    n_serials: 5
+
+  - name: bst_24_v2_wd1e-2
+    taxonomy: bst_24
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.01
+    ablation_id: wd_norms_bias_embeddings_excluded_1e-2
+    n_serials: 5
+
+  - name: bst_24_v2_wd4e-1
+    taxonomy: bst_24
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.4
+    ablation_id: wd_norms_bias_embeddings_excluded_4e-1
+    n_serials: 5
+
+  - name: bst_12_v2_wd1e-2
+    taxonomy: bst_12
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.01
+    ablation_id: wd_norms_bias_embeddings_excluded_1e-2
+    n_serials: 5
+
+  - name: bst_12_v2_wd4e-1
+    taxonomy: bst_12
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.4
+    ablation_id: wd_norms_bias_embeddings_excluded_4e-1
+    n_serials: 5
+
+  - name: bst_25_baseline_wd1e-2
+    taxonomy: bst_25
+    split_column: split_bst_baseline
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.01
+    ablation_id: wd_norms_bias_embeddings_excluded_1e-2
+    n_serials: 5
+
+  - name: bst_25_baseline_wd4e-1
+    taxonomy: bst_25
+    split_column: split_bst_baseline
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.4
+    ablation_id: wd_norms_bias_embeddings_excluded_4e-1
+    n_serials: 5
+
+  - name: bst_24_baseline_wd1e-2
+    taxonomy: bst_24
+    split_column: split_bst_baseline
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.01
+    ablation_id: wd_norms_bias_embeddings_excluded_1e-2
+    n_serials: 5
+
+  - name: bst_24_baseline_wd4e-1
+    taxonomy: bst_24
+    split_column: split_bst_baseline
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.4
+    ablation_id: wd_norms_bias_embeddings_excluded_4e-1
+    n_serials: 5
+
+  # SET 2 -- gate on (focal_alpha_revert_overallocated), same wd endpoints, three
+  # priority taxonomies. weight_decay + use_val_improvability_gate stack per cell.
+  - name: shuttleset_18_v2_wd1e-2_gate
+    taxonomy: shuttleset_18
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.01
+    use_val_improvability_gate: true
+    ablation_id: wd_1e-2_and_focal_revert_overallocated
+    n_serials: 5
+
+  - name: shuttleset_18_v2_wd4e-1_gate
+    taxonomy: shuttleset_18
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.4
+    use_val_improvability_gate: true
+    ablation_id: wd_4e-1_and_focal_revert_overallocated
+    n_serials: 5
+
+  - name: bst_25_baseline_wd1e-2_gate
+    taxonomy: bst_25
+    split_column: split_bst_baseline
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.01
+    use_val_improvability_gate: true
+    ablation_id: wd_1e-2_and_focal_revert_overallocated
+    n_serials: 5
+
+  - name: bst_25_baseline_wd4e-1_gate
+    taxonomy: bst_25
+    split_column: split_bst_baseline
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.4
+    use_val_improvability_gate: true
+    ablation_id: wd_4e-1_and_focal_revert_overallocated
+    n_serials: 5
+
+  - name: une_v1_14_v2_wd1e-2_gate
+    taxonomy: une_v1_14
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.01
+    use_val_improvability_gate: true
+    ablation_id: wd_1e-2_and_focal_revert_overallocated
+    n_serials: 5
+
+  - name: une_v1_14_v2_wd4e-1_gate
+    taxonomy: une_v1_14
+    split_column: split_v2
+    collation_id: taxon_pinned_w_preds
+    weight_decay: 0.4
+    use_val_improvability_gate: true
+    ablation_id: wd_4e-1_and_focal_revert_overallocated
+    n_serials: 5
