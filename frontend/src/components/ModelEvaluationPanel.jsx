@@ -110,7 +110,7 @@ export function ModelEvaluationPanel({ modelId, model }) {
   return (
     <>
       <CollapsibleCard title="Per-clip predictions" defaultOpen>
-        <Tier1ClipBrowser modelId={modelId} split={split} onSplitChange={setSplit} livePredictions={model?.live_predictions} />
+        <Tier1ClipBrowser modelId={modelId} split={split} onSplitChange={setSplit} livePredictions={model?.live_predictions} splitsAvailable={model?.splits_available} />
       </CollapsibleCard>
 
       <CollapsibleCard title={`Model performance — ${splitLabel(split)} set`} defaultOpen>

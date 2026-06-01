@@ -8,6 +8,7 @@ No PyTorch. No /scratch dependency. The video endpoint is a stub for now
 because clip mp4s live on /scratch on UNE HPC; we wire properly once
 serving infra is in place.
 """
+import gzip
 import json
 import logging
 from functools import lru_cache
@@ -47,10 +48,18 @@ def _load_manifest(manifest_rel_path: str) -> dict:
 def _read_json_under_run(manifest_rel_path: str, *relparts: str) -> dict:
     run_dir = (REPO_ROOT / manifest_rel_path).parent
     json_path = run_dir.joinpath(*relparts)
-    if not json_path.exists():
-        return {}
-    with open(json_path) as f:
-        return json.load(f)
+    # Sidecars come in two flavours: plain .json (e.g. BRIC's predictions) and
+    # gzipped .json.gz (the BST-X fe-deliverables are gzipped to keep the repo
+    # light). Prefer the plain file when present, else transparently read the
+    # gzipped sibling. Returns {} when neither exists.
+    if json_path.exists():
+        with open(json_path) as f:
+            return json.load(f)
+    gz_path = json_path.parent / (json_path.name + ".gz")
+    if gz_path.exists():
+        with gzip.open(gz_path, "rt", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
 
 
 # FE sidecar JSONs (clip_index, {split}.json, perclass_stats_{split}.json) live
@@ -68,15 +77,41 @@ def _sidecar_path(entry: dict, *relparts: str) -> tuple:
 
 
 def _live_splits() -> set[str]:
-    """Splits where live BST inference is available. Guarded so a torch-less
-    or inference-less deploy degrades to no live predictions — metrics still
-    render. BST-specific until a second live architecture exists."""
+    """Splits where a live BST forward pass could run (the SCP'd tensors are
+    present). Retained for the live-inference / Tier 3 workstream; the per-clip
+    browser no longer gates on this (see `_pred_splits`), because the registered
+    models ship precomputed real predictions that we serve directly."""
     try:
         from . import bst_inference
         return bst_inference.available_splits()
     except Exception:  # noqa: BLE001 — any import/probe failure => no live
         log.info("registry: live inference unavailable; predictions disabled")
         return set()
+
+
+def _is_mock_predictions(preds: dict) -> bool:
+    """True when a predictions sidecar carries placeholder y_pred (the old
+    demo data, flagged `_mock_data`). We never serve those as real."""
+    return bool(preds.get("_mock_data"))
+
+
+def _pred_splits(entry: dict) -> set[str]:
+    """Splits whose per-clip browser should light up: real (non-mock, non-empty)
+    precomputed predictions AND a clip_index to drive the list/detail endpoints.
+
+    BST-X ships both, so its browser shows the precomputed real predictions with
+    no live forward pass and no /data tensor mount. BRIC ships real predictions
+    but no clip_index (it's a metrics-only card by design), so its browser stays
+    off rather than 404ing the clip_index-dependent endpoints."""
+    clip_index = _read_json_under_run(entry["manifest_path"], *_sidecar_path(entry, "clip_index.json"))
+    if not clip_index:
+        return set()
+    out: set[str] = set()
+    for s in ("test", "val"):
+        preds = _read_json_under_run(entry["manifest_path"], *_sidecar_path(entry, f"{s}.json"))
+        if preds and preds.get("clips") and not _is_mock_predictions(preds):
+            out.add(s)
+    return out
 
 
 def _get_model_entry(model_id: str) -> dict:
@@ -150,7 +185,11 @@ def _summarise_model(entry: dict) -> dict:
         val_metrics_raw = {}
         status = "available" if test_metrics_raw else "pending"
     class_list = _resolve_class_list(manifest)
-    live = _live_splits() if architecture == "bst-x" and status == "available" else set()
+    # The browser shows when real precomputed per-clip predictions exist for a
+    # split, not when live tensors happen to be mounted. Keeps the field name
+    # `live_predictions` for FE compatibility; its meaning is now "per-clip
+    # predictions available to browse".
+    pred = _pred_splits(entry) if status == "available" else set()
     return {
         "id": entry["id"],
         "display_name": entry.get("display_name", entry["id"]),
@@ -176,9 +215,14 @@ def _summarise_model(entry: dict) -> dict:
         # whose manifest doesn't exist, so the card shows e.g. 14 not 0.
         "num_classes": len(class_list) or entry.get("num_classes", 0),
         "class_list": class_list,
-        "splits_available": ["val", "test"],
+        # Splits this model actually has metrics for: BST-X carries val + test;
+        # BRIC has test only (no val by design). Drives the FE split toggle, so
+        # a model never offers a split it has no data for.
+        "splits_available": [
+            s for s, mx in (("val", val_metrics_raw), ("test", test_metrics_raw)) if mx
+        ],
         "status": status,
-        "live_predictions": {s: (s in live) for s in ("test", "val")},
+        "live_predictions": {s: (s in pred) for s in ("test", "val")},
         "test_metrics": _format_metrics(test_metrics_raw),
         "val_metrics": _format_metrics(val_metrics_raw),
     }
@@ -216,6 +260,30 @@ def _build_stem_index() -> dict:
     return out
 
 
+@lru_cache(maxsize=1)
+def _scan_clips_dir() -> dict:
+    """stem -> path relative to BST_CLIPS_DIR, by walking the clips tree once.
+
+    The registered models ship clip_index entries with no `video_path`, so
+    `_build_stem_index` resolves nothing. Clip stems are globally unique, so a
+    single recursive scan of the on-disk clips library (`{split}/{Side}_{class}/
+    {stem}.mp4`) gives a robust stem -> file map without depending on the
+    taxonomy/side folder naming. Cached: one walk per process; empty (and
+    harmless) when BST_CLIPS_DIR is unset or absent."""
+    out: dict[str, str] = {}
+    if BST_CLIPS_DIR is None or not BST_CLIPS_DIR.exists():
+        return out
+    for p in BST_CLIPS_DIR.rglob("*.mp4"):
+        out.setdefault(p.stem, str(p.relative_to(BST_CLIPS_DIR)))
+    return out
+
+
+def _resolve_clip_path(stem: str) -> Optional[str]:
+    """Path (relative to BST_CLIPS_DIR) for a stem: prefer an explicit
+    clip_index `video_path`, else fall back to the filesystem scan."""
+    return _build_stem_index().get(stem) or _scan_clips_dir().get(stem)
+
+
 def _read_predictions(entry: dict, split: str) -> dict:
     preds = _read_json_under_run(entry["manifest_path"], *_sidecar_path(entry, f"{split}.json"))
     if not preds:
@@ -224,7 +292,9 @@ def _read_predictions(entry: dict, split: str) -> dict:
 
 
 def _summary_live(stem: str, live: dict, idx_entry: dict) -> dict:
-    """Per-clip row from a real live forward pass."""
+    """Per-clip row from a real live forward pass. Currently unused: the list
+    serves precomputed real predictions (`_summary_from_record`). Retained for
+    the live-inference / Tier 3 workstream, which documents this response shape."""
     return {
         "clip_stem": stem,
         "true_class": live["true_class"],
@@ -251,29 +321,44 @@ def _summary_no_pred(record: dict, class_list: list, idx_entry: dict) -> dict:
     }
 
 
-def _summaries_for(preds: dict, clip_index: dict, split: str, live: bool) -> list:
-    """Build all per-clip summaries for a split. When live, run a real forward
-    pass per clip (current splits are ~28 clips, so inferring all then
-    filtering/paginating is fine); clips that error are skipped, never faked."""
+def _summary_from_record(record: dict, class_list: list, idx_entry: dict) -> dict:
+    """Per-clip row from the precomputed real predictions in the split JSON.
+
+    The registered models ship real `y_pred` / `top_k` in their sidecar (a
+    run-level offline forward pass over the whole split), so the list serves
+    those directly: correct, consistent with the metrics panel, and O(1) per
+    clip. A live forward pass per row would be thousands of passes per page
+    load at full-test-set scale, and (today) from a different, stale model."""
+    y_true = record["y_true"]
+    y_pred = record["y_pred"]
+    tkp = record.get("top_k_prob") or []
+    return {
+        "clip_stem": record["clip_stem"],
+        "true_class": class_list[y_true] if 0 <= y_true < len(class_list) else None,
+        "predicted_class": class_list[y_pred] if 0 <= y_pred < len(class_list) else None,
+        "is_correct": y_true == y_pred,
+        "confidence_pct": int(round(tkp[0] * 100)) if tkp else None,
+        "match": idx_entry.get("match"),
+        "split": idx_entry.get("split"),
+    }
+
+
+def _summaries_for(preds: dict, clip_index: dict) -> list:
+    """Build all per-clip summaries for a split from the precomputed
+    predictions JSON. Real predictions are served as-is; mock/placeholder
+    predictions degrade to ground-truth-only so we never present a fake
+    prediction as real."""
     # Canonical `class_list` (post-refactor + BRIC sidecars), legacy
     # `active_class_list` fallback (matches get_clip).
     class_list = preds.get("class_list") or preds.get("active_class_list", [])
+    mock = _is_mock_predictions(preds)
     out = []
-    bst_inference = None
-    if live:
-        from . import bst_inference
     for r in preds.get("clips", []):
-        stem = r["clip_stem"]
-        idx_entry = clip_index.get(stem, {})
-        if live:
-            try:
-                p = bst_inference.predict(stem, split)
-            except Exception:  # noqa: BLE001
-                log.exception("list_clips: live inference failed for %s; skipping", stem)
-                continue
-            out.append(_summary_live(stem, p, idx_entry))
-        else:
+        idx_entry = clip_index.get(r["clip_stem"], {})
+        if mock:
             out.append(_summary_no_pred(r, class_list, idx_entry))
+        else:
+            out.append(_summary_from_record(r, class_list, idx_entry))
     return out
 
 
@@ -314,8 +399,8 @@ def list_clips(
     preds = _read_predictions(entry, split)
     clip_index = _read_clip_index(entry)
 
-    live = split in _live_splits()
-    summaries = _summaries_for(preds, clip_index, split, live)
+    real = not _is_mock_predictions(preds)
+    summaries = _summaries_for(preds, clip_index)
 
     if true_class:
         summaries = [s for s in summaries if s["true_class"] == true_class]
@@ -327,7 +412,9 @@ def list_clips(
     return {
         "model_id": model_id,
         "split": split,
-        "live": live,
+        # Real precomputed predictions are present (vs ground-truth-only mock).
+        # Field name kept for FE compatibility.
+        "live": real,
         "total": len(summaries),
         "limit": limit,
         "offset": offset,
@@ -367,47 +454,32 @@ def get_clip(model_id: str, split: str, stem: str) -> dict:
         raise HTTPException(status_code=404, detail=f"Clip '{stem}' not in split={split}")
     idx_entry = clip_index.get(stem, {})
 
-    # --- Real BST forward pass when the data is available. -------------
-    # On this branch, scratch/bst_inputs/{split} carries the SCP'd
-    # collated tensors for the 28 test + 28 val real stems, and the
-    # repo ships serial_5.pt. bst_inference.predict() slices the
-    # right row, builds the (B=1) input, and runs forward. We fall
-    # back to whatever predictions JSON the registry has if anything
-    # in that chain isn't available — keeps the endpoint working in
-    # demo-with-no-bst-inputs deployments.
-    live = None
-    try:
-        from .bst_inference import predict as bst_predict, BstInferenceUnavailable
-        live = bst_predict(stem, split)
-    except BstInferenceUnavailable as e:
-        log.info("clip %s: live BST inference unavailable (%s); using cached predictions", stem, e)
-    except Exception as e:
-        log.exception("clip %s: live BST inference error; falling back to cached predictions: %s", stem, e)
-
-    if live is not None:
-        return {
-            "clip_stem": stem,
-            "video_url": f"/api/clips/{stem}/video",
-            "true_class": live["true_class"],
-            "predicted_class": live["predicted_class"],
-            "is_correct": live["predicted_class"] == live["true_class"],
-            "confidence_pct": live["confidence_pct"],
-            "top_k": live["top_k"],
-            "match": idx_entry.get("match"),
-            "set_id": idx_entry.get("set_id"),
-            "rally": idx_entry.get("rally"),
-            "ball_round": idx_entry.get("ball_round"),
-            "split": idx_entry.get("split", split),
-            "drawn_from": live["drawn_from"],
-        }
-
-    # --- Fallback: serve cached predictions from the JSON. -------------
+    # Serve the precomputed real predictions from the registered model's split
+    # sidecar. This keeps the detail view consistent with the list and the
+    # per-class metrics panel (all sourced from the same model's offline run).
+    #
+    # The on-demand live forward pass (bst_inference) is intentionally NOT
+    # called here: it is currently pinned to a different, older checkpoint than
+    # the registered model and only indexes a 56-clip subset, so firing it would
+    # serve a clip a prediction from a model the rest of the page doesn't use.
+    # Re-pointing bst_inference at the registered run + adding row_index belongs
+    # to the live-inference / Tier 3 workstream. See the Tier 2 handoff note.
     top_k = [
         {"class": class_list[i], "confidence": p}
         for i, p in zip(record["top_k_idx"], record["top_k_prob"])
     ]
     y_true = record["y_true"]
     y_pred = record["y_pred"]
+    # Honest provenance for the FE: real precomputed predictions vs the old
+    # placeholder data (y_pred == y_true at 100%). The registered models ship
+    # real preds, so this is "cached_predictions_json"; a flagged mock sidecar
+    # reports "placeholder_predictions_json" so the FE shows a pending state
+    # instead of a fake "100% correct" result.
+    drawn_from = (
+        "placeholder_predictions_json"
+        if _is_mock_predictions(preds)
+        else "cached_predictions_json"
+    )
     return {
         "clip_stem": stem,
         "video_url": f"/api/clips/{stem}/video",
@@ -421,7 +493,7 @@ def get_clip(model_id: str, split: str, stem: str) -> dict:
         "rally": idx_entry.get("rally"),
         "ball_round": idx_entry.get("ball_round"),
         "split": idx_entry.get("split", split),
-        "drawn_from": "cached_predictions_json",
+        "drawn_from": drawn_from,
     }
 
 
@@ -432,10 +504,12 @@ def get_video(stem: str):
     Resolution order:
       1. Local stem-keyed drop: LOCAL_CLIPS_DIR/<stem>.mp4. Lets you play a
          handful of real clips locally (dev/demo) without the full ShuttleSet
-         tree or BST_CLIPS_DIR. Keyed by the stable clip_stem, not
-         clip_index's (placeholder) video_path.
-      2. Dataset tree: BST_CLIPS_DIR joined with clip_index's video_path
-         (UNE HPC / mounted box).
+         tree or BST_CLIPS_DIR. Keyed by the stable clip_stem, not clip_index's
+         (placeholder) video_path.
+      2. Dataset tree under BST_CLIPS_DIR, resolved by stem: an explicit
+         clip_index video_path if present, else a filesystem scan of the clips
+         library. The registered models ship null video_path, so the scan is
+         what resolves the full test/val set.
 
     FileResponse handles Range requests automatically, so the <video> element
     on the FE can scrub. Returns 404 with a hint when neither resolves."""
@@ -445,16 +519,7 @@ def get_video(stem: str):
     if local.resolve().parent == LOCAL_CLIPS_DIR.resolve() and local.is_file():
         return FileResponse(local, media_type="video/mp4")
 
-    # 2) Dataset tree via clip_index video_path + BST_CLIPS_DIR.
-    rel_path = _build_stem_index().get(stem)
-    if rel_path is None:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"Clip '{stem}' not in any registered model's clip_index, and "
-                f"no local clip at {local}."
-            ),
-        )
+    # 2) Dataset tree under BST_CLIPS_DIR (clip_index video_path, else scan).
     if BST_CLIPS_DIR is None:
         raise HTTPException(
             status_code=404,
@@ -465,13 +530,23 @@ def get_video(stem: str):
                 "BST_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips."
             ),
         )
+    rel_path = _resolve_clip_path(stem)
+    if rel_path is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Clip '{stem}' has no mp4 on this host: no local clip at "
+                f"{local}, no clip_index video_path, and nothing matching under "
+                "BST_CLIPS_DIR."
+            ),
+        )
     abs_path = BST_CLIPS_DIR / rel_path
     if not abs_path.exists():
         raise HTTPException(
             status_code=404,
             detail=(
                 f"Clip file not found at {abs_path}, and no local clip at "
-                f"{local}. Likely a mocked stem or a missing clip on this host."
+                f"{local}. Likely a missing clip on this host."
             ),
         )
     return FileResponse(abs_path, media_type="video/mp4")
