@@ -154,7 +154,13 @@ def _summarise_model(entry: dict) -> dict:
     return {
         "id": entry["id"],
         "display_name": entry.get("display_name", entry["id"]),
+        "is_default": entry.get("is_default", False),
         "description": entry.get("description", ""),
+        # The author-written training notes are owned by the manifest (top-level
+        # `notes` block), not the registry YAML — same principle as collation_id /
+        # class_list above. Read them off the manifest so the FE shows the real,
+        # un-paraphrased text. None when the manifest carries no notes (e.g. BRIC).
+        "notes": manifest.get("notes"),
         "taxonomy": entry.get("taxonomy"),
         "split_column": entry.get("split_column"),
         "drop_unknown": entry.get("drop_unknown", True),

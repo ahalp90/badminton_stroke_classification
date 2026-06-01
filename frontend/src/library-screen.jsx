@@ -3,7 +3,7 @@ import { useTheme, Btn, Badge, SectionHeader } from './shared';
 import { toVideo } from './utils/videoTransforms';
 import { BrowseAllModal } from './components/BrowseAllModal';
 import { UploadTab } from './components/upload/UploadTab';
-import { rehydrateSessionFromIDB } from './utils/uploadStorage';
+import { rehydrateSessionFromIDB, useStoredUploads } from './utils/uploadStorage';
 import matchesData from './data/matches.json';
 
 const frameModules = import.meta.glob('./data/frames/*.jpg', { eager: true, import: 'default' });
@@ -76,6 +76,7 @@ export function LibraryScreen({ onNext }) {
   const [browsing, setBrowsing] = useState(false);
   const [testMatchIds, setTestMatchIds] = useState(null);
   const [browseHov, setBrowseHov] = useState(false);
+  const uploads = useStoredUploads();
 
   // ──── Session rehydration ──────────────────────────────────────────────────────────────────────
   // Defensive rehydrate from IndexedDB on mount, in case the module-level
@@ -189,7 +190,8 @@ export function LibraryScreen({ onNext }) {
                 transition: 'all 0.15s',
               }}
             >
-              Browse all {LIBRARY.length} matches →
+              Browse all {LIBRARY.length} matches
+              {uploads.length > 0 && ` + ${uploads.length} upload${uploads.length === 1 ? '' : 's'}`} →
             </button>
           </div>
 
