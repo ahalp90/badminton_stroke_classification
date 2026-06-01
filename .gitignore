@@ -139,6 +139,17 @@ scratch/bst_inputs/
 # Drop <clip_stem>.mp4 here to play it in the UI; clip files are never committed.
 clips_local/*
 !clips_local/.gitkeep
-!clips_local/README.mdCLAUDE.md
+!clips_local/README.md
 TODO-frontend.md
 CLAUDE.md
+
+# --- Heavy ML artifacts: keep new ones out of git (see MODELS.md) ---
+# Run-time weights are published as GitHub Release assets and fetched via
+# scripts/fetch-models.sh; the training archive lives in bulk storage. These
+# rules stop fresh runs from re-bloating the repo. They do NOT untrack copies
+# already in history; reclaiming that needs a one-time history rewrite (MODELS.md).
+# To intentionally track an exception, use: git add -f <path>
+**/tb/
+**/predictions/*.npz
+**/weights/*.pt
+runtime/deployed/**/*.pt
