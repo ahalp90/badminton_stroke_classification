@@ -25,6 +25,7 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
   const [bstOn,       setBstOn]       = useState(true);   // headline BST-X card selected?
   const [otherOn,     setOtherOn]     = useState({});     // id -> bool for non-BST-X cards (BRIC)
   const [picking,     setPicking]     = useState(false);  // variant modal open?
+  const [changeHov,   setChangeHov]   = useState(false);  // hover state for the Change-variant button
   const [taskName,    setTaskName]    = useState(
     `Analysis — ${markup?.video?.match?.split(' vs ')[0] ?? 'Video'} — ${new Date().toLocaleDateString('en-AU')}`
   );
@@ -103,13 +104,20 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <button
                     onClick={() => setPicking(true)}
+                    onMouseEnter={() => setChangeHov(true)}
+                    onMouseLeave={() => setChangeHov(false)}
                     style={{
-                      background: 'none', border: 'none', padding: '2px 4px',
-                      color: t.blue, fontSize: 12, cursor: 'pointer',
+                      display: 'inline-flex', alignItems: 'center', gap: 7,
+                      background: changeHov ? t.blueDim : 'none',
+                      border: `1px solid ${t.blue}`,
+                      color: t.blue,
+                      padding: '8px 14px', borderRadius: 7,
+                      fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
                       fontFamily: "'Space Grotesk', sans-serif",
+                      transition: 'all 0.15s',
                     }}
                   >
-                    Change variant ({bstModels.length} BST-X models) →
+                    ⇄ Change variant ({bstModels.length})
                   </button>
                 </div>
               )}

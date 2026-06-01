@@ -10,6 +10,15 @@
  */
 const ARCH_LABELS = { 'bst-x': 'BST-X', 'bric': 'BRIC' };
 
+// Short, architecture-level blurb for the card. The per-run provenance
+// (taxonomy / split) already lives in the display_name title and the tags, so
+// the card body describes what the *architecture* is, not the run. Falls back
+// to the registry entry's own description for any arch not listed here.
+const ARCH_NOTES = {
+  'bst-x': 'Skeleton keypoint and shuttle trajectory transformer. No pre-training. Built on BST-CG-AP. Adds: player detection, CDB-F1 loss, scheduling and augmentations. 1.85M parameters.',
+  'bric': 'R(2+1)D-18 RGB backbone (Kinetics-400 pretrained, fine-tuned end-to-end) fused with a shuttle-trajectory TCN. 31.3M parameters.',
+};
+
 export function toModelCard(entry) {
   const macro = entry.test_metrics?.macro_f1;
   const min   = entry.test_metrics?.min_f1;
@@ -22,17 +31,13 @@ export function toModelCard(entry) {
     // architecture and pick the headline card without re-fetching the registry.
     architecture: arch,
     isDefault:    entry.is_default === true,
-    // Provenance subtitle from whatever the entry actually carries. ablation_id
-    // is null for non-ablation runs (and for BRIC), so filter falsy parts out
-    // rather than rendering "taxonomy · null". split is included so models that
-    // differ only by split (e.g. the two bst_24 cells) stay distinguishable.
-    subtitle: [entry.taxonomy, entry.split_column, entry.ablation_id].filter(Boolean).join(' · '),
+    // Single non-title fact kept as a tag: the class count (varies across
+    // variants, and isn't in the title). Architecture and taxonomy are already
+    // in the display_name title, so they're not repeated as tags here.
     tags: [
-      { label: ARCH_LABELS[arch] ?? arch.toUpperCase(), color: 'blue' },
-      { label: entry.taxonomy,                   color: 'pine' },
-      { label: `${entry.num_classes}-class`,     color: 'muted' },
+      { label: `${entry.num_classes}-class`, color: 'muted' },
     ],
-    description: entry.description,
+    description: ARCH_NOTES[arch] ?? entry.description,
     stats: [
       ...(macro != null ? [{ label: 'Macro F1', value: macro.toFixed(3) }] : []),
       ...(min   != null ? [{ label: 'Min F1',   value: min.toFixed(3)   }] : []),

@@ -27,7 +27,9 @@ export function ModelCard({ model, enabled, disabled, onToggle }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 2 }}>{model.name}</div>
-          <div style={{ fontSize: 11, color: t.muted, fontFamily: "'JetBrains Mono', monospace" }}>{model.subtitle}</div>
+          {model.subtitle && (
+            <div style={{ fontSize: 11, color: t.muted, fontFamily: "'JetBrains Mono', monospace" }}>{model.subtitle}</div>
+          )}
         </div>
         <div style={{
           width: 22, height: 22, borderRadius: 5, flexShrink: 0,
