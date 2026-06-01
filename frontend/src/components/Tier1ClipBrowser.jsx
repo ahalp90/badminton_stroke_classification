@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useTheme, Card } from '../shared';
+import { useTheme } from '../shared';
 import { useClipList, useClipDetail } from '../hooks';
 import { ClipDetail } from './ClipDetail';
 import { SPLIT_LABELS } from '../utils/format';
@@ -26,22 +26,19 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange, livePrediction
 
   if (!modelId && !listError) {
     return (
-      <Card style={{ padding: 22, marginBottom: 22 }}>
+      <div>
         <div style={{ fontSize: 12, color: t.muted }}>Loading registry…</div>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card style={{ padding: 22, marginBottom: 22 }}>
+    <div>
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         marginBottom: 14, gap: 12, flexWrap: 'wrap',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
-            Per-clip predictions
-          </span>
           <div style={{ display: 'inline-flex', border: `1px solid ${t.border}`, borderRadius: 5, overflow: 'hidden' }}>
             {SPLITS.map(s => {
               const active = s === split;
@@ -189,6 +186,6 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange, livePrediction
           The metrics above are computed over the full {split} set.
         </div>
       )}
-    </Card>
+    </div>
   );
 }

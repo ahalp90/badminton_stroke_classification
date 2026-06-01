@@ -9,7 +9,9 @@
 # Tier 2 (later): the same registry drives weight loading + npy lookup.
 #
 # Provenance (collation_id, ablation_id) and the class list are read off each
-# entry's manifest `config` block, not duplicated here.
+# entry's manifest `config` block, not duplicated here. The author-written
+# training notes are likewise read from the manifest `notes` block; the short
+# `description` below is just a card blurb, not a copy of those notes.
 # `temperature: 1.0` means no calibration applied yet (raw softmax).
 # Proper temperature-scaling fit is parked at section 6.5 of the long doc.
 #
@@ -111,7 +113,6 @@ models:
     description: |
       18-class shuttleset_18 taxonomy, taxon-pinned collation, v2 split.
       Macro F1 0.665, min F1 0.000, accuracy 0.766 on held-out test (serial 1).
-      Note: one class scores zero F1 on test.
     architecture: bst-x
     run_id: run_20260530_161525_131279
     serial_no: 1

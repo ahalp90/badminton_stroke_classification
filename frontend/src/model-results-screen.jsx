@@ -27,6 +27,7 @@ function CollapsibleModelSection({ model }) {
   const { t } = useTheme();
   const [open, setOpen] = useState(false);
   const macro = model.test_metrics?.macro_f1;
+  const min = model.test_metrics?.min_f1;
   return (
     <section style={{ border: `1px solid ${t.border}`, borderRadius: 10, overflow: 'hidden' }}>
       <button
@@ -49,6 +50,9 @@ function CollapsibleModelSection({ model }) {
           {typeof macro === 'number' && (
             <span style={{ fontSize: 12, color: t.muted, fontFamily: "'JetBrains Mono',monospace" }}>
               macro F1 <span style={{ color: t.text, fontWeight: 600 }}>{macro.toFixed(3)}</span>
+              {typeof min === 'number' && (
+                <> / min F1 <span style={{ color: t.text, fontWeight: 600 }}>{min.toFixed(3)}</span></>
+              )}
             </span>
           )}
           <span style={{
