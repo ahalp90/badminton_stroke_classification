@@ -12,15 +12,13 @@ const TRACK_HEIGHT = 38;
 export function Scrubber({
   duration, currentTime, loaded,
   strokes, activeId, onSelectStroke,
-  strokeTimes, showPips, onSeek,
+  strokeTimes, showPips, onSeek, zoom,
 }) {
   const { t } = useTheme();
 
   const trackRef = useRef(null);
   const scrollRef = useRef(null);
   const draggingRef = useRef(false);
-
-  const [zoom, setZoom] = useState(ZOOM_LEVELS[0]);
 
   const N_BUCKETS = 200 * zoom; // defined inside component as depends on zoom state
 
@@ -74,32 +72,6 @@ export function Scrubber({
 
   return (
     <div style={{ userSelect: 'none' }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
-        fontSize: 11, color: t.muted,
-      }}>
-        <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 2 }}>
-          Zoom
-        </span>
-        {ZOOM_LEVELS.map(z => (
-          <button
-            key={z}
-            onClick={() => setZoom(z)}
-            style={{
-              background: zoom === z ? t.blue : t.surface2,
-              color: zoom === z ? '#fff' : t.text,
-              border: `1px solid ${zoom === z ? t.blue : t.border}`,
-              padding: '3px 9px', borderRadius: 4,
-              fontSize: 11, fontWeight: 600,
-              fontFamily: "'JetBrains Mono', monospace",
-              cursor: 'pointer',
-            }}
-          >
-            {z}×
-          </button>
-        ))}
-      </div>
-
       <div
         ref={scrollRef}
         style={{
@@ -150,39 +122,6 @@ export function Scrubber({
           )}
           {/* Inactive stroke regions first (muted gray), so the active region
               paints over them when ranges overlap. */}
-          {(strokes || []).filter(s => s.id !== activeId).map(s => (
-            s.startSec !== null && s.endSec !== null && (
-              <div
-                key={s.id}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onSelectStroke && onSelectStroke(s.id);
-                }}
-                title={`Stroke · click to edit`}
-                style={{
-                  position: 'absolute', top: 0, bottom: 0, borderRadius: 2,
-                  left: `${pct(s.startSec)}%`,
-                  width: `${Math.max(0, pct(s.endSec) - pct(s.startSec))}%`,
-                  background: t.muted, opacity: 0.45,
-                  cursor: 'pointer',
-                }}
-              />
-            )
-          ))}
-          {(strokes || []).filter(s => s.id === activeId).map(s => (
-            s.startSec !== null && s.endSec !== null && (
-              <div
-                key={s.id}
-                style={{
-                  position: 'absolute', top: 0, bottom: 0, borderRadius: 2,
-                  left: `${pct(s.startSec)}%`,
-                  width: `${Math.max(0, pct(s.endSec) - pct(s.startSec))}%`,
-                  background: t.blue,
-                  pointerEvents: 'none',
-                }}
-              />
-            )
-          ))}
         </div>
 
         {/* Playhead */}
@@ -194,37 +133,72 @@ export function Scrubber({
             boxShadow: '0 0 4px rgba(0,0,0,0.6)',
           }} />
         )}
-        {/* S / ◉ / E markers (active stroke only) */}
-        {(() => {
-          const active = (strokes || []).find(s => s.id === activeId);
-          if (!active) return null;
-          return [
-            { val: active.startSec,  label: 'S', color: t.blue },
-            { val: active.targetSec, label: '◉', color: t.warning },
-            { val: active.endSec,    label: 'E', color: t.blue },
-          ].map((h) => h.val !== null && (
-            <div
-              key={h.label}
-              onClick={(e) => { e.stopPropagation(); onSeek(h.val); }}
-              onMouseDown={(e) => e.stopPropagation()}
-              title={`Seek to ${fmtTime(h.val)}`}
+        {(strokes || []).filter(s => s.targetSec != null).map(s => {
+          const active = s.id === activeId;
+          return (
+            <div  
+              key={s.id}
+              title={fmtTime(s.targetSec)}
               style={{
-                position: 'absolute', top: '50%', left: `${pct(h.val)}%`,
+                position: 'absolute', top: '50%', left: `${pct(s.targetSec)}%`,
                 transform: 'translate(-50%, -50%)',
                 width: 16, height: 26, borderRadius: 4,
-                background: h.color, color: '#fff',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: active ? t.warning : t.muted,
+                color: '#fff',
+                cursor: 'default',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 10, fontWeight: 700,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-              }}
+              }}  
             >
-              {h.label}
+              ◉
             </div>
-          ));
-        })()}
-    </div>
+          );
+      })}
+      </div>
+      
+      {/* Timeline ruler — tick marks + labels */}
+      {duration > 0 && (
+        <div style={{ position: 'relative', height: 18, marginTop: 22 }}>
+          {(() => {
+            const ZOOM_TICKS = {
+              1: duration <= 15 ? 2 : duration <= 60 ? 5 : 25,
+              2: duration <= 15 ? 1 : duration <= 60 ? 2 : 10,
+              5: duration <= 15 ? 0.5 : duration <= 60 ? 1 : 5,   
+              10: duration <= 15 ? 0.25 : duration <= 60 ? 0.5 : 2.5,
+              25: duration <= 15 ? 0.1 : duration <= 60 ? 0.2 : 1,
+              50: duration <= 15 ? 0.05 : duration <= 60 ? 0.1 : 0.5,
+            };
+            const interval = ZOOM_TICKS[zoom];
+            const ticks = [];
+            for (let sec = 0; sec <= duration; sec += interval) {
+              ticks.push(sec);
+            }   
+            return ticks.map(sec => (
+              <div key={sec} style={{
+                position: 'absolute',
+                left: `${pct(sec)}%`,
+                top: 0,
+                transform: 'translateX(-50%)',
+                textAlign: 'center',
+              }}>
+                <div style={{ width: 1, height: 5, background: t.muted, marginInline: 'auto' }} />
+                <div style={{
+                  fontSize: 9,
+                  color: t.muted,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  lineHeight: 1.2,
+                  paddingTop: 1,
+                }}>
+                  {fmtTime(sec)}
+                </div>
+              </div>
+            ));
+          })()}
         </div>
+      )}
       </div>
     </div>
+  </div>
   );
 }

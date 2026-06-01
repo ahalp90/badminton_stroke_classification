@@ -34,7 +34,6 @@ export function TimeframeStep({ video, onComplete }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [loaded, setLoaded] = useState(0);
-  const [showPips, setShowPips] = useState(true);
 
   // ──── Annotation state ─────────────────────────────────────────────────────────────────────────
   // Multi-stroke state: a list of annotations, each with seconds-based start/target/end handles. 
@@ -47,6 +46,7 @@ export function TimeframeStep({ video, onComplete }) {
   const [activeId, setActiveId] = useState('init');
   const [playerSide, setPlayerSide] = useState(null); // 'top' | 'bottom' | null
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [zoom, setZoom] = useState(1);
   // Half-window (seconds each side of the target) used when auto-filling
   // start/end from the target hit, so the user mostly just marks the target.
   const [halfWindowSec, setHalfWindowSec] = useState(DEFAULT_HALF_WINDOW_SEC);
@@ -291,34 +291,47 @@ export function TimeframeStep({ video, onComplete }) {
     a.startSec !== null || a.targetSec !== null || a.endSec !== null
   );
   const allValid = populatedAnnotations.length >= 1
-    && populatedAnnotations.every(isAnnotationValid);
+    && populatedAnnotations.every(isAnnotationValid)
+    && playerSide != null;
 
   // Local convenience for the active-stroke summary panel below.
   const allSet = active ? isAnnotationComplete(active) : false;
   const valid  = active ? isAnnotationValid(active) : false;
 
-  // Overlap warning: any two annotations whose [start, end] intervals overlap.
-  const hasOverlap = (() => {
-    const ranges = populatedAnnotations
-      .filter(isAnnotationComplete)
-      .map(a => [a.startSec, a.endSec])
-      .sort((x, y) => x[0] - y[0]);
-    for (let i = 1; i < ranges.length; i++) {
-      if (ranges[i][0] < ranges[i - 1][1]) return true;
-    }
-    return false;
-  })();
+  // Show Start = prev stroke's target, End = next stroke's target (raw, no
+  // fallback). When the active stroke is the first/last in the rally, the
+  // missing side reads "—".
+  const DEFAULT_HALF_WINDOW = 0.5;
+  const sortedByTarget = (annotations || [])
+    .filter(a => a.targetSec != null)
+    .slice()
+    .sort((a, b) => a.targetSec - b.targetSec);
+  const activeIdx = sortedByTarget.findIndex(a => a.id === activeId);
+
+  let derivedStart = null;
+  let derivedEnd = null;
+  if (active?.targetSec != null && activeIdx >= 0) {
+    const rawStart = activeIdx > 0
+      ? sortedByTarget[activeIdx - 1].targetSec
+      : active.targetSec - DEFAULT_HALF_WINDOW;
+    const rawEnd = activeIdx < sortedByTarget.length - 1
+      ? sortedByTarget[activeIdx + 1].targetSec
+      : active.targetSec + DEFAULT_HALF_WINDOW;
+    derivedStart = Math.max(0, rawStart);
+    derivedEnd = duration > 0 ? Math.min(duration, rawEnd) : rawEnd;
+  }
+  const derivedWindow = derivedStart != null && derivedEnd != null
+    ? derivedEnd - derivedStart
+    : null;
 
   // ──── Render ───────────────────────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <p style={{ fontSize: 13, color: t.muted, lineHeight: 1.6 }}>
-        Scrub the video to the moment you want, then mark the
-        <span style={{ color: t.blue, fontWeight: 600 }}> start</span>,
-        <span style={{ color: t.warning, fontWeight: 600 }}> target hit frame</span>, and
-        <span style={{ color: t.blue, fontWeight: 600 }}> end</span> of the stroke segment.
-        The classifier will receive the window between start and end, with the target frame as the predicted hit moment.
-        {' '}Marking the target auto-fills start and end to the chosen ±window — fine-tune the handles if you need to.
+        Scrub the video to the moment of each stroke, then mark the 
+        <span style={{ color: t.warning, fontWeight: 600 }}> target shot frame</span>.
+        The classifier processes each marked stroke independently; the window between
+        consecutive markers defines what the model sees per stroke.
       </p>
 
       <div style={{
@@ -389,70 +402,82 @@ export function TimeframeStep({ video, onComplete }) {
             {b.label}
           </button>
         ))}
-        <label style={{
-          marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6,
-          fontSize: 11, color: t.muted, cursor: 'pointer',
-        }}>
-          <input
-            type="checkbox"
-            checked={showPips}
-            onChange={e => setShowPips(e.target.checked)}
-            style={{ accentColor: t.pine }}
-          />
-          Show annotation markers
-        </label>
         <div style={{ fontSize: 12, color: t.muted, fontFamily: "'JetBrains Mono', monospace" }}>
           {fmtTime(currentTime)} / {fmtTime(duration)}
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <Btn variant="secondary" size="sm" onClick={() => setHandle('start')} disabled={!ready}>
-          ⟨ Set start
-        </Btn>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <Btn variant="secondary" size="sm" onClick={() => setHandle('target')} disabled={!ready}>
-          ◉ Set target frame
-        </Btn>
-        <Btn variant="secondary" size="sm" onClick={() => setHandle('end')} disabled={!ready}>
-          Set end ⟩
+          ◉ Set target shot
         </Btn>
         <Btn variant="ghost" size="sm" onClick={reset} disabled={!ready}>
           Reset
         </Btn>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Auto-window
+            Zoom
           </span>
-          <div style={{ display: 'inline-flex', border: `1px solid ${t.border}`, borderRadius: 5, overflow: 'hidden' }}>
-            {WINDOW_OPTIONS.map(hw => {
-              const sel = halfWindowSec === hw;
-              return (
-                <button
-                  key={hw}
-                  onClick={() => setWindow(hw)}
-                  disabled={!ready}
-                  title={`Auto-fill start/end to ${hw}s each side of the target`}
-                  style={{
-                    background: sel ? t.blue : t.surface,
-                    color: sel ? '#fff' : t.muted,
-                    border: 'none', padding: '5px 10px',
-                    fontSize: 12, fontWeight: 600,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    cursor: ready ? 'pointer' : 'not-allowed', opacity: ready ? 1 : 0.4,
-                  }}
-                >
-                  ±{hw}s
-                </button>
-              );
-            })}
-          </div>
+          {[1, 2, 5, 10, 25, 50].map(z => (
+            <button
+              key={z}
+              onClick={() => setZoom(z)}
+              style={{
+                background: zoom === z ? t.blue : t.surface2,
+                color: zoom === z ? '#fff' : t.text,
+                border: `1px solid ${zoom === z ? t.blue : t.border}`,
+                padding: '3px 9px', borderRadius: 4,
+                fontSize: 11, fontWeight: 600,
+                fontFamily: "'JetBrains Mono', monospace",
+                cursor: 'pointer',  
+              }}
+            >
+              {z}×
+            </button>
+          ))}
         </div>
+      </div>
+
+      
+
+      <Scrubber
+        duration={duration}
+        currentTime={currentTime}
+        loaded={loaded}
+        strokes={annotations}
+        activeId={activeId}
+        onSelectStroke={(id) => { setActiveId(id); setPendingDeleteId(null); }}
+        strokeTimes={video?.strokeTimes || []}
+        showPips={true}
+        onSeek={seekTo}
+        zoom={zoom}
+        t={t}
+      />
+
+
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        {[
+          { label: 'Start',  value: derivedStart  !== null ? fmtTime(derivedStart)  : '—', color: t.text },
+          { label: 'Target', value: targetSec     !== null ? fmtTime(targetSec)     : '—', color: t.warning },
+          { label: 'End',    value: derivedEnd    !== null ? fmtTime(derivedEnd)    : '—', color: t.text },
+          { label: 'Window', value: derivedWindow !== null ? `${derivedWindow.toFixed(2)}s` : '—', color: t.pine },
+        ].map(s => (
+          <div key={s.label} style={{ background: t.surface2, borderRadius: 7, padding: '9px 14px' }}>
+            <div style={{ fontSize: 10, color: t.muted, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: s.color, fontFamily: "'JetBrains Mono', monospace" }}>{s.value}</div>
+          </div>
+        ))}
       </div>
 
       <StrokePillStrip
         annotations={annotations}
         activeId={activeId}
-        onSelect={(id) => { setActiveId(id); setPendingDeleteId(null); }}
+        onSelect={(id) => { 
+          setActiveId(id); 
+          setPendingDeleteId(null);
+          const stroke = annotations.find(a => a.id === id);
+          if (stroke?.targetSec != null) seekTo(stroke.targetSec);
+        }}
         onDelete={requestDelete}
         onAdd={addStroke}
         pendingDeleteId={pendingDeleteId}
@@ -464,37 +489,6 @@ export function TimeframeStep({ video, onComplete }) {
         t={t}
       />
 
-      <Scrubber
-        duration={duration}
-        currentTime={currentTime}
-        loaded={loaded}
-        strokes={annotations}
-        activeId={activeId}
-        onSelectStroke={(id) => { setActiveId(id); setPendingDeleteId(null); }}
-        strokeTimes={video?.strokeTimes || []}
-        showPips={showPips}
-        onSeek={seekTo}
-        t={t}
-      />
-
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        {[
-          { label: 'Start',  value: startSec  !== null ? fmtTime(startSec)  : '—', color: t.text },
-          { label: 'Target', value: targetSec !== null ? fmtTime(targetSec) : '—', color: t.warning },
-          { label: 'End',    value: endSec    !== null ? fmtTime(endSec)    : '—', color: t.text },
-          {
-            label: 'Window',
-            value: allSet ? `${(endSec - startSec).toFixed(1)}s` : '—',
-            color: t.pine,
-          },
-        ].map(s => (
-          <div key={s.label} style={{ background: t.surface2, borderRadius: 7, padding: '9px 14px' }}>
-            <div style={{ fontSize: 10, color: t.muted, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: s.color, fontFamily: "'JetBrains Mono', monospace" }}>{s.value}</div>
-          </div>
-        ))}
-      </div>
-
       {allSet && !valid && (
         <div style={{
           background: t.dangerDim, color: t.danger, border: `1px solid ${t.danger}`,
@@ -504,51 +498,49 @@ export function TimeframeStep({ video, onComplete }) {
         </div>
       )}
 
-      {hasOverlap && (
+      {populatedAnnotations.length > 0 && !playerSide && (
         <div style={{
           background: t.surface2, color: t.warning, border: `1px solid ${t.warning}55`,
           padding: '8px 12px', borderRadius: 6, fontSize: 12,
         }}>
-          ⚠ Two or more strokes overlap on the timeline. Allowed, but the
-          backend will classify them independently.
+          Set the starting side before continuing — sides alternate per stroke.
         </div>
       )}
-
-      {/* Player side — shared by all annotations for v1 (per-annotation
-          player_side is a follow-up). */}
+      
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        background: t.surface2, borderRadius: 8, padding: '8px 12px',
-      }}>
-        <span style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Player side (applies to all strokes)
-        </span>
-        {[
-          { v: 'top',    label: 'Top'    },
-          { v: 'bottom', label: 'Bottom' },
-        ].map(opt => {
-          const sel = playerSide === opt.v;
-          return (
-            <button
-              key={opt.v}
-              onClick={() => setPlayerSide(sel ? null : opt.v)}
-              style={{
-                background: sel ? t.blue : t.surface,
-                color: sel ? '#fff' : t.text,
-                border: `1px solid ${sel ? t.blue : t.border}`,
-                padding: '5px 12px', borderRadius: 5,
-                fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                fontFamily: "'JetBrains Mono', monospace",
-              }}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: t.muted }}>
-          {playerSide ? `selected: ${playerSide}` : 'optional · leave unset to skip'}
-        </span>
-      </div>
+          width: '100%',
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: t.surface2, borderRadius: 8, padding: '8px 12px',
+        }}>
+          <span style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Starting side (alternates per stroke)
+          </span>
+          {[
+            { v: 'top',    label: 'Top'    },
+            { v: 'bottom', label: 'Bottom' },
+          ].map(opt => {
+            const sel = playerSide === opt.v;
+            return (
+              <button
+                key={opt.v}
+                onClick={() => setPlayerSide(sel ? null : opt.v)}
+                style={{
+                  background: sel ? t.blue : t.surface,
+                  color: sel ? '#fff' : t.text,
+                  border: `1px solid ${sel ? t.blue : t.border}`,
+                  padding: '5px 12px', borderRadius: 5,
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: t.muted }}>
+            {playerSide ? `selected: ${playerSide}` : 'optional · leave unset to skip'}
+          </span>
+        </div>
 
       <Btn
         disabled={!allValid}

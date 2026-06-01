@@ -106,7 +106,6 @@ def _synthesise_strokes(
     class_list: list[str],
     pool: list[dict],
     rng: random.Random,
-    default_fps: float = 30.0,
 ) -> list[dict]:
     """One stroke per annotation, drawing predictions from random pool entries.
 
@@ -115,7 +114,8 @@ def _synthesise_strokes(
     if not pool or not class_list:
         return [
             {"timestamp_sec": 2.1, "stroke_type": "clear", "confidence": 0.92,
-             "stroke_index": 0, "predicted_class": "clear", "confidence_pct": 92,
+             "stroke_index": 0, "target_sec": 2.1, 
+             "predicted_class": "clear", "confidence_pct": 92,
              "top_k": [{"class": "clear", "confidence": 0.92}]},
         ]
 
@@ -129,11 +129,8 @@ def _synthesise_strokes(
     for i in range(n):
         pick = picks[i]
         anno = annotations[i] if i < len(annotations) else {}
-        target_frame = int(anno.get("target_frame", 0))
-        # FPS isn't carried by the markup contract; use 30 fps as a
-        # conventional demo placeholder. Library matches *do* know their
-        # fps but this stub doesn't have it threaded through.
-        ts = round(target_frame / default_fps, 2) if target_frame else round(i * 1.5 + 0.5, 2)
+        target_sec = float(anno.get("target_sec") or 0.0)
+        ts = round(target_sec, 2) if target_sec else round(i * 1.5 + 0.5, 2)
         pred_idx = pick["y_pred"] if isinstance(pick.get("y_pred"), int) else 0
         pred_class = class_list[pred_idx] if 0 <= pred_idx < len(class_list) else "unknown"
         true_class = class_list[pick["y_true"]] if 0 <= pick["y_true"] < len(class_list) else None
@@ -165,7 +162,7 @@ def _synthesise_strokes(
             # Richer contract-shaped fields (extras; not yet consumed by the
             # FE, but stable so they can be wired without backend changes).
             "stroke_index":     i,
-            "target_frame":     target_frame,
+            "target_sec":       target_sec,
             "player_side":      anno.get("player_side"),
             "predicted_class":  pred_class,
             "confidence_pct":   int(round(top_prob * 100)),
@@ -196,7 +193,7 @@ def run_inference(
         dict with `strokes[]` and `rally_summary`. Each stroke carries both
         the legacy {timestamp_sec, stroke_type, confidence} shape AND the
         contract-shaped {stroke_index, predicted_class, confidence_pct,
-        top_k, player_side, target_frame} fields drawn from a random
+        top_k, player_side, target_sec} fields drawn from a random
         mocked-test entry. Different jobs draw different entries.
     """
     log.info(
@@ -213,26 +210,16 @@ def run_inference(
     rng = random.Random(time.time_ns())
     strokes = _synthesise_strokes(annotations, class_list, pool, rng)
 
-    # Rally length spans the FULL marked window:
-    # (max(region_end_frame) - min(region_start_frame)) / fps.
-    # Previously we used last-stroke-timestamp minus first-stroke-timestamp +
-    # 2 fudge seconds, which under-reported because target_frame sits inside
-    # the window rather than at its edges. With zero annotations there's
-    # no marked rally, so we report 0.0.
-    fps = 30.0  # markup contract doesn't carry fps; FE also assumes 30
-    starts = [int(a.get("region_start_frame", 0)) for a in annotations
-              if a.get("region_start_frame") is not None]
-    ends = [int(a.get("region_end_frame", 0)) for a in annotations
-            if a.get("region_end_frame") is not None]
-    if starts and ends:
-        rally_length = round(max(0.0, (max(ends) - min(starts)) / fps), 1)
-    else:
-        rally_length = 0.0
+    # Rally length spans first to last marked target. Frame-based windows
+    # don't exist in the new contract — backend derives windows from targets
+    # via compute_clip_bounds at inference time.
+    targets = [float(a.get("target_sec") or 0.0) for a in annotations if a.get("target_sec") is not None]
+    rally_length_sec = (max(targets) - min(targets)) if len(targets) >= 2 else 0.0
 
     return {
         "strokes": strokes,
         "rally_summary": {
             "total_strokes": len(strokes),
-            "rally_length_seconds": rally_length,
+            "rally_length_seconds": rally_length_sec,
         },
     }

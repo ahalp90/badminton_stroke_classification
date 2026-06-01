@@ -60,7 +60,7 @@ function UploadedInferenceCard({ task }) {
                     <Fragment key={i}>
                       <span style={{ color: t.muted }}>Stroke {i + 1}:</span>
                       <span style={{ color: t.text }}>
-                        {a.region_start_frame}–{a.region_end_frame} (target {a.target_frame})
+                        target {a.target_sec != null ? a.target_sec.toFixed(2) : '?'}s
                         {a.player_side && <span style={{ color: t.muted }}> · {a.player_side}</span>}
                       </span>
                     </Fragment>

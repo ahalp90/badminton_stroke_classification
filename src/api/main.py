@@ -40,9 +40,7 @@ class BoundaryPoint(BaseModel):
 
 
 class StrokeAnnotation(BaseModel):
-    target_frame: int = Field(ge=0)
-    region_start_frame: int = Field(ge=0)
-    region_end_frame: int = Field(ge=0)
+    target_sec: float = Field(ge=0)
     player_side: Optional[Literal["top", "bottom"]] = None
 
 
@@ -73,15 +71,6 @@ class Markup(BaseModel):
             raise ValueError("boundary must contain exactly 4 points")
         return v
 
-    @field_validator("annotations")
-    @classmethod
-    def annotation_window_valid(cls, v):
-        for i, a in enumerate(v):
-            if not (a.region_start_frame <= a.target_frame <= a.region_end_frame):
-                raise ValueError(
-                    f"annotations[{i}]: require region_start ≤ target ≤ region_end"
-                )
-        return v
 
 
 class LibraryPredictRequest(BaseModel):
