@@ -6,9 +6,13 @@ import { Scrubber } from './Scrubber';
 import { StrokePillStrip } from './StrokePillStrip';
 
 // ──── Constants ──────────────────────────────────────────────────────────────────────────────────
-// Default ±50-frame window at the implicit 30 fps demo rate (the markup contract does not carry 
-// fps, see configure-screen's buildMarkupPayload).
-const DEFAULT_HALF_WINDOW_SEC = 50 / 30;
+// Default half-window each side of the target hit, in seconds. 1.5s matches the
+// model's training clip window (between_2_hits_with_max_limits clamps to 1.5s per
+// side), so auto-windowed inputs stay in-distribution. The markup contract carries
+// seconds, not frames (see configure-screen's buildMarkupPayload).
+const DEFAULT_HALF_WINDOW_SEC = 1.5;
+// User-selectable half-window sizes (seconds each side of the target).
+const WINDOW_OPTIONS = [1, 1.5, 2];
 
 /** Generates a unique id for a new stroke annotation. */
 const newStrokeId = () => `a${Date.now()}${Math.floor(Math.random() * 1e4)}`;
@@ -43,6 +47,9 @@ export function TimeframeStep({ video, onComplete }) {
   const [activeId, setActiveId] = useState('init');
   const [playerSide, setPlayerSide] = useState(null); // 'top' | 'bottom' | null
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  // Half-window (seconds each side of the target) used when auto-filling
+  // start/end from the target hit, so the user mostly just marks the target.
+  const [halfWindowSec, setHalfWindowSec] = useState(DEFAULT_HALF_WINDOW_SEC);
 
   const active = annotations.find(a => a.id === activeId) || null;
   const startSec  = active?.startSec  ?? null;
@@ -191,9 +198,19 @@ export function TimeframeStep({ video, onComplete }) {
         if (tg !== null && tg < s) tg = s;
         if (e !== null && e < s) e = s;
       } else if (which === 'target') {
-        const lo = s ?? 0;
-        const hi = e ?? duration;
-        tg = Math.max(lo, Math.min(hi, now));
+        if (s === null && e === null) {
+          // Fresh stroke: the target defines the window. Auto-fill start/end to
+          // ±halfWindowSec so one click gives a complete, valid window centered
+          // on the hit (both handles stay adjustable afterwards).
+          tg = Math.max(0, Math.min(duration || now, now));
+          s = Math.max(0, tg - halfWindowSec);
+          e = duration ? Math.min(duration, tg + halfWindowSec) : tg + halfWindowSec;
+        } else {
+          // Existing window: clamp the target inside [start, end].
+          const lo = s ?? 0;
+          const hi = e ?? duration;
+          tg = Math.max(lo, Math.min(hi, now));
+        }
       } else if (which === 'end') {
         e = now;
         if (tg !== null && tg > e) tg = e;
@@ -213,12 +230,28 @@ export function TimeframeStep({ video, onComplete }) {
     const cur = getCurrentTimeNow();
     const dur = duration || 0;
     const targetT = dur ? Math.max(0, Math.min(dur, cur)) : cur;
-    const startT = Math.max(0, targetT - DEFAULT_HALF_WINDOW_SEC);
-    const endT = dur ? Math.min(dur, targetT + DEFAULT_HALF_WINDOW_SEC) : targetT + DEFAULT_HALF_WINDOW_SEC;
+    const startT = Math.max(0, targetT - halfWindowSec);
+    const endT = dur ? Math.min(dur, targetT + halfWindowSec) : targetT + halfWindowSec;
     const id = newStrokeId();
     setAnnotations(prev => [...prev, { id, startSec: startT, targetSec: targetT, endSec: endT }]);
     setActiveId(id);
     setPendingDeleteId(null);
+  };
+
+  // Change the auto-window size and re-center the active stroke's start/end on
+  // its target, so the new window is reflected immediately (no effect on
+  // strokes without a target yet).
+  const setWindow = (hw) => {
+    setHalfWindowSec(hw);
+    setAnnotations(prev => prev.map(a => {
+      if (a.id !== activeId || a.targetSec === null) return a;
+      const tg = a.targetSec;
+      return {
+        ...a,
+        startSec: Math.max(0, tg - hw),
+        endSec: duration ? Math.min(duration, tg + hw) : tg + hw,
+      };
+    }));
   };
 
   const requestDelete = (id) => {
@@ -285,6 +318,7 @@ export function TimeframeStep({ video, onComplete }) {
         <span style={{ color: t.warning, fontWeight: 600 }}> target hit frame</span>, and
         <span style={{ color: t.blue, fontWeight: 600 }}> end</span> of the stroke segment.
         The classifier will receive the window between start and end, with the target frame as the predicted hit moment.
+        {' '}Marking the target auto-fills start and end to the chosen ±window — fine-tune the handles if you need to.
       </p>
 
       <div style={{
@@ -385,6 +419,34 @@ export function TimeframeStep({ video, onComplete }) {
         <Btn variant="ghost" size="sm" onClick={reset} disabled={!ready}>
           Reset
         </Btn>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Auto-window
+          </span>
+          <div style={{ display: 'inline-flex', border: `1px solid ${t.border}`, borderRadius: 5, overflow: 'hidden' }}>
+            {WINDOW_OPTIONS.map(hw => {
+              const sel = halfWindowSec === hw;
+              return (
+                <button
+                  key={hw}
+                  onClick={() => setWindow(hw)}
+                  disabled={!ready}
+                  title={`Auto-fill start/end to ${hw}s each side of the target`}
+                  style={{
+                    background: sel ? t.blue : t.surface,
+                    color: sel ? '#fff' : t.muted,
+                    border: 'none', padding: '5px 10px',
+                    fontSize: 12, fontWeight: 600,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    cursor: ready ? 'pointer' : 'not-allowed', opacity: ready ? 1 : 0.4,
+                  }}
+                >
+                  ±{hw}s
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <StrokePillStrip
