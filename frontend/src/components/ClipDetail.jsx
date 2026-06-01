@@ -107,7 +107,9 @@ export function ClipDetail({ detail }) {
                   <div style={{
                     height: '100%',
                     width: `${(entry.confidence / maxConf) * 100}%`,
-                    background: i === 0 ? t.blue : t.pine,
+                    background: i === 0 
+                      ? (detail.is_correct ? t.success : t.danger)
+                      : t.pine,
                     borderRadius: 3,
                   }} />
                 </div>
