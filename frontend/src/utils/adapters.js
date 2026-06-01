@@ -18,6 +18,10 @@ export function toModelCard(entry) {
   return {
     id:       entry.id,
     name:     entry.display_name,
+    // Carried through (not just rendered) so the Configure screen can group by
+    // architecture and pick the headline card without re-fetching the registry.
+    architecture: arch,
+    isDefault:    entry.is_default === true,
     // Provenance subtitle from whatever the entry actually carries. ablation_id
     // is null for non-ablation runs (and for BRIC), so filter falsy parts out
     // rather than rendering "taxonomy · null". split is included so models that

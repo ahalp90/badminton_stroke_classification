@@ -154,6 +154,7 @@ def _summarise_model(entry: dict) -> dict:
     return {
         "id": entry["id"],
         "display_name": entry.get("display_name", entry["id"]),
+        "is_default": entry.get("is_default", False),
         "description": entry.get("description", ""),
         "taxonomy": entry.get("taxonomy"),
         "split_column": entry.get("split_column"),
