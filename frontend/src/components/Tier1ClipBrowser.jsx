@@ -94,7 +94,7 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange, livePrediction
               onChange={e => setErrorsOnly(e.target.checked)}
               style={{ accentColor: t.blue }}
             />
-            Errors only
+            Misclassifications only
           </label>
         )}
       </div>
@@ -120,7 +120,7 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange, livePrediction
             <div style={{ border: `1px solid ${t.border}`, borderRadius: 6, maxHeight: 480, overflowY: 'auto' }}>
               {clips.length === 0 && (
                 <div style={{ padding: 12, fontSize: 12, color: t.muted }}>
-                  {errorsOnly ? 'No mispredicted clips in this split.' : 'Loading clips…'}
+                  {errorsOnly ? 'No misclassifications in this split.' : 'Loading clips…'}
                 </div>
               )}
               {clips.map(c => {
