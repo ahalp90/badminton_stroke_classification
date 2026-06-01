@@ -4,17 +4,20 @@ import { useClipList, useClipDetail } from '../hooks';
 import { ClipDetail } from './ClipDetail';
 import { SPLIT_LABELS } from '../utils/format';
 
-const SPLITS = ['val', 'test'];
-
 /* ─── Per-clip browser (Tier 1, from /api/registry) ── */
-// Renders only when live per-clip predictions are available for the selected
-// split (`livePredictions[split]`); the /clips list endpoint then serves real
-// forward-pass predictions. When live inference isn't available the browser is
+// Renders only when real per-clip predictions are available for the selected
+// split (`livePredictions[split]`); the /clips list endpoint then serves the
+// model's precomputed real predictions. When none are available the browser is
 // replaced by an honest note — we never show placeholder predictions.
 
-export function Tier1ClipBrowser({ modelId, split, onSplitChange, livePredictions }) {
+export function Tier1ClipBrowser({ modelId, split, onSplitChange, livePredictions, splitsAvailable }) {
   const { t } = useTheme();
+  // Splits this model actually has (from the registry); default to both.
+  const splits = splitsAvailable?.length ? splitsAvailable : ['val', 'test'];
   const live = !!livePredictions?.[split];
+  // Does the model have per-clip predictions for ANY of its splits? BRIC is
+  // metrics-only (no clip_index), so its browser collapses to a single note.
+  const anyLive = splits.some(s => !!livePredictions?.[s]);
   const [selectedStem, setSelectedStem] = useState(null);
   const [errorsOnly,   setErrorsOnly]   = useState(false);
   const { clips, total, offset, setOffset, limit, error: listError } = useClipList({ modelId, split, errorsOnly, enabled: live });
@@ -32,6 +35,20 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange, livePrediction
     );
   }
 
+  // Metrics-only model (no per-clip predictions for any split, e.g. BRIC):
+  // a single honest line, no split toggle or browser chrome.
+  if (!anyLive && !listError) {
+    return (
+      <div style={{
+        fontSize: 13, color: t.muted, lineHeight: 1.6,
+        padding: '12px 14px', background: t.surface2, borderRadius: 6,
+      }}>
+        Not available for this model — it reports aggregate metrics only, with
+        no per-clip predictions to browse.
+      </div>
+    );
+  }
+
   return (
     <div>
       <div style={{
@@ -39,29 +56,32 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange, livePrediction
         marginBottom: 14, gap: 12, flexWrap: 'wrap',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ display: 'inline-flex', border: `1px solid ${t.border}`, borderRadius: 5, overflow: 'hidden' }}>
-            {SPLITS.map(s => {
-              const active = s === split;
-              return (
-                <button
-                  key={s}
-                  onClick={() => onSplitChange(s)}
-                  style={{
-                    minWidth: 92, textAlign: 'center',
-                    background: active ? t.blue : t.surface2,
-                    color: active ? '#fff' : t.muted,
-                    border: 'none',
-                    padding: '4px 12px',
-                    fontSize: 11, fontWeight: 600,
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    cursor: 'pointer',
-                  }}
-                >
-                  {SPLIT_LABELS[s]}
-                </button>
-              );
-            })}
-          </div>
+          {/* Split toggle — only when the model has more than one split. */}
+          {splits.length > 1 && (
+            <div style={{ display: 'inline-flex', border: `1px solid ${t.border}`, borderRadius: 5, overflow: 'hidden' }}>
+              {splits.map(s => {
+                const active = s === split;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => onSplitChange(s)}
+                    style={{
+                      minWidth: 92, textAlign: 'center',
+                      background: active ? t.blue : t.surface2,
+                      color: active ? '#fff' : t.muted,
+                      border: 'none',
+                      padding: '4px 12px',
+                      fontSize: 11, fontWeight: 600,
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {SPLIT_LABELS[s]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
         {/* The "Errors only" filter only acts on the live clip list, so hide it
             when live per-clip predictions aren't available — otherwise it sits
@@ -80,9 +100,11 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange, livePrediction
       </div>
 
       <div style={{ fontSize: 11, color: t.muted, lineHeight: 1.5, marginBottom: 14 }}>
-        ⓘ <strong style={{ color: t.text }}>Test</strong> = unseen players — the real-world score.{' '}
-        <strong style={{ color: t.text }}>Validation</strong> is the tuning split; it shares players with
-        training, so it reads a little higher.
+        ⓘ <strong style={{ color: t.text }}>Test</strong> = unseen players — the real-world score.
+        {splits.includes('val') && (
+          <>{' '}<strong style={{ color: t.text }}>Validation</strong> is the tuning split; it shares
+          players with training, so it reads a little higher.</>
+        )}
       </div>
 
       {listError && (
@@ -181,9 +203,9 @@ export function Tier1ClipBrowser({ modelId, split, onSplitChange, livePrediction
           fontSize: 13, color: t.muted, lineHeight: 1.6,
           padding: '12px 14px', background: t.surface2, borderRadius: 6,
         }}>
-          Live per-clip predictions for the <strong>{split}</strong> set run on
-          the analysis server and aren&apos;t available in this environment.
-          The metrics above are computed over the full {split} set.
+          Per-clip predictions for the <strong>{split}</strong> set aren&apos;t
+          available for this model. The metrics above are computed over the full
+          {split} set.
         </div>
       )}
     </div>

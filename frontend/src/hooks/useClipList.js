@@ -4,7 +4,7 @@
    */
   import { useState, useEffect } from 'react';
 
-  const CLIP_LIMIT = 30; // TODO: 28 clips per split fit on a single page; bump to 50 once real test clips land
+  const CLIP_LIMIT = 50; // page size; full test split is ~4.2k clips, paged via offset
 
   export function useClipList({ modelId, split, errorsOnly, enabled = true }) {
     const [clips,  setClips]  = useState([]);

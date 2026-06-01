@@ -11,14 +11,15 @@ export function ClipDetail({ detail }) {
     // clip would poison subsequent picks that might actually be on disk.
     useEffect(() => { setVideoError(false); }, [detail.clip_stem]);
 
-    // A prediction is only "real" when the backend ran a live forward pass.
-    // The committed predictions JSON is placeholder data (y_pred == y_true at
-    // 100%), surfaced by the API as drawn_from === 'cached_predictions_json';
-    // a real BST run sets 'live_forward_pass' (see src/api/bst_inference.py).
-    // So when real per-clip inference flows (live BST on the deploy box) this
-    // flips to true automatically — no change needed here. If real predictions
-    // are ever shipped via the cached JSON instead, relax this single check.
-    const predictionReal = detail.drawn_from === 'live_forward_pass';
+    // A prediction is "real" unless it's the old placeholder data (y_pred ==
+    // y_true at 100%). The backend signals provenance via drawn_from:
+    //   'live_forward_pass'          — real, computed live on the deploy box
+    //   'cached_predictions_json'    — real, precomputed offline over the split
+    //   'placeholder_predictions_json' — mock; show the pending state instead
+    // The registered models now ship real precomputed predictions, so the
+    // cached path is real; only a flagged mock sidecar reads as pending.
+    const predictionReal = detail.drawn_from === 'live_forward_pass'
+                        || detail.drawn_from === 'cached_predictions_json';
     const topK = detail.top_k ?? [];
     const maxConf = topK.length ? Math.max(...topK.map(k => k.confidence)) : 1;
 
@@ -51,39 +52,45 @@ export function ClipDetail({ detail }) {
         {detail.match} · {detail.set_id} · rally {detail.rally} · ball round {detail.ball_round}
       </div>
 
-      {/* Ground truth — the real dataset label for this clip; always shown. */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
-        <span style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
-          Actual stroke
+      {/* Actual vs predicted — a lean label→value comparison (no heavy boxes;
+          the Top-5 below already carries the predicted class + confidence).
+          The prediction row renders only for a real result (live forward pass
+          or real precomputed preds); placeholder data falls to the pending
+          state below so it never reads as a real "100% ✓" result. The grid
+          keeps labels aligned and lets the value column wrap on narrow panels. */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)',
+        columnGap: 12, rowGap: 6, alignItems: 'baseline', marginBottom: 16,
+      }}>
+        <span style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+          Actual
         </span>
-        <span style={{ fontSize: 22, fontWeight: 700, color: t.text }}>{detail.true_class}</span>
-        <span style={{ fontSize: 11, color: t.muted }}>ground-truth label</span>
+        <span style={{ fontSize: 17, fontWeight: 700, color: t.text, fontFamily: MONO, overflowWrap: 'anywhere', lineHeight: 1.25 }}>
+          {detail.true_class}
+        </span>
+
+        {predictionReal && (
+          <>
+            <span style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+              Predicted
+            </span>
+            <span style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 17, fontWeight: 700, color: t.text, fontFamily: MONO, overflowWrap: 'anywhere', lineHeight: 1.25 }}>
+                {detail.predicted_class}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: t.blue, fontFamily: MONO }}>
+                {detail.confidence_pct}%
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: detail.is_correct ? t.success : t.danger }}>
+                {detail.is_correct ? '✓ matches' : '✗ differs'}
+              </span>
+            </span>
+          </>
+        )}
       </div>
 
-      {/* Model prediction — only rendered as a real result when it came from a
-          live forward pass; otherwise an explicit pending/placeholder state so
-          placeholder data never reads as a real "100% ✓ correct" result. */}
       {predictionReal ? (
         <>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
-            <span style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
-              Model predicted
-            </span>
-            <span style={{ fontSize: 22, fontWeight: 700, color: t.text }}>{detail.predicted_class}</span>
-            <span style={{
-              fontSize: 22, fontWeight: 700, color: t.blue,
-              fontFamily: MONO, marginLeft: 'auto',
-            }}>
-              {detail.confidence_pct}%
-            </span>
-          </div>
-
-          <div style={{ fontSize: 13, color: t.muted, marginBottom: 16 }}>
-            <span style={{ color: detail.is_correct ? t.success : t.danger, fontWeight: 600 }}>
-              {detail.is_correct ? '✓ matches actual' : '✗ differs from actual'}
-            </span>
-          </div>
-
           <div style={{ fontSize: 11, color: t.muted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
             Top-{topK.length}
           </div>

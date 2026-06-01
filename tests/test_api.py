@@ -135,8 +135,10 @@ def test_registry_bst_status_and_live_predictions():
 
     bst = models["bst_x_une_v1_14_v2"]
     assert bst["status"] == "available"
-    # No scratch/bst_inputs in the test env => no live predictions, metrics still real.
-    assert bst["live_predictions"] == {"test": False, "val": False}
+    # `live_predictions` now means "real per-clip predictions available to
+    # browse": the model ships precomputed test+val sidecars, so the browser
+    # shows them regardless of whether live BST tensors are mounted.
+    assert bst["live_predictions"] == {"test": True, "val": True}
     assert bst["test_metrics"]["macro_f1"] == 0.7514
     # Val is read off the manifest (extra.val_at_best_macro_epoch), not a sidecar.
     assert bst["val_metrics"]["macro_f1"] == 0.7774
@@ -147,34 +149,42 @@ def test_registry_bric_status_and_live_predictions():
     models = {m["id"]: m for m in resp.json()["models"]}
     bric = models["bric_rgb_shuttle_tcn_outgoing_only_v1"]
     assert bric["status"] == "available"
+    # BRIC ships real test predictions but no clip_index, so it stays a
+    # metrics-only card (no per-clip browser). The browser gates on a
+    # clip_index being present to drive the list/detail endpoints.
     assert bric["live_predictions"] == {"test": False, "val": False}
     assert bric["test_metrics"]["macro_f1"] == 0.7305
 
 
-def test_list_clips_serves_live_predictions(monkeypatch):
-    from src.api import registry as reg
-    import src.api.bst_inference as bi
-    monkeypatch.setattr(reg, "_live_splits", lambda: {"test"})
-    monkeypatch.setattr(
-        bi, "predict",
-        lambda stem, split: {
-            "predicted_class": "smash", "true_class": "smash", "confidence_pct": 88,
-        },
-    )
-    resp = client.get("/api/registry/bst_x_une_v1_14_v2/splits/test/clips?limit=3")
+def test_list_clips_serves_precomputed_predictions():
+    # The list serves the model's precomputed real predictions directly — no
+    # per-clip live forward pass — over the full split, internally consistent.
+    resp = client.get("/api/registry/bst_x_une_v1_14_v2/splits/test/clips?limit=5")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["live"] is True
-    assert len(body["clips"]) > 0
+    assert body["live"] is True       # real (non-mock) predictions present
+    assert body["total"] > 1000       # full test split, not a 28-clip demo
+    assert len(body["clips"]) == 5
     for c in body["clips"]:
-        assert c["predicted_class"] == "smash"
-        assert c["is_correct"] is True
-        assert c["confidence_pct"] == 88
+        assert c["predicted_class"] is not None
+        assert c["true_class"] is not None
+        assert isinstance(c["is_correct"], bool)
+        assert c["is_correct"] == (c["predicted_class"] == c["true_class"])
+        assert c["confidence_pct"] is not None
 
 
-def test_list_clips_not_live_omits_predictions(monkeypatch):
+def test_list_clips_mock_predictions_omitted(monkeypatch):
+    # Placeholder/mock predictions are never served as real: the list degrades
+    # to ground-truth-only when the sidecar is flagged `_mock_data`.
     from src.api import registry as reg
-    monkeypatch.setattr(reg, "_live_splits", lambda: set())
+    real_read = reg._read_predictions
+
+    def fake_read(entry, split):
+        preds = dict(real_read(entry, split))
+        preds["_mock_data"] = True
+        return preds
+
+    monkeypatch.setattr(reg, "_read_predictions", fake_read)
     resp = client.get("/api/registry/bst_x_une_v1_14_v2/splits/test/clips?limit=3")
     assert resp.status_code == 200
     body = resp.json()
