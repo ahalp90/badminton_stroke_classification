@@ -266,6 +266,18 @@ def _process_video(job_id: str, video_path: str, model_name: str):
                 log.exception("job %s: live BST errored for stem=%s; falling back to smart stub: %s",
                               job_id, job.clip_stem, e)
 
+        arch = (markup or {}).get("architecture")
+        if result is None and arch == "bric" and job is not None and job.source == "upload":
+            try:
+                from .bric_inference import classify as bric_classify, BricInferenceUnavailable
+                result = bric_classify(Path(video_path), markup)
+                result["live_inference"] = True
+                log.info("job %s: live BRIC forward pass succeeded", job_id)
+            except (BricInferenceUnavailable, KeyError, ValueError) as e:
+                log.info("job %s: BRIC unavailable (%s); falling back to stub", job_id, e)
+            except Exception as e:
+                log.exception("job %s: BRIC errored; falling back to stub: %s", job_id, e)
+
         if result is None:
             result = run_inference(video_path, model_name, markup=markup)
             result["live_inference"] = False
