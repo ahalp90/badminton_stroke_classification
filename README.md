@@ -70,7 +70,7 @@ cp .env.example .env
 
 ### Inspecting available clips (`pipeline.data_access`)
 
-Lists clips for a given `split` + `class` filter, paired with their shuttle and pose files. Reads from `notebooks/clips_master.csv` under the active taxonomy (default `une_merge_v1`).
+Lists clips for a given `split` + `class` filter, paired with their shuttle and pose files. Reads from `notebooks/clips_master.csv` under the active taxonomy (default `bst_25`, the most permissive so every clip shows up).
 
 ```bash
 # Set PYTHONPATH once for the session
@@ -88,7 +88,7 @@ Full CLI flags and Python API: [`src/bst_refactor/pipeline/README.md`](src/bst_r
 Training, pose extraction, and eval at scale all run on the UNE HPC GPU nodes. Active collated training data:
 
 ```
-/scratch/comp320a/ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop/
+/scratch/comp320a/ShuttleSet_data_une_v1_14/npy_v2_taxon_pinned_w_preds/
 ```
 
 
@@ -116,9 +116,9 @@ ln -s /scratch/comp320a/ShuttleSet/shuttle_npy shuttle_npy
 Per-taxonomy MMPose output dir, same pattern:
 
 ```bash
-mkdir -p /scratch/comp320a/ShuttleSet_data_une_merge_v1
+mkdir -p /scratch/comp320a/ShuttleSet_data_une_v1_14
 cd ~/badminton_stroke_classification/src/bst_refactor/stroke_classification/preparing_data
-ln -s /scratch/comp320a/ShuttleSet_data_une_merge_v1 ShuttleSet_data_une_merge_v1
+ln -s /scratch/comp320a/ShuttleSet_data_une_v1_14 ShuttleSet_data_une_v1_14
 ```
 
 After first download, open permissions so the rest of the team can read/write the shared data:

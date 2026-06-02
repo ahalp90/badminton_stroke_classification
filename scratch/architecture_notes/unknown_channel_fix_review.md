@@ -44,7 +44,7 @@ The unknown channel got allocated weight despite never being positively trained.
 - Source-level structural fix at the `n_classes` / `class_ls` derivation.
 - No monkey patching, no loss-side masking, no zeroing weights downstream.
 - Loud `n_active_classes` derivation, persisted to manifest, so future taxonomy + drop combinations can't silently re-introduce a ghost.
-- Flag the change in `scratch/architecture_notes/arch_1_directions.md`.
+- Flag the change in `scratch/architecture_notes/bst_x_overview.md`.
 - Don't recollate existing collated npy dirs. Don't invalidate existing weight files.
 
 The accepted comparability cost is that pre-fix runs (LS sweep cells `run_20260430_170325`, `run_20260430_213933`, `run_20260501_073430`, plus the class-weighted run that finished on engelbart on 2026-05-01) carry the 15-channel ghost head. Post-fix runs are a new architectural era.
@@ -68,7 +68,7 @@ Drove the architecture decision off the `hyp.drop_unknown` boolean. Concretely:
 - Loud `[arch]` printout at run start in `bst_train.__main__`.
 - Manifest enrichment: `extra.arch = {'n_classes_full', 'n_active_classes', 'has_unknown', 'unknown_first', 'drop_unknown', 'active_class_list'}`.
 - Parallel fix in `bst_infer.py`: new `drop_unknown` parameter on `get_network_architecture`; decoder uses `active_class_list` instead of full `class_list()`.
-- Structural note added to `scratch/architecture_notes/arch_1_directions.md`.
+- Structural note added to `scratch/architecture_notes/bst_x_overview.md`.
 
 ### The drop-policy guard (the part that misbehaved)
 
@@ -203,7 +203,7 @@ The "merged_25 doesn't fit my fix" issue disappears because no architectural ass
 - Loud `[arch]` printout (rephrased: derived from data, not flag).
 - Manifest `extra.arch` block.
 - bst_infer parallel fix (now even simpler).
-- `arch_1_directions.md` structural note (with adjusted wording).
+- `bst_x_overview.md` structural note (with adjusted wording).
 - Update of comments on the `present` mask in `validate()` and `Task.test` (that mask was load-bearing for hiding the ghost from F1; post-fix it stays as a generic guard against any zero-support active class).
 
 ### What changes from the first fix
@@ -613,7 +613,7 @@ Major rewrites in three sections:
 - All remapped labels in `[0, n_active)`.
 - `n_active` matches what the data implies (14 for v1/nosides dropunk; 25 for merged_25 dropunk). The expected n_active per dir can be hardcoded as a per-test annotation, or derived once and printed for the reviewer to verify.
 
-#### `scratch/architecture_notes/arch_1_directions.md`
+#### `scratch/architecture_notes/bst_x_overview.md`
 
 The structural note added by the first fix gets reworded:
 
@@ -1100,7 +1100,7 @@ The `__main__` example block in bst_infer.py is updated to load `extra.arch` fro
 
 Real-data probes (Section 5) updated: pass train_labels and val/test as `validation_label_arrays`. All three current dirs (v1, nosides, merged_25 dropunk) should pass under the train-only derivation, since their train splits cover all the classes their val/test do.
 
-#### `arch_1_directions.md`
+#### `bst_x_overview.md`
 
 Same blurb as §3, with one extra clause noting the train-only derivation: "BST output dim now matches the empirically present classes in `labels.npy` train split, with val/test asserted as subsets, derived at first serial via `bst_common.derive_active_classes_from_labels`."
 
@@ -1130,7 +1130,7 @@ Same as §3, plus: `preparing_data/prepare_train_on_shuttleset.py` and any colla
 - `Task` deriving and exposing `n_active_classes` / `active_class_list` for downstream methods.
 - Manifest `extra.arch` block (now written post-first-serial, not preflight).
 - bst_infer parallel fix (now stricter — caller must provide arch info).
-- arch_1_directions.md structural note.
+- bst_x_overview.md structural note.
 - The CPU-only test suite + 3 real-data probes (v1, nosides, merged_25 all pass).
 
 ### 5.6 Validation plan (refined)
@@ -1242,7 +1242,7 @@ For implementation reference. Refer to §5 for the full code patches; §6 only a
 | `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_infer.py` | Strip 1 — required kwargs `n_active_classes` and `active_class_list`, no fallback. Update `__main__` example to read both from manifest. |
 | `scratch/post_tidy_smoke/smoke_infer_bit_exact.py` | Add explicit `n_active_classes=taxonomy.n_classes, active_class_list=taxonomy.class_list()` at the existing `get_network_architecture` call site (line 112). |
 | `tests/test_active_classes.py` | Reframe per §5.2: helper signature change; subset-assert tests; resume cross-check tests; expected_active_classes tests. Section 3 (drop-policy guards) deleted. Real-data probes pass for v1, nosides, merged_25 dropunk. |
-| `scratch/architecture_notes/arch_1_directions.md` | Update the structural note from the first fix to reflect the empirical-derivation semantics, including the train-only invariant. |
+| `scratch/architecture_notes/bst_x_overview.md` | Update the structural note from the first fix to reflect the empirical-derivation semantics, including the train-only invariant. |
 
 ### 6.4 Files NOT touched
 
@@ -1904,7 +1904,7 @@ Both smokes used `early_stop_n_epochs=2`, `range(1, 3)` (2 serials), all other H
 Confirmed clean for two anticipated future cases. Both are covered by existing tests:
 
 - **Taxonomies without unknown**. `Taxonomy.has_unknown=False` flows through naturally: `derive_active_classes_from_labels` doesn't special-case unknown, manifest records `has_unknown=False, unknown_first=False`, class-weighted CE printout uses whatever the active list is. The `synthetic_no_unknown_taxonomy` fixture covers Section 1 + Section 2 paths; `test_derive_no_unknown_taxonomy_round_trip` exercises the end-to-end derivation. Adding a new no-unknown taxonomy to `TAXONOMIES` needs no code changes.
-- **X3D-S fusion / new training scripts**. The architecture-side contract is: source the classification head dim from `task.n_active_classes` (already populated post-`prepare_dataloaders`), and call `_validate_and_record_arch` on serial 1. `Task.get_network_architecture` is the reference implementation. Any new training script that follows that pattern inherits the fix; one that hardcodes `taxonomy.n_classes` in the fusion head puts the unknown ghost back. Wiring note added to `arch_1_directions.md`'s X3D-S bullet to surface this when the build starts.
+- **X3D-S fusion / new training scripts**. The architecture-side contract is: source the classification head dim from `task.n_active_classes` (already populated post-`prepare_dataloaders`), and call `_validate_and_record_arch` on serial 1. `Task.get_network_architecture` is the reference implementation. Any new training script that follows that pattern inherits the fix; one that hardcodes `taxonomy.n_classes` in the fusion head puts the unknown ghost back. Wiring note added to `bst_x_overview.md`'s X3D-S bullet to surface this when the build starts.
 
 ### 8.5 Restore-after-smoke list
 

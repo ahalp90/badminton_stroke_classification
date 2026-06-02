@@ -18,12 +18,12 @@ BST plateau is signal-bound on the smash↔wrist_smash pair: pose-2D throws away
 
 This plan is the *macro* roadmap. Each numbered stage becomes its own research/planning/refinement/implementation task, in order. The macro plan's job is to surface every question that needs answering before each stage can be locked, not to answer them. Where existing code or research already covers part of a question, that is flagged so the per-stage task starts from the right entry point rather than re-litigating settled ground.
 
-Scope is the X3D-S branch from data derivation through fused training. Out of scope: BST-side capacity Run 2 (already queued), augmentation set landing (queued), Phase 3 amateur-generalisation work, the April 9 prior research doc (`architecture_1_bst_3dcnn_racket_extension_09_April.md`) which superseded by `arch_1_directions.md:124-150` on model choice and input shape but is still useful as a citation anchor for fusion-method literature.
+Scope is the X3D-S branch from data derivation through fused training. Out of scope: BST-side capacity Run 2 (already queued), augmentation set landing (queued), Phase 3 amateur-generalisation work, the April 9 prior research doc (`architecture_1_bst_3dcnn_racket_extension_09_April.md`) which superseded by `bst_x_overview.md:124-150` on model choice and input shape but is still useful as a citation anchor for fusion-method literature.
 
 ## Anchor reference points (already settled or partial)
 
-- Model: X3D-S, K400 pretrained via `torch.hub.load('facebookresearch/pytorchvideo', 'x3d_s', pretrained=True)`. Selected against XS / M / L / XL. SSv2 weights not officially available for X3D, parked.  Source: `arch_1_directions.md:124-131`.
-- Target input shape: 39 frames × stride=1, fine-tuning toward this from K400's default 13 × stride=6. RF reaches the full window by the final conv block; ~40 frames is the upper limit. Source: `arch_1_directions.md:133-135`.
+- Model: X3D-S, K400 pretrained via `torch.hub.load('facebookresearch/pytorchvideo', 'x3d_s', pretrained=True)`. Selected against XS / M / L / XL. SSv2 weights not officially available for X3D, parked.  Source: `bst_x_overview.md:124-131`.
+- Target input shape: 39 frames × stride=1, fine-tuning toward this from K400's default 13 × stride=6. RF reaches the full window by the final conv block; ~40 frames is the upper limit. Source: `bst_x_overview.md:133-135`.
 - Hit-frame derivation: Method A (CSV correlation, deterministic) + Method B (shuttle horizontal-velocity sign reversal, independent verification). Re-extraction of source clips not required. Method A scaffold already exists at `src/bst_refactor/validation_scripts/hit_frame_lookup.py`. Source: `augmentation_framework.md:790-868`.
 - Existing data path:
     - Per-clip .mp4 in `BST_CLIPS_DIR` (`/scratch/comp320a/ShuttleSet/clips/{split}/{Top|Bottom}_{stroke}/*.mp4`); 1920×1080 H.264.
@@ -38,12 +38,12 @@ Scope is the X3D-S branch from data derivation through fused training. Out of sc
 
 Things that aren't a stage of their own but must land before any stage runs.
 
-- **Code dedup (already done)**: `bst_common.py` exists at `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py` carrying `MODELS`, `Tee`, `build_bst_network`, `dump_topk_predictions`, and `compute_data_provenance`. The X3D-S training script imports from there, no further extraction needed; the `arch_1_directions.md:472-473` "leave it for now" note pre-dates this refactor.
+- **Code dedup (already done)**: `bst_common.py` exists at `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py` carrying `MODELS`, `Tee`, `build_bst_network`, `dump_topk_predictions`, and `compute_data_provenance`. The X3D-S training script imports from there, no further extraction needed; the `bst_x_overview.md:472-473` "leave it for now" note pre-dates this refactor.
 - **Pinned-taxonomy wiring (changed by the taxon_pinned_w_preds refactor, 2026-05-30)**: head dim is `taxonomy.n_classes` directly. `labels.npy` lands in `[0, n_classes)` at collation time, so there's no runtime active/full remap and no unknown ghost. The deleted machinery (`derive_active_classes_from_labels`, `_validate_and_record_arch`, `task.n_active_classes`, the `extra.arch` manifest block) must NOT be reintroduced. New training scripts mirror `bst_train`: `resolve_taxonomy(name)` -> head `taxonomy.n_classes`, `Task._assert_label_coverage` as the train-start guard (train covers every class; val/test carry no class absent from train), and `config.classes` written into the manifest.
 - **Storage location**: artefacts go on /scratch on engelbart (extraction host), rsync'd to bourbaki post-extract per the existing cross-node pattern. Local disk is not a candidate.
 - **Solo X3D-S baseline gate**: before fusion, X3D-S is trained alone on the wrist crops as a 14-class classifier. The solo number is the lower bound for "fusion adds something". This sits inside Stage 5 but must be planned for in Stage 4's storage layout (the same artefacts feed solo and fused).
-- **Capacity Run 2 + augmentation landing**: scheduled before X3D-S fusion build per the active-priorities ordering at `arch_1_directions.md:51-56`. The fusion baseline is whatever's best after those land, not `run_20260503_172922` directly.
-- **Continued-training writes a NEW run folder (build before any checkpoint-warm-start / multi-stage X3D-S training)**: there is no load-checkpoint-and-train-further path today; `bst_train` loads an existing serial weight and *skips* training. When continued / multi-stage training is built (an X3D-S solo fine-tune that warm-starts from a checkpoint, or staged BST training), it must mint a fresh `run_id` and write its own `tb/`, `weights/`, `manifest.yaml`, `best_model_id.txt` into that new folder, recording `resumed_from: <source run_id>`. It must NOT resume into and overwrite the source run's outputs; each run dir stays immutable. (This is the reason the `taxon_pinned_w_preds` refactor needs no manifest `.bak` machinery: nothing re-opens a finished run to mutate it.)
+- **Capacity Run 2 + augmentation landing**: scheduled before X3D-S fusion build per the active-priorities ordering at `bst_x_overview.md:51-56`. The fusion baseline is whatever's best after those land, not `run_20260503_172922` directly.
+- **Continued-training writes a NEW run folder (build before any checkpoint-warm-start / multi-stage X3D-S training)**: there is no load-checkpoint-and-train-further path today; `bst_train` loads an existing serial weight and *skips* training. When continued / multi-stage training is built (an X3D-S solo fine-tune that warm-starts from a checkpoint, or staged BST training), it must mint a fresh `run_id` and write its own `tb/`, `weights/`, `manifest.yaml`, `best_model_id.txt` into that new folder, recording `resumed_from: <source run_id>`. It must NOT resume into and overwrite the source run's outputs; a finished run dir is left untouched. (This is the reason the `taxon_pinned_w_preds` refactor needs no manifest `.bak` machinery: nothing re-opens a finished run to mutate it.)
 
 ## Stage 1 — Hit-frame metadata derivation
 
@@ -239,7 +239,7 @@ These are the bibliographic entry points the Stage 6 read-the-paper pass should 
 - **X3D backbone** — Feichtenhofer, C. (2020). *X3D: Expanding Architectures for Efficient Video Recognition.* CVPR 2020. Required reading for the input-shape and stride-vs-frame-count fine-tune decisions in Stage 5 as well.
 - **BST** — Chang, K., et al. (2025). *Badminton Stroke-type Transformer.* arXiv:2502.21085. The architecture being extended; predecessor TemPose is the more relevant cross-attention reference.
 
-Existing thinking at `arch_1_directions.md:137-142` maps three shapes:
+Existing thinking at `bst_x_overview.md:137-142` maps three shapes:
 
 > Three competing options:
 > - **Late concat, just before the MLP head.** Easiest to implement, lowest risk, but gives BST no chance to condition its attention on the racket signal.
@@ -248,7 +248,7 @@ Existing thinking at `arch_1_directions.md:137-142` maps three shapes:
 
 `architecture_1_..._09_April.md:44-66` adds:
 
-- **Late feature concat + 2-layer MLP** (the "Phase 1 baseline" — what `arch_1_directions.md` calls late concat).
+- **Late feature concat + 2-layer MLP** (the "Phase 1 baseline" — what `bst_x_overview.md` calls late concat).
 - **MMTM (Multimodal Transfer Module, Joze et al. CVPR 2020)** — per-stream squeeze-excitation gates driven by the concat of pooled features, enabling channel-wise cross-modal modulation.
 - **Bottleneck fusion tokens (MBT, NeurIPS 2021)** — 4 learnable bottleneck tokens that mediate cross-modal attention.
 - **FiLM conditioning** — channel-wise affine gating from one stream onto the other.
@@ -288,7 +288,7 @@ Plus the RacketVision (2025) finding that naive concatenation degraded performan
 6. **Hparam search budget.** What's the realistic compute budget for Stage 6? Number of full 5-serial runs informs whether the fusion-method shortlist is N=1 (depth-first) or N=2-3 (breadth-first).
 7. **Eval baseline.** A/B against `run_20260503_172922` on combo A nosides, plus the latest landed runs from Capacity Run 2 and the augmentation set. The "what does the fusion need to clear to count as a win" question wants an explicit number before launch (e.g., +1 pp macro and +2 pp wrist_smash, or whatever the user wants).
 
-**Deliverable shape**: `main_on_shuttleset/arch1_train.py`, fusion module under `model/fusion/` (or extended `bst.py`), per-fusion-method ablation suite, full writeup at `scratch/architecture_notes/arch_1_directions.md`'s experiment log.
+**Deliverable shape**: `main_on_shuttleset/arch1_train.py`, fusion module under `model/fusion/` (or extended `bst.py`), per-fusion-method ablation suite, full writeup at `scratch/architecture_notes/bst_x_overview.md`'s experiment log.
 
 **Dependencies**: Stages 1-5 all upstream.
 
@@ -299,7 +299,7 @@ These cut across multiple stages and want answering early so they don't compound
 1. **Resolution lock.** 112² vs 160². Affects Stage 4 (storage), Stage 5 (compute), Stage 6 (compute). One number, picked once.
 2. **Storage location.** /scratch on bourbaki/engelbart, with the env-var pattern (`BST_WRIST_CROP_DIR`) mirroring the existing layout. Confirm before Stage 4 launches.
 3. **Code home.** Does Arch 1 live as new files under `src/bst_refactor/stroke_classification/arch1/`, or extend the existing `model/`, `preparing_data/`, `main_on_shuttleset/` trees in place? Latter is lighter-weight; former isolates the X3D-S work for cleaner branching and rollback.
-4. **Splits.** Stick with combo A nosides (`une_merge_v1_nosides + split_v2 + dropunk`) for X3D-S solo and fused, mirroring active BST baseline. The cross-player swap-val-test direction (`arch_1_directions.md:443-453`) stays parked.
+4. **Splits.** Stick with combo A nosides (`une_merge_v1_nosides + split_v2 + dropunk`) for X3D-S solo and fused, mirroring active BST baseline. The cross-player swap-val-test direction (`bst_x_overview.md:443-453`) stays parked.
 5. **Reproducibility scaffolding.** Run-id, manifest, per-serial seeding, weight-cache pattern, and recording `extra.x3d_arch` (frames, stride, resolution, pretrain-source) into the manifest directly (the `_validate_and_record_arch` helper is deleted, see Stage 0). Stage 0 cleanup work.
 6. **Data versioning.** A new `ablation_id` like `arch1_v0` to mark the new collated tree variant if any of the existing tensors get re-collated to add the hit-frame sidecar or wrist-crop pointer.
 
@@ -326,19 +326,19 @@ For when each stage's sub-plan is written:
 - `src/bst_refactor/pipeline/wrist_crop_extractor.py` (Stage 4; new)
 - `src/bst_refactor/stroke_classification/preparing_data/wrist_crop_dataset.py` (Stage 4; new)
 - `src/bst_refactor/stroke_classification/main_on_shuttleset/x3d_s_train.py` (Stage 5; new)
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py` (Stage 0; extract from existing duplication per `arch_1_directions.md:472-473`)
+- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py` (Stage 0; extract from existing duplication per `bst_x_overview.md:472-473`)
 - `src/bst_refactor/stroke_classification/model/fusion/` (Stage 6; new dir, fusion modules per shortlist)
 - `src/bst_refactor/stroke_classification/main_on_shuttleset/arch1_train.py` (Stage 6; new)
 - `src/bst_refactor/stroke_classification/model/bst.py` (Stage 6; possibly extend with optional `x3d_branch` flag, or leave untouched and wrap)
 - `src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py` (Stage 4-6; either extend existing class or build parallel + zip)
 - `.env.example` (each stage; new env vars for paths)
-- `scratch/architecture_notes/arch_1_directions.md` (each stage; experiment log entries)
+- `scratch/architecture_notes/bst_x_overview.md` (each stage; experiment log entries)
 - `scratch/architecture_notes/` (each stage; per-stage writeups, names TBD)
 
 ## What this plan deliberately doesn't do
 
 - Pre-decide the fusion method. That's Stage 6's research arm.
 - Pre-decide the training schedule for fusion. Same.
-- Re-litigate model choice (X3D-S), input shape (39 × stride=1), or hit-frame derivation method (A + B). Those are settled at `arch_1_directions.md:124-148` and `augmentation_framework.md:790-868`.
+- Re-litigate model choice (X3D-S), input shape (39 × stride=1), or hit-frame derivation method (A + B). Those are settled at `bst_x_overview.md:124-148` and `augmentation_framework.md:790-868`.
 - Plan capacity Run 2 or augmentation landing. Both are queued ahead of X3D-S and have their own docs (`transformer_widening_hparam_changes.md`, `augmentation_framework.md`).
 - Specify the per-stage code in detail. Each stage is launched as its own task with its own sub-plan; this doc is the gate that says what the sub-plan must answer.

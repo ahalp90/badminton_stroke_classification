@@ -305,4 +305,4 @@ Even granting the above, there's a defensible small-risk capacity sweep. None of
 
 The lowest-risk standalone test is `mlp_head` hidden 400 → 1200, via the `head_dim * mlp_d_scale` swap at `bst.py:199`: surgical, classifier-side only. If also widening `d_model`, the d_head trim to 32 belongs in the same change so the 7.68x ratio doesn't carry through.
 
-(Run launched 2026-05-03; results due later today. Live status in `arch_1_directions.md` 2026-05-03 block.)
+(Run launched 2026-05-03; results due later today. Live status in `bst_x_overview.md` 2026-05-03 block.)

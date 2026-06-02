@@ -1134,7 +1134,7 @@ Add `clip_stems.npy` to the fake-collated-dir fixture so the new Dataset_npy_col
 ### Step G. Docs to update
 
 - `scratch/scratch_layout.md` - new collation dirs (`ShuttleSet_data_bst_25/`, `_bst_24/`, etc.), new sibling dir (`ShuttleSet_keypoints_clean_sticky_anchor_unknown/`), env var section unchanged.
-- `scratch/architecture_notes/arch_1_directions.md` - active baseline pointer changes (old run_20260505_154907 stays valid via alias; new headline numbers will come from the cells in Step E).
+- `scratch/architecture_notes/bst_x_overview.md` - active baseline pointer changes (old run_20260505_154907 stays valid via alias; new headline numbers will come from the cells in Step E).
 - `scratch/frontend_integration_handoff.md` - `class_list` in the registry comes from `taxonomy.classes`, not from manifest.extra.arch; unknown index is always -1 when present.
 - `docs/models_registry.yaml` - update existing entries to point at the new taxonomy names (or leave on old names + rely on alias lookup, depending on consumer migration timing).
 - Path-format doc strings (`npy_[3d_][seq{N}_]{split}_{collation_id}`): tidied 2026-05-30 in `data_pipeline_to_model_train.md`, `bst_infer.py` (example comment), `tests/test_integration.py`, `tests/testing_guide.md`. Still pending, deferred to where they're naturally touched: `run_tracker.md:80`'s `effective_ablation_id` example (becomes `collation_id` when the bst_common manifest writer is renamed in Step D), the `data_pipeline_to_model_train.md` Hyp-default table entry (Step D Hyp), and prose naming the removed `derive_ablation_id` in `src/shared/taxonomy.py:22` (BRIC-side, left per the insulation rule) + `validation_scripts/README.md:163` (lands with the `verify_bst_train_target.py` rewrite in Step D).
@@ -1227,7 +1227,7 @@ Important: the `class_list` returned by `registry.py` for a given model entry co
 ### Docs changed
 
 - `scratch/scratch_layout.md`
-- `scratch/architecture_notes/arch_1_directions.md`
+- `scratch/architecture_notes/bst_x_overview.md`
 - `scratch/frontend_integration_handoff.md`
 - `docs/models_registry.yaml`
 

@@ -49,7 +49,7 @@ The 1,278 `raw_type_en == 'unknown'` clips were excluded from the Phase-2 extrac
 
 ## Earlier status (2026-04-25)
 
-Phase 0, Phase 1 raw extract, heuristic implementation, and Phase 1 mixed retrain are all complete. The decision gate failed; a per-class frame-zeroing audit then ruled out the data-quality-bottleneck hypothesis empirically. Phase 2 was deprioritised (not killed) at this point. Focal loss is the next experiment under `arch_1_directions.md` rather than this doc.
+Phase 0, Phase 1 raw extract, heuristic implementation, and Phase 1 mixed retrain are all complete. The decision gate failed; a per-class frame-zeroing audit then ruled out the data-quality-bottleneck hypothesis empirically. Phase 2 was deprioritised (not killed) at this point. Focal loss is the next experiment under `bst_x_overview.md` rather than this doc.
 
 - **Raw extract** (1,716 hit-zone-busted clips, `N_max = 16`) at `_flat_raw_phase1/`. 0.79% of frames hit the cap; sufficient.
 - **`sticky_anchor` implemented and run** on the full 1,716. Output at `_flat_h_sticky_anchor/`. Wall time 54 s on engelbart.

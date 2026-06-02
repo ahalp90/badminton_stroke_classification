@@ -361,7 +361,7 @@ results. Most useful constraints fall into five buckets.
 
 5. **Training regime is very different from ours.** BST paper
    trains at n_epochs=1600, num_cycles=0.25, warm_up=400,
-   early_stop=300. Our retune (Q4 in `arch_1_directions.md`)
+   early_stop=300. Our retune (Q4 in `bst_x_overview.md`)
    compressed to n_epochs=80, num_cycles=0.5, warm_up=100,
    early_stop=40. **Inferred constraint**: WD and dropout sweeps at
    our compressed schedule will land in a different effective
@@ -662,7 +662,7 @@ the optimum: TemPose's Bad OL had ~15k samples; ShuttleSet has
 (100, 128) is weaker for us. A larger-(DL, DA) cell at our scale
 might recover that ground.
 
-**Genuinely worth sweeping?** This is Q5 in `arch_1_directions.md`
+**Genuinely worth sweeping?** This is Q5 in `bst_x_overview.md`
 ("Attention head geometry sweep") and is correctly flagged as
 secondary priority. With TemPose's sweep results in hand, it's
 even more clearly secondary: they already validated the current
@@ -843,7 +843,7 @@ sequential):
 | `lr` x `weight_decay` | Both modify update magnitude. Higher LR with higher WD is roughly equivalent to lower LR with lower WD on simple loss surfaces. | Already retuned LR (Q4); WD now correctly studied in isolation. **No joint sweep needed.** |
 | `weight_decay` x `drop_p` | Shared regularisation budget. Tuning either alone tends to overshoot. | **Yes.** Cheap 4-cell follow-up after the marginal sweeps locate good regions. |
 | `drop_p` x augmentation | Same shared regularisation budget at different stack layers. | **Yes**, but probably enough to do them sequentially: first augmentation tuning to locate the right magnitude, then drop_p around that anchor. |
-| `label_smoothing` x focal loss | Both regularise classifier confidence. Stack weirdly per the spec in `arch_1_directions.md`. | The focal-loss spec already disables LS in the focal arm. **No joint sweep.** Run focal vs CE separately. |
+| `label_smoothing` x focal loss | Both regularise classifier confidence. Stack weirdly per the spec in `bst_x_overview.md`. | The focal-loss spec already disables LS in the focal arm. **No joint sweep.** Run focal vs CE separately. |
 | `tcn_kernel_size` x `depth_tem` | Both affect effective temporal receptive field and how much pre-pooling vs attention-pooling the model does. | **Marginal yes, low priority.** Could be a single 2-cell follow-up (k=3 with depth_tem=3 vs k=5 with depth_tem=2) once both have been tuned in isolation. |
 | Frame zeroing x mask channel | Mask channel meaningless without zeroing-policy decision; zeroing-policy results harder to read without mask channel. | **Sequential**: first pick a zeroing policy, then add mask channel as a follow-up arm. |
 | `ablation_id` x `taxonomy` | Independent. Don't sweep jointly. | **No.** |
@@ -970,7 +970,7 @@ plan the rest as informed-by-results.
    mean wrist_smash vs LS=0.1 baseline; head metrics flat; range
    tightens 0.159 → 0.066). LS=0.0 disproved the rare-class-tax
    hypothesis. LS=0.05 skipped (two bracketing data points
-   enough); LS=0.2 deferred. Full numbers in `arch_1_directions.md`.
+   enough); LS=0.2 deferred. Full numbers in `bst_x_overview.md`.
 1a. **LS sweep + horizontal-flip augmentation on combo B**
     (originally gated on step 1 showing lift). Held: combo A
     LS sweep wrapped without combo B re-test being needed for
@@ -983,7 +983,7 @@ plan the rest as informed-by-results.
    tau=0.5, pair-cap, gamma=2) traded ws back for smash without
    macro moving. No CDB run breaks the val/test plateau at
    0.74-0.75 macro. Loss-side ceiling firmly mapped. Full
-   numbers in `arch_1_directions.md`.
+   numbers in `bst_x_overview.md`.
 2a. **Capacity-bump confirmation runs**.
     Capacity-bottleneck research at
     `scratch/architecture_notes/model_capacity_bottleneck_question.md`
@@ -999,7 +999,7 @@ plan the rest as informed-by-results.
       -4.8 pp, pair-confusion trade went smash-up / ws-down.
       The mlp_head swap has been **reverted** at `bst.py:202`
       to keep the baseline clean for Run 2 and any subsequent
-      work. Full numbers in `arch_1_directions.md` 2026-05-03
+      work. Full numbers in `bst_x_overview.md` 2026-05-03
       block.
     - **Run 2 (d_model 100 → 192 + d_head trim 128 → 32)** —
       pending. Encoder-side widening; residual stream goes 1.92x

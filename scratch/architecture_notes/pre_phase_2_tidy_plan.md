@@ -92,7 +92,7 @@ Steps 1–10 (planned) + step P (proper-packages refactor) + step Q (lint-debt c
 | 6 | `c6d962d` | Add 7 `tests/test_sticky_anchor.py` invariant tests (Voronoi, Bottom-first, sitting tiebreaker, rally presence, EMA reset, mixed pick, update gate). |
 | 7 | `9af521e` | `StickyAnchorParams` frozen dataclass: collapse three triplicated default-value definitions into one. |
 | 9 | `ad9cd15` | `git mv` completed-phase scripts into `scripts/archive/`; flag `scripts/example_mlflow_run.py` as a delivery-review TODO. |
-| 10 | `f4c7bec` | Move LR/aux rationale paragraphs out of `bst_train.py` into `arch_1_directions.md` + `historical_bst.md`. |
+| 10 | `f4c7bec` | Move LR/aux rationale paragraphs out of `bst_train.py` into `bst_x_overview.md` + `historical_bst.md`. |
 | — | `57655aa` | Pre-existing test-failure fix: drop unused `mediapipe` import; auto-detect `pose_style` in `test_integration`. |
 | — | `af1a551`, `c5676dc` | Found running the gate: consolidate `n_bones` as a single source of truth in `build_bst_network`; rename for consistency. |
 | — | `412f6e5`, `25e0308`, `248f540` | `scratch/post_tidy_smoke/` bit-exact verification scripts (later superseded by step P). |
@@ -292,7 +292,7 @@ Order is smallest blast radius first. Steps 1-7 are bundled into one local-only 
 - `src/bst_refactor/data_pipeline_to_model_train.md:121, 535` and `src/bst_refactor/pipeline/README.md:165, 247`: add `une_merge_v1_nosides` to taxonomy lists.
 - `src/bst_refactor/data_pipeline_to_model_train.md:260-263`: remove `Dataset_npy_collated_one_side` and `_single_pose` from "primary classes" listing (or mark as orphaned-pending-deletion).
 - `src/bst_refactor/run_tracker.md:64-90`: add `extra: data_provenance: {clips_csv_path, clips_csv_sha256, effective_ablation_id, npy_collated_dir}` to the manifest format example.
-- `scratch/architecture_notes/arch_1_directions.md:101`: refresh `bst_train.py` line refs (cosine scheduler now at `:395-400`).
+- `scratch/architecture_notes/bst_x_overview.md:101`: refresh `bst_train.py` line refs (cosine scheduler now at `:395-400`).
 - `README.md:100-104`: list the actual contents of `tests/` (`test_api`, `test_data_access`, `test_dataset`, `test_environment`, `test_integration`).
 
 **Safety checks:** `pytest`. (Doc-only, but runs as a sanity gate on the working tree.)
@@ -339,7 +339,7 @@ Each move uses `git mv`. The five `outdated_*.md` and `historical_*.md` files in
 
 ### Step 4 — Capture excised content into `historical_bst.md` (pre-deletion fill)
 
-**Touches:** `scratch/architecture_notes/historical_bst.md`, `scratch/architecture_notes/arch_1_directions.md`. No source-code deletes yet.
+**Touches:** `scratch/architecture_notes/historical_bst.md`, `scratch/architecture_notes/bst_x_overview.md`. No source-code deletes yet.
 
 Before deleting anything from `tempose.py`, `shuttleset_dataset.py`, or `bst_train.py`, capture:
 
@@ -350,7 +350,7 @@ Before deleting anything from `tempose.py`, `shuttleset_dataset.py`, or `bst_tra
 - The `compare_pred_gt_on_specific_type` debug method (verbatim).
 - The `normalize_joints` `center_align=False` upstream default plus the apologia paragraph.
 
-`arch_1_directions.md` gains a "current LR + aux schedule" subsection (one paragraph distillation of the active config) with a cross-link to `historical_bst.md` for the dated history.
+`bst_x_overview.md` gains a "current LR + aux schedule" subsection (one paragraph distillation of the active config) with a cross-link to `historical_bst.md` for the dated history.
 
 **Safety checks:** `pytest`. Doc-only.
 
@@ -504,11 +504,11 @@ Roughly 6-8 tests. Should run in well under a second.
 
 ### Step 10 — `bst_train.py` configuration block tidy (final pass)
 
-**Touches:** `bst_train.py` and `arch_1_directions.md`.
+**Touches:** `bst_train.py` and `bst_x_overview.md`.
 
 This step depends on step 4 (historical_bst.md fill) and step 5 (dead-code excision). Done last in this branch because it's the most stylistic and any merge conflict here is cheapest to resolve.
 
-- Move LR/aux-schedule rationale paragraphs (`bst_train.py:65-157`) into `arch_1_directions.md` (current state) and `historical_bst.md` (verbatim history). Keep only a one-line cross-link in `bst_train.py` plus the live `Hyp` config.
+- Move LR/aux-schedule rationale paragraphs (`bst_train.py:65-157`) into `bst_x_overview.md` (current state) and `historical_bst.md` (verbatim history). Keep only a one-line cross-link in `bst_train.py` plus the live `Hyp` config.
 - Delete migration-anchor comments at `bst_train.py:1-2, 53-57`.
 - Delete the task-anchored comment at `bst_train.py:151` (`# Aggressive CG/AP annealing — matches preferred config from run_20260418_151139.`).
 
@@ -516,7 +516,7 @@ This step depends on step 4 (historical_bst.md fill) and step 5 (dead-code excis
 - `pytest`.
 - Import smoke: `python -c "from src.bst_refactor.stroke_classification.main_on_shuttleset.bst_train import Hyp, MODELS, Task; print(Hyp._fields)"` — confirms the namedtuple fields are unchanged.
 
-**Commit message draft:** "Move bst_train tuning rationale into arch_1_directions and historical_bst; trim configuration block."
+**Commit message draft:** "Move bst_train tuning rationale into bst_x_overview and historical_bst; trim configuration block."
 
 ---
 

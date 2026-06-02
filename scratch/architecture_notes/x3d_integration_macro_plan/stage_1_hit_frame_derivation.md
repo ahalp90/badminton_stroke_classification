@@ -25,7 +25,7 @@ Status: plan signed off, no code written.
 Open scratch/architecture_notes/x3d_integration_macro_plan/stage_1_hit_frame_derivation.md
 and read end-to-end. Background context (read the TLDR sections only, not full docs):
 - scratch/architecture_notes/x3d_integration_macro_plan/x3d_integration_macro_plan.md
-- scratch/architecture_notes/arch_1_directions.md (TLDR + active priorities)
+- scratch/architecture_notes/bst_x_overview.md (TLDR + active priorities)
 - scratch/architecture_notes/augmentation_framework.md "How hit-frame metadata
   would get derived" section (around line 836)
 The plan is locked in scope. Implementation has not started. Existing entry point:
@@ -50,7 +50,7 @@ The deliverable is data + diagnostics, not training. Implementation happens in a
 - Method A scaffold exists at `src/bst_refactor/validation_scripts/hit_frame_lookup.py:25`. It returns a `dict[stem -> hit_idx_disk]` derived from `ShuttleSet/set/*.csv` plus `video_metadata.csv`. CPU-only, runs in seconds. Not yet writing sidecars.
 - Collation pads everything to seq_len=100 via `make_seq_len_same` at `src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py:43`. Two cases: `videos_len > 100` strides the disk clip; `videos_len <= 100` zero-pads on the right. Striding shifts the hit index; padding does not.
 - Shuttle stream: `shuttle.npy` per split is `(n_clips, 100, 2)` xy in court-normalised coordinates. The TrackNetV3-inpaint version is what `wipe_drop` collation pulls in; gaps are the inpaint output's own residual misses, not raw zeros.
-- Collated trees live under `npy_wipe_drop/{train,val,test}/` per `arch_1_directions.md` X3D-S anchor section. Sidecars from Stage 1 land in the same dirs.
+- Collated trees live under `npy_wipe_drop/{train,val,test}/` per `bst_x_overview.md` X3D-S anchor section. Sidecars from Stage 1 land in the same dirs.
 - Source clips on engelbart at `BST_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips/{split}/{Top|Bottom}_{stroke}/{stem}.mp4`. Source `clips_master.csv` at `notebooks/clips_master.csv` carries `clip_stem`, `raw_type_en`, `player_side`, `split_v2`, plus `aroundhead` / `backhand` flags.
 
 ## Method A: deterministic CSV correlation (already scaffolded)

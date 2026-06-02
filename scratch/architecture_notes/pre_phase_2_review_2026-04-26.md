@@ -29,7 +29,7 @@ The path/IO abstraction, the larger module deduplications, and the bulk style/co
 Three actions, in order:
 1. Extract `bst_common.py` with `MODELS`, `Task` base, `Tee`, and the `__main__` plumbing for run-id and clips-CSV hashing. `bst_infer.py:7-12` already names this; without it the X3D-S training script becomes a 145-line copy-paste.
 2. Delete the dead dataset variants and the unreachable `compare_pred_gt_on_specific_type` debug helper.
-3. Move the LR/aux-schedule rationale paragraphs out of `bst_train.py:65-157` into `arch_1_directions.md`. Keep only the active `Hyp` config in code; cross-link the writeup.
+3. Move the LR/aux-schedule rationale paragraphs out of `bst_train.py:65-157` into `bst_x_overview.md`. Keep only the active `Hyp` config in code; cross-link the writeup.
 
 ---
 
@@ -66,7 +66,7 @@ The dual goal (preserve BST + extend it) remains sensible at the model layer (th
 - **Comments that explain *what* not *why*, or have rotted**:
   - `bst_train.py:1-2`: migration anchor referring to files that no longer exist.
   - `bst_train.py:53-57`: refactor cross-ref to a completed migration; trim to a one-line marker.
-  - `bst_train.py:85-101`: commented-out previous `hyp` block, full of `n_epochs=1600` etc. Per the no-shims-for-unshipped-code principle, delete; rationale lives in `arch_1_directions.md`.
+  - `bst_train.py:85-101`: commented-out previous `hyp` block, full of `n_epochs=1600` etc. Per the no-shims-for-unshipped-code principle, delete; rationale lives in `bst_x_overview.md`.
   - `bst_train.py:151`: `# Aggressive CG/AP annealing — matches preferred config from run_20260418_151139.` Task-anchored to a specific run id.
   - `bst_train.py:389-394`: commented-out alternate scheduler, same pattern.
 - **Genuine *why* comments to keep**:
@@ -75,7 +75,7 @@ The dual goal (preserve BST + extend it) remains sensible at the model layer (th
   - `shuttleset_dataset.py:277-295`: 19-line "DIVERGENCE FROM ORIGINAL BST" note. Concise enough; load-bearing.
 - **Docstring style violations**:
   - `shuttleset_dataset.py:359-373, 432-445`: orphan `Dataset_npy_collated_one_side` and `_single_pose` use rST `.. warning::` blocks repeating themselves. Will go away when the classes are deleted under focus area 1.
-  - `data_pipeline_to_model_train.md:392`: dated multi-paragraph tuning blocks embedded in a module reference table. Belongs in `arch_1_directions.md`.
+  - `data_pipeline_to_model_train.md:392`: dated multi-paragraph tuning blocks embedded in a module reference table. Belongs in `bst_x_overview.md`.
 - **AU/UK spelling violations in non-third-party code**:
   - `pipeline/court_utils.py:127-138`: `normalize_position` (US) and "Normalize court coordinates" in the docstring. Heuristic modules import this. Renaming ripples cleanly through the heuristics, but `prepare_train_on_shuttleset.py:142` shares the name as the byte-identity contract with upstream BST. Either rename both or accept US at the upstream-anchored boundary.
   - `pipeline/shuttle_extractor.py:38, 46-52, 252-310`: `normalize_shuttlecock`, `normalized .npy files`, `normalize`. Refactor module, not upstream; rename is free.
@@ -83,7 +83,7 @@ The dual goal (preserve BST + extend it) remains sensible at the model layer (th
   - `pipeline/clip_generator.py:236, 276, 355`: "labeled", "vectorized".
 - **Em-dashes throughout prose**: `bst_train.py:6, 12, 49, 77, 122, 145, 151, 237, 388, 399, 555, 746, 823`, `bst.py:106, 110`, `clip_generator.py:158, 316`, `prepare_train_on_shuttleset.py:570, 589, 648`. Bulk find-and-replace job.
 - **"fade" in `bst_train.py:103, 124, 127, 152, 165, 167, 411`**: `aux_fade_end_epoch`, "cosine fade", "fade window". The hyperparam name is embedded in the manifest, `run_overview.py` defaults, and `aim_backfill` tags (`anneal_aggressive` / `anneal_gentle`). Renaming is a 6-file ripple with no behavioural value. **Leave the codename, switch the prose around it from "fade" to "anneal" or "downtune".** That is what the tags already do.
-- **`scratch/architecture_notes/arch_1_directions.md:158`**: `Δ` as a column header. Per the principle, prefer `change` or `gain`.
+- **`scratch/architecture_notes/bst_x_overview.md:158`**: `Δ` as a column header. Per the principle, prefer `change` or `gain`.
 
 ### Recommendation: **tidy-after** the X3D-S layer lands
 
@@ -188,7 +188,7 @@ The Voronoi / EMA tests can use synthetic `RawClip` arrays (a few frames of hand
 2. **`src/bst_refactor/data_pipeline_to_model_train.md:392`** — `Hyp` defaults documented as `n_epochs=1600, batch_size=128, lr=5e-4, warm_up_step=400, early_stop_n_epochs=300, taxonomy='merged_25', ...`. Reality (`bst_train.py:140-157`): `n_epochs=80, warm_up_step=100, early_stop_n_epochs=40, taxonomy='une_merge_v1_nosides', use_aux_schedule=True, aux_fade_end_epoch=15, split_column='split_v2', drop_unknown=True`. The "active retune" notes embedded in the table partially update this but disagree among themselves (one block claims `n_epochs=120`; the active value is 80). **This is the worst offender** because it presents two-week-old tuning state as the live module reference.
 3. **`src/bst_refactor/data_pipeline_to_model_train.md:121, 535`** plus **`src/bst_refactor/pipeline/README.md:165, 247`** — list taxonomies as `une_merge_v1` / `merged_25` / `raw_35` only. `pipeline/config.py:206-212` defines `une_merge_v1_nosides` as well, and it is the active default.
 4. **`src/bst_refactor/data_pipeline_to_model_train.md:260-263`** — Stage 3 Dataset section lists `Dataset_npy_collated_one_side` and `Dataset_npy_collated_single_pose` as primary classes alongside `Dataset_npy_collated`. Neither has any caller in active code. Either delete from doc or mark as orphaned. This will sort itself when the focus-area-1 deletion lands.
-5. **`scratch/architecture_notes/arch_1_directions.md:101`** — references `bst_train.py:255 originally passed num_cycles=0.25 into get_cosine_schedule_with_warmup`. Current line 255 is `shuttle: Tensor = shuttle.to(device)`; the cosine scheduler is now at `bst_train.py:395-400`. Line numbers drifted with per-epoch timing logging and the resume_from block. Other line refs in the same doc still point correctly.
+5. **`scratch/architecture_notes/bst_x_overview.md:101`** — references `bst_train.py:255 originally passed num_cycles=0.25 into get_cosine_schedule_with_warmup`. Current line 255 is `shuttle: Tensor = shuttle.to(device)`; the cosine scheduler is now at `bst_train.py:395-400`. Line numbers drifted with per-epoch timing logging and the resume_from block. Other line refs in the same doc still point correctly.
 6. **`src/bst_refactor/run_tracker.md:64-90`** — manifest format example is missing `extra: data_provenance: {clips_csv_path, clips_csv_sha256, effective_ablation_id, npy_collated_dir}` per `bst_train.py:833-840`. Live manifests have it (e.g. `run_20260425_185421/manifest.yaml:161-164`). Doc shows `tags`, `notes`, `best_serials` but not the field every recent run actually populates.
 7. **`README.md:78-82`** — `## Experiment Tracking` mentions the MLflow stub. If `example_mlflow_run.py` is deleted (focus-area-4 recommendation), update this paragraph.
 8. **`README.md:100-104`** — `tests/test_environment.py` is described as the only environment test. The directory actually has `test_api.py`, `test_data_access.py`, `test_dataset.py`, `test_environment.py`, `test_integration.py`. Understates coverage.
@@ -215,7 +215,7 @@ These are the actions this review recommends before X3D-S work begins. Total est
    - `src/bst_refactor/deprecated/` and `src/bst_refactor/ShuttleSet/deprecated/` to `scratch/historical/` (or delete; git preserves them).
    - `src/bst_refactor/stroke_classification/main_on_shuttleset/tmp/` to `scratch/` or `tests/smoke/`.
 7. **Tidy `bst_train.py` configuration block**:
-   - Move LR/aux-schedule rationale paragraphs (lines 65-157) into `arch_1_directions.md`. Keep only the active `Hyp` config in code; cross-link the writeup.
+   - Move LR/aux-schedule rationale paragraphs (lines 65-157) into `bst_x_overview.md`. Keep only the active `Hyp` config in code; cross-link the writeup.
    - Delete commented-out previous `Hyp` block (lines 85-101) and commented-out scheduler (lines 389-394).
    - Delete migration-anchor comments (lines 1-2, 53-57).
 8. **Fix the worst doc-drift items**:
@@ -223,7 +223,7 @@ These are the actions this review recommends before X3D-S work begins. Total est
    - `data_pipeline_to_model_train.md:392`: rewrite the `Hyp` defaults table.
    - `data_pipeline_to_model_train.md:121, 535` and `pipeline/README.md:165, 247`: add `une_merge_v1_nosides` to the taxonomy list.
    - `run_tracker.md:64-90`: add `extra: data_provenance` to the manifest example.
-   - `arch_1_directions.md:101`: refresh the `bst_train.py` line refs (now at `:395-400`).
+   - `bst_x_overview.md:101`: refresh the `bst_train.py` line refs (now at `:395-400`).
 9. **Collapse `bst_train.py:744-783`** model_info / npy_collated_dir block. Drop the dead `additional_model_info` sentinel.
 
 ---

@@ -107,7 +107,7 @@ End-of-refactor sweep targets. Updated as new finds emerge during execution.
 - `scratch/architecture_notes/xai_vid_feature.md` (old `.pt` schema field name)
 - `scratch/frontend_integration_handoff.md` (per plan Step G)
 - `scratch/scratch_layout.md` (new collation dirs)
-- `scratch/architecture_notes/arch_1_directions.md` (active baseline pointer)
+- `scratch/architecture_notes/bst_x_overview.md` (active baseline pointer)
 - `docs/models_registry.yaml` (taxonomy field; leave-via-alias or re-key)
 - `scratch/architecture_notes/unknown_channel_fix_review.md` (archived design doc, deprecated symbol refs; pure history)
 - `scratch/architecture_notes/completed_general_refactors/data_access_integration_plan.md` (archived design doc, deprecated symbol refs; pure history)
@@ -445,6 +445,6 @@ Did the whole model-side pass in one session on the laptop, smoke-tested in the 
 
 **Tests:** +19 across `test_train_surface.py` (coverage assert, npz dump, train_network return), `test_inference_smoke.py` (bst_infer --fe end-to-end, k-clamp), `test_api_registry.py` (`_resolve_class_list` + a live `/api/registry` fallback check), `test_api_inference.py` (JSON field preference). Full suite in the cicd venv: **365 passed, 5 skipped** (the /scratch real-label probes + the missing-clip-stems back-compat), 2 pre-existing `/app/uploads` docker failures in `test_api.py` unrelated to this work.
 
-**Not done (needs bourbaki / a later session):** the actual 6-cell runs via the runner, the non-best npz prune, the run-ID-dependent docs (arch_1_directions headline numbers, models_registry new entries), and the J4 FE PR note. Everything code-side is import-clean and tested on CPU.
+**Not done (needs bourbaki / a later session):** the actual 6-cell runs via the runner, the non-best npz prune, the run-ID-dependent docs (bst_x_overview headline numbers, models_registry new entries), and the J4 FE PR note. Everything code-side is import-clean and tested on CPU.
 
 Also fixed in passing: `model/bst.py`'s `__main__` smoke (was importing the removed `DEFAULT_TAXONOMY`) and a stale `class_list()` docstring in shuttleset_dataset. One BST-side straggler the Step-A audit missed is **flagged not fixed**: `validation_scripts/mmpose_heuristic_investigation/zeroed_frames_class_audit.py` still calls the removed `taxonomy.standalone_set` + `taxonomy.class_list()`. It's a standalone diagnostic (not imported, not in CI), so it doesn't break anything live, but it needs a real port to `label_for_row` (not a rename) before it'll run again.

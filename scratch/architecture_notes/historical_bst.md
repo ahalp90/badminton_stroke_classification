@@ -4,7 +4,7 @@
 
 Each section captures: where the content originally lived (file:line at the time of excision), why it was preserved through earlier phases, why it was removed, and the verbatim source as a fenced code block.
 
-This file is **read-only history**. Do not edit excised content to reflect later changes; current state lives in the active source tree and in `arch_1_directions.md`.
+This file is **read-only history**. Do not edit excised content to reflect later changes; current state lives in the active source tree and in `bst_x_overview.md`.
 
 ---
 
@@ -597,7 +597,7 @@ The original BST recipe also ran with `num_cycles=0.25` in the cosine scheduler 
 
 **Why preserved through phase 1:** the dated rationale paragraphs ("LR-SCHEDULE RETUNE 2026-04-17", "AUX-SCHEDULE 2026-04-18") record decisions that materially affected the active config. Useful for ablation interpretation and for picking up the work after a long context gap.
 
-**Why moved out:** the rationale belongs in a writeup-style document, not in the configuration block of the live training script. `arch_1_directions.md` carries the current-state distillation; the verbatim dated history lives here for the report.
+**Why moved out:** the rationale belongs in a writeup-style document, not in the configuration block of the live training script. `bst_x_overview.md` carries the current-state distillation; the verbatim dated history lives here for the report.
 
 ### 3.1 LR-schedule retune (2026-04-17)
 
@@ -668,7 +668,7 @@ The original BST recipe also ran with `num_cycles=0.25` in the cosine scheduler 
 
 ### 3.3 Cross-link
 
-Current state: `scratch/architecture_notes/arch_1_directions.md` (under "current LR + aux schedule").
+Current state: `scratch/architecture_notes/bst_x_overview.md` (under "current LR + aux schedule").
 
 ---
 
@@ -1182,7 +1182,7 @@ Original locations are recorded in `scratch/project_history/README.md`.
 
 ## Cross-references
 
-- `scratch/architecture_notes/arch_1_directions.md` — current Architecture 1 state and recent decision history.
+- `scratch/architecture_notes/bst_x_overview.md` — current Architecture 1 state and recent decision history.
 - `scratch/architecture_notes/pipeline_context_notes.md` — pipeline-area excisions (separate from BST-core).
 - `scratch/architecture_notes/pre_phase_2_review_2026-04-26.md` — review that drove the tidy pass.
 - `scratch/architecture_notes/pre_phase_2_tidy_plan.md` — execution plan for the tidy pass.
