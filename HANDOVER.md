@@ -134,9 +134,18 @@ checkpoints.
 **Decision and mechanism are in `MODELS.md`:** run-time weights go to a GitHub
 Release and are pulled with `scripts/fetch-models.sh`; the historical training
 archive goes to bulk storage. `.gitignore` now blocks new artifacts from being
-committed. The remaining team action is to publish the release and (optionally)
-rewrite history to reclaim the existing 440 MB. None of this blocks running the
-demo, which uses the committed ~11 MB predictions.
+committed.
+
+- **Done:** the 6 run-time weights (~43 MB) are published on the `models-v1`
+  release; `scripts/fetch-models.sh` works and the manifest is checksum-filled.
+- **Tier 2 archive (~440 MB):** already on shared institutional storage, though
+  that store may not persist indefinitely. If it is no longer present there, open
+  an issue on the repo or reach Curtis Martin on GitHub (@curtislmartin), who
+  keeps a backup, for a copy.
+- **Optional:** a maintainer may still rewrite history to reclaim the existing
+  440 MB already in `.git` (see `MODELS.md`).
+
+None of this blocks running the demo, which uses the committed ~11 MB predictions.
 
 ---
 

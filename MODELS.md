@@ -3,11 +3,12 @@
 How model weights, training arrays, and TensorBoard logs are made available to
 the next team, and why. See `HANDOVER.md` for the project-wide handover.
 
-> **Status — NOT yet published.** TODO (team): no GitHub Release has been
-> created and no weights are uploaded yet. `scripts/fetch-models.sh` will not
-> work until someone runs `scripts/publish-models.sh` (Tier 1, below) and the
-> training archive (Tier 2) is parked in bulk storage. The demo is unaffected in
-> the meantime: it runs from the precomputed predictions already in the repo.
+> **Status — Tier 1 published.** The 6 run-time weights are uploaded as assets
+> on the `models-v1` GitHub Release and `scripts/fetch-models.sh` works against
+> it. The Tier 2 training archive already lives on shared institutional storage
+> (which may not persist indefinitely; a maintainer backup is the fallback, see
+> Tier 2 below). The demo is unaffected either way: it runs from the precomputed
+> predictions already in the repo.
 
 ## The decision (two tiers)
 
@@ -37,7 +38,11 @@ historical archive (Tier 2) is reproducibility material, so it belongs in the
 institutional storage the team already has (the HPC scratch it was trained on,
 or university cloud), referenced by a manifest.
 
-## Tier 1: publish the run-time weights (one-time, current team)
+## Tier 1: publish the run-time weights (one-time, current team) — DONE
+
+> Already published to the `models-v1` release via `scripts/publish-models.sh`.
+> The steps below are kept for reference / re-publishing a new tag. The manifest's
+> `sha256` column is filled, so fetches are integrity-verified.
 
 The deployed weights are listed in `scripts/model_manifest.tsv` (generated from
 each registry entry's `weights_path`). It currently holds the **6 BST-X**
@@ -63,7 +68,7 @@ this in a comment, with how to add BRIC back if live BRIC inference is wanted.
 ## Tier 1: fetch the run-time weights (next team)
 
 ```bash
-MODELS_BASE_URL=https://github.com/<org>/<repo>/releases/download/models-v1 \
+MODELS_BASE_URL=https://github.com/Kira-Le/badminton_stroke_classification/releases/download/models-v1 \
   ./scripts/fetch-models.sh
 ```
 The script reads the manifest and drops each weight back into its registry
@@ -74,10 +79,14 @@ The script reads the manifest and drops each weight back into its registry
 The full set of historical checkpoints, `*.npz` logit dumps, and TB event logs
 is for reproducibility and retraining only.
 
-- TODO (team): copy it to the agreed bulk store (HPC scratch / university
-  cloud) and record the location + access here.
-- TODO (team): keep a manifest (path + size + sha256) alongside it so a future
-  owner can verify completeness.
+- **Location.** A full copy (~440 MB total: 49 `*.pt`, 63 `*.npz`, and 466
+  TensorBoard event files) already lives on shared institutional storage. That store may not persist
+  indefinitely, so treat it as the primary copy but not guaranteed permanent.
+- **Fallback.** If the archive is no longer present on the shared store, open an
+  issue on the repo or reach Curtis Martin on GitHub (@curtislmartin), who keeps
+  a backup and can provide a copy or access.
+- TODO (next owner): record the exact shared-storage path + access here, and keep
+  a manifest (path + size + sha256) alongside it so completeness can be verified.
 
 ## Stop the bleed (this branch)
 
