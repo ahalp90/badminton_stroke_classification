@@ -137,7 +137,7 @@ Each training run writes a manifest, per-serial metrics, and TensorBoard events 
 
 ## API + frontend
 
-`docker compose up --build` brings up the FastAPI backend (port 24082) and the React frontend (port 5173). Dev compose proxies the frontend through to the backend; prod compose adds an nginx-fronted setup with cloudflare tunnel. Current state: the API + frontend wiring runs end-to-end, but the inference path is stubbed (returns canned predictions). Integration with the trained classifier is in progress. Test suite: `pytest tests/`.
+`./scripts/dev-setup.sh --up` sets up the env files and mount dirs, then starts the FastAPI backend (port 24082) and React frontend (port 5173) via the dev overlay. Drop `--up` to set up only and print the command. Plain `docker compose up` runs the base file alone, skipping the local clip mounts and uploads fix. See `HANDOVER.md` for dev and `DEPLOYMENT.md` for the production stack. Current state: the API + frontend wiring runs end-to-end, but the inference path is stubbed (returns canned predictions). Test suite: `pytest tests/`.
 
 ## Team and acknowledgements
 

@@ -11,10 +11,12 @@ The interface walks through a four-step pipeline:
 
 ## Models
 
-| Model   | Architecture                                                    | Status                               |
-| ------- | --------------------------------------------------------------- | ------------------------------------ |
-| Model A | MMPose keypoints + TrackNetV3 shuttle → TCN → Transformer (BST) | Active                               |
-| Model B | TBD                                                             | Reserved — no architecture committed |
+The registry surfaces two architectures: several BST-X taxonomy/split cells plus BRIC.
+
+| Model | Architecture                                                                        | Status                                          |
+| ----- | ----------------------------------------------------------------------------------- | ----------------------------------------------- |
+| BST-X | MMPose keypoints + TrackNetV3 shuttle, fused via cross-attention → TCN + Transformer | Active (default; several taxonomy/split cells)  |
+| BRIC  | R(2+1)D-18 RGB backbone (Kinetics-400 pretrained) + shuttle-trajectory fusion       | Active (serves precomputed predictions)         |
 
 ## Integration
 
