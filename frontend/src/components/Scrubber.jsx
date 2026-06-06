@@ -161,15 +161,14 @@ export function Scrubber({
       {duration > 0 && (
         <div style={{ position: 'relative', height: 18, marginTop: 22 }}>
           {(() => {
-            const ZOOM_TICKS = {
-              1: duration <= 15 ? 2 : duration <= 60 ? 5 : 25,
-              2: duration <= 15 ? 1 : duration <= 60 ? 2 : 10,
-              5: duration <= 15 ? 0.5 : duration <= 60 ? 1 : 5,   
-              10: duration <= 15 ? 0.25 : duration <= 60 ? 0.5 : 2.5,
-              25: duration <= 15 ? 0.1 : duration <= 60 ? 0.2 : 1,
-              50: duration <= 15 ? 0.05 : duration <= 60 ? 0.1 : 0.5,
-            };
-            const interval = ZOOM_TICKS[zoom];
+            const TARGET_TICKS_PER_VIEWPORT = 10;
+            const NICE_INTERVALS = [
+              0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800,];
+            const rawInterval = duration / (TARGET_TICKS_PER_VIEWPORT * zoom);
+            const interval = NICE_INTERVALS.reduce(
+              (best, v) => Math.abs(v - rawInterval) < Math.abs(best - rawInterval) ? v : best,
+              NICE_INTERVALS[0]
+            );
             const ticks = [];
             for (let sec = 0; sec <= duration; sec += interval) {
               ticks.push(sec);

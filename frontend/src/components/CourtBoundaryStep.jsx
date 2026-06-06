@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme, Btn } from '../shared';
 import { fmtTime } from '../utils/format';
+import { Scrubber } from './Scrubber';
 
 const frameModules = import.meta.glob('../data/frames/*.jpg', { eager: true, import: 'default' });
 const frameUrl = (id) => frameModules[`../data/frames/${id}.jpg`];
@@ -46,6 +47,7 @@ export function CourtBoundaryStep({ video, onComplete }) {
   // court boundary is clearly visible before aligning the quadrilateral.
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     if (isUpload) {
@@ -339,6 +341,18 @@ export function CourtBoundaryStep({ video, onComplete }) {
               {fmtTime(currentTime)} / {fmtTime(duration)}
             </div>
           </div>
+          <Scrubber
+            duration={duration}
+            currentTime={currentTime}
+            loaded={0}
+            strokes={[]}
+            activeId={null}
+            onSelectStroke={() => {}}
+            strokeTimes={[]}
+            showPips={false}
+            onSeek={seekTo}
+            zoom={zoom}
+          />           
         </div>
       )}
 

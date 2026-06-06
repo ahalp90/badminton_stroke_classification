@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from .registry import _load_registry, _read_json_under_run
+from .registry import _load_registry, _read_json_under_run, _sidecar_path
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +40,8 @@ def _pick_predictions_pool() -> tuple[list[str], list[dict]]:
     models = _load_registry().get("models", [])
     if not models:
         return [], []
-    preds = _read_json_under_run(models[0]["manifest_path"], "predictions", "test.json")
+    # Use arch-keyed sidecar subdir (BST-X → fe_jsons/, BRIC → predictions/)
+      preds = _read_json_under_run(models[0]["manifest_path"], *_sidecar_path(models[0], "test.json"))
     # Canonical `class_list` (api_contract-aligned, emitted by the post-hoc
     # converter), falling back to the legacy `active_class_list` for the
     # pre-refactor mock JSONs. Drop the fallback once all consumed predictions

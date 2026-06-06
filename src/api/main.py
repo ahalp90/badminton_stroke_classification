@@ -45,7 +45,7 @@ class StrokeAnnotation(BaseModel):
 
 
 class Markup(BaseModel):
-    architecture: Optional[Literal["bric", "bst"]] = None
+    architecture: Optional[Literal["bric", "bst", "bst-x"]] = None
     model_id: Optional[str] = None
     orientation: Literal["portrait"] = "portrait"
     video_label: Optional[str] = None
@@ -76,7 +76,7 @@ class Markup(BaseModel):
 class LibraryPredictRequest(BaseModel):
     clip_stem: str
     model_id: Optional[str] = None
-    architecture: Optional[Literal["bric", "bst"]] = None
+    architecture: Optional[Literal["bric", "bst", "bst-x"]] = None
     markup: Optional[Markup] = None
 
 
@@ -226,25 +226,24 @@ def _process_video(job_id: str, video_path: str, model_name: str):
                 # Translate live shape → the same {strokes, rally_summary}
                 # envelope the FE already renders.
                 annos = ((markup or {}).get("annotations")) or []
-                starts = [int(a.get("region_start_frame", 0)) for a in annos
-                          if a.get("region_start_frame") is not None]
-                ends = [int(a.get("region_end_frame", 0)) for a in annos
-                        if a.get("region_end_frame") is not None]
+                targets = [float(a.get("target_sec") or 0.0) for a in annos
+                            if a.get("target_sec") is not None]
                 live_rally_length = (
-                    round(max(0.0, (max(ends) - min(starts)) / 30.0), 1)
-                    if starts and ends else 0.0
+                    round(max(0.0, max(targets) - min(targets)), 1)
+                    if len(targets) >= 2 else 0.0
                 )
-                # Target frame for the headline stroke comes from the
-                # user's annotation when present; otherwise 0.
-                live_target_frame = int(annos[0].get("target_frame", 0)) if annos else 0
-                live_timestamp = round(live_target_frame / 30.0, 2) if live_target_frame else 0.0
+                # Target time for the headline stroke comes from the user's annotation
+                # when present; backend re-derives integer frames at inference time
+                # from the upload's actual fps.
+                live_target_sec = float(annos[0].get("target_sec") or 0.0) if annos else 0.0
+                live_timestamp = round(live_target_sec, 2) if live_target_sec else 0.0
                 result = {
                     "strokes": [{
                         "timestamp_sec": live_timestamp,
                         "stroke_type":   live["predicted_class"],
                         "confidence":    live["top_k"][0]["confidence"] if live["top_k"] else 0.0,
                         "stroke_index":  0,
-                        "target_frame":  live_target_frame,
+                        "target_sec":  live_target_sec,
                         "player_side":   annos[0].get("player_side") if annos else None,
                         "predicted_class": live["predicted_class"],
                         "confidence_pct": live["confidence_pct"],
@@ -269,14 +268,14 @@ def _process_video(job_id: str, video_path: str, model_name: str):
         arch = (markup or {}).get("architecture")
         if result is None and arch == "bric" and job is not None and job.source == "upload":
             try:
-                from .bric_inference import classify as bric_classify, BricInferenceUnavailable
+                from .bric_inference import classify as bric_classify
                 result = bric_classify(Path(video_path), markup)
                 result["live_inference"] = True
                 log.info("job %s: live BRIC forward pass succeeded", job_id)
-            except (BricInferenceUnavailable, KeyError, ValueError) as e:
-                log.info("job %s: BRIC unavailable (%s); falling back to stub", job_id, e)
+            except ImportError as e:
+                log.info("job %s: bric_inference module unavailable (%s); falling back to stub", job_id, e)
             except Exception as e:
-                log.exception("job %s: BRIC errored; falling back to stub: %s", job_id, e)
+                log.exception("job %s: BRIC dispatch failed (%s); falling back to stub", job_id, e)
 
         if result is None:
             result = run_inference(video_path, model_name, markup=markup)
