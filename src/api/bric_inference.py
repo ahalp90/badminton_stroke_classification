@@ -383,6 +383,19 @@ def classify(
                 fps=fps,
             )
 
+            target_clip_idx = RGB_N_BEFORE
+            snapshot_offset = 6
+            for label, clip_idx in [
+                ("first",  max(0, target_clip_idx - snapshot_offset)),
+                ("target", target_clip_idx),
+                ("last",   min(RGB_N_FRAMES - 1, target_clip_idx + snapshot_offset)),
+            ]:
+                crop_frame = clip[clip_idx]
+                cv2.imwrite(
+                    str(job_dir / f"stroke_{idx:02d}_{side}_{label}.jpg"),
+                    cv2.cvtColor(crop_frame, cv2.COLOR_RGB2BGR),
+                )
+
     log.info("bric_inference: extracted %d RGB clips", len(rgb_clips))
 
     # Step 6: TrackNet shuttle tracing

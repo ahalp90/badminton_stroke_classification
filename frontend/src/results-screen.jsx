@@ -1,5 +1,108 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { useTheme, Btn, Card } from './shared';
+
+function StrokeRow({ s, idx, jobId, showFrames }) {
+  const { t } = useTheme();
+  const [open, setOpen] = useState(false);
+  const sideColor = s.player_side === 'top' ? t.blue : t.success;
+  return (
+    <div style={{
+      background: t.surface2, borderRadius: 5, marginBottom: 4,
+      overflow: 'hidden', transition: 'background 0.15s',
+    }}>   
+      <div
+        onClick={() => setOpen(v => !v)}
+        style={{
+          display: 'grid', gridTemplateColumns: '70px 70px 70px 1fr 70px 20px',
+          fontSize: 12, padding: '8px 10px', alignItems: 'center', gap: 8,
+          cursor: 'pointer',
+        }}
+      >
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", color: t.muted }}>
+          Stroke {(s.stroke_index ?? idx) + 1}
+        </span>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", color: t.muted }}>
+          {s.timestamp_sec?.toFixed?.(2) ?? s.timestamp_sec}s
+        </span>
+        <span style={{
+          fontSize: 10, fontWeight: 600, color: sideColor,
+          textTransform: 'uppercase', letterSpacing: '0.05em',
+        }}>
+          {s.player_side ?? '—'}
+        </span>
+        <span style={{ color: t.text, fontWeight: 500 }}>{s.stroke_type}</span>
+        <span style={{
+          textAlign: 'right', fontFamily: "'JetBrains Mono',monospace",
+          color: t.blue, fontWeight: 600,
+        }}>
+          {((s.confidence ?? 0) * 100).toFixed(0)}%
+        </span>
+        <span style={{ color: t.muted, fontSize: 11 }}>{open ? '▾' : '▸'}</span>
+      </div>
+      {open && s.top_k && (
+        <div style={{ padding: '8px 14px 12px', borderTop: `1px solid ${t.border}33` }}>
+          {showFrames && (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+              {['first', 'target', 'last'].map(which => (
+                <div key={which} style={{ flex: 1 }}>
+                  <img
+                    src={`/api/jobs/${jobId}/strokes/${idx}/frame/${which}`}
+                    alt={which}
+                    style={{ width: '100%', height: 'auto', borderRadius: 4, display: 'block', background: '#1a1a1a' }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  <div style={{ fontSize: 10, color: t.muted, marginTop: 2, textAlign: 'center', textTransform: 'capitalize' }}>
+                    {which}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: t.muted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Top-5 candidates
+          </div>
+          {s.top_k.map((k, j) => (
+            <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+              <span style={{ minWidth: 140, fontSize: 11, color: j === 0 ? t.text : t.muted }}>
+                {k.class}
+              </span>
+              <div style={{ flex: 1, height: 5, background: `${t.border}55`, borderRadius: 3 }}>
+                <div style={{
+                  width: `${k.confidence * 100}%`, height: '100%',
+                  background: j === 0 ? t.blue : t.muted, borderRadius: 3,
+                }} />
+              </div>
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: t.muted, minWidth: 36, textAlign: 'right' }}>
+                {(k.confidence * 100).toFixed(1)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      )}  
+    </div>
+  );
+}
+
+
+function summariseRally(strokes) {
+  if (!strokes || strokes.length === 0) return null;
+  const counts = strokes.reduce((acc, s) => {
+    acc[s.stroke_type] = (acc[s.stroke_type] || 0) + 1;
+    return acc;
+  }, {});
+  const [mostCommon, mostCount] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  const topCount = strokes.filter(s => s.player_side === 'top').length;
+  const bottomCount = strokes.filter(s => s.player_side === 'bottom').length;
+  return {
+    server: strokes[0].player_side,
+    total: strokes.length,
+    topCount,
+    bottomCount,
+    mostCommon,
+    mostCount,
+  };
+}
+
 
 /* ─── Inference echo card (Items 4 + Gaps 1/2: real /api/results payload) ── */
 function UploadedInferenceCard({ task }) {
@@ -15,6 +118,8 @@ function UploadedInferenceCard({ task }) {
   const subjectLabel = isLibrary
     ? (result.clip_stem ? `clip ${result.clip_stem}` : 'library clip')
     : v?.filename;
+  const jobId = result.job_id;
+  const showFrames = !!jobId && result.markup_echo?.architecture === 'bric';
   return (
     <Card style={{ padding: 22, marginBottom: 22, borderColor: t.success + '55' }}>
       <div style={{ fontSize: 11, color: t.success, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
@@ -106,47 +211,53 @@ function UploadedInferenceCard({ task }) {
           </div>
           );
       })()}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 18 }}>
-        <div style={{ background: t.surface2, borderRadius: 7, padding: 14 }}>
-          <div style={{ fontSize: 10, color: t.muted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total strokes</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: t.text, fontFamily: "'JetBrains Mono',monospace" }}>
-            {rally.total_strokes ?? strokes.length}
+      {(() => {
+        const sum = summariseRally(strokes);
+        if (!sum) return null;
+        return (
+          <div style={{
+            background: t.surface2, borderRadius: 7, padding: 16, marginBottom: 18,
+          }}>
+            <div style={{ fontSize: 11, color: t.muted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+              Rally summary
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 10, color: t.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Server</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: t.text, textTransform: 'capitalize' }}>{sum.server}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: t.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shots</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: t.text, fontFamily: "'JetBrains Mono', monospace" }}>
+                  {sum.total}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: t.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Length</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: t.text, fontFamily: "'JetBrains Mono', monospace" }}>
+                  {rally.rally_length_seconds != null ? `${rally.rally_length_seconds.toFixed(1)}s` : '—'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: t.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Most played</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>
+                  {sum.mostCommon} <span style={{ color: t.muted, fontSize: 11, fontWeight: 500 }}>×{sum.mostCount}</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${t.border}33`, fontSize: 11, color: t.muted, fontFamily: "'JetBrains Mono', monospace" }}>
+              Top player: {sum.topCount} · Bottom player: {sum.bottomCount}
+            </div>  
           </div>
-        </div>
-        <div style={{ background: t.surface2, borderRadius: 7, padding: 14 }}>
-          <div style={{ fontSize: 10, color: t.muted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rally length</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: t.text, fontFamily: "'JetBrains Mono',monospace" }}>
-            {rally.rally_length_seconds != null ? `${rally.rally_length_seconds.toFixed(1)} s` : '—'}
-          </div>
-        </div>
-      </div>
+        );
+      })()}
       {strokes.length > 0 && (
         <div>
           <div style={{ fontSize: 11, color: t.muted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
             Detected strokes
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {strokes.map((s, i) => (
-              <div key={i} style={{
-                display: 'grid', gridTemplateColumns: '70px 70px 1fr 80px',
-                fontSize: 12, padding: '6px 10px', background: t.surface2, borderRadius: 5,
-                alignItems: 'center', gap: 8,
-              }}>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", color: t.muted }}>
-                  Stroke {(s.stroke_index ?? i) + 1}
-                </span>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", color: t.muted }}>
-                  {s.timestamp_sec?.toFixed?.(2) ?? s.timestamp_sec}s
-                </span>
-                <span style={{ color: t.text, fontWeight: 500 }}>{s.stroke_type}</span>
-                <span style={{
-                  textAlign: 'right', fontFamily: "'JetBrains Mono',monospace",
-                  color: t.blue, fontWeight: 600,
-                }}>
-                  {((s.confidence ?? 0) * 100).toFixed(0)}%
-                </span>
-              </div>
-            ))}
+            {strokes.map((s, i) => <StrokeRow key={i} s={s} idx={i} jobId={jobId} showFrames={showFrames} />)}
           </div>
         </div>
       )}

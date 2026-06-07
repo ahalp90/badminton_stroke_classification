@@ -543,6 +543,20 @@ async def delete_job(job_id: str):
     return {"job_id": job_id, "deleted": True}
 
 
+@app.get("/api/jobs/{job_id}/strokes/{stroke_idx}/frame/{which}")
+async def get_stroke_frame(job_id: str, stroke_idx: int, which: str):
+    if which not in {"first", "target", "last"}:
+        raise HTTPException(status_code=400, detail="which must be 'first', 'target', or 'last'")
+    job_dir = REPO_ROOT / "runtime" / "jobs" / job_id
+    if not job_dir.exists():  
+        raise HTTPException(status_code=404, detail="job not found")
+    matches = list(job_dir.glob(f"stroke_{stroke_idx:02d}_*_{which}.jpg"))
+    if not matches:
+        raise HTTPException(status_code=404, detail=f"frame not found for stroke {stroke_idx}")
+    from fastapi.responses import FileResponse
+    return FileResponse(matches[0], media_type="image/jpeg")
+
+
 @app.get("/api/models")
 async def get_models():
     if not EXPERIMENTS_DIR.exists():
