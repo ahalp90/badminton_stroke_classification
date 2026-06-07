@@ -43,5 +43,7 @@ export function toModelCard(entry) {
       ...(min   != null ? [{ label: 'Min F1',   value: min.toFixed(3)   }] : []),
       ...(acc   != null ? [{ label: 'Accuracy', value: acc.toFixed(3)   }] : []),
     ],
+    status: entry.status,
+    statusReason: entry.status_reason,
   };
 }

@@ -14,10 +14,12 @@ services:
       - .:/app
       - pip-cache:/root/.cache/pip
       # LOCAL-ONLY PATCH (do not commit): mount inspect_clips for the video endpoint.
-      - ./scratch/inspect_clips:/app/clips:ro
+      #- ./scratch/inspect_clips:/app/clips:ro
+      - /home/student/Projects/data/shuttleset/clips:/app/runtime/clips:ro
       # LOCAL-ONLY PATCH (do not commit): mount SCP'd collated tensors for
       # the real BST forward-pass path (src/api/bst_inference.py).
       - ./scratch/bst_inputs:/app/bst_inputs:ro
+      - ./runtime:/app/runtime
     ports:
       - "24082:8000"
       # MLflow port commented out for now. Aim is currently being used for experiment
@@ -27,7 +29,14 @@ services:
     environment:
       - CORS_ORIGINS=http://localhost:5173,http://localhost:24082
       - UPLOAD_DIR=/app/uploads
-      - BST_CLIPS_DIR=/app/clips
+      - BST_CLIPS_DIR=/app/runtime/clips
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   frontend:
     image: node:20-alpine

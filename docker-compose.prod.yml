@@ -33,6 +33,13 @@ services:
       # `/data/bst_inputs`. Without this set, the per-clip browser and the
       # "Errors only" filter stay hidden (live=false on every model).
       - BST_INPUTS_DIR=/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 1
     expose:
       - "8000"

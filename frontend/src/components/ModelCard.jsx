@@ -12,14 +12,14 @@ export function ModelCard({ model, enabled, disabled, onToggle }) {
   const [hov, setHov] = useState(false);
   return (
     <div
-      onClick={onToggle}
+      onClick={disabled ? undefined : onToggle}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
         border: `1.5px solid ${enabled ? t.blue : hov ? t.border : t.border}`,
         borderRadius: 10, padding: 20,
         cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.25 : 1,
+        opacity: disabled ? 0.75 : 1,
         background: enabled ? t.blueDim : hov ? t.surface2 : t.surface2,
         transition: 'all 0.15s',
       }}
@@ -56,6 +56,15 @@ export function ModelCard({ model, enabled, disabled, onToggle }) {
           </div>
         ))}
       </div>
+      {disabled && model.statusReason && (
+        <div style={{
+          marginTop: 12, padding: '6px 10px',
+          background: `${t.danger}22`, color: t.danger,
+          borderRadius: 5, fontSize: 11, fontWeight: 600,
+        }}>
+          {model.statusReason}
+        </div>
+      )}
     </div>
   );
 }

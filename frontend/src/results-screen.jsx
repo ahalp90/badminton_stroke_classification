@@ -24,7 +24,15 @@ function UploadedInferenceCard({ task }) {
         Live response from the backend's <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>/api/results</span> endpoint
         {subjectLabel && <> · <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>{subjectLabel}</span></>}
         <span style={{ color: t.warning, marginLeft: 8 }}>
-          (stubbed inference — real BST/MMPose/TrackNet pipeline pending)
+          {result.live_inference ? (
+            <span style={{ color: t.success, marginLeft: 8 }}>
+              (live {result.markup_echo?.architecture?.toUpperCase() ?? 'model'} inference)
+            </span>   
+          ) : (
+            <span style={{ color: t.warning, marginLeft: 8 }}>
+              (stubbed inference — real BST/MMPose/TrackNet pipeline pending)
+            </span>   
+          )}
         </span>
       </div>
 

@@ -146,22 +146,29 @@ export function ProgressScreen({ task, onComplete }) {
           // Always use "default" here; if the frontend later needs to pick a specific
           // checkpoint, gate it on _available_models output.
           const params = new URLSearchParams({ model: 'default' });
-          // Trim the upload to the bounding span across every marked stroke.
-          // Legacy `markup.timeframe` (single-stroke shape) is still honoured
-          // so sessions mid-flight across this change keep working.
-          const strokes = Array.isArray(task?.markup?.annotations)
-            ? task.markup.annotations
-            : (task?.markup?.timeframe ? [task.markup.timeframe] : []);
-          const starts = strokes
-            .map(s => s?.startSec)
-            .filter(v => v != null);
-          const ends = strokes
-            .map(s => s?.endSec)
-            .filter(v => v != null);
-          if (starts.length) params.set('start_sec', String(Math.min(...starts)));
-          if (ends.length && Math.max(...ends) > (starts.length ? Math.min(...starts) : 0)) {
-            params.set('end_sec', String(Math.max(...ends)));
-          }
+          // Trim-to-bounding-span optimisation disabled — `_apply_crop` uses
+          // `ffmpeg -c copy` which cuts on keyframe boundaries only, producing
+          // non-frame-accurate output (often a near-empty file for short clips
+          // on H.264 with sparse keyframes). BRIC's per-stroke frame extraction
+          // needs every frame decodable, so we send the full upload and let
+          // bric_inference.classify() handle window selection in-memory. Re-enable
+          // once `_apply_crop` is fixed (frame-accurate libx264 re-encode, per
+          // `src/bric/preprocessing/slice_rallies.py` pattern).
+          //
+          // const strokes = Array.isArray(task?.markup?.annotations)
+          //   ? task.markup.annotations
+          //   : (task?.markup?.timeframe ? [task.markup.timeframe] : []);
+          // const starts = strokes
+          //   .map(s => s?.startSec)   
+          //   .filter(v => v != null);
+          // const ends = strokes
+          //   .map(s => s?.endSec)
+          //   .filter(v => v != null);
+          // if (starts.length) params.set('start_sec', String(Math.min(...starts)));
+          // if (ends.length && Math.max(...ends) > (starts.length ? Math.min(...starts) : 0)) {
+          //   params.set('end_sec', String(Math.max(...ends)));
+          // }
+
           // XHR rather than fetch - needed for upload-progress events for the
           // visible byte-flow phase (fetch does not surface them).
           upRes = await new Promise((resolve, reject) => {

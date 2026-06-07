@@ -3,10 +3,6 @@
 Loads docs/models_registry.yaml + each entry's manifest.yaml, and serves the
 sidecar JSONs (predictions, per-class stats, clip_index) per the contract
 in frontend_integration_guide.md sections 1-3.
-
-No PyTorch. No /scratch dependency. The video endpoint is a stub for now
-because clip mp4s live on /scratch on UNE HPC; we wire properly once
-serving infra is in place.
 """
 import gzip
 import json
@@ -15,6 +11,7 @@ from functools import lru_cache
 from typing import Optional
 
 import yaml
+import torch
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
@@ -179,11 +176,25 @@ def _summarise_model(entry: dict) -> dict:
         test_metrics_raw = serial.get("metrics", {})
         val_metrics_raw = serial.get("extra", {}).get("val_at_best_macro_epoch", {})
         status = "available" if manifest.get("serials") else "pending"
-    else:
+    elif architecture == "bric":
         test_summary = _read_json_under_run(entry["manifest_path"], "eval/test_summary.json")
         test_metrics_raw = test_summary.get("metrics", {})
         val_metrics_raw = {}
         status = "available" if test_metrics_raw else "pending"
+    else:
+        log.warning("registry: unknown architecture %r for %s; defaulting to pending",
+            architecture, entry.get("id"))
+        test_metrics_raw = {}
+        status = "pending"
+    
+    status_reason = None
+    if status == "pending":
+        status_reason = "Live inference unavaialble: Model not implemented"
+    if architecture == "bric" and status == "available":
+        if not torch.cuda.is_available():
+            status = "unavailable"
+            status_reason = "Live inference unavailable: GPU not detected"
+
     class_list = _resolve_class_list(manifest)
     # The browser shows when real precomputed per-clip predictions exist for a
     # split, not when live tensors happen to be mounted. Keeps the field name
@@ -222,6 +233,7 @@ def _summarise_model(entry: dict) -> dict:
             s for s, mx in (("val", val_metrics_raw), ("test", test_metrics_raw)) if mx
         ],
         "status": status,
+        "status_reason": status_reason,
         "live_predictions": {s: (s in pred) for s in ("test", "val")},
         "test_metrics": _format_metrics(test_metrics_raw),
         "val_metrics": _format_metrics(val_metrics_raw),

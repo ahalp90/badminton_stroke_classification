@@ -130,7 +130,7 @@ export function ConfigureScreen({ markup, onSubmit, onBack }) {
               key={m.id}
               model={m}
               enabled={!!otherOn[m.id]}
-              disabled={false}
+              disabled={m.status !== 'available'}
               onToggle={() => toggleOther(m.id)}
             />
           ))}

@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import uuid
+import shutil
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -22,6 +23,7 @@ from .config import (
     MAX_FILE_SIZE_MB,
     MIN_MODEL_INPUT_PX,
     UPLOAD_DIR,
+    REPO_ROOT,
 )
 from .inference import run_inference
 from .jobs import JobStatus, JobStore
@@ -149,6 +151,9 @@ def _cleanup_expired():
         if job.created_at < cutoff:
             job_store.delete(job.job_id)
             Path(job.video_path).unlink(missing_ok=True)
+            job_dir = REPO_ROOT / "runtime" / "jobs" / job.job_id
+            if job_dir.exists():
+                shutil.rmtree(job_dir, ignore_errors=True)
             removed += 1
     if removed:
         log.info("cleanup: removed %d expired job(s)", removed)
@@ -269,8 +274,22 @@ def _process_video(job_id: str, video_path: str, model_name: str):
         if result is None and arch == "bric" and job is not None and job.source == "upload":
             try:
                 from .bric_inference import classify as bric_classify
-                result = bric_classify(Path(video_path), markup)
+
+                job_dir = REPO_ROOT / "runtime" / "jobs" / job_id
+                job_dir.mkdir(parents=True, exist_ok=True)
+                
+                result = bric_classify(Path(video_path), markup, job_dir=job_dir)
                 result["live_inference"] = True
+                
+                manifest = {
+                    "job_id": job_id,
+                    "created_at": datetime.utcnow().isoformat() + "Z",
+                    "video_filename": Path(video_path).name,
+                    "architecture": arch,
+                    "markup_input": markup,
+                    "result": result,
+                }
+                (job_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str))
                 log.info("job %s: live BRIC forward pass succeeded", job_id)
             except ImportError as e:
                 log.info("job %s: bric_inference module unavailable (%s); falling back to stub", job_id, e)
@@ -517,6 +536,9 @@ async def delete_job(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     Path(job.video_path).unlink(missing_ok=True)
+    job_dir = REPO_ROOT / "runtime" / "jobs" / job_id
+    if job_dir.exists():
+        shutil.rmtree(job_dir, ignore_errors=True)
     log.info("job %s: deleted by request", job_id)
     return {"job_id": job_id, "deleted": True}
 

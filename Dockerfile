@@ -28,8 +28,8 @@ COPY requirements.txt .
 # which is useless on a machine with no GPU. The CPU wheel is ~300MB instead.
 # When requirements.txt runs, torch is already satisfied so pip skips it.
 RUN python -m pip install --upgrade pip && \
-    pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
-    pip install -r requirements.txt
+      pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128 && \
+      pip install -r requirements.txt
 
 COPY . .
 
