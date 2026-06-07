@@ -1,4 +1,4 @@
-"""Bit-exact comparison of BST inference predictions across the pre-phase-2 tidy.
+"""Bit-exact comparison of BST inference predictions across two code states (e.g. a refactor branch vs main).
 
 Loads a real checkpoint, runs inference on a collated dir's test split, and
 saves the predictions tensor as a ``.npy`` file. Run on both branches, then
@@ -6,11 +6,11 @@ diff the two files: byte-identical output proves bst_infer's lift to
 ``build_bst_network`` is behaviourally inert.
 
 Required env vars:
-  BST_DATA_DIR  -- path to npy_<ablation_id>/ collated dir (with test/labels.npy)
+  BST_DATA_DIR  -- path to a collated dir (npy_<split>_<collation_id>/, with test/labels.npy)
   WEIGHT_PATH   -- path to a real .pt checkpoint matching that dir's config
 
 Optional env vars (defaults match the active Hyp on pre-phase-2-tidy):
-  TAXONOMY      -- taxonomy name in TAXONOMIES (default: une_merge_v1_nosides)
+  TAXONOMY      -- taxonomy name (default: une_v1_14)
   POSE_STYLE    -- pose style (default: JnB_bone)
   SEQ_LEN       -- sequence length (default: 100)
   IN_CHANNELS   -- 2 for 2D keypoints, 3 for 3D (default: 2)
@@ -20,7 +20,7 @@ Optional env vars (defaults match the active Hyp on pre-phase-2-tidy):
 Usage on engelbart:
   cd ~/badminton_stroke_classifier
   source /home/ahalperi/.venvs/venv-bst/bin/activate
-  export BST_DATA_DIR=~/badminton_stroke_classifier/src/bst_refactor/stroke_classification/preparing_data/ShuttleSet_data_une_merge_v1_nosides/npy_une_merge_v1_nosides_split_v2_dropunk_h_sticky_anchor
+  export BST_DATA_DIR=~/badminton_stroke_classifier/src/bst_refactor/stroke_classification/preparing_data/ShuttleSet_data_une_v1_14/npy_v2_taxon_pinned_w_preds
   export WEIGHT_PATH=<full path to a recent .pt checkpoint matching the active Hyp>
 
   # CuBLAS deterministic mode -- without this CUDA picks different matmul
@@ -61,13 +61,13 @@ import numpy as np
 import torch
 
 from main_on_shuttleset.bst_infer import Task
-from pipeline.config import TAXONOMIES
+from pipeline.config import resolve_taxonomy
 
 
 def main() -> int:
     bst_data_dir = Path(os.environ["BST_DATA_DIR"]).resolve()
     weight_path = Path(os.environ["WEIGHT_PATH"]).resolve()
-    taxonomy_name = os.environ.get("TAXONOMY", "une_merge_v1_nosides")
+    taxonomy_name = os.environ.get("TAXONOMY", "une_v1_14")
     pose_style = os.environ.get("POSE_STYLE", "JnB_bone")
     seq_len = int(os.environ.get("SEQ_LEN", "100"))
     in_channels = int(os.environ.get("IN_CHANNELS", "2"))
@@ -80,12 +80,7 @@ def main() -> int:
         raise FileNotFoundError(
             f"BST_DATA_DIR does not contain test/labels.npy: {bst_data_dir}"
         )
-    if taxonomy_name not in TAXONOMIES:
-        raise KeyError(
-            f"TAXONOMY {taxonomy_name!r} not in {sorted(TAXONOMIES.keys())}"
-        )
-
-    taxonomy = TAXONOMIES[taxonomy_name]
+    taxonomy = resolve_taxonomy(taxonomy_name)
 
     # Determinism flags. Inference has no augmentation; with these the same
     # checkpoint + same input must produce byte-identical output.
@@ -115,7 +110,7 @@ def main() -> int:
         in_channels=in_channels,
         taxonomy=taxonomy,
         n_active_classes=taxonomy.n_classes,
-        active_class_list=taxonomy.class_list(),
+        active_class_list=list(taxonomy.classes),
     )
     task.load_weight(weight_path)
     preds = task.infer()

@@ -10,7 +10,7 @@ taxonomy on both, so each run sits as a circle / square pair stacked vertically.
 Linear y-axis covers ~0.30 to 0.86: macro band clusters near the top, min ws
 band sits below, no overlap.
 
-Data is hand-transcribed from `scratch/architecture_notes/arch_1_directions.md`
+Data is hand-transcribed from `scratch/architecture_notes/bst_x_overview.md`
 headline-results table (lines 25-46). If a run gets renamed, mirror it in
 ``trajectory_chart.py`` so the two figures stay in sync.
 """

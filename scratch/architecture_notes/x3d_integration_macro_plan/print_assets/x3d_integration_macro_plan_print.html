@@ -398,7 +398,7 @@ training. Out of scope: BST-side capacity Run 2 (already queued), the
 augmentation set landing (queued), Phase 3 amateur-generalisation work,
 and the April 9 prior research doc
 (<code>architecture_1_bst_3dcnn_racket_extension_09_April.md</code>),
-which is superseded by <code>arch_1_directions.md:124-150</code> on
+which is superseded by <code>bst_x_overview.md:124-150</code> on
 model choice and input shape but is still useful as a citation anchor
 for fusion-method literature.</p>
 <h2 id="anchor-reference-points-already-settled-or-partial">Anchor
@@ -409,11 +409,11 @@ source pointer for the per-stage tasks.</p>
 <li>Model: X3D-S, K400 pretrained via
 <code>torch.hub.load('facebookresearch/pytorchvideo', 'x3d_s', pretrained=True)</code>.
 Selected against XS / M / L / XL. SSv2 weights not officially available
-for X3D, parked. Source: <code>arch_1_directions.md:124-131</code>.</li>
+for X3D, parked. Source: <code>bst_x_overview.md:124-131</code>.</li>
 <li>Target input shape: 39 frames × stride=1, fine-tuning toward this
 from K400’s default 13 × stride=6. RF reaches the full window by the
 final conv block; ~40 frames is the upper limit. Source:
-<code>arch_1_directions.md:133-135</code>.</li>
+<code>bst_x_overview.md:133-135</code>.</li>
 <li>Hit-frame derivation: Method A (CSV correlation, deterministic) +
 Method B (shuttle horizontal-velocity sign reversal, independent
 verification). Re-extraction of source clips not required. Method A
@@ -461,12 +461,12 @@ carrying <code>MODELS</code>, <code>Tee</code>,
 <code>derive_active_classes_from_labels</code>, and
 <code>compute_data_provenance</code>. The X3D-S training script imports
 from there, no further extraction needed; the
-<code>arch_1_directions.md:472-473</code> “leave it for now” note
+<code>bst_x_overview.md:472-473</code> “leave it for now” note
 pre-dates this refactor.</li>
 <li><strong>Active-class wiring</strong>: any new training script must
 source head dim from <code>task.n_active_classes</code> and run
 <code>_validate_and_record_arch</code> on serial 1 per
-<code>arch_1_directions.md:150</code>. Hardcoding
+<code>bst_x_overview.md:150</code>. Hardcoding
 <code>taxonomy.n_classes</code> would put the unknown ghost back.
 <code>bst_common.derive_active_classes_from_labels</code> is the
 helper.</li>
@@ -480,7 +480,7 @@ Stage 5 but must be planned for in Stage 4’s storage layout (the same
 artefacts feed solo and fused).</li>
 <li><strong>Capacity Run 2 + augmentation landing</strong>: scheduled
 before X3D-S fusion build per the active-priorities ordering at
-<code>arch_1_directions.md:51-56</code>. The fusion baseline is
+<code>bst_x_overview.md:51-56</code>. The fusion baseline is
 whatever’s best after those land, not <code>run_20260503_172922</code>
 directly.</li>
 </ul>
@@ -1007,7 +1007,7 @@ Stroke-type Transformer.</em> arXiv:2502.21085. The architecture being
 extended; predecessor TemPose is the more relevant cross-attention
 reference.</li>
 </ul>
-<p>Existing thinking at <code>arch_1_directions.md:137-142</code> maps
+<p>Existing thinking at <code>bst_x_overview.md:137-142</code> maps
 three shapes:</p>
 <blockquote>
 <p>Three competing options: - <strong>Late concat, just before the MLP
@@ -1024,7 +1024,7 @@ BST’s.</p>
 <p><code>architecture_1_..._09_April.md:44-66</code> adds:</p>
 <ul>
 <li><strong>Late feature concat + 2-layer MLP</strong> (the “Phase 1
-baseline” — what <code>arch_1_directions.md</code> calls late
+baseline” — what <code>bst_x_overview.md</code> calls late
 concat).</li>
 <li><strong>MMTM (Multimodal Transfer Module, Joze et al. CVPR
 2020)</strong> — per-stream squeeze-excitation gates driven by the
@@ -1147,7 +1147,7 @@ whatever the user wants).</li>
 <code>main_on_shuttleset/arch1_train.py</code>, fusion module under
 <code>model/fusion/</code> (or extended <code>bst.py</code>),
 per-fusion-method ablation suite, full writeup at
-<code>scratch/architecture_notes/arch_1_directions.md</code>’s
+<code>scratch/architecture_notes/bst_x_overview.md</code>’s
 experiment log.</p>
 <p><strong>Dependencies</strong>: Stages 1-5 all upstream.</p>
 <h2 id="cross-stage-open-questions">Cross-stage open questions</h2>
@@ -1169,7 +1169,7 @@ rollback.</li>
 <li><strong>Splits.</strong> Stick with combo A nosides
 (<code>une_merge_v1_nosides + split_v2 + dropunk</code>) for X3D-S solo
 and fused, mirroring active BST baseline. The cross-player swap-val-test
-direction (<code>arch_1_directions.md:443-453</code>) stays parked.</li>
+direction (<code>bst_x_overview.md:443-453</code>) stays parked.</li>
 <li><strong>Reproducibility scaffolding.</strong> Run-id, manifest,
 per-serial seeding, weight-cache pattern,
 <code>_validate_and_record_arch</code> extension to record
@@ -1256,7 +1256,7 @@ touch (forward inventory)</h2>
 (Stage 5; new)</li>
 <li><code>src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py</code>
 (Stage 0; extract from existing duplication per
-<code>arch_1_directions.md:472-473</code>)</li>
+<code>bst_x_overview.md:472-473</code>)</li>
 <li><code>src/bst_refactor/stroke_classification/model/fusion/</code>
 (Stage 6; new dir, fusion modules per shortlist)</li>
 <li><code>src/bst_refactor/stroke_classification/main_on_shuttleset/arch1_train.py</code>
@@ -1267,7 +1267,7 @@ leave untouched and wrap)</li>
 <li><code>src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py</code>
 (Stage 4-6; either extend existing class or build parallel + zip)</li>
 <li><code>.env.example</code> (each stage; new env vars for paths)</li>
-<li><code>scratch/architecture_notes/arch_1_directions.md</code> (each
+<li><code>scratch/architecture_notes/bst_x_overview.md</code> (each
 stage; experiment log entries)</li>
 <li><code>scratch/architecture_notes/</code> (each stage; per-stage
 writeups, names TBD)</li>
@@ -1279,7 +1279,7 @@ deliberately doesn’t do</h2>
 <li>Pre-decide the training schedule for fusion. Same.</li>
 <li>Re-litigate model choice (X3D-S), input shape (39 × stride=1), or
 hit-frame derivation method (A + B). Those are settled at
-<code>arch_1_directions.md:124-148</code> and
+<code>bst_x_overview.md:124-148</code> and
 <code>augmentation_framework.md:790-868</code>.</li>
 <li>Plan capacity Run 2 or augmentation landing. Both are queued ahead
 of X3D-S and have their own docs

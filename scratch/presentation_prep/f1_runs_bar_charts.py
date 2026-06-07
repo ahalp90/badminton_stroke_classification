@@ -180,7 +180,7 @@ def draw_figure(entries: list[dict], outpath: Path, suptitle: str, subtitle: str
         else:
             txt = (f"best {e['mac_best']:.3f} / {e['min_best']:.3f}\n"
                    f"mean {e['mac_mean']:.3f} / {e['min_mean']:.3f}")
-        ax.text(xi - 0.15, top * 1.03, txt, rotation=30, ha="left", va="bottom",
+        ax.text(xi - 0.15, top * 1.01, txt, rotation=30, ha="left", va="bottom",
                 fontsize=7, color="#222222", linespacing=1.25)
 
     ax.set_xticks(xs)
@@ -273,6 +273,29 @@ def build_graph2() -> None:
     )
 
 
+def build_series_g() -> None:
+    """Series G baseline batch: six taxonomy/split cells, paper-baseline cell anchored by BST-CG-AP."""
+    entries = [
+        published_entry("A", "bst_25 / bst_base", "BST-CG-AP pub"),
+        entry("run_20260530_210600_435552", "A", "bst_25 / bst_base", "Series G"),
+        entry("run_20260530_225714_593038", "B", "bst_24 / bst_base", "Series G"),
+        entry("run_20260530_192738_970644", "C", "bst_12 / v2", "Series G"),
+        entry("run_20260530_174818_410060", "D", "bst_24 / v2", "Series G"),
+        entry("run_20260531_005535_005154", "E", "une_v1_14 / v2", "Series G"),
+        entry("run_20260530_161525_131279", "F", "shuttleset_18 / v2", "Series G"),
+    ]
+    draw_figure(
+        entries,
+        OUT_DIR / "f1_series_g_baseline.png",
+        suptitle="Taxon & split comparison, frozen hp baseline",
+        subtitle=("Bars = best serial; black tick = 5-serial mean. "
+                  "bst_25/bst_baseline anchored by BST-CG-AP published; remaining cells by macro F1 desc."),
+        shade_groups={"A", "C", "E"},
+        figsize=(15, 8),
+    )
+
+
 if __name__ == "__main__":
     build_graph1()
     build_graph2()
+    build_series_g()

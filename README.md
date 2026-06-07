@@ -70,7 +70,7 @@ cp .env.example .env
 
 ### Inspecting available clips (`pipeline.data_access`)
 
-Lists clips for a given `split` + `class` filter, paired with their shuttle and pose files. Reads from `notebooks/clips_master.csv` under the active taxonomy (default `une_merge_v1`).
+Lists clips for a given `split` + `class` filter, paired with their shuttle and pose files. Reads from `notebooks/clips_master.csv` under the active taxonomy (default `bst_25`, the most permissive so every clip shows up).
 
 ```bash
 # Set PYTHONPATH once for the session
@@ -88,7 +88,7 @@ Full CLI flags and Python API: [`src/bst_refactor/pipeline/README.md`](src/bst_r
 Training, pose extraction, and eval at scale all run on the UNE HPC GPU nodes. Active collated training data:
 
 ```
-/scratch/comp320a/ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop/
+/scratch/comp320a/ShuttleSet_data_une_v1_14/npy_v2_taxon_pinned_w_preds/
 ```
 
 
@@ -116,9 +116,9 @@ ln -s /scratch/comp320a/ShuttleSet/shuttle_npy shuttle_npy
 Per-taxonomy MMPose output dir, same pattern:
 
 ```bash
-mkdir -p /scratch/comp320a/ShuttleSet_data_une_merge_v1
+mkdir -p /scratch/comp320a/ShuttleSet_data_une_v1_14
 cd ~/badminton_stroke_classification/src/bst_refactor/stroke_classification/preparing_data
-ln -s /scratch/comp320a/ShuttleSet_data_une_merge_v1 ShuttleSet_data_une_merge_v1
+ln -s /scratch/comp320a/ShuttleSet_data_une_v1_14 ShuttleSet_data_une_v1_14
 ```
 
 After first download, open permissions so the rest of the team can read/write the shared data:
@@ -137,7 +137,19 @@ Each training run writes a manifest, per-serial metrics, and TensorBoard events 
 
 ## API + frontend
 
-`docker compose up --build` brings up the FastAPI backend (port 24082) and the React frontend (port 5173). Dev compose proxies the frontend through to the backend; prod compose adds an nginx-fronted setup with cloudflare tunnel. Current state: the API + frontend wiring runs end-to-end, but the inference path is stubbed (returns canned predictions). Integration with the trained classifier is in progress. Test suite: `pytest tests/`.
+Bring up the full dev stack, FastAPI backend (port 24082) and React frontend (port 5173):
+
+```bash
+./scripts/dev-setup.sh --up
+```
+
+This sets up the env files and mount dirs, then starts both services via the dev overlay. Drop `--up` to set up only and print the run command.
+
+Plain `docker compose up` runs the base file alone, skipping the local clip mounts and uploads fix. See `HANDOVER.md` for dev and `DEPLOYMENT.md` for the production stack.
+
+Current state: the API + frontend wiring runs end-to-end, but the inference path is stubbed (returns canned predictions).
+
+Test suite: `pytest tests/`.
 
 ## Team and acknowledgements
 

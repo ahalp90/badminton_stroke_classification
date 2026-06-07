@@ -1,6 +1,6 @@
 # HP and aug speculations, 30 May 2026
 
-Four open questions, thought through against the live pipeline and the actual per-epoch curves of the running `shuttleset_18` cell, plus a few papers. Each section states what the code does, the numbers, what the literature adds, and a recommendation. These are proposals for discussion, not landed decisions, and nothing here is written into `arch_1_directions.md`.
+Four open questions, thought through against the live pipeline and the actual per-epoch curves of the running `shuttleset_18` cell, plus a few papers. Each section states what the code does, the numbers, what the literature adds, and a recommendation. These are proposals for discussion, not landed decisions, and nothing here is written into `bst_x_overview.md`.
 
 Grounding:
 - Pipeline mechanics from `bst_train.py`, `shuttleset_dataset.py`, `loss/adaptive_focal.py`, `augmentation_framework.md`.

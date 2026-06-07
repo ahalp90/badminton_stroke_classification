@@ -227,9 +227,8 @@ export function CourtBoundaryStep({ video, onComplete }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <p style={{ fontSize: 13, color: t.muted, lineHeight: 1.6 }}>
-        Drag the <span style={{ color: t.blue, fontWeight: 600 }}>four corner handles</span> to
-        align the quadrilateral with the court boundary edges. This homography transform
-        normalises inputs across varied camera angles.
+        Click on <span style={{ color: t.blue, fontWeight: 600 }}>each of the four corners</span> of 
+        the badminton court, following the outer white line.
       </p>
 
       <div style={{ position: 'relative' }}>

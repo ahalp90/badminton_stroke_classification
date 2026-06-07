@@ -8,7 +8,7 @@ Sequential ablation ordering on x; no dates. Colour distinguishes taxonomy.
 BST paper reference rows appear as horizontal dashed lines on the best-serial
 panel only (BST published single-run, so it's the closer comparison).
 
-Data is hand-transcribed from `scratch/architecture_notes/arch_1_directions.md`
+Data is hand-transcribed from `scratch/architecture_notes/bst_x_overview.md`
 headline-results table (lines 25-46), which is the project's source of truth.
 """
 from pathlib import Path

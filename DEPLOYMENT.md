@@ -1,17 +1,37 @@
 # Deployment Guide
 
-This document describes how to deploy and run this application in production.
+This document describes how to deploy and run this application **in production**.
+For local development see `docker-compose.dev.yml` and `HANDOVER.md`; for the
+data, accounts, and access required to operate the project, see `HANDOVER.md`.
 
 ---
 
-## ⚠️ Status — to be confirmed by the team
+## Status
 
-This guide and `docker-compose.prod.yml` reflects a pre-inference setup that ran on a home
-server. It has **not** been verified by the rest of the group as the deployment guide when 
-serving inference, or in the client's target environment. Treat it as a working starting
-point, not the settled production design.
+This guide and `docker-compose.prod.yml` describe the production demo as it ran
+on a home server, exposed via Cloudflare Tunnel. It is a working setup, not yet
+verified against the client's target environment.
 
-Note to the group: If no one claims that this is in use it will be generified or deleted.
+TODO (team): confirm this is the canonical production design, or revise it for
+the client environment. Until confirmed, treat it as a working starting point.
+
+---
+
+## Dev vs production at a glance
+
+| | Local dev | Production demo |
+| --- | --- | --- |
+| Compose files | `docker-compose.yml` + `docker-compose.dev.yml` | `docker-compose.prod.yml` |
+| Frontend served by | Vite dev server (HMR) | nginx (static build) |
+| Port | 5173 | 26138 (behind Cloudflare Tunnel) |
+| API routing | Vite proxy `/api` -> `backend:8000` | nginx proxies `/api` -> backend |
+| Dataset | empty `scratch/*` dirs, optional | `${DATA_HOST_DIR}` mounted read-only |
+
+> Env-file gotcha (applies to dev): `VITE_API_TARGET` must be the backend
+> service name (`http://backend:8000`), not `localhost`. A wrong value yields a
+> 502 on `/api/*`. See `HANDOVER.md` section 5 for why `loadEnv` makes the
+> container env override `frontend/.env.local`.
+
 ---
 
 ## Architecture Overview

@@ -743,7 +743,7 @@ being structurally wrong. Defaults restored at `bst_train.py:375`.
 **Practical takeaway: don't disable, replace.** The corrected
 pos+shuttle constrained-jitter (above) is the path; the
 "couple-at-magnitude" and "couple-and-tighten" arms are subsumed by
-it. Detail: arch_1_directions.md (jitter-off ablation section).
+it. Detail: bst_x_overview.md (jitter-off ablation section).
 
 Note on the magnitude question: even with coupled streams, ±0.3 is
 aggressive given that 30% prob × the player's own coords means a

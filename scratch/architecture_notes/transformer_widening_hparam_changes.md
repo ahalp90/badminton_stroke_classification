@@ -9,7 +9,7 @@ capacity-bump Run 1 (mlp_head hidden 400 → 1200) returned flat.*
 ## What this covers
 
 The encoder-side capacity experiment sometimes called Run 2 in
-`arch_1_directions.md`: `d_model=100 → 192` paired with
+`bst_x_overview.md`: `d_model=100 → 192` paired with
 `d_head=128 → 32` (Voita-style trim so the 7.68x d_head:d_model
 over-provisioning doesn't propagate). `n_head=6` stays.
 

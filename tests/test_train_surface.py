@@ -320,7 +320,11 @@ def test_train_network_returns_model_and_val_at_best(tmp_path, monkeypatch):
     # With 2 epochs over a 3-class val, some epoch beats the macro=0.0 init, so
     # val_at_best is populated. Guard the None case anyway (degenerate runs).
     if val_at_best is not None:
-        assert set(val_at_best) == {'epoch', 'per_class_f1'}
+        assert set(val_at_best) == {
+            'epoch', 'macro_f1', 'min_f1', 'accuracy', 'top2_accuracy', 'per_class_f1'
+        }
+        for k in ('macro_f1', 'min_f1', 'accuracy', 'top2_accuracy'):
+            assert isinstance(val_at_best[k], float)
         assert isinstance(val_at_best['per_class_f1'], dict)
         for cls, f1 in val_at_best['per_class_f1'].items():
             assert cls in TAX3.classes

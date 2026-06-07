@@ -96,33 +96,33 @@ models:
     display_name: "BST-X, bst_24 (v2 split)"
     description: |
       24-class bst_24 taxonomy, taxon-pinned collation, v2 split.
-      Macro F1 0.816, min F1 0.571, accuracy 0.828 on held-out test (serial 3).
+      Macro F1 0.822, min F1 0.641, accuracy 0.832 on held-out test (serial 3).
     architecture: bst-x
-    run_id: run_20260530_174818_410060
+    run_id: run_20260601_184437_030823
     serial_no: 3
     taxonomy: bst_24
     split_column: split_v2
     drop_unknown: true
     temperature: 1.0
     num_classes: 24
-    manifest_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260530_174818_410060/manifest.yaml
-    weights_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260530_174818_410060/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_3.pt
+    manifest_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260601_184437_030823/manifest.yaml
+    weights_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260601_184437_030823/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_3.pt
 
   - id: bst_x_shuttleset_18_v2
     display_name: "BST-X, shuttleset_18 (v2 split)"
     description: |
       18-class shuttleset_18 taxonomy, taxon-pinned collation, v2 split.
-      Macro F1 0.665, min F1 0.000, accuracy 0.766 on held-out test (serial 1).
+      Macro F1 0.672, min F1 0.000, accuracy 0.765 on held-out test (serial 5).
     architecture: bst-x
-    run_id: run_20260530_161525_131279
-    serial_no: 1
+    run_id: run_20260601_153738_936523
+    serial_no: 5
     taxonomy: shuttleset_18
     split_column: split_v2
     drop_unknown: true
     temperature: 1.0
     num_classes: 18
-    manifest_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260530_161525_131279/manifest.yaml
-    weights_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260530_161525_131279/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18.pt
+    manifest_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260601_153738_936523/manifest.yaml
+    weights_path: src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260601_153738_936523/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_5.pt
 
   # ── BRIC (R(2+1)D-18 RGB + fusion). Diverges from the BST schema: its
   #    provenance axis is `config.variant` (not collation/ablation), and it has
