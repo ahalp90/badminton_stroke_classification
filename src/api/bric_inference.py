@@ -3,6 +3,8 @@
 Singleton pattern (mirrors bst_inference.py): module-level model + YOLO
 are loaded once at first request via _ensure_initialised(), then reused.
 """
+# ruff: noqa: E402  -- sys.path bootstrap below requires bric.*/shared.* imports to come after it
+
 from __future__ import annotations
 from pathlib import Path
 from threading import Lock
