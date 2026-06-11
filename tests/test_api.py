@@ -8,7 +8,7 @@ from src.api.main import app
 # TODO(coverage): this suite only exercises the upload flow (which always
 # routes to the smart stub in inference.py) plus the validation/404 paths.
 # The real ML and registry-serving logic is untested here:
-#   - POST /api/library_predict  -> live BST forward pass (bst_inference.predict)
+#   - POST /api/library_predict  -> live BST forward pass (bst_x_inference.predict)
 #   - GET  /api/registry[/...]   -> registry/manifest/sidecar JSON serving
 #   - GET  /api/clips/{stem}/video -> FileResponse with Range support
 # The stub-fallback paths for these are testable without the heavy
@@ -115,16 +115,16 @@ def test_get_models_returns_list():
 
 
 def test_available_splits_empty_without_inputs(monkeypatch, tmp_path):
-    import src.api.bst_inference as bi
-    monkeypatch.setattr(bi, "BST_INPUTS_DIR", tmp_path)
+    import src.api.bst_x_inference as bi
+    monkeypatch.setattr(bi, "BST_X_INPUTS_DIR", tmp_path)
     assert bi.available_splits() == set()
 
 
 def test_available_splits_detects_present_split(monkeypatch, tmp_path):
-    import src.api.bst_inference as bi
+    import src.api.bst_x_inference as bi
     (tmp_path / "test").mkdir()
     (tmp_path / "test" / "JnB_bone.npy").write_bytes(b"")
-    monkeypatch.setattr(bi, "BST_INPUTS_DIR", tmp_path)
+    monkeypatch.setattr(bi, "BST_X_INPUTS_DIR", tmp_path)
     assert bi.available_splits() == {"test"}
 
 

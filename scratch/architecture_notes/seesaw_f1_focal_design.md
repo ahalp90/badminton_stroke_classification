@@ -371,7 +371,7 @@ denominator with a class-pair gate". Three new pieces:
    detaches that path from autograd).
 2. **Same per-class TP/FP/FN counter inside `train_one_epoch`** as
    CDB-F1 — gives end-of-epoch per-class F1 to feed the EMA.
-3. **A loss-build branch in `bst_train.py`** that picks adaptive
+3. **A loss-build branch in `bst_x_train.py`** that picks adaptive
    Seesaw when `Hyp.adaptive_seesaw` is set. The four branches
    (uniform CE / class-weighted CE / adaptive_focal / adaptive_seesaw)
    are mutually exclusive (raise if more than one is set).
@@ -381,9 +381,9 @@ stability, because the modified denominator can underflow at large
 logit magnitudes. This is the one piece that requires care.
 
 Two files touched:
-1. **NEW** `src/bst_refactor/stroke_classification/main_on_shuttleset/loss/adaptive_seesaw.py`
+1. **NEW** `src/bst_x/stroke_classification/main_on_shuttleset/loss/adaptive_seesaw.py`
    — ~180 lines.
-2. `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py`
+2. `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py`
    — same ~6 edits as the CDB-F1 design, plus the
    `adaptive_seesaw` branch.
 
@@ -530,7 +530,7 @@ class AdaptiveSeesawLoss(nn.Module):
         return -log_p_t.mean()
 ```
 
-### 5b. `bst_train.py` edits
+### 5b. `bst_x_train.py` edits
 
 Largely the same edits as CDB-F1 (per the design doc):
 
@@ -583,7 +583,7 @@ Largely the same edits as CDB-F1 (per the design doc):
    training on wrist_smash siblings).
 
 Total: ~180 lines new module + ~30 lines across 7 edits in
-`bst_train.py`. Larger surface than CDB-F1 (~120 + ~25), as
+`bst_x_train.py`. Larger surface than CDB-F1 (~120 + ~25), as
 expected for the deeper math change.
 
 ## 6. Diagnostic + manifest plumbing

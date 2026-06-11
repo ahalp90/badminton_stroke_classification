@@ -1,0 +1,12 @@
+# Clips where the hit-frame index exceeded the clip length.
+# These were skipped in the hit-frame profile plot.
+# clip_name  rel_path  hit_idx  total_frames
+
+16_1_11_14  train/Bottom_return_net/16_1_11_14  hit_idx=-11  total_frames=13
+16_1_29_4  train/Top_smash/16_1_29_4  hit_idx=37  total_frames=25
+16_1_29_5  train/Bottom_return_net/16_1_29_5  hit_idx=-18  total_frames=7
+17_1_23_6  train/Bottom_return_net/17_1_23_6  hit_idx=-13  total_frames=10
+17_1_27_6  train/Top_smash/17_1_27_6  hit_idx=37  total_frames=22
+17_1_27_7  train/Bottom_return_net/17_1_27_7  hit_idx=-20  total_frames=22
+17_2_5_3  train/Top_smash/17_2_5_3  hit_idx=37  total_frames=25
+17_2_5_4  train/Bottom_return_net/17_2_5_4  hit_idx=-18  total_frames=11

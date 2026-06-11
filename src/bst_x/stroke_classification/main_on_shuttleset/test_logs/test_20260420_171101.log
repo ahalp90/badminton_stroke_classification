@@ -1,0 +1,180 @@
+
+=== Serial 1 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1  F1-score
+avg                                                Avg                          0.74
+min                                                Min                          0.30
+0                          Top_net_shot                                         0.89
+1                          Top_return_net                                       0.77
+2                          Top_smash                                            0.64
+3                          Top_wrist_smash                                      0.30
+4                          Top_lob                                              0.83
+5                          Top_clear                                            0.93
+6                          Top_drive                                            0.61
+7                          Top_drop                                             0.66
+8                          Top_passive_drop                                     0.62
+9                          Top_push                                             0.68
+10                         Top_rush                                             0.68
+11                         Top_cross_court_net_shot                             0.64
+12                         Top_short_service                                    0.99
+13                         Top_long_service                                     0.99
+14                         Bottom_net_shot                                      0.91
+15                         Bottom_return_net                                    0.81
+16                         Bottom_smash                                         0.65
+17                         Bottom_wrist_smash                                   0.53
+18                         Bottom_lob                                           0.78
+19                         Bottom_clear                                         0.96
+20                         Bottom_drive                                         0.64
+21                         Bottom_drop                                          0.66
+22                         Bottom_passive_drop                                  0.63
+23                         Bottom_push                                          0.58
+24                         Bottom_rush                                          0.67
+25                         Bottom_cross_court_net_shot                          0.71
+26                         Bottom_short_service                                 0.99
+27                         Bottom_long_service                                  0.97
+Accuracy: 0.771
+Top2 Accuracy: 0.934
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_2) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_2  F1-score
+avg                                                Avg                            0.74
+min                                                Min                            0.43
+0                          Top_net_shot                                           0.89
+1                          Top_return_net                                         0.78
+2                          Top_smash                                              0.63
+3                          Top_wrist_smash                                        0.43
+4                          Top_lob                                                0.80
+5                          Top_clear                                              0.95
+6                          Top_drive                                              0.54
+7                          Top_drop                                               0.68
+8                          Top_passive_drop                                       0.60
+9                          Top_push                                               0.59
+10                         Top_rush                                               0.75
+11                         Top_cross_court_net_shot                               0.65
+12                         Top_short_service                                      1.00
+13                         Top_long_service                                       1.00
+14                         Bottom_net_shot                                        0.90
+15                         Bottom_return_net                                      0.81
+16                         Bottom_smash                                           0.68
+17                         Bottom_wrist_smash                                     0.43
+18                         Bottom_lob                                             0.77
+19                         Bottom_clear                                           0.97
+20                         Bottom_drive                                           0.66
+21                         Bottom_drop                                            0.63
+22                         Bottom_passive_drop                                    0.64
+23                         Bottom_push                                            0.61
+24                         Bottom_rush                                            0.71
+25                         Bottom_cross_court_net_shot                            0.73
+26                         Bottom_short_service                                   0.99
+27                         Bottom_long_service                                    0.99
+Accuracy: 0.766
+Top2 Accuracy: 0.937
+
+=== Serial 3 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_3) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_3  F1-score
+avg                                                Avg                            0.74
+min                                                Min                            0.42
+0                          Top_net_shot                                           0.90
+1                          Top_return_net                                         0.79
+2                          Top_smash                                              0.67
+3                          Top_wrist_smash                                        0.42
+4                          Top_lob                                                0.79
+5                          Top_clear                                              0.95
+6                          Top_drive                                              0.60
+7                          Top_drop                                               0.66
+8                          Top_passive_drop                                       0.54
+9                          Top_push                                               0.61
+10                         Top_rush                                               0.72
+11                         Top_cross_court_net_shot                               0.66
+12                         Top_short_service                                      0.99
+13                         Top_long_service                                       1.00
+14                         Bottom_net_shot                                        0.92
+15                         Bottom_return_net                                      0.80
+16                         Bottom_smash                                           0.68
+17                         Bottom_wrist_smash                                     0.44
+18                         Bottom_lob                                             0.78
+19                         Bottom_clear                                           0.96
+20                         Bottom_drive                                           0.61
+21                         Bottom_drop                                            0.65
+22                         Bottom_passive_drop                                    0.67
+23                         Bottom_push                                            0.56
+24                         Bottom_rush                                            0.73
+25                         Bottom_cross_court_net_shot                            0.71
+26                         Bottom_short_service                                   0.99
+27                         Bottom_long_service                                    0.99
+Accuracy: 0.768
+Top2 Accuracy: 0.940
+
+=== Serial 4 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_4) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_4  F1-score
+avg                                                Avg                            0.73
+min                                                Min                            0.39
+0                          Top_net_shot                                           0.89
+1                          Top_return_net                                         0.78
+2                          Top_smash                                              0.62
+3                          Top_wrist_smash                                        0.39
+4                          Top_lob                                                0.78
+5                          Top_clear                                              0.93
+6                          Top_drive                                              0.56
+7                          Top_drop                                               0.66
+8                          Top_passive_drop                                       0.50
+9                          Top_push                                               0.60
+10                         Top_rush                                               0.75
+11                         Top_cross_court_net_shot                               0.60
+12                         Top_short_service                                      0.99
+13                         Top_long_service                                       1.00
+14                         Bottom_net_shot                                        0.89
+15                         Bottom_return_net                                      0.81
+16                         Bottom_smash                                           0.65
+17                         Bottom_wrist_smash                                     0.41
+18                         Bottom_lob                                             0.77
+19                         Bottom_clear                                           0.96
+20                         Bottom_drive                                           0.65
+21                         Bottom_drop                                            0.66
+22                         Bottom_passive_drop                                    0.63
+23                         Bottom_push                                            0.62
+24                         Bottom_rush                                            0.79
+25                         Bottom_cross_court_net_shot                            0.69
+26                         Bottom_short_service                                   0.99
+27                         Bottom_long_service                                    0.99
+Accuracy: 0.759
+Top2 Accuracy: 0.931
+
+=== Serial 5 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_5) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_5  F1-score
+avg                                                Avg                            0.74
+min                                                Min                            0.40
+0                          Top_net_shot                                           0.91
+1                          Top_return_net                                         0.80
+2                          Top_smash                                              0.62
+3                          Top_wrist_smash                                        0.40
+4                          Top_lob                                                0.81
+5                          Top_clear                                              0.94
+6                          Top_drive                                              0.59
+7                          Top_drop                                               0.65
+8                          Top_passive_drop                                       0.55
+9                          Top_push                                               0.58
+10                         Top_rush                                               0.75
+11                         Top_cross_court_net_shot                               0.64
+12                         Top_short_service                                      1.00
+13                         Top_long_service                                       1.00
+14                         Bottom_net_shot                                        0.91
+15                         Bottom_return_net                                      0.82
+16                         Bottom_smash                                           0.70
+17                         Bottom_wrist_smash                                     0.46
+18                         Bottom_lob                                             0.76
+19                         Bottom_clear                                           0.96
+20                         Bottom_drive                                           0.64
+21                         Bottom_drop                                            0.67
+22                         Bottom_passive_drop                                    0.67
+23                         Bottom_push                                            0.58
+24                         Bottom_rush                                            0.75
+25                         Bottom_cross_court_net_shot                            0.67
+26                         Bottom_short_service                                   0.99
+27                         Bottom_long_service                                    0.99
+Accuracy: 0.768
+Top2 Accuracy: 0.940

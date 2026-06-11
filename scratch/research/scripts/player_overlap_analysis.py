@@ -18,9 +18,9 @@ import yaml
 
 REPO = Path('/home/ariel/Documents/COSC594/badminton_stroke_classification')
 CLIPS_CSV = REPO / 'notebooks' / 'clips_master.csv'
-MATCH_CSV = REPO / 'src/bst_refactor/ShuttleSet/set/match.csv'
-SET_DIR = REPO / 'src/bst_refactor/ShuttleSet/set'
-FLAW_CSV = REPO / 'src/bst_refactor/ShuttleSet/flaw_shot_records.csv'
+MATCH_CSV = REPO / 'src/bst_x/ShuttleSet/set/match.csv'
+SET_DIR = REPO / 'src/bst_x/ShuttleSet/set'
+FLAW_CSV = REPO / 'src/bst_x/ShuttleSet/flaw_shot_records.csv'
 DISCARD_CSV = REPO / 'scratch/research/discard_flags_split_v2_dropunk_nosides.csv'
 
 CHARTS_DIR = REPO / 'scratch/research/charts'
@@ -190,7 +190,7 @@ PHASE_2_NOSIDES_RUNS = [
 
 def compute_median_class_ranks() -> dict:
     """For each class, compute median test F1 across Phase 2 nosides runs."""
-    EXP = REPO / 'src/bst_refactor/stroke_classification/main_on_shuttleset/experiments'
+    EXP = REPO / 'src/bst_x/stroke_classification/main_on_shuttleset/experiments'
     per_run_per_class = {}
     for run_id in PHASE_2_NOSIDES_RUNS:
         m = yaml.safe_load(open(EXP / run_id / 'manifest.yaml'))
@@ -332,15 +332,15 @@ def main():
     print(f'  Flaw-filter drops: {n_flaw_drops} clips '
           f'(of {len(clips):,}, {n_flaw_drops/len(clips)*100:.2f}%)')
 
-    # (c) After bst_train discard filter (videos_len == 0)
-    print('\nLoading bst_train discard flags from CSV...')
+    # (c) After bst_x_train discard filter (videos_len == 0)
+    print('\nLoading bst_x_train discard flags from CSV...')
     discard_df = pd.read_csv(DISCARD_CSV)
     zero_stems = set(discard_df.loc[discard_df['videos_len'] == 0, 'clip_stem'].astype(str))
     print(f'  {len(zero_stems)} clips have videos_len == 0 across all splits')
     is_discarded = clips['clip_stem'].astype(str).isin(zero_stems)
     clips_bst_filt = clips.loc[~is_discarded].copy()
     n_bst_drops = int(is_discarded.sum())
-    print(f'  bst_train-filter drops: {n_bst_drops} clips '
+    print(f'  bst_x_train-filter drops: {n_bst_drops} clips '
           f'(of {len(clips):,}, {n_bst_drops/len(clips)*100:.2f}%)')
 
     splits_pairs = [('train', 'val'), ('train', 'test'), ('val', 'test')]

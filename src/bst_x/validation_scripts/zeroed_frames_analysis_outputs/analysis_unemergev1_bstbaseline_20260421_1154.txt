@@ -1,0 +1,492 @@
+Building flaw lookup from /home/ahalperi/badminton_stroke_classifier/src/bst_x/ShuttleSet/set ...
+  36,482 shots loaded, 1,441 marked flaw=1.0
+
+Scanning /scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat ...
+  clips_csv: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+  split_column: split_bst_baseline   taxonomy: une_merge_v1
+  + loading shuttle visibility from /scratch/comp320a/ShuttleSet/shuttle_npy_flat
+
+=================================================================
+  MMPose Detection Failure Analysis
+=================================================================
+  Taxonomy:   une_merge_v1
+  Data root:  /scratch/comp320a/ShuttleSet_data_merged_25
+
+  Overall: 121,852 / 1,775,308 frames failed (6.86%)
+           across 33,481 clips
+
+  Note: on MMPose-failed frames, joints, court positions, AND shuttle
+  coords are all zeroed. The transformer does NOT mask them in attention.
+
+--- Per-split breakdown ---
+  Split      Clips     Total Frames    Failed Frames    Fail Rate
+  train     25,741        1,332,217           87,249        6.55%
+  val        4,241          244,097           19,053        7.81%
+  test       3,499          198,994           15,550        7.81%
+
+--- Per-stroke-type fail rates ---
+  Stroke Type               Clips         Failed / Total    Fail Rate
+  unknown                    1278        29,175 / 53,250       54.79%
+  smash                      2362       16,613 / 120,850       13.75%
+  long_service                359         2,270 / 19,838       11.44%
+  wrist_smash                1559         7,829 / 78,867        9.93%
+  clear                      2661       13,722 / 186,248        7.37%
+  drop                       1979        7,921 / 119,705        6.62%
+  return_net                 3374        8,592 / 144,218        5.96%
+  lob                        5157       17,225 / 324,227        5.31%
+  short_service              1858         2,784 / 73,588        3.78%
+  push                       2652        4,327 / 140,442        3.08%
+  net_shot                   5824        7,399 / 303,086        2.44%
+  drive                      1523         1,274 / 61,332        2.08%
+  cross_court_net_shot       1226         1,244 / 61,552        2.02%
+  rush                        471           321 / 16,586        1.94%
+  passive_drop               1198         1,156 / 71,519        1.62%
+
+--- Clip failure tiers (excl. unknown/) ---
+  100% failed (completely blank):             2 clips  (+152 from unknown/)
+  > 90% failed:                               7 clips  (+183 from unknown/)
+  > 75% failed:                              20 clips  (+288 from unknown/)
+  > 50% failed:                             222 clips  (+733 from unknown/)
+
+--- Completely blank clips (100% failed): 2  (+152 from unknown/) ---
+  test/Top_wrist_smash/40_2_14_2   (23 frames)
+  train/Bottom_short_service/3_2_24_1   (36 frames)
+
+--- Clips above 50% threshold: 222  (+733 from unknown/) ---
+  test/Top_wrist_smash/40_2_14_2                          23/23 (100.0%)
+  train/Bottom_short_service/3_2_24_1                     36/36 (100.0%)
+  train/Top_long_service/3_2_12_1                         48/49 (98.0%)
+  train/Bottom_short_service/3_2_36_1                     32/33 (97.0%)
+  test/Bottom_long_service/44_2_25_1                      28/30 (93.3%)
+  train/Top_drive/3_1_30_3                                23/25 (92.0%)
+  train/Bottom_cross_court_net_shot/19_1_22_7             20/22 (90.9%)
+  train/Bottom_return_net/24_1_5_11                       24/28 (85.7%)
+  train/Top_drop/30_2_35_3                                27/32 (84.4%)
+  train/Top_smash/22_1_10_2                               43/51 (84.3%)
+  val/Top_smash/37_1_23_2                                 49/60 (81.7%)
+  val/Top_smash/38_2_35_2                                 49/60 (81.7%)
+  train/Bottom_short_service/6_2_23_1                     44/54 (81.5%)
+  train/Top_smash/1_1_25_11                               44/54 (81.5%)
+  train/Bottom_return_net/18_1_31_12                      20/25 (80.0%)
+  train/Bottom_short_service/11_2_27_1                    26/33 (78.8%)
+  train/Bottom_drive/3_1_30_4                             18/23 (78.3%)
+  train/Top_return_net/15_3_30_6                          10/13 (76.9%)
+  train/Bottom_return_net/2_2_20_6                        19/25 (76.0%)
+  val/Bottom_drive/37_2_18_9                              22/29 (75.9%)
+  train/Top_long_service/11_2_11_1                        30/40 (75.0%)
+  train/Top_drop/34_1_6_2                                 53/71 (74.6%)
+  train/Bottom_return_net/15_2_2_6                        17/23 (73.9%)
+  test/Top_smash/42_2_11_2                                50/68 (73.5%)
+  train/Top_clear/5_1_7_33                                36/49 (73.5%)
+  train/Top_smash/18_1_33_9                               36/49 (73.5%)
+  train/Top_drop/22_1_9_2                                 41/56 (73.2%)
+  train/Bottom_rush/33_1_27_5                             35/48 (72.9%)
+  val/Bottom_return_net/36_2_10_14                        24/33 (72.7%)
+  train/Top_net_shot/3_2_24_2                             31/43 (72.1%)
+  train/Bottom_return_net/30_3_3_6                        18/25 (72.0%)
+  val/Bottom_short_service/37_1_2_1                       41/57 (71.9%)
+  val/Bottom_return_net/36_1_22_13                        22/31 (71.0%)
+  train/Top_smash/7_1_2_2                                 24/34 (70.6%)
+  train/Top_drop/34_1_2_2                                 50/71 (70.4%)
+  train/Bottom_short_service/3_2_2_1                      26/37 (70.3%)
+  train/Bottom_wrist_smash/1_3_14_9                       40/57 (70.2%)
+  train/Top_smash/34_2_15_2                               44/63 (69.8%)
+  train/Bottom_push/3_1_30_2                              30/43 (69.8%)
+  train/Top_smash/1_1_13_33                               38/56 (67.9%)
+  train/Top_short_service/11_2_35_1                       23/34 (67.6%)
+  train/Top_push/6_2_23_2                                 33/49 (67.3%)
+  train/Top_smash/30_2_30_2                               43/64 (67.2%)
+  train/Bottom_short_service/11_2_38_1                    22/33 (66.7%)
+  train/Top_drop/34_1_13_2                                47/71 (66.2%)
+  train/Top_push/11_3_24_2                                35/53 (66.0%)
+  train/Top_smash/13_2_9_12                               35/53 (66.0%)
+  train/Bottom_drive/11_3_2_2                             34/52 (65.4%)
+  train/Top_net_shot/11_3_12_2                            32/49 (65.3%)
+  train/Top_drop/22_1_31_2                                45/69 (65.2%)
+  ... and 172 more (truncated)
+
+--- Flaw annotation vs. pose failure (excl. unknown/) ---
+  Group            Clips           Failed / Total    Fail Rate
+  flaw=1.0            36              491 / 1,365       35.97%
+  non-flaw        32,167       92,186 / 1,720,693        5.36%
+
+  Of 222 clips above 50% threshold: 13 are flaw-marked (6%)
+
+=================================================================
+  Shuttle (TrackNet) Detection Failure Analysis
+=================================================================
+  Overall: 108,980 / 1,722,058 frames with shuttle not detected (6.33%)
+           across 32,203 clips with shuttle data
+
+  Note: shuttle visibility=0 means TrackNetV3 could not locate the
+  shuttle. This is independent of MMPose — both can fail on the
+  same frame or on different frames.
+
+--- Per-split shuttle detection ---
+  Split      Clips     Total Frames   Shuttle Missed    Miss Rate
+  train     24,866        1,297,361           79,039        6.09%
+  val        4,000          233,101           15,140        6.50%
+  test       3,337          191,596           14,801        7.73%
+
+--- MMPose × Shuttle failure overlap (excl. unknown/) ---
+                                   Shuttle OK     Shuttle BAD       Row Total
+  MMPose FAILED                        84,359           8,298          92,657
+  MMPose OK                         1,528,503         100,682       1,629,185
+  Column Total                      1,612,862         108,980       1,721,842
+
+  Both OK:           1,528,503  (88.77%)
+  MMPose only fail:     84,359  (4.90%)
+  Shuttle only fail:   100,682  (5.85%)
+  Both fail:             8,298  (0.48%)
+
+Building hit-frame lookup from /home/ahalperi/badminton_stroke_classifier/src/bst_x/ShuttleSet/set ...
+  FPS source: /home/ahalperi/badminton_stroke_classifier/src/bst_x/ShuttleSet/video_metadata.csv
+  33,486 clip hit-frame indices computed
+
+--- MMPose failure near hit frames (±10 frames, excl. unknown/) ---
+  Zone                 Clips           Failed / Total    Fail Rate
+  near hit            32,198         40,305 / 673,865        5.98%
+  away from hit       32,198       52,364 / 1,048,101        5.00%
+
+  MMPose hit-zone clip tiers (of 32,198 matched clips):
+    100% of hit zone zeroed:          140 (0.4%)
+    > 90% of hit zone zeroed:         344 (1.1%)
+    > 75% of hit zone zeroed:         772 (2.4%)
+    > 50% of hit zone zeroed:        1716 (5.3%)
+    any zeroed frame:                4473 (13.9%)
+
+  Clips with 100% MMPose-zeroed hit zone (140):
+    test/Bottom_long_service/44_2_25_1
+    test/Bottom_return_net/44_1_30_3
+    test/Top_clear/40_1_37_2
+    test/Top_clear/42_1_9_2
+    test/Top_clear/42_2_15_2
+    test/Top_clear/42_2_33_2
+    test/Top_clear/43_2_24_17
+    test/Top_drop/42_1_14_2
+    test/Top_drop/42_2_20_2
+    test/Top_drop/42_2_21_2
+    test/Top_drop/42_2_22_2
+    test/Top_drop/42_2_22_6
+    test/Top_short_service/39_2_13_1
+    test/Top_smash/39_3_14_24
+    test/Top_smash/39_3_32_4
+    test/Top_smash/42_1_33_6
+    test/Top_smash/42_2_11_2
+    test/Top_smash/44_3_35_11
+    test/Top_wrist_smash/39_1_7_4
+    test/Top_wrist_smash/39_2_14_7
+    test/Top_wrist_smash/39_3_24_8
+    test/Top_wrist_smash/40_2_14_2
+    train/Bottom_cross_court_net_shot/7_1_11_21
+    train/Bottom_drive/3_1_30_4
+    train/Bottom_net_shot/18_1_9_2
+    train/Bottom_return_net/30_1_15_3
+    train/Bottom_return_net/30_1_18_11
+    train/Bottom_short_service/11_2_27_1
+    train/Bottom_short_service/16_1_2_1
+    train/Bottom_short_service/16_1_5_1
+    train/Bottom_short_service/3_2_24_1
+    train/Bottom_short_service/3_2_36_1
+    train/Bottom_short_service/6_2_23_1
+    train/Bottom_smash/21_2_28_15
+    train/Top_clear/22_1_1_2
+    train/Top_clear/22_1_5_2
+    train/Top_clear/25_1_21_12
+    train/Top_clear/2_2_2_22
+    train/Top_clear/30_1_22_10
+    train/Top_clear/30_1_22_2
+    train/Top_clear/30_1_30_11
+    train/Top_clear/30_1_30_9
+    train/Top_drive/23_2_10_14
+    train/Top_drive/3_1_30_3
+    train/Top_drop/22_1_31_2
+    train/Top_drop/22_1_9_2
+    train/Top_drop/25_1_23_5
+    train/Top_drop/28_2_34_18
+    train/Top_drop/2_2_35_6
+    train/Top_drop/2_2_4_9
+    train/Top_drop/30_2_35_3
+    train/Top_drop/34_1_13_2
+    train/Top_drop/34_1_2_2
+    train/Top_drop/34_1_6_2
+    train/Top_drop/6_2_2_13
+    train/Top_long_service/3_2_12_1
+    train/Top_net_shot/30_3_33_29
+    train/Top_passive_drop/24_3_23_9
+    train/Top_passive_drop/33_1_27_4
+    train/Top_short_service/11_2_33_1
+    train/Top_short_service/11_2_35_1
+    train/Top_short_service/24_3_12_1
+    train/Top_smash/13_2_9_12
+    train/Top_smash/16_1_42_4
+    train/Top_smash/16_2_31_9
+    train/Top_smash/16_2_6_4
+    train/Top_smash/18_2_14_8
+    train/Top_smash/18_2_19_16
+    train/Top_smash/19_1_1_23
+    train/Top_smash/19_1_28_6
+    train/Top_smash/19_1_4_8
+    train/Top_smash/19_3_1_6
+    train/Top_smash/20_2_35_4
+    train/Top_smash/22_1_10_2
+    train/Top_smash/22_1_3_2
+    train/Top_smash/23_2_15_4
+    train/Top_smash/23_2_1_6
+    train/Top_smash/23_2_20_4
+    train/Top_smash/23_2_22_6
+    train/Top_smash/23_2_8_4
+    train/Top_smash/24_2_14_4
+    train/Top_smash/24_2_30_25
+    train/Top_smash/24_2_32_9
+    train/Top_smash/24_2_4_13
+    train/Top_smash/25_1_12_12
+    train/Top_smash/26_1_16_8
+    train/Top_smash/28_1_17_10
+    train/Top_smash/28_1_26_5
+    train/Top_smash/28_1_28_7
+    train/Top_smash/28_1_32_10
+    train/Top_smash/29_2_5_4
+    train/Top_smash/30_1_18_10
+    train/Top_smash/30_1_25_15
+    train/Top_smash/30_2_12_4
+    train/Top_smash/30_3_18_12
+    train/Top_smash/30_3_18_4
+    train/Top_smash/30_3_30_3
+    train/Top_smash/33_1_24_9
+    train/Top_smash/33_1_35_6
+    train/Top_smash/34_1_34_4
+    train/Top_smash/34_2_12_4
+    train/Top_smash/34_2_15_2
+    train/Top_smash/34_2_15_6
+    train/Top_smash/34_2_4_4
+    train/Top_smash/7_1_14_25
+    train/Top_smash/7_1_26_8
+    train/Top_smash/7_1_34_38
+    train/Top_wrist_smash/13_2_1_4
+    train/Top_wrist_smash/20_2_34_10
+    train/Top_wrist_smash/25_1_23_11
+    train/Top_wrist_smash/25_2_5_2
+    train/Top_wrist_smash/26_2_15_4
+    train/Top_wrist_smash/26_2_25_10
+    train/Top_wrist_smash/30_1_14_10
+    train/Top_wrist_smash/30_1_18_20
+    train/Top_wrist_smash/30_1_30_5
+    train/Top_wrist_smash/30_1_5_9
+    train/Top_wrist_smash/30_2_23_5
+    train/Top_wrist_smash/30_3_16_4
+    train/Top_wrist_smash/33_1_29_9
+    train/Top_wrist_smash/33_1_32_4
+    val/Bottom_short_service/37_1_2_1
+    val/Top_clear/35_2_20_9
+    val/Top_clear/35_2_33_6
+    val/Top_clear/36_1_28_6
+    val/Top_clear/37_1_32_10
+    val/Top_clear/38_2_16_2
+    val/Top_clear/38_2_5_2
+    val/Top_net_shot/35_1_4_2
+    val/Top_smash/35_2_18_2
+    val/Top_smash/36_1_40_7
+    val/Top_smash/37_1_12_4
+    val/Top_smash/37_1_30_4
+    val/Top_smash/37_2_20_13
+    val/Top_smash/37_2_21_19
+    val/Top_smash/37_2_3_13
+    val/Top_smash/41_1_26_5
+    val/Top_smash/41_2_2_5
+    val/Top_wrist_smash/37_2_17_16
+    val/Top_wrist_smash/37_2_7_17
+
+  (5 clips had no hit-frame lookup — skipped)
+
+--- Per-stroke MMPose hit-zone fail rates (±10 frames, excl. unknown/) ---
+  Stroke Type                    Failed / Total    Fail Rate
+  smash                         12,680 / 49,479       25.63%
+  wrist_smash                    5,617 / 32,649       17.20%
+  drop                           5,439 / 41,482       13.11%
+  clear                          5,159 / 55,854        9.24%
+  return_net                     5,327 / 70,249        7.58%
+  long_service                      433 / 7,528        5.75%
+  short_service                  1,789 / 38,999        4.59%
+  passive_drop                     558 / 25,116        2.22%
+  rush                              193 / 9,848        1.96%
+  drive                            577 / 31,695        1.82%
+  cross_court_net_shot             462 / 25,688        1.80%
+  net_shot                      1,112 / 121,867        0.91%
+  lob                             699 / 107,933        0.65%
+  push                             260 / 55,478        0.47%
+
+--- MMPose hit-zone clip quality by class × split (>50% fail rate, excl. unknown/) ---
+  Stroke Type              Split    Clips      >50% Fail         %
+  smash                    train     1758            525     29.9%
+  smash                    test       265             66     24.9%
+  smash                    val        337             74     22.0%
+  wrist_smash              val        178             35     19.7%
+  drop                     test       191             37     19.4%
+  wrist_smash              test       187             34     18.2%
+  wrist_smash              train     1193            194     16.3%
+  drop                     train     1523            185     12.1%
+  clear                    test       379             43     11.3%
+  clear                    val        411             41     10.0%
+  drop                     val        265             22      8.3%
+  clear                    train     1871            137      7.3%
+  return_net               train     2636            154      5.8%
+  return_net               val        386             19      4.9%
+  return_net               test       350             16      4.6%
+  cross_court_net_shot     test       104              4      3.8%
+  short_service            train     1496             42      2.8%
+  long_service             train      211              5      2.4%
+  drive                    test       201              4      2.0%
+  passive_drop             val        159              3      1.9%
+  passive_drop             train      915             17      1.9%
+  drive                    val        179              3      1.7%
+  passive_drop             test       124              2      1.6%
+  long_service             test       102              1      1.0%
+  drive                    train     1143             10      0.9%
+  rush                     train      358              3      0.8%
+  cross_court_net_shot     val        121              1      0.8%
+  cross_court_net_shot     train     1001              7      0.7%
+  short_service            val        174              1      0.6%
+  short_service            test       188              1      0.5%
+  net_shot                 train     4684             15      0.3%
+  net_shot                 val        695              2      0.3%
+  net_shot                 test       445              1      0.2%
+  lob                      train     4037              9      0.2%
+  lob                      val        660              1      0.2%
+  push                     train     2035              2      0.1%
+  lob                      test       460              0      0.0%
+  long_service             val         46              0      0.0%
+  push                     test       292              0      0.0%
+  push                     val        325              0      0.0%
+  rush                     test        49              0      0.0%
+  rush                     val         64              0      0.0%
+
+--- Shuttle miss rate within ±10 frames of hit (excl. unknown/) ---
+  Zone                 Clips           Missed / Total    Miss Rate
+  near hit            32,198         10,588 / 673,713        1.57%
+  away from hit       32,198       98,392 / 1,048,057        9.39%
+
+  Combined data quality in hit zone:
+    Frames with BOTH MMPose OK and shuttle detected: 624,374 / 673,713 (92.68%)
+
+  Shuttle hit-zone clip tiers (of 32,198 clips with shuttle data):
+    100% shuttle missed:               13 (0.0%)
+    > 90% shuttle missed:              16 (0.0%)
+    > 75% shuttle missed:              23 (0.1%)
+    > 50% shuttle missed:              99 (0.3%)
+    any missed frame:                2622 (8.1%)
+
+--- Per-stroke shuttle miss rate within ±10 frames of hit (excl. unknown/) ---
+  Stroke Type                    Missed / Total    Miss Rate
+  long_service                      791 / 7,528       10.51%
+  clear                          3,296 / 55,854        5.90%
+  rush                              293 / 9,837        2.98%
+  lob                           2,818 / 107,920        2.61%
+  smash                          1,107 / 49,479        2.24%
+  wrist_smash                      382 / 32,638        1.17%
+  short_service                    445 / 38,999        1.14%
+  drive                            265 / 31,684        0.84%
+  drop                             301 / 41,482        0.73%
+  return_net                       379 / 70,155        0.54%
+  net_shot                        312 / 121,867        0.26%
+  push                             127 / 55,466        0.23%
+  passive_drop                      43 / 25,116        0.17%
+  cross_court_net_shot              29 / 25,688        0.11%
+
+--- Shuttle hit-zone clip quality by class × split (>50% miss rate, excl. unknown/) ---
+  Stroke Type              Split    Clips      >50% Miss         %
+  long_service             val         46              3      6.5%
+  rush                     train      358             13      3.6%
+  long_service             test       102              3      2.9%
+  rush                     val         64              1      1.6%
+  long_service             train      211              3      1.4%
+  short_service            train     1496             17      1.1%
+  clear                    train     1871             13      0.7%
+  smash                    train     1758             11      0.6%
+  wrist_smash              test       187              1      0.5%
+  short_service            test       188              1      0.5%
+  drive                    train     1143              5      0.4%
+  lob                      test       460              2      0.4%
+  smash                    test       265              1      0.4%
+  return_net               train     2636              8      0.3%
+  return_net               test       350              1      0.3%
+  wrist_smash              train     1193              2      0.2%
+  lob                      val        660              1      0.2%
+  push                     train     2035              3      0.1%
+  net_shot                 val        695              1      0.1%
+  lob                      train     4037              5      0.1%
+  net_shot                 train     4684              4      0.1%
+  clear                    test       379              0      0.0%
+  clear                    val        411              0      0.0%
+  cross_court_net_shot     test       104              0      0.0%
+  cross_court_net_shot     train     1001              0      0.0%
+  cross_court_net_shot     val        121              0      0.0%
+  drive                    test       201              0      0.0%
+  drive                    val        179              0      0.0%
+  drop                     test       191              0      0.0%
+  drop                     train     1523              0      0.0%
+  drop                     val        265              0      0.0%
+  net_shot                 test       445              0      0.0%
+  passive_drop             test       124              0      0.0%
+  passive_drop             train      915              0      0.0%
+  passive_drop             val        159              0      0.0%
+  push                     test       292              0      0.0%
+  push                     val        325              0      0.0%
+  return_net               val        386              0      0.0%
+  rush                     test        49              0      0.0%
+  short_service            val        174              0      0.0%
+  smash                    val        337              0      0.0%
+  wrist_smash              val        178              0      0.0%
+
+--- Combined (MMPose OR shuttle) hit-zone clip quality by class × split (>50% either-bad rate, excl. unknown/) ---
+  Stroke Type              Split    Clips       >50% Bad         %
+  smash                    train     1758            546     31.1%
+  smash                    test       265             67     25.3%
+  smash                    val        337             74     22.0%
+  wrist_smash              val        178             35     19.7%
+  drop                     test       191             37     19.4%
+  wrist_smash              test       187             34     18.2%
+  wrist_smash              train     1193            196     16.4%
+  drop                     train     1523            192     12.6%
+  clear                    test       379             47     12.4%
+  clear                    val        411             44     10.7%
+  clear                    train     1871            174      9.3%
+  long_service             test       102              9      8.8%
+  long_service             val         46              4      8.7%
+  drop                     val        265             23      8.7%
+  long_service             train      211             15      7.1%
+  return_net               train     2636            162      6.1%
+  return_net               val        386             19      4.9%
+  return_net               test       350             17      4.9%
+  rush                     train      358             17      4.7%
+  cross_court_net_shot     test       104              4      3.8%
+  short_service            train     1496             53      3.5%
+  drive                    test       201              4      2.0%
+  passive_drop             train      915             18      2.0%
+  passive_drop             val        159              3      1.9%
+  drive                    val        179              3      1.7%
+  passive_drop             test       124              2      1.6%
+  rush                     val         64              1      1.6%
+  drive                    train     1143             15      1.3%
+  short_service            test       188              2      1.1%
+  cross_court_net_shot     val        121              1      0.8%
+  cross_court_net_shot     train     1001              7      0.7%
+  short_service            val        174              1      0.6%
+  lob                      train     4037             19      0.5%
+  lob                      test       460              2      0.4%
+  net_shot                 train     4684             19      0.4%
+  lob                      val        660              2      0.3%
+  net_shot                 val        695              2      0.3%
+  net_shot                 test       445              1      0.2%
+  push                     train     2035              4      0.2%
+  push                     test       292              0      0.0%
+  push                     val        325              0      0.0%
+  rush                     test        49              0      0.0%
+
+Saved: /home/ahalperi/badminton_stroke_classifier/src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/fail_rate_histogram_unemergev1_bstbaseline_20260421_1154.png
+Saved: /home/ahalperi/badminton_stroke_classifier/src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/temporal_pattern_unemergev1_bstbaseline_20260421_1154.png
+Saved: /home/ahalperi/badminton_stroke_classifier/src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/hit_frame_profile_unemergev1_bstbaseline_20260421_1154.png
+
+  8 clips skipped: hit index past end of clip (FPS/frame-count mismatch)
+Saved: /home/ahalperi/badminton_stroke_classifier/src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/hit_zone_heatmap_unemergev1_bstbaseline_20260421_1154.png
+Saved: /home/ahalperi/badminton_stroke_classifier/src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/surviving_clips_unemergev1_bstbaseline_20260421_1154.png

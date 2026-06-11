@@ -3,12 +3,14 @@
 How model weights, training arrays, and TensorBoard logs are made available to
 the next team, and why. See `HANDOVER.md` for the project-wide handover.
 
-> **Status — Tier 1 published.** The 6 run-time weights are uploaded as assets
-> on the `models-v1` GitHub Release and `scripts/fetch-models.sh` works against
-> it. The Tier 2 training archive already lives on shared institutional storage
-> (which may not persist indefinitely; a maintainer backup is the fallback, see
-> Tier 2 below). The demo is unaffected either way: it runs from the precomputed
-> predictions already in the repo.
+> **Status — Tier 1 published.** The 6 BST-X run-time weights are tracked in
+> git AND uploaded as assets on the `models-v1` GitHub Release (which carries
+> 14 assets total: the 6 BST-X plus 8 BRIC weights uploaded alongside).
+> `scripts/fetch-models.sh` works against it. The Tier 2 training archive
+> already lives on shared institutional storage (which may not persist
+> indefinitely; a maintainer backup is the fallback, see Tier 2 below). The
+> demo is unaffected either way: it runs from the precomputed predictions
+> already in the repo.
 
 ## The decision (two tiers)
 

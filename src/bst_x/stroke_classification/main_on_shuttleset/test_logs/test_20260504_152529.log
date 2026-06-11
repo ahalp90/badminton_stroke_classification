@@ -1,0 +1,113 @@
+[arch] taxonomy=une_merge_v1_nosides, has_unknown=True, unknown_first=False
+       full taxonomy n_classes=15, n_active_classes=14 (derived from train labels post train_partial)
+       active class_list: ['net_shot', 'return_net', 'smash', 'wrist_smash', 'lob', 'clear', 'drive', 'drop', 'passive_drop', 'push', 'rush', 'cross_court_net_shot', 'short_service', 'long_service']
+
+=== Serial 1 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides  F1-score
+avg                                                Avg                                  0.75
+min                                                Min                                  0.44
+0                                 net_shot                                              0.89
+1                                 return_net                                            0.81
+2                                 smash                                                 0.62
+3                                 wrist_smash                                           0.44
+4                                 lob                                                   0.78
+5                                 clear                                                 0.95
+6                                 drive                                                 0.64
+7                                 drop                                                  0.67
+8                                 passive_drop                                          0.68
+9                                 push                                                  0.67
+10                                rush                                                  0.74
+11                                cross_court_net_shot                                  0.66
+12                                short_service                                         0.95
+13                                long_service                                          0.97
+Accuracy: 0.764
+Top2 Accuracy: 0.940
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2  F1-score
+avg                                                Avg                                    0.74
+min                                                Min                                    0.48
+0                                 net_shot                                                0.89
+1                                 return_net                                              0.81
+2                                 smash                                                   0.58
+3                                 wrist_smash                                             0.48
+4                                 lob                                                     0.78
+5                                 clear                                                   0.94
+6                                 drive                                                   0.61
+7                                 drop                                                    0.64
+8                                 passive_drop                                            0.69
+9                                 push                                                    0.58
+10                                rush                                                    0.75
+11                                cross_court_net_shot                                    0.64
+12                                short_service                                           0.97
+13                                long_service                                            0.98
+Accuracy: 0.758
+Top2 Accuracy: 0.935
+
+=== Serial 3 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3  F1-score
+avg                                                Avg                                    0.74
+min                                                Min                                    0.47
+0                                 net_shot                                                0.89
+1                                 return_net                                              0.82
+2                                 smash                                                   0.62
+3                                 wrist_smash                                             0.47
+4                                 lob                                                     0.77
+5                                 clear                                                   0.95
+6                                 drive                                                   0.58
+7                                 drop                                                    0.67
+8                                 passive_drop                                            0.69
+9                                 push                                                    0.63
+10                                rush                                                    0.71
+11                                cross_court_net_shot                                    0.69
+12                                short_service                                           0.96
+13                                long_service                                            0.99
+Accuracy: 0.760
+Top2 Accuracy: 0.940
+
+=== Serial 4 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4  F1-score
+avg                                                Avg                                    0.74
+min                                                Min                                    0.39
+0                                 net_shot                                                0.89
+1                                 return_net                                              0.81
+2                                 smash                                                   0.64
+3                                 wrist_smash                                             0.39
+4                                 lob                                                     0.77
+5                                 clear                                                   0.93
+6                                 drive                                                   0.62
+7                                 drop                                                    0.67
+8                                 passive_drop                                            0.64
+9                                 push                                                    0.65
+10                                rush                                                    0.74
+11                                cross_court_net_shot                                    0.62
+12                                short_service                                           0.97
+13                                long_service                                            0.98
+Accuracy: 0.757
+Top2 Accuracy: 0.934
+
+=== Serial 5 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5  F1-score
+avg                                                Avg                                    0.73
+min                                                Min                                    0.36
+0                                 net_shot                                                0.89
+1                                 return_net                                              0.80
+2                                 smash                                                   0.63
+3                                 wrist_smash                                             0.36
+4                                 lob                                                     0.78
+5                                 clear                                                   0.94
+6                                 drive                                                   0.61
+7                                 drop                                                    0.64
+8                                 passive_drop                                            0.63
+9                                 push                                                    0.65
+10                                rush                                                    0.77
+11                                cross_court_net_shot                                    0.64
+12                                short_service                                           0.95
+13                                long_service                                            0.95
+Accuracy: 0.753
+Top2 Accuracy: 0.933

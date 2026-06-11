@@ -8,9 +8,9 @@ Renames files from '{id}_{resolution}_{fps}.mp4' to '{id} {match_name}.mp4'
 Usage:
     python scripts/rename_videos.py \
         --video-dir /scratch/comp320a-data \
-        --match-csv src/bst_refactor/ShuttleSet/set/match.csv \
-        --flaw-csv src/bst_refactor/ShuttleSet/flaw_shot_records.csv \
-        --resolution-csv src/bst_refactor/ShuttleSet/my_raw_video_resolution.csv \
+        --match-csv src/bst_x/ShuttleSet/set/match.csv \
+        --flaw-csv src/bst_x/ShuttleSet/flaw_shot_records.csv \
+        --resolution-csv src/bst_x/ShuttleSet/my_raw_video_resolution.csv \
         --dry-run
 """
 import argparse

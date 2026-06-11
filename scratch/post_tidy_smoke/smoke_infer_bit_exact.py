@@ -2,11 +2,11 @@
 
 Loads a real checkpoint, runs inference on a collated dir's test split, and
 saves the predictions tensor as a ``.npy`` file. Run on both branches, then
-diff the two files: byte-identical output proves bst_infer's lift to
-``build_bst_network`` is behaviourally inert.
+diff the two files: byte-identical output proves bst_x_infer's lift to
+``build_bst_x_network`` is behaviourally inert.
 
 Required env vars:
-  BST_DATA_DIR  -- path to a collated dir (npy_<split>_<collation_id>/, with test/labels.npy)
+  BST_X_DATA_DIR  -- path to a collated dir (npy_<split>_<collation_id>/, with test/labels.npy)
   WEIGHT_PATH   -- path to a real .pt checkpoint matching that dir's config
 
 Optional env vars (defaults match the active Hyp on pre-phase-2-tidy):
@@ -20,7 +20,7 @@ Optional env vars (defaults match the active Hyp on pre-phase-2-tidy):
 Usage on engelbart:
   cd ~/badminton_stroke_classifier
   source /home/ahalperi/.venvs/venv-bst/bin/activate
-  export BST_DATA_DIR=~/badminton_stroke_classifier/src/bst_refactor/stroke_classification/preparing_data/ShuttleSet_data_une_v1_14/npy_v2_taxon_pinned_w_preds
+  export BST_X_DATA_DIR=~/badminton_stroke_classifier/src/bst_x/stroke_classification/preparing_data/ShuttleSet_data_une_v1_14/npy_v2_taxon_pinned_w_preds
   export WEIGHT_PATH=<full path to a recent .pt checkpoint matching the active Hyp>
 
   # CuBLAS deterministic mode -- without this CUDA picks different matmul
@@ -31,7 +31,7 @@ Usage on engelbart:
 
   # PYTHONPATH gives access to both package roots (matches conftest.py
   # for tests and the documented invocation pattern post-step-P).
-  export PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification
+  export PYTHONPATH=src/bst_x:src/bst_x/stroke_classification
 
   # Run on pre-phase-2-tidy
   git checkout pre-phase-2-tidy
@@ -49,7 +49,7 @@ Usage on engelbart:
   git checkout pre-phase-2-tidy
 
 A passing diff (``IDENTICAL``) means: same architecture, same loaded weights,
-same forward pass output. Bit-exact across the bst_infer.py refactor.
+same forward pass output. Bit-exact across the bst_x_infer.py refactor.
 """
 from __future__ import annotations
 
@@ -60,12 +60,12 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from main_on_shuttleset.bst_infer import Task
+from main_on_shuttleset.bst_x_infer import Task
 from pipeline.config import resolve_taxonomy
 
 
 def main() -> int:
-    bst_data_dir = Path(os.environ["BST_DATA_DIR"]).resolve()
+    bst_data_dir = Path(os.environ["BST_X_DATA_DIR"]).resolve()
     weight_path = Path(os.environ["WEIGHT_PATH"]).resolve()
     taxonomy_name = os.environ.get("TAXONOMY", "une_v1_14")
     pose_style = os.environ.get("POSE_STYLE", "JnB_bone")
@@ -78,7 +78,7 @@ def main() -> int:
         raise FileNotFoundError(f"WEIGHT_PATH does not exist: {weight_path}")
     if not (bst_data_dir / "test" / "labels.npy").exists():
         raise FileNotFoundError(
-            f"BST_DATA_DIR does not contain test/labels.npy: {bst_data_dir}"
+            f"BST_X_DATA_DIR does not contain test/labels.npy: {bst_data_dir}"
         )
     taxonomy = resolve_taxonomy(taxonomy_name)
 
@@ -89,7 +89,7 @@ def main() -> int:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    print(f"BST_DATA_DIR : {bst_data_dir}")
+    print(f"BST_X_DATA_DIR : {bst_data_dir}")
     print(f"WEIGHT_PATH  : {weight_path}")
     print(f"TAXONOMY     : {taxonomy_name} ({taxonomy.n_classes} classes)")
     print(f"POSE_STYLE   : {pose_style}")

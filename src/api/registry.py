@@ -18,7 +18,7 @@ import yaml
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
-from .config import BST_CLIPS_DIR, LOCAL_CLIPS_DIR, REGISTRY_PATH, REPO_ROOT
+from .config import BST_X_CLIPS_DIR, LOCAL_CLIPS_DIR, REGISTRY_PATH, REPO_ROOT
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
@@ -82,8 +82,8 @@ def _live_splits() -> set[str]:
     browser no longer gates on this (see `_pred_splits`), because the registered
     models ship precomputed real predictions that we serve directly."""
     try:
-        from . import bst_inference
-        return bst_inference.available_splits()
+        from . import bst_x_inference
+        return bst_x_inference.available_splits()
     except Exception:  # noqa: BLE001 — any import/probe failure => no live
         log.info("registry: live inference unavailable; predictions disabled")
         return set()
@@ -262,24 +262,24 @@ def _build_stem_index() -> dict:
 
 @lru_cache(maxsize=1)
 def _scan_clips_dir() -> dict:
-    """stem -> path relative to BST_CLIPS_DIR, by walking the clips tree once.
+    """stem -> path relative to BST_X_CLIPS_DIR, by walking the clips tree once.
 
     The registered models ship clip_index entries with no `video_path`, so
     `_build_stem_index` resolves nothing. Clip stems are globally unique, so a
     single recursive scan of the on-disk clips library (`{split}/{Side}_{class}/
     {stem}.mp4`) gives a robust stem -> file map without depending on the
     taxonomy/side folder naming. Cached: one walk per process; empty (and
-    harmless) when BST_CLIPS_DIR is unset or absent."""
+    harmless) when BST_X_CLIPS_DIR is unset or absent."""
     out: dict[str, str] = {}
-    if BST_CLIPS_DIR is None or not BST_CLIPS_DIR.exists():
+    if BST_X_CLIPS_DIR is None or not BST_X_CLIPS_DIR.exists():
         return out
-    for p in BST_CLIPS_DIR.rglob("*.mp4"):
-        out.setdefault(p.stem, str(p.relative_to(BST_CLIPS_DIR)))
+    for p in BST_X_CLIPS_DIR.rglob("*.mp4"):
+        out.setdefault(p.stem, str(p.relative_to(BST_X_CLIPS_DIR)))
     return out
 
 
 def _resolve_clip_path(stem: str) -> Optional[str]:
-    """Path (relative to BST_CLIPS_DIR) for a stem: prefer an explicit
+    """Path (relative to BST_X_CLIPS_DIR) for a stem: prefer an explicit
     clip_index `video_path`, else fall back to the filesystem scan."""
     return _build_stem_index().get(stem) or _scan_clips_dir().get(stem)
 
@@ -458,11 +458,11 @@ def get_clip(model_id: str, split: str, stem: str) -> dict:
     # sidecar. This keeps the detail view consistent with the list and the
     # per-class metrics panel (all sourced from the same model's offline run).
     #
-    # The on-demand live forward pass (bst_inference) is intentionally NOT
+    # The on-demand live forward pass (bst_x_inference) is intentionally NOT
     # called here: it is currently pinned to a different, older checkpoint than
     # the registered model and only indexes a 56-clip subset, so firing it would
     # serve a clip a prediction from a model the rest of the page doesn't use.
-    # Re-pointing bst_inference at the registered run + adding row_index belongs
+    # Re-pointing bst_x_inference at the registered run + adding row_index belongs
     # to the live-inference / Tier 3 workstream. See the Tier 2 handoff note.
     top_k = [
         {"class": class_list[i], "confidence": p}
@@ -504,9 +504,9 @@ def get_video(stem: str):
     Resolution order:
       1. Local stem-keyed drop: LOCAL_CLIPS_DIR/<stem>.mp4. Lets you play a
          handful of real clips locally (dev/demo) without the full ShuttleSet
-         tree or BST_CLIPS_DIR. Keyed by the stable clip_stem, not clip_index's
+         tree or BST_X_CLIPS_DIR. Keyed by the stable clip_stem, not clip_index's
          (placeholder) video_path.
-      2. Dataset tree under BST_CLIPS_DIR, resolved by stem: an explicit
+      2. Dataset tree under BST_X_CLIPS_DIR, resolved by stem: an explicit
          clip_index video_path if present, else a filesystem scan of the clips
          library. The registered models ship null video_path, so the scan is
          what resolves the full test/val set.
@@ -519,15 +519,15 @@ def get_video(stem: str):
     if local.resolve().parent == LOCAL_CLIPS_DIR.resolve() and local.is_file():
         return FileResponse(local, media_type="video/mp4")
 
-    # 2) Dataset tree under BST_CLIPS_DIR (clip_index video_path, else scan).
-    if BST_CLIPS_DIR is None:
+    # 2) Dataset tree under BST_X_CLIPS_DIR (clip_index video_path, else scan).
+    if BST_X_CLIPS_DIR is None:
         raise HTTPException(
             status_code=404,
             detail=(
-                f"No local clip at {local} and BST_CLIPS_DIR env var not set; "
+                f"No local clip at {local} and BST_X_CLIPS_DIR env var not set; "
                 "can't resolve clip mp4 location. Drop <stem>.mp4 into "
                 "clips_local/, or on UNE HPC set "
-                "BST_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips."
+                "BST_X_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips."
             ),
         )
     rel_path = _resolve_clip_path(stem)
@@ -537,10 +537,10 @@ def get_video(stem: str):
             detail=(
                 f"Clip '{stem}' has no mp4 on this host: no local clip at "
                 f"{local}, no clip_index video_path, and nothing matching under "
-                "BST_CLIPS_DIR."
+                "BST_X_CLIPS_DIR."
             ),
         )
-    abs_path = BST_CLIPS_DIR / rel_path
+    abs_path = BST_X_CLIPS_DIR / rel_path
     if not abs_path.exists():
         raise HTTPException(
             status_code=404,

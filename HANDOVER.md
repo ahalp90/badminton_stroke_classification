@@ -55,18 +55,18 @@ still runs; specific features degrade gracefully.
 | Data | Used for | Dev path | Prod path | In git? |
 | --- | --- | --- | --- | --- |
 | Sample inspect clips | Clip playback / library | `scratch/inspect_clips/` | n/a | partial sample tracked |
-| BST collation tensors | Live per-clip inference | `scratch/bst_inputs/` | `${DATA_HOST_DIR}` (`/data`) | no |
-| ShuttleSet (clips + npy) | Training / data pipeline | set `BST_*` in `.env` | n/a (training is off-server) | no |
+| BST-X collation tensors | Live per-clip inference | `scratch/bst_x_inputs/` | `${DATA_HOST_DIR}` (`/data`) | no |
+| ShuttleSet (clips + npy) | Training / data pipeline | set `BST_X_*` in `.env` | n/a (training is off-server) | no |
 | Model registry | Model cards / selection | `docs/models_registry.yaml` | same | yes |
 | Precomputed predictions | Results / model screens | served from each model's run dir | same | **yes (~11 MB)** |
 | Model weights + training arrays | Live inference / re-training | each run dir | `${DATA_HOST_DIR}` for live | **yes, ~440 MB (see below)** |
 
-**BST collation tensors** — the backend looks for, per `DEPLOYMENT.md`:
+**BST-X collation tensors** — the backend looks for, per `DEPLOYMENT.md`:
 ```
-$BST_INPUTS_DIR/{test,val}/{JnB_bone,pos,shuttle,videos_len}.npy
+$BST_X_INPUTS_DIR/{test,val}/{JnB_bone,pos,shuttle,videos_len}.npy
 ```
 - TODO (team): **where are these SCP'd from?** Document the source host /
-  account / path, e.g. `scp engelbart:/scratch/comp320a/.../bst_inputs ...`.
+  account / path, e.g. `scp engelbart:/scratch/comp320a/.../bst_x_inputs ...`.
 - Without them, the per-clip browser and the "Errors only" filter stay hidden
   (every model reports `live=false`). The rest of the app is unaffected.
 
@@ -82,7 +82,7 @@ the canonical location and how a new owner gets read access.
 - The full broadcast corpus (~32k clips, tens of GB) is the **public ShuttleSet
   dataset**, stored on HPC `/scratch` per decision DL-008. We do not redistribute
   it: a new team re-obtains ShuttleSet from its public source and points
-  `BST_CLIPS_DIR` at it. The repo already commits the mapping that says which
+  `BST_X_CLIPS_DIR` at it. The repo already commits the mapping that says which
   clip is which (`notebooks/clips_master.csv`, `notebooks/shuttleset_splits_v2.csv`,
   `training/data/shuttleset/annotations/shots_master.csv`), so the corpus is
   reconstructable. TODO (team): record the exact ShuttleSet source URL and the
@@ -96,14 +96,14 @@ and the rest is a re-downloadable public dataset keyed by the committed CSVs.
 Do **not** list the clips in this doc; the committed CSVs are the file-by-file
 manifest. Record the structure and how to restore instead:
 
-- **Layout** (`BST_CLIPS_DIR` root): `{split}/{Top,Bottom}_{stroke}/<stem>.mp4`,
+- **Layout** (`BST_X_CLIPS_DIR` root): `{split}/{Top,Bottom}_{stroke}/<stem>.mp4`,
   e.g. `train/Bottom_net_shot/16_2_17_15.mp4`. The stem encodes
   match/set/rally/shot indices.
 - **Count**: ~32k clips. `notebooks/clips_master.csv` (33,481 rows) is the
   authoritative index of stem -> split + taxonomy class; `shuttleset_splits_v2.csv`
   is the split assignment. A restore can be verified against these.
 - **Backup / restore**: full-corpus backups are held on **turing**. If the
-  working store is wiped, restore by rsyncing the backup into `BST_CLIPS_DIR`
+  working store is wiped, restore by rsyncing the backup into `BST_X_CLIPS_DIR`
   and re-pointing `.env`. TODO (team): record turing's exact backup path and
   access here.
 - **Last-resort rebuild**: ShuttleSet is public, so the corpus can be

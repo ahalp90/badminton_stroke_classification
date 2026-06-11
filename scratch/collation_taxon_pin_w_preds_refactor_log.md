@@ -18,15 +18,15 @@ Repo-wide grep for the deprecated symbol surface, before any code edits. Five pa
 
 - `src/api/registry.py` lines 96, 204, 233 (Step J)
 - `src/api/inference.py` lines 34, 44 (Step J)
-- `src/bst_refactor/pipeline/config.py` full taxonomy block (Step A)
-- `src/bst_refactor/pipeline/data_access.py` imports + `_derive_class_label` + four `class_list()` callsites (Step A)
-- `src/bst_refactor/pipeline/build_dataset.py` import + defaults (Step A)
-- `src/bst_refactor/pipeline/clip_generator.py` import + default (Step A)
-- `src/bst_refactor/pipeline/verify.py` import + default (Step A)
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py` full Hyp + Task + train_network + manifest surface (Step D)
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py` derive_active_classes_from_labels def (Step D)
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_infer.py` argparse + DEFAULT_TAXONOMY refs (Step D)
-- `src/bst_refactor/stroke_classification/preparing_data/prepare_train_on_shuttleset.py` full collator surface (Step C)
+- `src/bst_x/pipeline/config.py` full taxonomy block (Step A)
+- `src/bst_x/pipeline/data_access.py` imports + `_derive_class_label` + four `class_list()` callsites (Step A)
+- `src/bst_x/pipeline/build_dataset.py` import + defaults (Step A)
+- `src/bst_x/pipeline/clip_generator.py` import + default (Step A)
+- `src/bst_x/pipeline/verify.py` import + default (Step A)
+- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py` full Hyp + Task + train_network + manifest surface (Step D)
+- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py` derive_active_classes_from_labels def (Step D)
+- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_infer.py` argparse + DEFAULT_TAXONOMY refs (Step D)
+- `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py` full collator surface (Step C)
 - `tests/test_active_classes.py`, `tests/test_data_access.py`, `tests/test_integration.py` (Step F)
 - `scratch/presentation_prep/eval_dump_predictions.py` delete (Step D10)
 - `scratch/presentation_prep/confusion_matrix.py` adapt to npz (Step D10)
@@ -37,29 +37,29 @@ Four code files and four doc files not in the original hit list.
 
 **Code:**
 
-1. `src/bst_refactor/stroke_classification/model/bst.py` lines 436-437 — `__main__` demo block imports `TAXONOMIES, DEFAULT_TAXONOMY` and reads `n_classes` for the smoke instantiation. Trivial: replace with `resolve_taxonomy('bst_25').n_classes` or similar concrete pick. ~2 lines.
+1. `src/bst_x/stroke_classification/model/bst.py` lines 436-437 — `__main__` demo block imports `TAXONOMIES, DEFAULT_TAXONOMY` and reads `n_classes` for the smoke instantiation. Trivial: replace with `resolve_taxonomy('bst_25').n_classes` or similar concrete pick. ~2 lines.
 
-2. `src/bst_refactor/validation_scripts/fail_rate_per_class.py` — live validation script with `--drop-unknown` CLI flag piped through to `get_clip_records`. Needs adaptation: drop the CLI flag, switch to `--taxonomy` selection (taxonomy now carries the unknown-exclude rule via `excluded_base_stroke_types`). ~10 lines.
+2. `src/bst_x/validation_scripts/fail_rate_per_class.py` — live validation script with `--drop-unknown` CLI flag piped through to `get_clip_records`. Needs adaptation: drop the CLI flag, switch to `--taxonomy` selection (taxonomy now carries the unknown-exclude rule via `excluded_base_stroke_types`). ~10 lines.
 
-3. `src/bst_refactor/validation_scripts/verify_bst_train_target.py` — live pre-flight script importing `derive_ablation_id` + `derive_npy_collated_dir_basename`. Both signatures change. ~5 lines.
+3. `src/bst_x/validation_scripts/verify_bst_train_target.py` — live pre-flight script importing `derive_ablation_id` + `derive_npy_collated_dir_basename`. Both signatures change. ~5 lines.
 
 4. `scratch/api_mocks/build_mock_artifacts.py` lines 29, 204 — writes mock JSONs with `active_class_list` field. The Step J fallback handles reads, so this is low-priority. Either update for consistency or leave (fallback covers).
 
 **Docs:**
 
-5. `src/bst_refactor/data_pipeline_to_model_train.md` lines 94, 398, 544 — references `DEFAULT_TAXONOMY`, deprecated taxonomy methods, `drop_unknown`.
-6. `src/bst_refactor/pipeline/README.md` lines 248, 253, 254, 288, 322, 323, 376 — same deprecated-symbol refs.
+5. `src/bst_x/data_pipeline_to_model_train.md` lines 94, 398, 544 — references `DEFAULT_TAXONOMY`, deprecated taxonomy methods, `drop_unknown`.
+6. `src/bst_x/pipeline/README.md` lines 248, 253, 254, 288, 322, 323, 376 — same deprecated-symbol refs.
 7. `tests/testing_guide.md` lines 21, 51 — references `_derive_class_label` semantics and the `ablation_id` naming convention.
 8. `scratch/architecture_notes/xai_vid_feature.md:132` — references the old `.pt` predictions schema's `active_class_list` field.
 
 ### Hits ignored (out of scope or no impact)
 
-- `src/api/bst_inference.py:59` — single comment; the plan parks this file's hardcoded 14-class list as a forward FE concern.
+- `src/api/bst_x_inference.py:59` — single comment; the plan parks this file's hardcoded 14-class list as a forward FE concern.
 - `src/bric/*`, `src/shared/*` — Arch2 territory, off-limits per agreed scope. Arch2 has its own Taxonomy class with its own `standalone_set` / `unknown_first` / `class_list()`; no symbol overlap with BST.
 - `tests/test_network.py`, `tests/test_video_io.py`, `tests/test_player_mapping.py`, `tests/test_temporal.py` — Arch2 tests.
 - `tests/test_adaptive_focal.py:49` — single comment, no code dependency.
 - `scripts/archive/*` (verify_v1_collate.py, verify_flatten.py) — archived scripts, won't run.
-- `src/bst_refactor/stroke_classification/.gitignore` — comment lines from project history.
+- `src/bst_x/stroke_classification/.gitignore` — comment lines from project history.
 - Manifest YAML / `best_model_id.txt` under `experiments/run_*/` — historic artefacts; new runs won't write the deprecated fields; aliases handle resume.
 - `predictions/val.json`, `predictions/test.json` — covered by Step J fallback.
 
@@ -101,8 +101,8 @@ f) Inference doesn't mutate run dir outside `predictions/`
 
 End-of-refactor sweep targets. Updated as new finds emerge during execution.
 
-- `src/bst_refactor/data_pipeline_to_model_train.md` (deprecated symbol refs)
-- `src/bst_refactor/pipeline/README.md` (deprecated symbol refs, multiple entries)
+- `src/bst_x/data_pipeline_to_model_train.md` (deprecated symbol refs)
+- `src/bst_x/pipeline/README.md` (deprecated symbol refs, multiple entries)
 - `tests/testing_guide.md` (`_derive_class_label` semantics + `ablation_id` naming)
 - `scratch/architecture_notes/xai_vid_feature.md` (old `.pt` schema field name)
 - `scratch/frontend_integration_handoff.md` (per plan Step G)
@@ -111,7 +111,7 @@ End-of-refactor sweep targets. Updated as new finds emerge during execution.
 - `docs/models_registry.yaml` (taxonomy field; leave-via-alias or re-key)
 - `scratch/architecture_notes/unknown_channel_fix_review.md` (archived design doc, deprecated symbol refs; pure history)
 - `scratch/architecture_notes/completed_general_refactors/data_access_integration_plan.md` (archived design doc, deprecated symbol refs; pure history)
-- `src/bst_refactor/validation_scripts/README.md` (line 163 references `derive_ablation_id`)
+- `src/bst_x/validation_scripts/README.md` (line 163 references `derive_ablation_id`)
 - `scratch/research/dump_videos_len.py` (uses old `derive_npy_collated_dir_basename` signature; TypeError on invocation; ad-hoc inspection script Ariel likely reaches for during X3D-S work — fix when next touched)
 
 ## 2026-05-23: multi-agent verification round
@@ -122,16 +122,16 @@ Three Plan agents dispatched in parallel: test suite design, integration verific
 
 Three more validation scripts using `taxonomy.standalone_set` and `taxonomy.class_list()`, missed by the pre-flight audit because the plan's "validation_scripts audited and confirmed clean" claim was wrong:
 
-- `src/bst_refactor/validation_scripts/validate_zeroed_frames.py` lines 178-209
-- `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/find_busted_clips.py:116`
-- `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/zeroed_frames_class_audit.py:103-104`
+- `src/bst_x/validation_scripts/validate_zeroed_frames.py` lines 178-209
+- `src/bst_x/validation_scripts/mmpose_heuristic_investigation/find_busted_clips.py:116`
+- `src/bst_x/validation_scripts/mmpose_heuristic_investigation/zeroed_frames_class_audit.py:103-104`
 
 All three get the same forward-only adaptation as `fail_rate_per_class.py`: route through `label_for_row` returning the string class name (or the index, depending on use), switch `class_list()` method to `taxonomy.classes` attribute.
 
 ### Risks + plan corrections
 
 - `MERGE_MAP` import in `clip_generator.py:22` and `verify.py:16` removed by Step A (was only flagged in `build_dataset.py:25`). All three need their import lines updated in the same commit; otherwise import-time crash.
-- `bst_infer.py:__main__` block (lines 116-177) reads `manifest.extra.arch` and falls back to `TAXONOMIES[DEFAULT_TAXONOMY].class_list()`. Both removed. Block gets the same resolver pattern as Step J's `_resolve_class_list`. Landing alongside Step D9 (--fe argparse) in the same commit.
+- `bst_x_infer.py:__main__` block (lines 116-177) reads `manifest.extra.arch` and falls back to `TAXONOMIES[DEFAULT_TAXONOMY].class_list()`. Both removed. Block gets the same resolver pattern as Step J's `_resolve_class_list`. Landing alongside Step D9 (--fe argparse) in the same commit.
 - Plan doc vs log naming mismatch: plan doc uses `excludes_raw` throughout Step A spec; log locks `excluded_base_stroke_types`. Plan doc gets updated to match the log in the Step A commit.
 - `confusion_matrix.py` change is 2-3 lines, not 1: `np.load` reads `class_list` as a numpy object array (needs `.tolist()`) and `y_pred` must be derived via `np.argmax(logits, axis=1)` since the npz drops `y_pred_top1`.
 - `npz['class_list']` consumer caveat: numpy object array, not Python list. Both `confusion_matrix.py` and the parked post-hoc FE-JSON converter need `.tolist()` to use it. Documented in the schema spec.
@@ -148,7 +148,7 @@ Three new test files needed (don't exist today):
 Plus an optional `tests/conftest.py` for shared fixtures: `tiny_bst_network(taxonomy)`, `make_collated_split(tmp_path, n, with_clip_stems)`, `synthetic_manifest(run_dir, taxonomy)`.
 
 Coverage gaps the existing plan didn't cover:
-- CLI flag wiring in `bst_train.py` (`--taxonomy`, `--split-column`, `--ablation-id`) — needs explicit test, either in `test_hparam_sweep.py` or a new `tests/test_bst_train_cli.py`.
+- CLI flag wiring in `bst_x_train.py` (`--taxonomy`, `--split-column`, `--ablation-id`) — needs explicit test, either in `test_hparam_sweep.py` or a new `tests/test_bst_train_cli.py`.
 - `_assert_label_coverage` failure modes (full coverage train; subset val/test; rogue val/test classes) — covered by new tests in `tests/test_taxonomy.py`.
 - `Task.dump_predictions` row alignment with `clip_stems.npy` — covered in `test_inference_smoke.py` (e).
 - `Task.dump_predictions` row determinism (shuffle=False) — optional test in same file.
@@ -172,11 +172,11 @@ All additions are forward-compat (no shim explosion). Modest creep relative to t
 
 Step A landed. Touched:
 
-- `src/bst_refactor/pipeline/config.py` — full taxonomy block rewrite. New `Taxonomy(name, classes, merge_map, has_sides, excluded_base_stroke_types)` dataclass + `__post_init__` pinning unknown at -1. Six new TAXONOMY_* objects (bst_25/bst_24/bst_12, une_v1_14/une_v1_15, shuttleset_18). New helpers: `resolve_taxonomy`, `label_for_row`, `_sided_classes`. New `TAXONOMY_ALIASES` for legacy-name resume. `derive_npy_collated_dir_basename` signature changed: `ablation_id` required, `split_column` + `drop_unknown` params gone. `MERGE_MAP_25` lands the paper-faithful `driven_flight: drive` fix.
+- `src/bst_x/pipeline/config.py` — full taxonomy block rewrite. New `Taxonomy(name, classes, merge_map, has_sides, excluded_base_stroke_types)` dataclass + `__post_init__` pinning unknown at -1. Six new TAXONOMY_* objects (bst_25/bst_24/bst_12, une_v1_14/une_v1_15, shuttleset_18). New helpers: `resolve_taxonomy`, `label_for_row`, `_sided_classes`. New `TAXONOMY_ALIASES` for legacy-name resume. `derive_npy_collated_dir_basename` signature changed: `ablation_id` required, `split_column` + `drop_unknown` params gone. `MERGE_MAP_25` lands the paper-faithful `driven_flight: drive` fix.
 
-- `src/bst_refactor/pipeline/data_access.py` — `_derive_class_label` wraps `label_for_row` (returns string or None). `drop_unknown` parameter removed from `get_clip_records` / `summarise` / `interactive` / `_build_cli` (taxonomy carries the rule via `excluded_base_stroke_types`). `DEFAULT_TAXONOMY_NAME = 'bst_25'` for data exploration (Hyp default in bst_train will be `une_v1_14` — separate concern, lands in Step D).
+- `src/bst_x/pipeline/data_access.py` — `_derive_class_label` wraps `label_for_row` (returns string or None). `drop_unknown` parameter removed from `get_clip_records` / `summarise` / `interactive` / `_build_cli` (taxonomy carries the rule via `excluded_base_stroke_types`). `DEFAULT_TAXONOMY_NAME = 'bst_25'` for data exploration (Hyp default in bst_x_train will be `une_v1_14` — separate concern, lands in Step D).
 
-- `src/bst_refactor/pipeline/{build_dataset, clip_generator, verify}.py` — dropped `MERGE_MAP`, `TAXONOMY_UNE_MERGE_V1`, `DEFAULT_TAXONOMY` imports. Each gained a `_DEFAULT_TAXONOMY = resolve_taxonomy('une_v1_14')` constant for function defaults. CLI default in build_dataset shifted to `'une_v1_14'`.
+- `src/bst_x/pipeline/{build_dataset, clip_generator, verify}.py` — dropped `MERGE_MAP`, `TAXONOMY_UNE_MERGE_V1`, `DEFAULT_TAXONOMY` imports. Each gained a `_DEFAULT_TAXONOMY = resolve_taxonomy('une_v1_14')` constant for function defaults. CLI default in build_dataset shifted to `'une_v1_14'`.
 
 - `tests/test_active_classes.py` → `tests/test_taxonomy.py` (renamed via `git mv`). Body rewritten: ~293 lines deleted (the active/full machinery), ~250 lines added covering the new Taxonomy contract, `label_for_row` parametrised cases including the driven_flight fix, `resolve_taxonomy` aliases, `_sided_classes` helper. BST_CG_AP forward+backward smoke kept and re-parametrised over the six new taxonomies. class_weights renorm tests kept (head-shape concern, independent of the active-class machinery).
 
@@ -220,7 +220,7 @@ Agent 3 raised a "NO-GO" blocker claiming `apply_heuristic.py:335-337` lazy-impo
 
 Other real findings, none blocking:
 
-- Step C/D files (`prepare_train_on_shuttleset.py`, `bst_train.py`, `bst_common.py`, `bst_infer.py`, `model/bst.py`, two validation scripts) all still import deleted symbols. **Intentional per plan, fail-loud on import.** Not in Step B's call graph.
+- Step C/D files (`prepare_train_on_shuttleset.py`, `bst_x_train.py`, `bst_x_common.py`, `bst_x_infer.py`, `model/bst.py`, two validation scripts) all still import deleted symbols. **Intentional per plan, fail-loud on import.** Not in Step B's call graph.
 - Live resume case `une_merge_v1_nosides -> une_v1_14` verified bit-for-bit safe (manifest's recorded `active_class_list` matches `STROKE_TYPES_14_UNE_V1` exactly).
 - Lossy alias cases (`merged_25 -> bst_25`, `une_merge_v1 -> une_v1_15`, `raw_35 -> bst_25`) acknowledged in plan; user declined adding `warnings.warn` (overkill for scenarios that aren't happening).
 - `_make_fake_dataset` in test_data_access would TypeError on `Path / None` if a future test passes `bst_24` + unknown row. Loud failure mode preserved by design (not patched).
@@ -277,14 +277,14 @@ Symmetric with the existing `unknown_root_dir set + taxonomy excludes unknown` v
 
 ### Step D resume case still gated
 
-`run_20260505_154907` resume needs Step D7's `bst_train.py:803` patch (`hyp.taxonomy` recorded string instead of `taxonomy.name` resolved) so the weight filename lookup hits the legacy on-disk filename. Step C alone gets the Dataset side right (graceful None for clip_stems, labels load as-is); Step D7 closes the loop.
+`run_20260505_154907` resume needs Step D7's `bst_x_train.py:803` patch (`hyp.taxonomy` recorded string instead of `taxonomy.name` resolved) so the weight filename lookup hits the legacy on-disk filename. Step C alone gets the Dataset side right (graceful None for clip_stems, labels load as-is); Step D7 closes the loop.
 
 ### Next
 
 B3 retry on bourbaki against the new `_unknown` raw extract:
 
 ```
-PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
     python -m preparing_data.apply_heuristic \
     --raw-dir /scratch/comp320a/ShuttleSet_keypoints_raw_unknown \
     --output-dir /scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor_unknown \
@@ -368,7 +368,7 @@ Resulting dirs (collision gone):
 
 Tests: added `test_derive_npy_collated_dir_basename_folds_split` (both splits + a 3d + a seq30 case) and `test_bst_24_split_variants_get_distinct_basenames` (pins the collision fix) in test_taxonomy.py. Refreshed the CANDIDATE_REAL_DIRS probe paths to the split-encoded names, else they'd silently skip once the collations land. Green in the cicd venv: test_taxonomy 77 passed / 4 skipped, test_data_access + test_dataset 35 passed.
 
-Step D reader implication (flagged, not fixed now): bst_train.py:1073 already calls `derive_npy_collated_dir_basename(split_column=hyp.split_column, ...)` -- the pre-Step-A call shape it was never moved off -- so re-adding the param re-aligns reader with writer for the new cells. But bst_train is still broken pending Step D (imports the removed `derive_ablation_id` at line 39), and legacy dirs (`npy_wipe_drop`, `npy_<tax>_<split>_dropunk`) carry no split tag, so the Step D reader rewrite needs either a fallback for pre-split names or a re-collation of the legacy runs it wants to resume. Nothing that currently works regresses: the run_20260505_154907 resume is already dead pending Step D, and cell 7 re-collates + retrains that best on the new generation anyway.
+Step D reader implication (flagged, not fixed now): bst_x_train.py:1073 already calls `derive_npy_collated_dir_basename(split_column=hyp.split_column, ...)` -- the pre-Step-A call shape it was never moved off -- so re-adding the param re-aligns reader with writer for the new cells. But bst_x_train is still broken pending Step D (imports the removed `derive_ablation_id` at line 39), and legacy dirs (`npy_wipe_drop`, `npy_<tax>_<split>_dropunk`) carry no split tag, so the Step D reader rewrite needs either a fallback for pre-split names or a re-collation of the legacy runs it wants to resume. Nothing that currently works regresses: the run_20260505_154907 resume is already dead pending Step D, and cell 7 re-collates + retrains that best on the new generation anyway.
 
 bst_25 sanity collation: already deleted last week, so cell 5 has a clean target dir.
 
@@ -386,9 +386,9 @@ Renamed now (the live collator + path helper from the previous commit):
 
 Green: test_taxonomy 77 passed / 4 skipped (cicd venv). The collation command is now `--collation-id taxon_pinned_w_preds`.
 
-Deferred to Step D / Step J (those exact lines get rewritten there anyway, and bst_train is still broken pending D):
-- bst_train Hyp gains `collation_id` (path tag) + a nullable training `ablation_id`; defaults `collation_id='taxon_pinned_w_preds'`, `ablation_id=None`.
-- Manifest carries both; the old `effective_ablation_id` writer key (bst_common) becomes `collation_id` (auto-derive is gone, so raw == effective, no separate "effective" field needed).
+Deferred to Step D / Step J (those exact lines get rewritten there anyway, and bst_x_train is still broken pending D):
+- bst_x_train Hyp gains `collation_id` (path tag) + a nullable training `ablation_id`; defaults `collation_id='taxon_pinned_w_preds'`, `ablation_id=None`.
+- Manifest carries both; the old `effective_ablation_id` writer key (bst_x_common) becomes `collation_id` (auto-derive is gone, so raw == effective, no separate "effective" field needed).
 - FE registry reads both new fields directly, NO legacy fallback (historical runs aren't populated to the FE).
 - The legacy fallback (resolve `collation_id` from an old manifest's `effective_ablation_id`/`ablation_id`, gated so the old `ablation_id` isn't misread as a training tag) lives in a shared `config.py` reader for internal scripts that pull legacy run data.
 
@@ -396,10 +396,10 @@ Plan updated: Locked decisions (the four points), Step A snippet (now matches th
 
 ## 2026-05-30: verification pass + doc tidy + collation_id_from_manifest helper
 
-Ran two read-only opus verification agents over the disentanglement (one on the live collation pipeline, one on the blast radius + tests + docs). Both confirmed the rename is correctly propagated through everything that runs: the collator + helper are on the new contract, the test suite passes, and crucially no NEW breakage. bst_train.py / verify_bst_train_target.py fail only at *import* on the removed `derive_ablation_id` name (a Step A removal, prior session), independent of this signature change, so they're pre-existing Step-D-deferred breakage, not a regression.
+Ran two read-only opus verification agents over the disentanglement (one on the live collation pipeline, one on the blast radius + tests + docs). Both confirmed the rename is correctly propagated through everything that runs: the collator + helper are on the new contract, the test suite passes, and crucially no NEW breakage. bst_x_train.py / verify_bst_train_target.py fail only at *import* on the removed `derive_ablation_id` name (a Step A removal, prior session), independent of this signature change, so they're pre-existing Step-D-deferred breakage, not a regression.
 
 Acted on the two follow-ups they surfaced:
-- Doc tidy (path-format strings -> `npy_[3d_][seq{N}_]{split}_{collation_id}`): `data_pipeline_to_model_train.md`, `bst_infer.py` (example comment), `tests/test_integration.py`, `tests/testing_guide.md`. Left for Step D where they're naturally touched: `run_tracker.md`'s `effective_ablation_id` (manifest writer rename), the data_pipeline Hyp-default table entry, and the `derive_ablation_id` prose in `shared/taxonomy.py` (BRIC-side) + `validation_scripts/README.md`.
+- Doc tidy (path-format strings -> `npy_[3d_][seq{N}_]{split}_{collation_id}`): `data_pipeline_to_model_train.md`, `bst_x_infer.py` (example comment), `tests/test_integration.py`, `tests/testing_guide.md`. Left for Step D where they're naturally touched: `run_tracker.md`'s `effective_ablation_id` (manifest writer rename), the data_pipeline Hyp-default table entry, and the `derive_ablation_id` prose in `shared/taxonomy.py` (BRIC-side) + `validation_scripts/README.md`.
 - Internal-script reader: `collation_id_from_manifest` now in `config.py`. Resolves the collation tag across schemas -- `config.collation_id` (new) -> `config.ablation_id` (legacy explicit) -> `extra.data_provenance.effective_ablation_id` (legacy auto-derived). Reads new-schema collation_id first, so a new manifest's training `ablation_id` is never misread as the collation; the docstring spells out the meaning-flip caveat for callers that also want the training tag. Four unit tests added.
 
 Green: test_taxonomy 81 passed / 4 skipped (cicd venv).
@@ -419,23 +419,23 @@ Verified deeper than counts: `tests/test_taxonomy.py` in `venv-bst` came back **
 
 Aside on a venv scare: the suite fails to even *collect* in `venv-mmpose` (it imports `model.bst` -> `positional_encodings`, a training dep that venv lacks). That's the wrong venv, not a broken wheel; `venv-bst` is the one for tests/training. Captured in the Venv Paths memory.
 
-**Status:** Steps A-C done + committed (`4c1c3c9`, pushed). Collations done + verified. Step D (the `bst_train` rewrite) is next. Cold-start brief at `scratch/NEXT_SESSION.md`.
+**Status:** Steps A-C done + committed (`4c1c3c9`, pushed). Collations done + verified. Step D (the `bst_x_train` rewrite) is next. Cold-start brief at `scratch/NEXT_SESSION.md`.
 
 ## 2026-05-30: Steps D, J, E, G code landed (uncommitted) — train + infer surface rewritten
 
 Did the whole model-side pass in one session on the laptop, smoke-tested in the `badminton-cicd` venv (which turns out to carry the full model stack incl. `positional_encodings`, so the earlier venv-mmpose collection scare doesn't apply here). Nothing committed yet.
 
-**Step D (bst_train + bst_common + bst_infer):**
+**Step D (bst_x_train + bst_x_common + bst_x_infer):**
 - Hyp tuple: `drop_unknown` and `expected_active_classes` gone; `ablation_id` renamed to `collation_id` (the path tag) and a fresh nullable `ablation_id` added as the training-time tag. Defaults `taxonomy='une_v1_14'`, `collation_id='taxon_pinned_w_preds'`, `ablation_id=None`.
 - The runtime active-class adapter (`derive_active_classes_from_labels`) is deleted. `Task._assert_label_coverage` replaces it: train must cover every taxonomy class, val/test must carry nothing train didn't see. Head dim and class list read straight off `taxonomy.n_classes` / `taxonomy.classes`; no more `n_active_classes` / `active_class_list`.
 - `_validate_and_record_arch` + the whole `extra.arch` manifest block are gone. A 2-line `_print_taxonomy_block` logs the taxonomy at run start; the class list now lands in `config.classes` (mirrors BRIC), written at `track_run` time.
-- `dump_topk_predictions` (in bst_common) + `Task.dump_predictions` write per-stroke logits + top-k + ground truth to `predictions/<split>_serial_<n>.npz` for every serial, all three splits, shuffle=False so the npz rows follow the in-memory dataset order (the follow-up adds a `clip_stems` column for a self-contained row->stem join). This is the FE / calibration payload the refactor was for.
+- `dump_topk_predictions` (in bst_x_common) + `Task.dump_predictions` write per-stroke logits + top-k + ground truth to `predictions/<split>_serial_<n>.npz` for every serial, all three splits, shuffle=False so the npz rows follow the in-memory dataset order (the follow-up adds a `clip_stems` column for a self-contained row->stem join). This is the FE / calibration payload the refactor was for.
 - Per-class val F1 snapshotted at the best-macro epoch and surfaced to the serial manifest (`extra.val_at_best_macro_epoch`); `train_network` now returns `(model, val_at_best)`, threaded through `seek_network_weights`. TB gets `F1_val/<class>` scalars.
 - Weight-file + collated-dir naming uses the resolved `taxonomy.name` (matching what the collator writes), not `hyp.taxonomy`. The follow-up dropped the legacy-resume scaffolding (recorded-`npy_collated_dir` read + manifest `.bak`): there's no train-onto-legacy-weights path, so nothing re-derives an old dir name.
-- Caught a real reader gap the plan under-specified: bst_train hardcoded the in-repo `preparing_data/` path while the collator writes to `BST_X_COLLATED_DATA_ROOT` (=/scratch/comp320a on bourbaki). bst_train now reads the same env var (load_repo_dotenv + env_path_or_none), else falls back in-repo. Without this the runner would never find the cells. `verify_bst_train_target.py` mirrors the same resolution.
-- Two bugs the smoke caught: bst_train never imported numpy (the new asserts/dump use `np`); and the rogue-label naming `IndexError`d on an out-of-range label (now OOB-safe, matching the old bst_common helper).
+- Caught a real reader gap the plan under-specified: bst_x_train hardcoded the in-repo `preparing_data/` path while the collator writes to `BST_X_COLLATED_DATA_ROOT` (=/scratch/comp320a on bourbaki). bst_x_train now reads the same env var (load_repo_dotenv + env_path_or_none), else falls back in-repo. Without this the runner would never find the cells. `verify_bst_train_target.py` mirrors the same resolution.
+- Two bugs the smoke caught: bst_x_train never imported numpy (the new asserts/dump use `np`); and the rogue-label naming `IndexError`d on an out-of-range label (now OOB-safe, matching the old bst_x_common helper).
 
-**Step D9/D10:** `bst_infer --fe` is the post-hoc batch dump (same npz schema), folding in `eval_dump_predictions.py` which is retired (pointer note left in presentation_prep). `confusion_matrix.py` reads the npz (`y_pred_top1`, `class_list`) instead of the old `.pt`.
+**Step D9/D10:** `bst_x_infer --fe` is the post-hoc batch dump (same npz schema), folding in `eval_dump_predictions.py` which is retired (pointer note left in presentation_prep). `confusion_matrix.py` reads the npz (`y_pred_top1`, `class_list`) instead of the old `.pt`.
 
 **Step J (FE handlers):** `registry._resolve_class_list` reads `config.classes` first, falls back to the legacy `extra.arch.active_class_list` (also lights up BRIC, whose list was never in BST's bandaid block). Predictions-JSON readers accept `class_list` or legacy `active_class_list` (registry x2 + inference.py). `collation_id` / `ablation_id` now read off the manifest config. The shipped mock entry still resolves its 14-class list via the fallback. J4 (the FE-team PR note) is still owed in my own voice.
 
@@ -443,7 +443,7 @@ Did the whole model-side pass in one session on the laptop, smoke-tested in the 
 
 **Step G (partial):** path-format / Hyp-default stragglers updated (`run_tracker.md`, `validation_scripts/README.md`, `data_pipeline_to_model_train.md` Hyp row). `data_pipeline_to_model_train.md` still has broader Step-A staleness (`class_list()`, `DEFAULT_TAXONOMY`, old taxonomy names) left untouched — separate doc-debt, not scoped here.
 
-**Tests:** +19 across `test_train_surface.py` (coverage assert, npz dump, train_network return), `test_inference_smoke.py` (bst_infer --fe end-to-end, k-clamp), `test_api_registry.py` (`_resolve_class_list` + a live `/api/registry` fallback check), `test_api_inference.py` (JSON field preference). Full suite in the cicd venv: **365 passed, 5 skipped** (the /scratch real-label probes + the missing-clip-stems back-compat), 2 pre-existing `/app/uploads` docker failures in `test_api.py` unrelated to this work.
+**Tests:** +19 across `test_train_surface.py` (coverage assert, npz dump, train_network return), `test_inference_smoke.py` (bst_x_infer --fe end-to-end, k-clamp), `test_api_registry.py` (`_resolve_class_list` + a live `/api/registry` fallback check), `test_api_inference.py` (JSON field preference). Full suite in the cicd venv: **365 passed, 5 skipped** (the /scratch real-label probes + the missing-clip-stems back-compat), 2 pre-existing `/app/uploads` docker failures in `test_api.py` unrelated to this work.
 
 **Not done (needs bourbaki / a later session):** the actual 6-cell runs via the runner, the non-best npz prune, the run-ID-dependent docs (bst_x_overview headline numbers, models_registry new entries), and the J4 FE PR note. Everything code-side is import-clean and tested on CPU.
 

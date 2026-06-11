@@ -4,7 +4,7 @@ Drawing a player's skeleton on top of a playing video clip, live, synced to play
 
 ## The idea
 
-BST already extracts MMPose joints for every stroke clip into per-stem NPY files at `BST_MMPOSE_NPY_DIR/{clip_stem}_joints.npy`. We turn those NPYs into one gzipped JSON per stem, drop them into a flat cache directory, and serve them through a new endpoint. The FE clip viewer fetches the JSON for the clip it's playing, draws the skeleton on a canvas via `requestAnimationFrame`, and the overlay tracks playback frame by frame.
+BST already extracts MMPose joints for every stroke clip into per-stem NPY files at `BST_X_MMPOSE_NPY_DIR/{clip_stem}_joints.npy`. We turn those NPYs into one gzipped JSON per stem, drop them into a flat cache directory, and serve them through a new endpoint. The FE clip viewer fetches the JSON for the clip it's playing, draws the skeleton on a canvas via `requestAnimationFrame`, and the overlay tracks playback frame by frame.
 
 End to end, the user picks a clip, the video plays, the striker's skeleton draws live on top, and the classification label appears at the target frame.
 
@@ -23,7 +23,7 @@ The .gitignore line for the cache directory needs to land in the first feature c
 
 ## What each per-clip file looks like
 
-Source NPY at `BST_MMPOSE_NPY_DIR/{clip_stem}_joints.npy` is float32 with shape `(n_frames, 2 players, 17 joints, 2 coords)`. Sibling `_failed.npy` is the per-frame any-player failure flag. Verify both shapes against the actual files before locking the JSON layout.
+Source NPY at `BST_X_MMPOSE_NPY_DIR/{clip_stem}_joints.npy` is float32 with shape `(n_frames, 2 players, 17 joints, 2 coords)`. Sibling `_failed.npy` is the per-frame any-player failure flag. Verify both shapes against the actual files before locking the JSON layout.
 
 Suggested JSON layout, agent can push back if there's a better one:
 
@@ -61,7 +61,7 @@ I'd rather not run the full 32k precompute and find out the script is broken hal
 
 1. Build script first, with tests that run it against a fixture of 5-10 real stems (smallest in the dataset). Confirm the output JSON shape, the gzip integrity, and that round-tripping the floats back doesn't lose anything that matters for rendering.
 2. Run those tests locally to confirm the script works at all.
-3. Smoke run on 50 stems on whichever host has `BST_MMPOSE_NPY_DIR`. Eyeball one of the outputs. Open the gzipped file, decompress, check the joints render in the static overlay reference script.
+3. Smoke run on 50 stems on whichever host has `BST_X_MMPOSE_NPY_DIR`. Eyeball one of the outputs. Open the gzipped file, decompress, check the joints render in the static overlay reference script.
 4. Only then run the full build. It takes a few minutes, produces about 270 MB.
 
 The full output is fine to ship locally for testing. I'd rather catch any bugs at stage 1-3 than during stage 4. The build script needs to be idempotent (skip stems whose JSON already exists, unless `--force`) so partial runs are recoverable.
@@ -96,9 +96,9 @@ This needs an actual conversation, not just a writeup. 30-min call before any FE
 
 - Limited time, exams approaching. Minimum viable plus tested, not over-engineered. Ship something that works first, polish second.
 - Static-overlay reference already exists and works. Lift its joint-pair map, colour choices, and drawing logic. Don't reinvent them.
-    - Primary reference: `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/render_detection_overlays.py`
-    - Sibling variant: `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/render_sticky_anchor_overlays.py`
-- Don't touch `src/bst_refactor/` modules beyond reading them. That pipeline is stable. Not restructuring it.
+    - Primary reference: `src/bst_x/validation_scripts/mmpose_heuristic_investigation/render_detection_overlays.py`
+    - Sibling variant: `src/bst_x/validation_scripts/mmpose_heuristic_investigation/render_sticky_anchor_overlays.py`
+- Don't touch `src/bst_x/` modules beyond reading them. That pipeline is stable. Not restructuring it.
 - AU spelling. No em-dashes. Project `.claude/CLAUDE.md` and `~/.claude/CLAUDE.md` style applies.
 - I have mild protanopia. If you're proposing colours for the skeleton lines, reference `~/Documents/protan_colour_scheme.md` first.
 

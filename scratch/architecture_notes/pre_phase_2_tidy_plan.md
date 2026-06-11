@@ -30,7 +30,7 @@ The coordinating agent will assign you exactly one of these. Do only your assign
 ### Operating constraints (all roles)
 
 - **Read-only.** Do not edit code, do not commit, do not run training jobs. You may run pytest if helpful; you may run `git log`, `git diff`, `grep`, and read any file.
-- **File:line citations on every claim.** "There's a bug somewhere in `bst_train`" is not actionable; "`bst_train.py:312` the loss tensor is moved off-device before backward, see diff" is.
+- **File:line citations on every claim.** "There's a bug somewhere in `bst_x_train`" is not actionable; "`bst_x_train.py:312` the loss tensor is moved off-device before backward, see diff" is.
 - **Forced verdicts, no fence-sitting.** Every finding gets one of:
   - `REGRESSION_RISK` (with severity: BLOCKER / SHOULD_FIX / NICE_TO_FIX) — for REGRESSION_HUNTER and DOC_COVERAGE_AUDITOR.
   - `GOAL_MET` / `GOAL_PARTIAL` / `GOAL_MISSED` — for GOALS_AUDITOR.
@@ -84,26 +84,26 @@ Steps 1–10 (planned) + step P (proper-packages refactor) + step Q (lint-debt c
 |---|---|---|
 | 1 | `db11f93` | Doc drift sweep: refresh Hyp defaults, taxonomy lists, heuristics description, manifest example, line cites. |
 | 2 | `17ab5c4` | Add `historical_bst.md` skeleton + `scratch/project_history/` + `scripts/archive/` directories. |
-| 3 | `342a573` | `git mv` `src/bst_refactor/deprecated/`, `ShuttleSet/deprecated/`, `main_on_shuttleset/tmp/` into `scratch/project_history/`. |
+| 3 | `342a573` | `git mv` `src/bst_x/deprecated/`, `ShuttleSet/deprecated/`, `main_on_shuttleset/tmp/` into `scratch/project_history/`. |
 | 4 | `234e5b8` | Capture `TemPose_*`, original `Hyp` defaults, LR/aux rationale, removed dataset classes, `compare_pred_gt_on_specific_type` verbatim into `historical_bst.md`. |
 | 5 | `66e7c2a` | Drop dead BST code (~990 LOC): four `TemPose_*` variants, three orphan dataset classes + their loaders, debug helper. No callers anywhere. |
-| 5b/8 | `bdbdaed` | Lift shared per-clip iteration into `_prepare_dataset_from_raw_video`; lift collated-dir naming into `pipeline.config.derive_npy_collated_dir_basename`; collapse the `bst_train` model_info builder. |
-| 5c | `d6ae8df` | Extract `bst_common.py` (`MODELS`, `Tee`, `build_bst_network`, `compute_data_provenance`); `bst_train` and `bst_infer` now share one source of truth. |
+| 5b/8 | `bdbdaed` | Lift shared per-clip iteration into `_prepare_dataset_from_raw_video`; lift collated-dir naming into `pipeline.config.derive_npy_collated_dir_basename`; collapse the `bst_x_train` model_info builder. |
+| 5c | `d6ae8df` | Extract `bst_x_common.py` (`MODELS`, `Tee`, `build_bst_x_network`, `compute_data_provenance`); `bst_x_train` and `bst_x_infer` now share one source of truth. |
 | 6 | `c6d962d` | Add 7 `tests/test_sticky_anchor.py` invariant tests (Voronoi, Bottom-first, sitting tiebreaker, rally presence, EMA reset, mixed pick, update gate). |
 | 7 | `9af521e` | `StickyAnchorParams` frozen dataclass: collapse three triplicated default-value definitions into one. |
 | 9 | `ad9cd15` | `git mv` completed-phase scripts into `scripts/archive/`; flag `scripts/example_mlflow_run.py` as a delivery-review TODO. |
-| 10 | `f4c7bec` | Move LR/aux rationale paragraphs out of `bst_train.py` into `bst_x_overview.md` + `historical_bst.md`. |
+| 10 | `f4c7bec` | Move LR/aux rationale paragraphs out of `bst_x_train.py` into `bst_x_overview.md` + `historical_bst.md`. |
 | — | `57655aa` | Pre-existing test-failure fix: drop unused `mediapipe` import; auto-detect `pose_style` in `test_integration`. |
-| — | `af1a551`, `c5676dc` | Found running the gate: consolidate `n_bones` as a single source of truth in `build_bst_network`; rename for consistency. |
+| — | `af1a551`, `c5676dc` | Found running the gate: consolidate `n_bones` as a single source of truth in `build_bst_x_network`; rename for consistency. |
 | — | `412f6e5`, `25e0308`, `248f540` | `scratch/post_tidy_smoke/` bit-exact verification scripts (later superseded by step P). |
-| P | `fd12cd8` | Proper-packages refactor: 3 new `__init__.py`, 7 `sys.path.append` blocks dropped, 3 imports converted to package-style. New invocation: `PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification python -m main_on_shuttleset.bst_train`. |
+| P | `fd12cd8` | Proper-packages refactor: 3 new `__init__.py`, 7 `sys.path.append` blocks dropped, 3 imports converted to package-style. New invocation: `PYTHONPATH=src/bst_x:src/bst_x/stroke_classification python -m main_on_shuttleset.bst_x_train`. |
 | Q | `c29e97c` | Lint-debt cleanup: explicit `load_repo_dotenv()`, narrowed two `BLE001` excepts, lifted two PLC0415 imports to module top, kept two with justifying comments. |
 | docs | `e9a1c7d`, `ee664e5`, `7daa319`, `04f0ecb`, `4e5cb3a`, `e811ffa`, `88ee24e` | Plan-doc updates and a two-pass post-refactor doc-drift sweep across user-facing markdown. |
 | review | `dc73653` | Top-load `pre_phase_2_tidy_plan.md` with the reviewer brief for the memory-isolated three-agent merge-readiness review. |
 | review | `4b43546` | Pre-merge doc fixes from the parallel-agent review: surface `test_sticky_anchor.py` + `test_data_access.py` in the user-facing test docs, add `une_merge_v1_nosides` to the `data_pipeline` taxonomy choice lists, surface the `Task`-class lift in §3 deferred items. |
 | merge | `e0ffeec` | `git merge --no-ff pre-phase-2-tidy` onto `main`. Headline summary in the merge commit body. |
 
-Net: −6,673 LOC of source/tests deleted, +447 LOC of source/tests added (mostly `tests/test_sticky_anchor.py` and `bst_common.py`). Roughly −5,500 LOC of historical content + scripts moved into `scratch/project_history/` and `scripts/archive/`.
+Net: −6,673 LOC of source/tests deleted, +447 LOC of source/tests added (mostly `tests/test_sticky_anchor.py` and `bst_x_common.py`). Roughly −5,500 LOC of historical content + scripts moved into `scratch/project_history/` and `scripts/archive/`.
 
 ---
 
@@ -114,7 +114,7 @@ Net: −6,673 LOC of source/tests deleted, +447 LOC of source/tests added (mostl
 | Byte-identity heuristic gate (50-clip hit-zone sample) | engelbart V100 | ✅ 50/50 stems exact, max abs diff 0.0 |
 | `pytest tests/` with `BST_DATA_DIR` set | engelbart, post-step-P and post-step-Q | ✅ 43/43 (pytest wall-time dropped ~11s → ~9s after step P) |
 | 2-epoch smoke train, post-tidy vs main | engelbart, runs `run_20260426_115321` vs `run_20260426_120039` | ✅ within run-to-run noise; `manifest.config:` and `data_provenance.npy_collated_dir` byte-identical |
-| `bst_infer` bit-exact (smoke_infer_bit_exact.py) | engelbart with `CUBLAS_WORKSPACE_CONFIG=:4096:8` | ✅ 4202/4202 predictions IDENTICAL between post-tidy and main |
+| `bst_x_infer` bit-exact (smoke_infer_bit_exact.py) | engelbart with `CUBLAS_WORKSPACE_CONFIG=:4096:8` | ✅ 4202/4202 predictions IDENTICAL between post-tidy and main |
 | `prepare_2d` bit-exact (line-level diff review) | local | ✅ structural-only refactor; per-line diff confirms no behavioural delta possible |
 | `pytest tests/` (laptop, no `BST_DATA_DIR`) | post-step-P, post-step-Q | ✅ 42 passed, 1 skipped |
 | `ruff check` over step-Q-touched files | local | ✅ all checks passed |
@@ -128,8 +128,8 @@ What pytest does NOT cover: full multi-epoch training loop, MMPose runtime path 
 These were explicitly deferred during the refactor. Now that the branch has merged to `main` as `e0ffeec`, this list is the carry-over backlog for the next substantive piece of project work (the X3D-S wrist-crop layer or the path/IO sweep that precedes it).
 
 - **Branch destination decision.** Resolved 2026-04-26: merged to `main` as `e0ffeec` via `git merge --no-ff` after the three-agent review returned READY_TO_MERGE.
-- **Path/IO abstraction** (focus area 5 in the original review). Reserved for after-X3D-S. Folded into this: collapse three near-duplicate root constants into one source of truth. The repo currently has `bst_train.py:44 REPO_ROOT = Path(__file__).resolve().parents[4]` (actual repo root, used at `:45` for `notebooks/clips_master.csv`), `pipeline/config.py:15 PROJECT_ROOT = Path(__file__).resolve().parent.parent` (intentionally `src/bst_refactor/`, anchoring `ShuttleSet/` data dirs at `config.py:17-23`), and `pipeline/data_access.py:151 _PROJECT_ROOT = Path(__file__).resolve().parents[3]` (actual repo root, used for `.env` and `notebooks/clips_master.csv`). Aliasing `pipeline.config.PROJECT_ROOT` as `REPO_ROOT` would break `clips_master.csv` resolution because `PROJECT_ROOT` is `src/bst_refactor/`, not the repo root. Correct fix: add `REPO_ROOT = Path(__file__).resolve().parents[2]` to `pipeline/config.py` (parents[2] from `src/bst_refactor/pipeline/config.py` is the actual repo root); then `from pipeline.config import REPO_ROOT` in `bst_train.py:44` (drops the magic `parents[4]`) and replace `_PROJECT_ROOT` in `data_access.py:151` with the same import. Defer the code change until X3D-S forces the broader path/IO sweep.
-- **`Task`-class lift into `bst_common.py`.** Original review action 1 named `Task` as part of the lift; `MODELS` / `Tee` / `build_bst_network` / `compute_data_provenance` landed in step 5c, but `Task` stayed split between `bst_train.py:438` (references module-level `hyp` at `:444,462,479`) and `bst_infer.py:49` (a much-simpler stand-in). Defer until X3D-S's `Task` shape is visible — the lift can take that into account.
+- **Path/IO abstraction** (focus area 5 in the original review). Reserved for after-X3D-S. Folded into this: collapse three near-duplicate root constants into one source of truth. The repo currently has `bst_x_train.py:44 REPO_ROOT = Path(__file__).resolve().parents[4]` (actual repo root, used at `:45` for `notebooks/clips_master.csv`), `pipeline/config.py:15 PROJECT_ROOT = Path(__file__).resolve().parent.parent` (intentionally `src/bst_x/`, anchoring `ShuttleSet/` data dirs at `config.py:17-23`), and `pipeline/data_access.py:151 _PROJECT_ROOT = Path(__file__).resolve().parents[3]` (actual repo root, used for `.env` and `notebooks/clips_master.csv`). Aliasing `pipeline.config.PROJECT_ROOT` as `REPO_ROOT` would break `clips_master.csv` resolution because `PROJECT_ROOT` is `src/bst_x/`, not the repo root. Correct fix: add `REPO_ROOT = Path(__file__).resolve().parents[2]` to `pipeline/config.py` (parents[2] from `src/bst_x/pipeline/config.py` is the actual repo root); then `from pipeline.config import REPO_ROOT` in `bst_x_train.py:44` (drops the magic `parents[4]`) and replace `_PROJECT_ROOT` in `data_access.py:151` with the same import. Defer the code change until X3D-S forces the broader path/IO sweep.
+- **`Task`-class lift into `bst_x_common.py`.** Original review action 1 named `Task` as part of the lift; `MODELS` / `Tee` / `build_bst_x_network` / `compute_data_provenance` landed in step 5c, but `Task` stayed split between `bst_x_train.py:438` (references module-level `hyp` at `:444,462,479`) and `bst_x_infer.py:49` (a much-simpler stand-in). Defer until X3D-S's `Task` shape is visible — the lift can take that into account.
 - **`prepare_train_on_shuttleset.py` full module split** into `mmpose_extract.py` + `homography.py` + `collate.py`. Light tidy landed in step 5b; the structural split is reserved for after X3D-S.
 - **Validation script triplet shared core** (focus area 6, site 5).
 - **Bulk style passes:** AU/UK rename for `normalize_*` and "labeled"/"vectorized"; em-dash sweep; "fade" → "anneal"/"downtune".
@@ -148,7 +148,7 @@ The X3D-S wrist-crop layer (Architecture 1, phase 4 of the build plan) wires int
 - `bst.py` `BST_CG_AP` forward graph: token sequencing, positional embeddings, `d_model=100`/`d_head=128`/`n_head=6` defaults, per-stream embedding heads (pose, shuttle, position).
 - `bst.py:28` building-block imports (`TCN`, `MLP`, `MLP_Head`, `FeedForward`, `TransformerEncoder`).
 - `bst.py:433-437` the five `BST_*` partials.
-- No new abstraction layer between `bst.py` and the train loop. `bst_common.py` lifts `MODELS` / `build_bst_network` / `Tee` / `compute_data_provenance` only; direct `MODELS[...](**kw)` instantiation stays.
+- No new abstraction layer between `bst.py` and the train loop. `bst_x_common.py` lifts `MODELS` / `build_bst_x_network` / `Tee` / `compute_data_provenance` only; direct `MODELS[...](**kw)` instantiation stays.
 
 If a reviewer flags any of those five points as having drifted, that is a BLOCKER finding regardless of pytest status.
 
@@ -172,11 +172,11 @@ All 12 planned commits + steps P and Q land on `pre-phase-2-tidy`. Refactor veri
 | 4 | `234e5b8` | Step 4 — Capture excised content into historical_bst.md |
 | 5 | `66e7c2a` | Step 5 — Drop dead BST code (~990 LOC) |
 | 6 | `bdbdaed` | Step 5b + 8 — `_prepare_dataset_from_raw_video` lift + collated-dir naming helper + model_info collapse |
-| 7 | `d6ae8df` | Step 5c — `bst_common.py` extraction |
+| 7 | `d6ae8df` | Step 5c — `bst_x_common.py` extraction |
 | 8 | `c6d962d` | Step 6 — sticky_anchor unit tests (7) |
 | 9 | `9af521e` | Step 7 — `StickyAnchorParams` dataclass collapse |
 | 10 | `ad9cd15` | Step 9 — Script archive sweep |
-| 11 | `f4c7bec` | Step 10 — `bst_train.py` configuration block tidy |
+| 11 | `f4c7bec` | Step 10 — `bst_x_train.py` configuration block tidy |
 | — | `57655aa` | Follow-up — Stop pre-existing test failures (drop unused mediapipe; auto-detect pose_style) |
 | — | `cb963d2` | TEMP smoke harness (n_epochs=2, single seed) — used for the gate |
 | — | `af1a551` | Bug fix found running the gate — single source of truth for `n_bones` |
@@ -194,7 +194,7 @@ All 12 planned commits + steps P and Q land on `pre-phase-2-tidy`. Refactor veri
 | Byte-identity gate (50-clip hit-zone) | ✅ PASS | 50/50 stems exact, max abs diff 0.0 on `_pos`/`_joints` |
 | `pytest tests/` with `BST_DATA_DIR` set | ✅ PASS | 43/43 (after `57655aa` fixed pre-existing env mismatches); re-confirmed 43/43 on engelbart post-step-P (`fd12cd8`) and post-step-Q (`c29e97c`). Engelbart wall-time dropped ~11s → ~9s after step P, consistent with regular-package imports skipping the namespace-package fallback that was triggered by the absent `__init__.py` files. |
 | 2-epoch smoke train comparison | ✅ PASS | `run_20260426_115321` (post-tidy) vs `run_20260426_120039` (main); curves within run-to-run noise; manifest `config:` and `data_provenance.npy_collated_dir` byte-identical |
-| `bst_infer` bit-exact (smoke_infer_bit_exact.py) | ✅ PASS | 4202/4202 predictions IDENTICAL between post-tidy and main (run on engelbart 2026-04-26 with `CUBLAS_WORKSPACE_CONFIG=:4096:8`). Re-run not needed for steps P/Q — both are import-only / lint-only and cannot perturb the forward pass. |
+| `bst_x_infer` bit-exact (smoke_infer_bit_exact.py) | ✅ PASS | 4202/4202 predictions IDENTICAL between post-tidy and main (run on engelbart 2026-04-26 with `CUBLAS_WORKSPACE_CONFIG=:4096:8`). Re-run not needed for steps P/Q — both are import-only / lint-only and cannot perturb the forward pass. |
 | `prepare_2d` bit-exact (line-by-line diff review) | ✅ PASS | Per-line behavioural diff between pre-tidy and post-tidy `prepare_2d`/`prepare_3d`/`_prepare_dataset_from_raw_video` confirms bit-exact-by-construction: same iteration order, same resume marker, same kwargs forwarded to `detect_players_2d`/`3d`, same save order, same gc/empty_cache cadence. Pure structural deduplication, no behavioural delta possible. The `smoke_prepare_2d_bit_exact.py` GPU-runtime check is therefore redundant. |
 
 ### Branch destination
@@ -215,9 +215,9 @@ The X3D-S wrist-crop layer fuses into the **BST model internals**. The following
 - `bst.py` `BST_CG_AP` forward graph: token sequencing, positional embeddings, `d_model=100`/`d_head=128`/`n_head=6` defaults, per-stream embedding heads (pose, shuttle, position).
 - `bst.py:28` building-block imports (`TCN`, `MLP`, `MLP_Head`, `FeedForward`, `TransformerEncoder`). Step 5 deletes the four standalone `TemPose_*` classes; the building blocks themselves stay verbatim in `tempose.py`.
 - `bst.py:433-437` the five `BST_*` partials.
-- No new abstraction layer between `bst.py` and the train loop. `bst_common.py` lifts `MODELS` / `Task` / dataloader helpers only; direct `MODELS[...](**kw)` instantiation stays.
+- No new abstraction layer between `bst.py` and the train loop. `bst_x_common.py` lifts `MODELS` / `Task` / dataloader helpers only; direct `MODELS[...](**kw)` instantiation stays.
 
-Internal refactor of `bst_train.py`, `bst_infer.py`, `prepare_train_on_shuttleset.py`, `shuttleset_dataset.py`, etc. is fine. The BST model graph itself is not refactored on this branch; this branch only addresses sprawl and dead code in the surrounding scaffolding.
+Internal refactor of `bst_x_train.py`, `bst_x_infer.py`, `prepare_train_on_shuttleset.py`, `shuttleset_dataset.py`, etc. is fine. The BST model graph itself is not refactored on this branch; this branch only addresses sprawl and dead code in the surrounding scaffolding.
 
 ---
 
@@ -261,7 +261,7 @@ These belong on the V100 with the npy data accessible. I will leave a one-page h
 
 1. **Byte-identity gate.** Run `failsafe_bst_mmpose_zeroing_check_equivalence` on the 50-clip hit-zone sample. Confirms the BST/MMPose path is bit-identical to the committed extract. Required for any commit that touches `apply_heuristic.py`, `heuristics/`, `prepare_train_on_shuttleset.py` MMPose code, or imports thereof.
 2. **`pytest tests/test_integration.py`** with `BST_DATA_DIR` pointed at the active ablation-tagged collated dir. Confirms the dataset->loader->BST_0 forward path still works end-to-end.
-3. **2-epoch smoke train.** `python bst_train.py` with `n_epochs=2`, `early_stop_n_epochs=999`, single seed. Compare loss/accuracy curves against a fresh pre-tidy baseline run done on `main` before branching. Curves should match within run-to-run noise.
+3. **2-epoch smoke train.** `python bst_x_train.py` with `n_epochs=2`, `early_stop_n_epochs=999`, single seed. Compare loss/accuracy curves against a fresh pre-tidy baseline run done on `main` before branching. Curves should match within run-to-run noise.
 
 If all three pass on engelbart, you ping me and we resolve the open question above.
 
@@ -288,11 +288,11 @@ Order is smallest blast radius first. Steps 1-7 are bundled into one local-only 
 **Touches:** Markdown only.
 
 - `.claude/project_overview.md:94-96`: rewrite the heuristics description (no `HeuristicFilter` class hierarchy exists; `apply(raw, ctx, **kw) -> HeuristicOutput` registered in `heuristics/__init__.py:REGISTRY`).
-- `src/bst_refactor/data_pipeline_to_model_train.md:392`: rewrite `Hyp` defaults table to reflect live `bst_train.py:140-157` (`n_epochs=80`, `taxonomy='une_merge_v1_nosides'`, `aux_fade_end_epoch=15`, etc.).
-- `src/bst_refactor/data_pipeline_to_model_train.md:121, 535` and `src/bst_refactor/pipeline/README.md:165, 247`: add `une_merge_v1_nosides` to taxonomy lists.
-- `src/bst_refactor/data_pipeline_to_model_train.md:260-263`: remove `Dataset_npy_collated_one_side` and `_single_pose` from "primary classes" listing (or mark as orphaned-pending-deletion).
-- `src/bst_refactor/run_tracker.md:64-90`: add `extra: data_provenance: {clips_csv_path, clips_csv_sha256, effective_ablation_id, npy_collated_dir}` to the manifest format example.
-- `scratch/architecture_notes/bst_x_overview.md:101`: refresh `bst_train.py` line refs (cosine scheduler now at `:395-400`).
+- `src/bst_x/data_pipeline_to_model_train.md:392`: rewrite `Hyp` defaults table to reflect live `bst_x_train.py:140-157` (`n_epochs=80`, `taxonomy='une_merge_v1_nosides'`, `aux_fade_end_epoch=15`, etc.).
+- `src/bst_x/data_pipeline_to_model_train.md:121, 535` and `src/bst_x/pipeline/README.md:165, 247`: add `une_merge_v1_nosides` to taxonomy lists.
+- `src/bst_x/data_pipeline_to_model_train.md:260-263`: remove `Dataset_npy_collated_one_side` and `_single_pose` from "primary classes" listing (or mark as orphaned-pending-deletion).
+- `src/bst_x/run_tracker.md:64-90`: add `extra: data_provenance: {clips_csv_path, clips_csv_sha256, effective_ablation_id, npy_collated_dir}` to the manifest format example.
+- `scratch/architecture_notes/bst_x_overview.md:101`: refresh `bst_x_train.py` line refs (cosine scheduler now at `:395-400`).
 - `README.md:100-104`: list the actual contents of `tests/` (`test_api`, `test_data_access`, `test_dataset`, `test_environment`, `test_integration`).
 
 **Safety checks:** `pytest`. (Doc-only, but runs as a sanity gate on the working tree.)
@@ -320,11 +320,11 @@ Order is smallest blast radius first. Steps 1-7 are bundled into one local-only 
 
 **Touches:** Moves only; no source-code edits.
 
-- `src/bst_refactor/deprecated/` → `scratch/project_history/bst_refactor_deprecated/`
-- `src/bst_refactor/ShuttleSet/deprecated/` → `scratch/project_history/shuttleset_deprecated/`
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/tmp/` → `scratch/project_history/main_on_shuttleset_tmp/`
+- `src/bst_x/deprecated/` → `scratch/project_history/bst_refactor_deprecated/`
+- `src/bst_x/ShuttleSet/deprecated/` → `scratch/project_history/shuttleset_deprecated/`
+- `src/bst_x/stroke_classification/main_on_shuttleset/tmp/` → `scratch/project_history/main_on_shuttleset_tmp/`
 
-Each move uses `git mv`. The five `outdated_*.md` and `historical_*.md` files inside `src/bst_refactor/deprecated/` come along for the ride.
+Each move uses `git mv`. The five `outdated_*.md` and `historical_*.md` files inside `src/bst_x/deprecated/` come along for the ride.
 
 `scratch/project_history/README.md` records the original locations and the date of the move so a future report can reconstruct the layout.
 
@@ -341,11 +341,11 @@ Each move uses `git mv`. The five `outdated_*.md` and `historical_*.md` files in
 
 **Touches:** `scratch/architecture_notes/historical_bst.md`, `scratch/architecture_notes/bst_x_overview.md`. No source-code deletes yet.
 
-Before deleting anything from `tempose.py`, `shuttleset_dataset.py`, or `bst_train.py`, capture:
+Before deleting anything from `tempose.py`, `shuttleset_dataset.py`, or `bst_x_train.py`, capture:
 
 - The four `TemPose_*` standalone classes' purpose (one paragraph each, what they did, why they were preserved through phase 0, and the verbatim source preserved as a code block in case future reproduction needs them).
-- The original BST `Hyp` namedtuple defaults (`n_epochs=1600`, etc.) verbatim from the commented-out block at `bst_train.py:85-101`.
-- The "LR-SCHEDULE RETUNE 2026-04-17" and "AUX-SCHEDULE 2026-04-18" rationale blocks verbatim. Trim to one-line pointer in `bst_train.py`; full block lives in `historical_bst.md`.
+- The original BST `Hyp` namedtuple defaults (`n_epochs=1600`, etc.) verbatim from the commented-out block at `bst_x_train.py:85-101`.
+- The "LR-SCHEDULE RETUNE 2026-04-17" and "AUX-SCHEDULE 2026-04-18" rationale blocks verbatim. Trim to one-line pointer in `bst_x_train.py`; full block lives in `historical_bst.md`.
 - The `Dataset_npy`, `Dataset_npy_collated_one_side`, `Dataset_npy_collated_single_pose` class headers and what they were for (one paragraph each), plus the verbatim source as a code block.
 - The `compare_pred_gt_on_specific_type` debug method (verbatim).
 - The `normalize_joints` `center_align=False` upstream default plus the apologia paragraph.
@@ -360,20 +360,20 @@ Before deleting anything from `tempose.py`, `shuttleset_dataset.py`, or `bst_tra
 
 ### Step 5 — Delete dead BST code and orphan datasets
 
-**Touches:** `tempose.py`, `shuttleset_dataset.py`, `bst_train.py`, `bst_infer.py`, `data_pipeline_to_model_train.md`.
+**Touches:** `tempose.py`, `shuttleset_dataset.py`, `bst_x_train.py`, `bst_x_infer.py`, `data_pipeline_to_model_train.md`.
 
-- `src/bst_refactor/model/tempose.py`: delete `TemPose_V` (156-258), `TemPose_PF` (261-396), `TemPose_SF` (399-526), `TemPose_TF` (529-667). Keep `TCN`, `MLP`, `MLP_Head`, `FeedForward`, `TransformerEncoder`, the helper functions, and the `__main__` smoke check. Drop the unused `from torchinfo import summary  # noqa: F401`. Roughly 710 LOC down to ~200.
-- `src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py`: delete `Dataset_npy` (142-246), `Dataset_npy_collated_one_side` (351-420), `Dataset_npy_collated_single_pose` (423-497), `prepare_npy_loaders` (500-531), `prepare_npy_collated_one_side_loaders` (568-599), `prepare_npy_collated_single_pose_loaders` (602-633). Update module docstring/header to reflect the trimmed surface.
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py`: delete `Task.compare_pred_gt_on_specific_type` (706-733) and the `Dataset_npy` import. Delete the commented-out `Hyp` block (85-101) and the commented-out scheduler (389-394).
-- `src/bst_refactor/data_pipeline_to_model_train.md:260-263`: drop the `_one_side` / `_single_pose` references entirely now that they're gone.
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_infer.py`: confirm the import surface matches the trimmed `shuttleset_dataset.py` and `bst.py`.
+- `src/bst_x/model/tempose.py`: delete `TemPose_V` (156-258), `TemPose_PF` (261-396), `TemPose_SF` (399-526), `TemPose_TF` (529-667). Keep `TCN`, `MLP`, `MLP_Head`, `FeedForward`, `TransformerEncoder`, the helper functions, and the `__main__` smoke check. Drop the unused `from torchinfo import summary  # noqa: F401`. Roughly 710 LOC down to ~200.
+- `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py`: delete `Dataset_npy` (142-246), `Dataset_npy_collated_one_side` (351-420), `Dataset_npy_collated_single_pose` (423-497), `prepare_npy_loaders` (500-531), `prepare_npy_collated_one_side_loaders` (568-599), `prepare_npy_collated_single_pose_loaders` (602-633). Update module docstring/header to reflect the trimmed surface.
+- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py`: delete `Task.compare_pred_gt_on_specific_type` (706-733) and the `Dataset_npy` import. Delete the commented-out `Hyp` block (85-101) and the commented-out scheduler (389-394).
+- `src/bst_x/data_pipeline_to_model_train.md:260-263`: drop the `_one_side` / `_single_pose` references entirely now that they're gone.
+- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_infer.py`: confirm the import surface matches the trimmed `shuttleset_dataset.py` and `bst.py`.
 
 **Safety checks:**
 - `grep -rn "TemPose_V\|TemPose_PF\|TemPose_SF\|TemPose_TF" src/ scripts/ tests/ notebooks/` returns zero hits outside `historical_bst.md`.
 - `grep -rn "Dataset_npy_collated_one_side\|Dataset_npy_collated_single_pose\|prepare_npy_loaders\|prepare_npy_collated_one_side_loaders\|prepare_npy_collated_single_pose_loaders" src/ scripts/ tests/ notebooks/` returns zero hits outside `historical_bst.md`.
 - `grep -rn "Dataset_npy[^_]" src/ scripts/ tests/ notebooks/` (negative lookahead for `_collated`): zero hits outside `historical_bst.md`.
 - `grep -rn "compare_pred_gt_on_specific_type" src/ scripts/ tests/ notebooks/`: zero hits outside `historical_bst.md`.
-- Import smoke: `python -c "from src.bst_refactor.stroke_classification.preparing_data.shuttleset_dataset import Dataset_npy_collated, get_bone_pairs, POSE_BONE_MULTIPLIER; from src.bst_refactor.model.bst import BST_CG_AP; from src.bst_refactor.model.tempose import TCN, MLP, MLP_Head, FeedForward, TransformerEncoder; print('ok')"`.
+- Import smoke: `python -c "from src.bst_x.stroke_classification.preparing_data.shuttleset_dataset import Dataset_npy_collated, get_bone_pairs, POSE_BONE_MULTIPLIER; from src.bst_x.model.bst import BST_CG_AP; from src.bst_x.model.tempose import TCN, MLP, MLP_Head, FeedForward, TransformerEncoder; print('ok')"`.
 - `pytest`. `tests/test_dataset.py` and `tests/test_integration.py` (auto-skip locally) both depend on `Dataset_npy_collated` only; they should remain green.
 
 **Commit message draft:** "Drop dead BST code: TemPose variants, orphan datasets, compare-pred debug helper. ~850 LOC, no callers."
@@ -387,45 +387,45 @@ Before deleting anything from `tempose.py`, `shuttleset_dataset.py`, or `bst_tra
 This step is folded into the branch at the user's direction. Scope is deliberately limited to (a) and (b) below; the full module split into `mmpose_extract.py` + `homography.py` + `collate.py` is reserved for after-X3D-S.
 
 - (a) **Lift the per-clip iteration loop**. `prepare_2d_dataset_npy_from_raw_video` (lines 533-...) and `prepare_3d_dataset_npy_from_raw_video` (lines ...-657) share roughly 80% of their body: same iteration, same resume check, same gc-on-success path, diverging only in which detector is invoked and the joint dimensionality. Lift into one `_prepare_dataset_from_raw_video(detect_fn, joint_dim, ...)` helper; the two public functions become thin wrappers that pass `detect_players_2d` or `detect_players_3d`. The X3D-S wrist-crop layer will reuse this iteration shape.
-- (b) **Collapse the `:1066-1116` mirror block**. This block mirrors `bst_train.py:744-783` (the model_info / npy_collated_dir construction). Done in lockstep with step 8 so the produced collated dir name stays byte-identical pre/post on both sides. Either factor a small shared helper or pass the collated-dir builder one way. Use whichever produces the smaller, more obvious diff.
+- (b) **Collapse the `:1066-1116` mirror block**. This block mirrors `bst_x_train.py:744-783` (the model_info / npy_collated_dir construction). Done in lockstep with step 8 so the produced collated dir name stays byte-identical pre/post on both sides. Either factor a small shared helper or pass the collated-dir builder one way. Use whichever produces the smaller, more obvious diff.
 
 **Out of scope:** the full module split; the homography helpers (`get_H` etc); the shuttle subprocess wrappers; any docstring rewrite of upstream-anchored functions. Those stay for after-X3D-S.
 
 **Safety checks:**
 - `pytest`.
 - One-liner that constructs the npy collated dir name on a representative `Hyp` and confirms the string matches a known-good literal from a previous run's manifest.
-- Import smoke: `python -c "from src.bst_refactor.stroke_classification.preparing_data.prepare_train_on_shuttleset import prepare_2d_dataset_npy_from_raw_video, prepare_3d_dataset_npy_from_raw_video, collate_npy, pad_and_augment_one_npy_video; print('ok')"`.
+- Import smoke: `python -c "from src.bst_x.stroke_classification.preparing_data.prepare_train_on_shuttleset import prepare_2d_dataset_npy_from_raw_video, prepare_3d_dataset_npy_from_raw_video, collate_npy, pad_and_augment_one_npy_video; print('ok')"`.
 - Diff review: walk the two `prepare_*_dataset_npy_from_raw_video` functions and confirm the lifted helper produces the same per-clip filesystem outputs (same `_pos`/`_joints`/`_failed` filenames, same shapes, same dtypes, same iteration order).
 
 **Commit message draft:** "Lift prepare_2d/prepare_3d shared iteration into _prepare_dataset_from_raw_video; collapse the model_info mirror block."
 
 ---
 
-### Step 5c — `bst_common.py` extraction
+### Step 5c — `bst_x_common.py` extraction
 
-**Touches:** new file `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py`. Edits to `bst_train.py` and `bst_infer.py`.
+**Touches:** new file `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py`. Edits to `bst_x_train.py` and `bst_x_infer.py`.
 
-This step is folded into the branch at the user's direction. The motivation, per `bst_infer.py:7-12`'s pre-existing TODO and the review doc: a third entry point (X3D-S training script) is about to land, and the shared scaffolding would otherwise be triple-copied.
+This step is folded into the branch at the user's direction. The motivation, per `bst_x_infer.py:7-12`'s pre-existing TODO and the review doc: a third entry point (X3D-S training script) is about to land, and the shared scaffolding would otherwise be triple-copied.
 
-- New module `bst_common.py` next to `bst_train.py` (same dir, minimum import-path churn).
-- Lift into `bst_common.py`:
+- New module `bst_x_common.py` next to `bst_x_train.py` (same dir, minimum import-path churn).
+- Lift into `bst_x_common.py`:
   - `MODELS` dict (constructed from the five `BST_*` partials).
-  - The `Task` class (or its base; if Task has a small amount of train-specific state, keep that subclassed in `bst_train.py` and lift only the genuinely shared parts).
+  - The `Task` class (or its base; if Task has a small amount of train-specific state, keep that subclassed in `bst_x_train.py` and lift only the genuinely shared parts).
   - `Tee` stdout helper.
   - The `__main__` plumbing for run-id derivation, clips-CSV hashing, and the `track_run` call signature. The X3D-S training script will need the same.
-  - Dataloader helper(s) currently inline in `bst_train.py`.
-- `bst_train.py` becomes a thin entry point: import from `bst_common.py`, define the `Hyp` namedtuple (active config + the bst-train-specific knobs), wire up the run loop, call `track_run`. No copy of the lifted logic remains.
-- `bst_infer.py` switches its imports to `bst_common.py` for `MODELS` and `Task`; the inference-specific path stays in `bst_infer.py`. The pre-existing TODO at `bst_infer.py:7-12` is removed (work done).
+  - Dataloader helper(s) currently inline in `bst_x_train.py`.
+- `bst_x_train.py` becomes a thin entry point: import from `bst_x_common.py`, define the `Hyp` namedtuple (active config + the bst-train-specific knobs), wire up the run loop, call `track_run`. No copy of the lifted logic remains.
+- `bst_x_infer.py` switches its imports to `bst_x_common.py` for `MODELS` and `Task`; the inference-specific path stays in `bst_x_infer.py`. The pre-existing TODO at `bst_x_infer.py:7-12` is removed (work done).
 
-**Wire-in invariant (re-confirming):** the BST model graph itself is not touched. `MODELS[...](**kw)` stays the construction call. `Task.train()`, `Task.eval()`, etc. keep their public signatures. The X3D-S layer will be a sixth entry in `MODELS` later, not a wrapper around `bst_common`.
+**Wire-in invariant (re-confirming):** the BST model graph itself is not touched. `MODELS[...](**kw)` stays the construction call. `Task.train()`, `Task.eval()`, etc. keep their public signatures. The X3D-S layer will be a sixth entry in `MODELS` later, not a wrapper around `bst_x_common`.
 
 **Safety checks:**
 - `pytest`.
-- Import smoke: `python -c "from src.bst_refactor.stroke_classification.main_on_shuttleset.bst_common import MODELS, Task, Tee; from src.bst_refactor.stroke_classification.main_on_shuttleset.bst_train import Hyp; print(list(MODELS.keys())); print(Hyp._fields)"` — confirms `MODELS` keys are unchanged and `Hyp` fields are unchanged.
-- `python -c "from src.bst_refactor.stroke_classification.main_on_shuttleset.bst_infer import *; print('ok')"` — bst_infer still imports cleanly.
-- Diff review: `bst_train.py` line count drops materially; the dropped lines are entirely accounted for by the `bst_common.py` additions.
+- Import smoke: `python -c "from src.bst_x.stroke_classification.main_on_shuttleset.bst_x_common import MODELS, Task, Tee; from src.bst_x.stroke_classification.main_on_shuttleset.bst_x_train import Hyp; print(list(MODELS.keys())); print(Hyp._fields)"` — confirms `MODELS` keys are unchanged and `Hyp` fields are unchanged.
+- `python -c "from src.bst_x.stroke_classification.main_on_shuttleset.bst_x_infer import *; print('ok')"` — bst_x_infer still imports cleanly.
+- Diff review: `bst_x_train.py` line count drops materially; the dropped lines are entirely accounted for by the `bst_x_common.py` additions.
 
-**Commit message draft:** "Extract bst_common.py: MODELS, Task, Tee, dataloader helpers, run-id and clips-CSV plumbing. Closes the bst_infer dedup TODO."
+**Commit message draft:** "Extract bst_x_common.py: MODELS, Task, Tee, dataloader helpers, run-id and clips-CSV plumbing. Closes the bst_x_infer dedup TODO."
 
 ---
 
@@ -464,9 +464,9 @@ Roughly 6-8 tests. Should run in well under a second.
 
 ---
 
-### Step 8 — `bst_train.py:744-783` model_info / npy_collated_dir block simplification
+### Step 8 — `bst_x_train.py:744-783` model_info / npy_collated_dir block simplification
 
-**Touches:** `bst_train.py` only.
+**Touches:** `bst_x_train.py` only.
 
 - Drop the dead `additional_model_info` sentinel (top of `__main__`, never set anywhere).
 - Collapse the three nested string-builders for `additional_model_info` / `train_partial` / `model_info` into a small helper or tagged tuple.
@@ -477,7 +477,7 @@ Roughly 6-8 tests. Should run in well under a second.
 - Manual diff review: the produced `npy_collated_dir` string for the active `Hyp` config must be identical pre/post. I will exercise this with a one-liner Python snippet that constructs the dict on a representative `Hyp` and prints the `npy_collated_dir` against the expected literal from a previous run's manifest.
 - `prepare_train_on_shuttleset.py:1066-1116` is **not touched** in this step — it mirrors the same block but is deferred to after-X3D-S in the review doc. The mirror stays in sync because we did not change the produced string.
 
-**Commit message draft:** "Simplify model_info / collated dir construction in bst_train __main__."
+**Commit message draft:** "Simplify model_info / collated dir construction in bst_x_train __main__."
 
 ---
 
@@ -489,7 +489,7 @@ Roughly 6-8 tests. Should run in well under a second.
 - `scripts/test_clip_index.py` → `scripts/archive/test_clip_index.py`.
 - `scripts/flatten_copy.sh` → `scripts/archive/flatten_copy.sh`.
 - `scripts/verify_flatten.py` → `scripts/archive/verify_flatten.py`.
-- `scripts/symlink_merge_phase1.py` → `scripts/archive/symlink_merge_phase1.py`. While moving, fix the docstring at line 14 ("Run from the repo root or from `src/bst_refactor/stroke_classification/`" → "Run from the repo root.") since the relative defaults make the dual-location claim false.
+- `scripts/symlink_merge_phase1.py` → `scripts/archive/symlink_merge_phase1.py`. While moving, fix the docstring at line 14 ("Run from the repo root or from `src/bst_x/stroke_classification/`" → "Run from the repo root.") since the relative defaults make the dual-location claim false.
 - `scripts/verify_v1_collate.py` → `scripts/archive/verify_v1_collate.py`.
 - `scripts/archive/README.md` (created in step 2) describes each one-line: what it did, when, why it's archived rather than deleted.
 - `README.md`: update the scripts section to list only the active scripts (`rename_videos.py`, `validate_videos.py`, `setup_data.sh`, `example_mlflow_run.py`).
@@ -502,21 +502,21 @@ Roughly 6-8 tests. Should run in well under a second.
 
 ---
 
-### Step 10 — `bst_train.py` configuration block tidy (final pass)
+### Step 10 — `bst_x_train.py` configuration block tidy (final pass)
 
-**Touches:** `bst_train.py` and `bst_x_overview.md`.
+**Touches:** `bst_x_train.py` and `bst_x_overview.md`.
 
 This step depends on step 4 (historical_bst.md fill) and step 5 (dead-code excision). Done last in this branch because it's the most stylistic and any merge conflict here is cheapest to resolve.
 
-- Move LR/aux-schedule rationale paragraphs (`bst_train.py:65-157`) into `bst_x_overview.md` (current state) and `historical_bst.md` (verbatim history). Keep only a one-line cross-link in `bst_train.py` plus the live `Hyp` config.
-- Delete migration-anchor comments at `bst_train.py:1-2, 53-57`.
-- Delete the task-anchored comment at `bst_train.py:151` (`# Aggressive CG/AP annealing — matches preferred config from run_20260418_151139.`).
+- Move LR/aux-schedule rationale paragraphs (`bst_x_train.py:65-157`) into `bst_x_overview.md` (current state) and `historical_bst.md` (verbatim history). Keep only a one-line cross-link in `bst_x_train.py` plus the live `Hyp` config.
+- Delete migration-anchor comments at `bst_x_train.py:1-2, 53-57`.
+- Delete the task-anchored comment at `bst_x_train.py:151` (`# Aggressive CG/AP annealing — matches preferred config from run_20260418_151139.`).
 
 **Safety checks:**
 - `pytest`.
-- Import smoke: `python -c "from src.bst_refactor.stroke_classification.main_on_shuttleset.bst_train import Hyp, MODELS, Task; print(Hyp._fields)"` — confirms the namedtuple fields are unchanged.
+- Import smoke: `python -c "from src.bst_x.stroke_classification.main_on_shuttleset.bst_x_train import Hyp, MODELS, Task; print(Hyp._fields)"` — confirms the namedtuple fields are unchanged.
 
-**Commit message draft:** "Move bst_train tuning rationale into bst_x_overview and historical_bst; trim configuration block."
+**Commit message draft:** "Move bst_x_train tuning rationale into bst_x_overview and historical_bst; trim configuration block."
 
 ---
 
@@ -536,39 +536,39 @@ These are explicitly **not** in scope per the review doc and your direction:
 
 **Surfaced 2026-04-26 while wiring the bit-exact smoke scripts. Executed same day as a single commit on `pre-phase-2-tidy`.**
 
-Before step P, `src/bst_refactor/` had no `__init__.py` at the top three levels, and every script that lived more than one folder deep relied on a `sys.path.append(...)` block in its `__main__`:
+Before step P, `src/bst_x/` had no `__init__.py` at the top three levels, and every script that lived more than one folder deep relied on a `sys.path.append(...)` block in its `__main__`:
 
 ```python
-# bst_train.py / bst_infer.py / prepare_train_on_shuttleset.py / apply_heuristic.py — same pattern in each
+# bst_x_train.py / bst_x_infer.py / prepare_train_on_shuttleset.py / apply_heuristic.py — same pattern in each
 if __name__ == '__main__':
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 ```
 
-That is why bare imports like `from bst_common import build_bst_network` resolved when run as scripts but broke when imported as library modules. `smoke_infer_bit_exact.py` had to mirror the same `sys.path.insert(...)` dance (`25e0308`) — acknowledged as a monkey-patch in scratch tooling.
+That is why bare imports like `from bst_x_common import build_bst_x_network` resolved when run as scripts but broke when imported as library modules. `smoke_infer_bit_exact.py` had to mirror the same `sys.path.insert(...)` dance (`25e0308`) — acknowledged as a monkey-patch in scratch tooling.
 
 **What landed:**
 
-1. Added `__init__.py` to the three previously-missing dirs: `src/bst_refactor/`, `src/bst_refactor/stroke_classification/`, `src/bst_refactor/stroke_classification/main_on_shuttleset/`. (Four others were already present: `pipeline/`, `preparing_data/`, `preparing_data/heuristics/`, `model/`.)
-2. Converted the only bare cross-dir import: `from bst_common import ...` → `from main_on_shuttleset.bst_common import ...` in `bst_train.py`, `bst_infer.py`, and `scratch/post_tidy_smoke/smoke_infer_bit_exact.py`. All other first-party imports (`pipeline.*`, `preparing_data.*`, `model.*`, `result_utils`, `run_tracker`) were already package-style or top-level under one of the two PYTHONPATH roots.
-3. Dropped the `if __name__ == '__main__': sys.path.append(...)` blocks from `bst_train.py`, `bst_infer.py`, `model/bst.py`, `apply_heuristic.py`, `failsafe_bst_mmpose_zeroing_check_equivalence.py`, `prepare_train_on_shuttleset.py`, `raw_extract.py`.
+1. Added `__init__.py` to the three previously-missing dirs: `src/bst_x/`, `src/bst_x/stroke_classification/`, `src/bst_x/stroke_classification/main_on_shuttleset/`. (Four others were already present: `pipeline/`, `preparing_data/`, `preparing_data/heuristics/`, `model/`.)
+2. Converted the only bare cross-dir import: `from bst_x_common import ...` → `from main_on_shuttleset.bst_x_common import ...` in `bst_x_train.py`, `bst_x_infer.py`, and `scratch/post_tidy_smoke/smoke_infer_bit_exact.py`. All other first-party imports (`pipeline.*`, `preparing_data.*`, `model.*`, `result_utils`, `run_tracker`) were already package-style or top-level under one of the two PYTHONPATH roots.
+3. Dropped the `if __name__ == '__main__': sys.path.append(...)` blocks from `bst_x_train.py`, `bst_x_infer.py`, `model/bst.py`, `apply_heuristic.py`, `failsafe_bst_mmpose_zeroing_check_equivalence.py`, `prepare_train_on_shuttleset.py`, `raw_extract.py`.
 4. Dropped the `sys.path.insert(...)` dance from `scratch/post_tidy_smoke/smoke_infer_bit_exact.py` and `scratch/post_tidy_smoke/smoke_prepare_2d_bit_exact.py`.
-5. Updated docstrings on `bst_train.py`, `bst_infer.py`, `apply_heuristic.py`, `failsafe_*.py`, `prepare_train_on_shuttleset.py`, `raw_extract.py`, and the two smoke scripts to document the new invocation:
+5. Updated docstrings on `bst_x_train.py`, `bst_x_infer.py`, `apply_heuristic.py`, `failsafe_*.py`, `prepare_train_on_shuttleset.py`, `raw_extract.py`, and the two smoke scripts to document the new invocation:
    ```sh
-   PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
-       python -m main_on_shuttleset.bst_train
+   PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
+       python -m main_on_shuttleset.bst_x_train
    ```
 
-**Why two PYTHONPATH roots and not one.** The compact-prompt direction was `from bst_common import ...` → `from main_on_shuttleset.bst_common import ...` (rooted at `stroke_classification/`, not at `bst_refactor/`). That commits us to keeping `stroke_classification/` as a PYTHONPATH root. `bst_refactor/` stays as a second root because `pipeline/`, `run_tracker.py`, `aim_backfill.py`, `run_overview.py` live there. `conftest.py` already inserts both roots for tests; the scripts now document the same pair as their PYTHONPATH.
+**Why two PYTHONPATH roots and not one.** The compact-prompt direction was `from bst_x_common import ...` → `from main_on_shuttleset.bst_x_common import ...` (rooted at `stroke_classification/`, not at `bst_x/`). That commits us to keeping `stroke_classification/` as a PYTHONPATH root. `bst_x/` stays as a second root because `pipeline/`, `run_tracker.py`, `aim_backfill.py`, `run_overview.py` live there. `conftest.py` already inserts both roots for tests; the scripts now document the same pair as their PYTHONPATH.
 
 **Verification (laptop, `phase_2_refactor` venv):**
 
 | Check | Result |
 |---|---|
 | `python -m py_compile` over all 12 modified files | ✅ OK |
-| Live import of `main_on_shuttleset.bst_common`, `main_on_shuttleset.bst_infer` | ✅ both resolve cleanly under new PYTHONPATH |
+| Live import of `main_on_shuttleset.bst_x_common`, `main_on_shuttleset.bst_x_infer` | ✅ both resolve cleanly under new PYTHONPATH |
 | Live import of `apply_heuristic`, `failsafe_*`, `shuttleset_dataset`, `heuristics`, `heuristics.sticky_anchor`, `heuristics.current`, `model.bst`, `model.tempose`, `pipeline.config`, `pipeline.court_utils`, `pipeline.data_access`, `run_tracker`, `result_utils` | ✅ all resolve |
-| Live exec of `scratch/post_tidy_smoke/smoke_infer_bit_exact.py` (script body up to `main()`), checking `Task` and `TAXONOMIES` are bound | ✅ `Task` resolves to `main_on_shuttleset.bst_infer.Task`, 4 taxonomies loaded |
+| Live exec of `scratch/post_tidy_smoke/smoke_infer_bit_exact.py` (script body up to `main()`), checking `Task` and `TAXONOMIES` are bound | ✅ `Task` resolves to `main_on_shuttleset.bst_x_infer.Task`, 4 taxonomies loaded |
 | `pytest tests/` | ✅ 42 passed, 1 skipped (matches pre-step-P baseline; the 1 skip is `test_integration` without `BST_DATA_DIR`) |
 
 **Verification (engelbart, post-push):** ✅ 43/43 with `BST_DATA_DIR` set. Wall-time dropped ~11s → ~9s, consistent with regular-package imports skipping the namespace-package fallback the no-`__init__.py` layout used to trigger. Bit-exact gates not re-run because step P is import-only and cannot perturb the forward pass.

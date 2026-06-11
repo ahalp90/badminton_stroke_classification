@@ -1,0 +1,309 @@
+run_id: run_20260531_231403_971803
+started_at: '2026-05-31T23:14:24'
+git_sha: dd2d46ea8480606076cd015de4b15edfd609e1b2
+git_dirty: true
+host: carmack.une.edu.au
+config:
+  n_epochs: 80
+  batch_size: 128
+  lr: 0.0005
+  weight_decay: 0.1
+  warm_up_step: 100
+  taxonomy: une_v1_14
+  seq_len: 100
+  early_stop_n_epochs: 40
+  pose_style: JnB_bone
+  use_3d_pose: false
+  train_partial: 1.0
+  use_aux_schedule: true
+  aux_fade_end_epoch: 15
+  clips_csv: /home/ahalperi/wd_sweep_run/notebooks/clips_master.csv
+  split_column: split_v2
+  collation_id: taxon_pinned_w_preds
+  ablation_id: wd_1e-1
+  label_smoothing: 0.0
+  class_weights: null
+  adaptive_focal:
+    tau: 1.0
+    gamma: 1.0
+    momentum: 0.9
+    warm_up_epochs: 5
+    f1_floor: 0.0
+  use_val_improvability_gate: false
+  val_improvability_gate:
+    val_f1_smoothing_factor: 0.9
+    improvement_margin: 0.015
+    patience_epochs: 15
+    min_epochs_before_gating: 10
+    revert_step_per_epoch: 0.2
+    stop_gating_after_fraction: 0.75
+  augmentation:
+    p_flip: 0.5
+    p_jitter: 0.3
+    cap_y: 0.05
+    cap_x: 0.1
+    eps: 0.15
+  classes:
+  - net_shot
+  - return_net
+  - smash
+  - wrist_smash
+  - lob
+  - clear
+  - drive
+  - drop
+  - passive_drop
+  - push
+  - rush
+  - cross_court_net_shot
+  - short_service
+  - long_service
+serials:
+- serial_no: 1
+  weights_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260531_231403_971803/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14.pt
+  tb_dir: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260531_231403_971803/tb/serial_1
+  metrics:
+    macro_f1: 0.7433547377586365
+    min_f1: 0.5170555710792542
+    accuracy: 0.7615421227986673
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8871867060661316
+      return_net: 0.821052610874176
+      smash: 0.5702647566795349
+      wrist_smash: 0.5170555710792542
+      lob: 0.7668049931526184
+      clear: 0.9378378987312317
+      drive: 0.6616821885108948
+      drop: 0.6666666865348816
+      passive_drop: 0.7267905473709106
+      push: 0.6138107180595398
+      rush: 0.7272728085517883
+      cross_court_net_shot: 0.6335877776145935
+      short_service: 0.9614604711532593
+      long_service: 0.9154930114746094
+    top2_accuracy: 0.9395525940028557
+  recorded_at: '2026-05-31T23:32:05'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 36
+      macro_f1: 0.777987424816404
+      min_f1: 0.5457626581192017
+      accuracy: 0.7956190476190477
+      top2_accuracy: 0.956952380952381
+      per_class_f1:
+        net_shot: 0.9077090620994568
+        return_net: 0.8408679962158203
+        smash: 0.6767371296882629
+        wrist_smash: 0.5457626581192017
+        lob: 0.8427532315254211
+        clear: 0.9638554453849792
+        drive: 0.6556701064109802
+        drop: 0.6574870944023132
+        passive_drop: 0.6555324196815491
+        push: 0.6340909004211426
+        rush: 0.7419354915618896
+        cross_court_net_shot: 0.7965217232704163
+        short_service: 0.9878260493278503
+        long_service: 0.9850746393203735
+- serial_no: 2
+  weights_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260531_231403_971803/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_2.pt
+  tb_dir: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260531_231403_971803/tb/serial_2
+  metrics:
+    macro_f1: 0.7378848791122437
+    min_f1: 0.4661354422569275
+    accuracy: 0.7574964302712994
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8937329649925232
+      return_net: 0.7942238450050354
+      smash: 0.5785123705863953
+      wrist_smash: 0.4661354422569275
+      lob: 0.7534122467041016
+      clear: 0.9389415979385376
+      drive: 0.6194030046463013
+      drop: 0.6694560647010803
+      passive_drop: 0.7165775299072266
+      push: 0.6582857370376587
+      rush: 0.7213115096092224
+      cross_court_net_shot: 0.5783132314682007
+      short_service: 0.9760956168174744
+      long_service: 0.965986430644989
+    top2_accuracy: 0.9357448833888624
+  recorded_at: '2026-05-31T23:47:17'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 25
+      macro_f1: 0.7798063371862684
+      min_f1: 0.5661016702651978
+      accuracy: 0.788952380952381
+      top2_accuracy: 0.9554285714285714
+      per_class_f1:
+        net_shot: 0.9119497537612915
+        return_net: 0.8531073331832886
+        smash: 0.6633825898170471
+        wrist_smash: 0.5661016702651978
+        lob: 0.7971274256706238
+        clear: 0.959785521030426
+        drive: 0.6418219208717346
+        drop: 0.6677165627479553
+        passive_drop: 0.6666666269302368
+        push: 0.6251256465911865
+        rush: 0.7933883666992188
+        cross_court_net_shot: 0.7985481023788452
+        short_service: 0.9879518151283264
+        long_service: 0.9846153855323792
+- serial_no: 3
+  weights_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260531_231403_971803/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_3.pt
+  tb_dir: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260531_231403_971803/tb/serial_3
+  metrics:
+    macro_f1: 0.7334665656089783
+    min_f1: 0.49225470423698425
+    accuracy: 0.752022846263684
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8849069476127625
+      return_net: 0.8057554364204407
+      smash: 0.5107296109199524
+      wrist_smash: 0.49225470423698425
+      lob: 0.7718696594238281
+      clear: 0.9449664950370789
+      drive: 0.5981308817863464
+      drop: 0.6681034564971924
+      passive_drop: 0.6824926137924194
+      push: 0.6324785947799683
+      rush: 0.7559055685997009
+      cross_court_net_shot: 0.5907173156738281
+      short_service: 0.9718875885009766
+      long_service: 0.9583333134651184
+    top2_accuracy: 0.9336030461684912
+  recorded_at: '2026-06-01T00:04:15'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 33
+      macro_f1: 0.7754859839166913
+      min_f1: 0.5678626894950867
+      accuracy: 0.791047619047619
+      top2_accuracy: 0.956
+      per_class_f1:
+        net_shot: 0.9105263948440552
+        return_net: 0.8438095450401306
+        smash: 0.6536585688591003
+        wrist_smash: 0.5678626894950867
+        lob: 0.8338983058929443
+        clear: 0.9543010592460632
+        drive: 0.6226415038108826
+        drop: 0.6892307996749878
+        passive_drop: 0.6346153616905212
+        push: 0.621867835521698
+        rush: 0.7559055089950562
+        cross_court_net_shot: 0.7858473062515259
+        short_service: 0.9826388955116272
+        long_service: 1.0
+- serial_no: 4
+  weights_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260531_231403_971803/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_4.pt
+  tb_dir: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260531_231403_971803/tb/serial_4
+  metrics:
+    macro_f1: 0.7391594648361206
+    min_f1: 0.5104895234107971
+    accuracy: 0.7574964302712994
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8696883916854858
+      return_net: 0.8098591566085815
+      smash: 0.5854700803756714
+      wrist_smash: 0.5246478915214539
+      lob: 0.7844112515449524
+      clear: 0.9520000219345093
+      drive: 0.6242300271987915
+      drop: 0.6483050584793091
+      passive_drop: 0.668639063835144
+      push: 0.6353240013122559
+      rush: 0.78125
+      cross_court_net_shot: 0.5104895234107971
+      short_service: 0.9740519523620605
+      long_service: 0.9798658490180969
+    top2_accuracy: 0.9381247025226083
+  recorded_at: '2026-06-01T00:21:55'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 35
+      macro_f1: 0.769542076757976
+      min_f1: 0.6041666865348816
+      accuracy: 0.7855238095238095
+      top2_accuracy: 0.9546666666666667
+      per_class_f1:
+        net_shot: 0.8925802707672119
+        return_net: 0.8291781544685364
+        smash: 0.6528497934341431
+        wrist_smash: 0.6041666865348816
+        lob: 0.823798656463623
+        clear: 0.970822274684906
+        drive: 0.6272727251052856
+        drop: 0.7009063363075256
+        passive_drop: 0.6258823871612549
+        push: 0.6336206793785095
+        rush: 0.7272727489471436
+        cross_court_net_shot: 0.7266982793807983
+        short_service: 0.9879518151283264
+        long_service: 0.9705882668495178
+- serial_no: 5
+  weights_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260531_231403_971803/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_5.pt
+  tb_dir: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260531_231403_971803/tb/serial_5
+  metrics:
+    macro_f1: 0.7358936071395874
+    min_f1: 0.422174870967865
+    accuracy: 0.7589243217515469
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8843728303909302
+      return_net: 0.8120481967926025
+      smash: 0.6473594307899475
+      wrist_smash: 0.422174870967865
+      lob: 0.7731367349624634
+      clear: 0.9465240240097046
+      drive: 0.6508876085281372
+      drop: 0.6721991300582886
+      passive_drop: 0.6582278609275818
+      push: 0.6129458546638489
+      rush: 0.730158805847168
+      cross_court_net_shot: 0.5611510276794434
+      short_service: 0.9783037304878235
+      long_service: 0.9530201554298401
+    top2_accuracy: 0.9359828653022371
+  recorded_at: '2026-06-01T00:39:14'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 33
+      macro_f1: 0.7682813597576958
+      min_f1: 0.4552238881587982
+      accuracy: 0.7940952380952381
+      top2_accuracy: 0.9548571428571428
+      per_class_f1:
+        net_shot: 0.9095802307128906
+        return_net: 0.8544423580169678
+        smash: 0.6793997287750244
+        wrist_smash: 0.4552238881587982
+        lob: 0.8484513163566589
+        clear: 0.9682539105415344
+        drive: 0.6450216174125671
+        drop: 0.6824224591255188
+        passive_drop: 0.5669291615486145
+        push: 0.6437054872512817
+        rush: 0.7751937508583069
+        cross_court_net_shot: 0.787581741809845
+        short_service: 0.9845094680786133
+        long_service: 0.9552239179611206
+log_path: src/bst_x/stroke_classification/main_on_shuttleset/test_logs/test_20260531_231403_971803.log
+extra:
+  data_provenance:
+    clips_csv_path: /home/ahalperi/wd_sweep_run/notebooks/clips_master.csv
+    clips_csv_sha256: b510070204cfd7152c2b573b9970fa36e07b1816e1345e6f1b99ad85ce3c6f42
+    collation_id: taxon_pinned_w_preds
+    npy_collated_dir: npy_v2_taxon_pinned_w_preds
+notes: |-
+  Best S3 0.733 / 0.492, mean 0.738 / 0.482 (test macro / min).
+
+  Excluding norms, bias and embeddings from weight decay produced a new high on the une_v1_14 taxonomy (split_v2) at baseline 1e-2 wd: best macro/min +0.001 / +0.016; mean macro/min +0.003 / +0.014.
+
+  Otherwise, results showed a consistent mild drop on macro F1 and consistent improvement on min-F1. Unsurprising in retrospect given this was an F1 sweep. wd 4e-1 showed the strongest improvement at min-F1 both across best serial and mean: best +0.04, mean +0.027. Crucially, at 0.525, this cleared the 0.5 mark for wrist_smash!

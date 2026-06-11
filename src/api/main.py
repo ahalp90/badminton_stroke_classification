@@ -47,7 +47,7 @@ class StrokeAnnotation(BaseModel):
 
 
 class Markup(BaseModel):
-    architecture: Optional[Literal["bric", "bst"]] = None
+    architecture: Optional[Literal["bric", "bst-x"]] = None
     model_id: Optional[str] = None
     orientation: Literal["portrait"] = "portrait"
     video_label: Optional[str] = None
@@ -87,7 +87,7 @@ class Markup(BaseModel):
 class LibraryPredictRequest(BaseModel):
     clip_stem: str
     model_id: Optional[str] = None
-    architecture: Optional[Literal["bric", "bst"]] = None
+    architecture: Optional[Literal["bric", "bst-x"]] = None
     markup: Optional[Markup] = None
 
 
@@ -232,7 +232,7 @@ def _process_video(job_id: str, video_path: str, model_name: str):
             and annotation_count <= 1
         ):
             try:
-                from .bst_inference import predict as bst_predict, BstInferenceUnavailable
+                from .bst_x_inference import predict as bst_predict, BstXInferenceUnavailable
                 live = bst_predict(job.clip_stem, split=None)
                 # Translate live shape → the same {strokes, rally_summary}
                 # envelope the FE already renders.
@@ -270,7 +270,7 @@ def _process_video(job_id: str, video_path: str, model_name: str):
                     "live_inference": True,
                 }
                 log.info("job %s: live BST forward pass succeeded for stem=%s", job_id, job.clip_stem)
-            except (BstInferenceUnavailable, KeyError, ValueError) as e:
+            except (BstXInferenceUnavailable, KeyError, ValueError) as e:
                 log.info("job %s: live BST unavailable for stem=%s (%s); falling back to smart stub",
                          job_id, job.clip_stem, e)
             except Exception as e:
@@ -456,12 +456,12 @@ async def library_predict(req: LibraryPredictRequest, background_tasks: Backgrou
     also accepts library YouTube identifiers as a stand-in stem for
     demo purposes."""
     from .registry import _build_stem_index  # local import to avoid cycle
-    from .config import BST_CLIPS_DIR
+    from .config import BST_X_CLIPS_DIR
 
     rel_path = _build_stem_index().get(req.clip_stem)
     abs_path: Path
-    if rel_path is not None and BST_CLIPS_DIR is not None and (BST_CLIPS_DIR / rel_path).exists():
-        abs_path = BST_CLIPS_DIR / rel_path
+    if rel_path is not None and BST_X_CLIPS_DIR is not None and (BST_X_CLIPS_DIR / rel_path).exists():
+        abs_path = BST_X_CLIPS_DIR / rel_path
         resolution = "dataset_clip"
     else:
         # Stand-in: stub inference doesn't read the file, but we still

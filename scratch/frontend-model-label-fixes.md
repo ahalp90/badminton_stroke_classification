@@ -14,12 +14,12 @@ The only model with code and inference paths is **BST** (Badminton Stroke-type T
 
 Code citations:
 
-- `src/bst_refactor/stroke_classification/model/tempose.py:129` — `class TCN` (dilated 1D temporal convolutions)
-- `src/bst_refactor/stroke_classification/model/bst.py:23` — `from model.tempose import TCN, ...`
+- `src/bst_x/stroke_classification/model/tempose.py:129` — `class TCN` (dilated 1D temporal convolutions)
+- `src/bst_x/stroke_classification/model/bst.py:23` — `from model.tempose import TCN, ...`
 - `bst.py:161-162` — `self.tcn_pose = TCN(...)`, `self.tcn_shuttle = TCN(...)`
 - `bst.py:269` — pipeline comment: `TCN -> Temporal Transformer -> Cross Transformer -> Interactional Transformer -> Head`
 - `bst.py:426-430` — variant partials: `BST_0`, `BST_PPF`, `BST_CG`, `BST_AP`, `BST_CG_AP`
-- `src/bst_refactor/data_pipeline_to_model_train.md:346` — "TCN feature extraction: separate TCNs for pose and shuttle"
+- `src/bst_x/data_pipeline_to_model_train.md:346` — "TCN feature extraction: separate TCNs for pose and shuttle"
 - Zero occurrences of "3D-CNN" or "MediaPipe" in `src/`
 
 ### Model B — there is no concrete Model B
@@ -27,7 +27,7 @@ Code citations:
 Checked:
 
 - `arch_1_directions.md:1-5` — the project's primary research direction is "BST **+** X3D-S Wrist Crop Fusion". X3D-S is a **fusion branch added to BST**, not a separate model. When built, it becomes part of Model A.
-- TemPose (standalone variants TemPose_V/PF/SF/TF) was "excised pre-phase-2" per `src/bst_refactor/data_pipeline_to_model_train.md:340`; the code now lives in `scratch/architecture_notes/historical_bst.md`. Historical, not roadmap.
+- TemPose (standalone variants TemPose_V/PF/SF/TF) was "excised pre-phase-2" per `src/bst_x/data_pipeline_to_model_train.md:340`; the code now lives in `scratch/architecture_notes/historical_bst.md`. Historical, not roadmap.
 - No other competing model architecture appears in `src/` or `scratch/architecture_notes/`.
 
 Conclusion: there is no concrete second model. The Model B card must be labelled TBD, not given a fabricated architecture.

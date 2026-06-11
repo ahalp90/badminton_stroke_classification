@@ -16,11 +16,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.bst_refactor.stroke_classification.preparing_data.heuristics.base import (
+from src.bst_x.stroke_classification.preparing_data.heuristics.base import (
     ClipContext,
     RawClip,
 )
-from src.bst_refactor.stroke_classification.preparing_data.heuristics.sticky_anchor import (
+from src.bst_x.stroke_classification.preparing_data.heuristics.sticky_anchor import (
     SLOT_BOTTOM,
     SLOT_TOP,
     StickyAnchorParams,

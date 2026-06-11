@@ -1,0 +1,94 @@
+Taxonomy: une_merge_v1   Split: split_v2   drop_unknown=True
+
+[train]  22743 clips, 61,514 / 1,199,394 frames failed (5.13% overall)
+  class                           clips             failed/total     rate
+  Top_smash                         981          10,993 / 49,511  22.20%
+  Bottom_long_service               142            1,111 / 7,584  14.65%
+  Top_wrist_smash                   531           3,727 / 26,262  14.19%
+  Bottom_return_net                1254           5,754 / 53,870  10.68%
+  Top_drop                          742           4,251 / 44,547   9.54%
+  Bottom_lob                       1902         10,292 / 117,381   8.77%
+  Top_clear                         941           4,563 / 64,179   7.11%
+  Top_long_service                  110              429 / 6,103   7.03%
+  Bottom_clear                      956           4,633 / 66,092   7.01%
+  Bottom_push                       927           2,101 / 48,382   4.34%
+  Bottom_short_service              674           1,113 / 26,817   4.15%
+  Top_short_service                 638             992 / 24,784   4.00%
+  Bottom_cross_court_net_shot       442             771 / 21,674   3.56%
+  Bottom_net_shot                  2015          2,813 / 102,764   2.74%
+  Bottom_drive                      551             504 / 21,429   2.35%
+  Bottom_wrist_smash                448             506 / 21,684   2.33%
+  Bottom_smash                      805             845 / 41,074   2.06%
+  Bottom_rush                       137               94 / 4,660   2.02%
+  Bottom_drop                       723             826 / 42,933   1.92%
+  Top_push                          956             888 / 49,904   1.78%
+  Top_net_shot                     2124          1,874 / 110,274   1.70%
+  Top_drive                         491             260 / 19,603   1.33%
+  Bottom_passive_drop               393             305 / 23,013   1.33%
+  Top_rush                          198               92 / 7,058   1.30%
+  Top_passive_drop                  403             308 / 23,633   1.30%
+  Top_lob                          1716          1,263 / 106,864   1.18%
+  Top_cross_court_net_shot          405             103 / 19,622   0.52%
+  Top_return_net                   1138             103 / 47,693   0.22%
+
+[val]  5250 clips, 17,478 / 291,933 frames failed (5.99% overall)
+  class                           clips             failed/total     rate
+  Top_smash                         174            2,742 / 9,500  28.86%
+  Bottom_long_service                21              228 / 1,136  20.07%
+  Top_wrist_smash                   179            1,837 / 9,529  19.28%
+  Top_drop                          189           1,503 / 11,959  12.57%
+  Bottom_return_net                 286           1,568 / 12,714  12.33%
+  Bottom_lob                        502           3,196 / 33,080   9.66%
+  Bottom_clear                      203           1,156 / 14,984   7.71%
+  Top_clear                         179             955 / 12,846   7.43%
+  Bottom_rush                        32               60 / 1,196   5.02%
+  Bottom_drive                      124              209 / 5,100   4.10%
+  Bottom_push                       214             438 / 11,423   3.83%
+  Bottom_cross_court_net_shot       126              246 / 6,693   3.68%
+  Bottom_net_shot                   461             883 / 24,853   3.55%
+  Bottom_wrist_smash                152              278 / 8,186   3.40%
+  Top_drive                         102              139 / 4,368   3.18%
+  Top_passive_drop                  124              237 / 7,610   3.11%
+  Top_net_shot                      495             663 / 26,838   2.47%
+  Bottom_short_service              150              145 / 6,021   2.41%
+  Bottom_smash                      125              144 / 6,487   2.22%
+  Top_short_service                 141              106 / 5,707   1.86%
+  Top_push                          175              135 / 9,162   1.47%
+  Top_lob                           443             406 / 28,949   1.40%
+  Top_long_service                   12                  7 / 610   1.15%
+  Bottom_passive_drop               100               64 / 6,177   1.04%
+  Top_rush                           35               10 / 1,303   0.77%
+  Bottom_drop                       115               45 / 7,281   0.62%
+  Top_return_net                    250              47 / 10,635   0.44%
+  Top_cross_court_net_shot          141               31 / 7,586   0.41%
+
+[test]  4210 clips, 13,685 / 230,731 frames failed (5.93% overall)
+  class                           clips             failed/total     rate
+  Top_smash                         132            1,676 / 6,623  25.31%
+  Bottom_long_service                37              466 / 2,206  21.12%
+  Top_wrist_smash                   121            1,318 / 6,348  20.76%
+  Top_drop                          105            1,137 / 6,329  17.96%
+  Bottom_return_net                 216            1,084 / 9,273  11.69%
+  Top_clear                         189           1,371 / 14,046   9.76%
+  Bottom_lob                        287           1,754 / 18,172   9.65%
+  Bottom_clear                      193           1,044 / 14,101   7.40%
+  Bottom_push                       194             515 / 10,921   4.72%
+  Top_short_service                 125              217 / 4,906   4.42%
+  Bottom_rush                        32               42 / 1,038   4.05%
+  Bottom_short_service              130              211 / 5,353   3.94%
+  Bottom_net_shot                   366             725 / 19,330   3.75%
+  Bottom_smash                      145              213 / 7,655   2.78%
+  Bottom_passive_drop                90              138 / 5,630   2.45%
+  Bottom_drop                       105              159 / 6,656   2.39%
+  Bottom_wrist_smash                128              163 / 6,858   2.38%
+  Top_push                          186             250 / 10,650   2.35%
+  Top_net_shot                      363             441 / 19,027   2.32%
+  Bottom_drive                      129              119 / 5,388   2.21%
+  Bottom_cross_court_net_shot        52               55 / 2,802   1.96%
+  Top_passive_drop                   88              104 / 5,456   1.91%
+  Top_rush                           37               23 / 1,331   1.73%
+  Top_lob                           307             314 / 19,781   1.59%
+  Top_long_service                   37               29 / 2,199   1.32%
+  Top_cross_court_net_shot           60               38 / 3,175   1.20%
+  Top_drive                         126               43 / 5,444   0.79%
+  Top_return_net                    230              36 / 10,033   0.36%

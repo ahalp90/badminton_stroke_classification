@@ -1,0 +1,49 @@
+# TrackNetV3 inference — shuttle trajectory extraction.
+# Python 3.11.X
+#
+# This venv shares the BST training venv (stroke_classification/requirements.txt)
+# rather than maintaining a separate environment. The subprocess interface
+# (pipeline/shuttle_extractor.py calls predict.py via subprocess.run) means only
+# TrackNetV3's actual imports are loaded at runtime — the BST-specific packages
+# (transformers, tensorboard, etc.) sit on disk, not in memory.
+#
+# TrackNetV3-specific deps (opencv-python, Pillow, parse) are included in the
+# BST requirements file and flagged as such.
+#
+# DEPLOYMENT NOTE: The current workflow is batch processing for model training:
+# video → shuttle extraction → pose estimation → model training. For production
+# inference (real-time video → feature extraction → stroke classification), a
+# dedicated minimal venv should be assembled from the runtime-only subset of
+# dependencies. That is out of scope for the training pipeline.
+#
+# --- Original author's requirements (Python 3.8.7, torch 1.10.0) ---
+# These CANNOT install on Python 3.11 or use CUDA 12.x.
+#
+# dash==2.5.1              # Error analysis UI — not needed for inference
+# numpy==1.22.4            # No cp311 wheels (max Python 3.10)
+# opencv_python==4.4.0.46  # No cp311 wheels
+# pandas==2.0.0
+# Pillow==10.0.0
+# plotly==5.8.2            # Error analysis UI — not needed for inference
+# torch==1.10.0            # No cp311 wheels (max Python 3.9), max CUDA 11.3
+# parse                    # Unpinned
+#
+# Also missing from the original: tqdm, pycocotools (see inference_utils.py).
+#
+# --- Updated requirements for Python 3.11 + CUDA 12.1 ---
+# Use these if a standalone TrackNetV3 venv is ever needed.
+#
+# pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
+# pip install -r requirements.txt
+#
+# numpy==2.2.6             # No OpenMMLab here, modern numpy fine
+# opencv-python==4.13.0.92 # Requires numpy >= 2 (satisfied by 2.2.6)
+# pandas==2.2.3            # CSV I/O for TrackNetV3 output format
+# Pillow==11.2.1           # Image processing (draw_traj, frame handling)
+# tqdm==4.67.3             # Progress bars (predict.py, dataset.py)
+# parse==1.21.1            # Path parsing in dataset.py and utils/general.py
+#
+# Model architecture uses standard PyTorch ops (Conv2d, BatchNorm2d, Upsample).
+# Pretrained weights saved with torch 1.10 load cleanly on 2.3.1 — PyTorch
+# maintains full backward compat for state dicts. torch.load() defaults to
+# weights_only=False in 2.3.1; if upgrading past 2.5, add weights_only=False.

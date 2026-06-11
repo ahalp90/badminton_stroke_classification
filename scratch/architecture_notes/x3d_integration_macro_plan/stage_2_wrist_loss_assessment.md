@@ -9,7 +9,7 @@ Two preflight questions had to be answered before the wrist-loss-rate measuremen
 1. **Do we know each player's dominant hand?** Yes: ShuttleSet has no internal handedness data, but Wikipedia infoboxes covered all 27 distinct singles players in our roster. Three lefties (Carolina MARIN, Kento MOMOTA, Supanida KATETHONG); the other 24 are right-handed. Data file: `stage_2_outputs/player_handedness.csv`.
 2. **Are MMPose's L/R keypoint labels physically correct for our broadcast camera?** Open. Two diagnostics spec'd to find out:
    - **Static-bias diagnostic**: pick a known right-hander (Viktor AXELSEN) and a known left-hander (Kento MOMOTA), check that on their forehand strokes the dominant wrist (idx 10 for righties, idx 9 for lefties) carries the higher peak velocity in the hit window. Per-slot agreement should be > 95% if MMPose's anatomical L/R is correct on both Top and Bottom slots. The at-risk slot is **Bottom** (player back to camera, no face landmarks), not Top as the user initially suspected.
-   - **Inter-frame consistency diagnostic**: per-clip detector that flags frames where MMPose flipped L/R within the clip. Detector compares same-label vs swap-label trajectory smoothness across the six paired anatomical keypoints (shoulders, elbows, wrists, hips, knees, ankles); frame counts as a flip if ≥ 4 of 6 vote that swapping would have been smoother. Script written and code-reviewed at `src/bst_refactor/validation_scripts/keypoint_lr_interframe_diagnostic.py`.
+   - **Inter-frame consistency diagnostic**: per-clip detector that flags frames where MMPose flipped L/R within the clip. Detector compares same-label vs swap-label trajectory smoothness across the six paired anatomical keypoints (shoulders, elbows, wrists, hips, knees, ankles); frame counts as a flip if ≥ 4 of 6 vote that swapping would have been smoother. Script written and code-reviewed at `src/bst_x/validation_scripts/keypoint_lr_interframe_diagnostic.py`.
 
 Section 1 (the preflight) is what's drafted in detail below. Section 2 onwards (the actual ±19-frame wrist-keypoint loss-rate measurement and the interpolation-viability call) is left as a placeholder; it'll get drafted when Stage 1 lands and Stage 2 proper kicks off.
 
@@ -28,7 +28,7 @@ Memory: ~/.claude/projects/.../memory/MEMORY.md and the entries it points at.
 Stage 2 preflight status:
 - player_handedness.csv landed at stage_2_outputs/. 27 players, 3 lefties.
 - keypoint_lr_interframe_diagnostic.py written, code-reviewed, fixed.
-  Needs running on engelbart with BST_MMPOSE_NPY_DIR + BST_CLIPS_CSV set.
+  Needs running on engelbart with BST_X_MMPOSE_NPY_DIR + BST_X_CLIPS_CSV set.
   Single-process, well under a CPU-minute total over 32k clips.
 - Static-bias diagnostic spec'd in the doc but not yet coded; needs
   Method A hit-frame index to centre the ±5-frame velocity window, so it
@@ -116,7 +116,7 @@ Two minor notes:
 
 ### COCO-17 keypoint convention recap
 
-RTMPose-L (the model we run via `MMPoseInferencer("human")` in `src/bst_refactor/stroke_classification/preparing_data/raw_extract.py:256`) outputs the standard COCO 17-keypoint set. Wrists are:
+RTMPose-L (the model we run via `MMPoseInferencer("human")` in `src/bst_x/stroke_classification/preparing_data/raw_extract.py:256`) outputs the standard COCO 17-keypoint set. Wrists are:
 
 - **Index 9: `left_wrist`** — the player's anatomical left wrist.
 - **Index 10: `right_wrist`** — the player's anatomical right wrist.
@@ -226,7 +226,7 @@ Recorded before writing the script so the implementation can guard against them,
 15. **Output write race.** If the script is parallelised across clips later (it shouldn't need to be), per-process appends to the same CSV would corrupt rows. Single-process by design; documented in the script header.
 16. **dtype overflow on counts.** `int8` would overflow flip counts above 127. Use `int32` for counts, `float32` for rates.
 17. **Statistic aggregation across edge-only-zero clips.** If a player has only 5 valid clips after filtering and 4 of them flipped, that's a 4/5 = 80% rate that looks alarming but is statistical noise. Per-(player × slot) reports should carry n_clips alongside the rate, with min-clips filter for the headline tables.
-18. **Hardcoded splits assumption.** The script may iterate over the `train/val/test` tree structure that no longer applies under the post-Phase-2 flat dir. Should iterate per-stem from `clips_master`, not per-split-dir from `BST_MMPOSE_NPY_DIR`.
+18. **Hardcoded splits assumption.** The script may iterate over the `train/val/test` tree structure that no longer applies under the post-Phase-2 flat dir. Should iterate per-stem from `clips_master`, not per-split-dir from `BST_X_MMPOSE_NPY_DIR`.
 19. **Memory footprint per clip.** Each `joints.npy` is `F × 2 × 17 × 2 × 8 bytes` ≈ 27 KB at F=100. 32k clips × 27 KB ≈ 870 MB if all loaded; obviously stream one-at-a-time, not all-at-once. Easy mistake under list comprehension.
 20. **Per-class flip rate confounded by class clip-count.** Smash and ws have ~2.4k and ~1.6k clips respectively; long_service has 359 and rush has 471. A flat per-class-mean misrepresents class-conditional flip frequency without normalising by per-class denominator. Histograms with per-class N annotated avoid this.
 
@@ -294,9 +294,9 @@ To be written when Stage 2 proper kicks off after Stage 1 lands. Macro-plan §St
 
 - Macro plan Stage 2 entry: `x3d_integration_macro_plan.md` §Stage 2.
 - Stage 1 plan (consumes the dominant-wrist picker for Method B'): `stage_1_hit_frame_derivation.md`.
-- Pose extraction: `src/bst_refactor/stroke_classification/preparing_data/raw_extract.py:256` (model = `MMPoseInferencer("human")` = RTMPose-L on COCO-17).
+- Pose extraction: `src/bst_x/stroke_classification/preparing_data/raw_extract.py:256` (model = `MMPoseInferencer("human")` = RTMPose-L on COCO-17).
 - Per-stroke metadata: `notebooks/clips_master.csv` (`aroundhead`, `backhand`, `player_side`).
-- Player roster source: `src/bst_refactor/ShuttleSet/set/match.csv` (winner / loser columns).
+- Player roster source: `src/bst_x/ShuttleSet/set/match.csv` (winner / loser columns).
 - Handedness data file (once landed): `stage_2_outputs/player_handedness.csv`.
 - L/R static-bias diagnostic output (once run): `stage_2_outputs/keypoint_lr_diagnostic.md`.
 - L/R inter-frame flip diagnostic output (once run): `stage_2_outputs/keypoint_lr_interframe_diagnostic.md` + `keypoint_lr_interframe_per_clip.csv`.

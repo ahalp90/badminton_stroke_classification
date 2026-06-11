@@ -7,8 +7,8 @@ matplotlib
 scikit-learn
 opencv-python         # cv2; used by perception/video_io.py and tests/test_video_io.py
 ultralytics           # YOLO11 + ByteTrack; perception/players.py + scripts/preprocess_videos.py
-positional-encodings  # Positional encoding layers used by BST transformer model (bst_refactor/stroke_classification/model/)
-torchinfo             # Model summary utility used by tempose.py in the BST model module
+positional-encodings  # Positional encoding layers used by BST-X transformer model (bst_x/stroke_classification/model/)
+torchinfo             # Model summary utility used by tempose.py in the BST-X model module
 tensorboard           # Backs torch.utils.tensorboard.SummaryWriter (imported at module load in bst_train.py)
 torcheval             # multiclass_f1_score used in the bst_train training loop
 transformers          # HuggingFace; provides get_cosine_schedule_with_warmup for the bst_train LR schedule
@@ -25,5 +25,5 @@ pytest
 httpx  # Required by FastAPI TestClient
 mlflow  # Experiment tracking
 
-# bst_refactor subproject has complex dependencies; so requires 2-3 separate venvs depending on how you run it.
+# bst_x subproject has complex dependencies; so requires 2-3 separate venvs depending on how you run it.
 # req Python 3.11.x. Probably 3.11.15 should be fine (to test soon).

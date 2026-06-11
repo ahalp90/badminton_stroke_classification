@@ -1,8 +1,8 @@
-"""Inference npz schema smoke for ``bst_infer --fe`` (Step D9 / D10).
+"""Inference npz schema smoke for ``bst_x_infer --fe`` (Step D9 / D10).
 
 Builds a tiny fake run dir (manifest + weights + collation) and runs the
 post-hoc batch dump end-to-end, asserting the npz schema matches what
-``bst_train`` writes at end-of-serial and that only the requested splits land.
+``bst_x_train`` writes at end-of-serial and that only the requested splits land.
 
 CPU-only; no /scratch. The train-side dump + label-coverage assert live in
 tests/test_train_surface.py.
@@ -21,14 +21,14 @@ import pytest
 import torch
 import yaml
 
-from main_on_shuttleset import bst_infer
-from main_on_shuttleset.bst_common import build_bst_network, dump_topk_predictions
+from main_on_shuttleset import bst_x_infer
+from main_on_shuttleset.bst_x_common import build_bst_x_network, dump_topk_predictions
 from pipeline.config import resolve_taxonomy
 from preparing_data.shuttleset_dataset import Dataset_npy_collated
 from torch.utils.data import DataLoader
 
 
-# The npz schema both dump paths (bst_train end-of-serial, bst_infer --fe) emit.
+# The npz schema both dump paths (bst_x_train end-of-serial, bst_x_infer --fe) emit.
 NPZ_FIELDS = {
     'logits', 'y_true', 'y_pred_top1', 'topk_idx', 'clip_stems',
     'class_list', 'run_id', 'serial_no', 'taxonomy_name',
@@ -58,7 +58,7 @@ def _build_fake_run(tmp_path: Path) -> tuple[Path, Path]:
     """
     taxonomy = resolve_taxonomy(TAX_NAME)
     torch.manual_seed(0)
-    net, n_bones = build_bst_network(
+    net, n_bones = build_bst_x_network(
         'BST_CG_AP', n_joints=17, pose_style='JnB_bone', in_channels=2,
         n_class=taxonomy.n_classes, seq_len=100, device='cpu',
     )
@@ -103,7 +103,7 @@ def test_dump_run_predictions_writes_requested_splits(tmp_path, monkeypatch):
     run_dir, collated_data_root = _build_fake_run(tmp_path)
     fe_out = tmp_path / 'fe_dump'
 
-    out_dir = bst_infer.dump_run_predictions(
+    out_dir = bst_x_infer.dump_run_predictions(
         run_dir=run_dir, serial=5, fe_output_dir=fe_out,
         splits=('val', 'test'), collated_data_root=collated_data_root,
     )
@@ -143,7 +143,7 @@ def test_dump_run_predictions_default_lands_in_run_dir_not_predictions(tmp_path,
     monkeypatch.setattr(torch.cuda, 'is_available', lambda: False)
     run_dir, collated_data_root = _build_fake_run(tmp_path)
 
-    out_dir = bst_infer.dump_run_predictions(
+    out_dir = bst_x_infer.dump_run_predictions(
         run_dir=run_dir, serial=5, fe_output_dir=None,
         splits=('test',), collated_data_root=collated_data_root,
     )
@@ -151,14 +151,14 @@ def test_dump_run_predictions_default_lands_in_run_dir_not_predictions(tmp_path,
     assert (out_dir / 'test_serial_5.npz').exists()
     assert (out_dir / 'inference_manifest.yaml').exists()
     # Crucially, the train-time predictions/ dir is untouched (would collide
-    # with bst_train's own per-serial dump if --fe wrote there).
+    # with bst_x_train's own per-serial dump if --fe wrote there).
     assert not (run_dir / 'predictions').exists()
 
 
 def test_dump_run_predictions_missing_serial_exits(tmp_path):
     run_dir, collated_data_root = _build_fake_run(tmp_path)
     with pytest.raises(SystemExit):
-        bst_infer.dump_run_predictions(
+        bst_x_infer.dump_run_predictions(
             run_dir=run_dir, serial=99, fe_output_dir=tmp_path / 'fe',
             splits=('test',), collated_data_root=collated_data_root,
         )
@@ -168,7 +168,7 @@ def test_dump_topk_predictions_k_clamps_to_head(tmp_path):
     """topk width clamps to the head size when k exceeds it."""
     taxonomy = resolve_taxonomy(TAX_NAME)
     torch.manual_seed(0)
-    net, n_bones = build_bst_network(
+    net, n_bones = build_bst_x_network(
         'BST_CG_AP', n_joints=17, pose_style='JnB_bone', in_channels=2,
         n_class=taxonomy.n_classes, seq_len=100, device='cpu',
     )

@@ -16,7 +16,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-EXP = ROOT / "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments"
+EXP = ROOT / "src/bst_x/stroke_classification/main_on_shuttleset/experiments"
 OUT = ROOT / "scratch/bst_x_training_runs.md"
 
 # Legacy -> canonical taxonomy (pipeline/config.py TAXONOMY_ALIASES).
@@ -308,10 +308,10 @@ def date_cell(r) -> str:
 out = []
 W = out.append
 
-W("# BST Architecture-1 Training Runs\n")
-W("All 64 recorded training runs of the BST-based Architecture-1 model on ShuttleSet, built directly "
+W("# BST-X Architecture-1 Training Runs\n")
+W("All 64 recorded training runs of the BST-X (Architecture-1) model on ShuttleSet, built directly "
   "from the per-run `manifest.yaml` files under "
-  "`src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/`. Generated 2026-06-02.\n")
+  "`src/bst_x/stroke_classification/main_on_shuttleset/experiments/`. Generated 2026-06-02.\n")
 W("**Metrics from held-out test set.** Shows `best-serial / mean-across-serials`, to 4 dp. The "
   "best serial comes from the manifest's `best_serials` field where it's filled in (#1–31 and #49–64); "
   "otherwise, matched to the only `weights/` .pt retained.\n")

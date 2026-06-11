@@ -84,3 +84,35 @@ Across all 32,203 clips it cut the overall drop rate 5.38% to 0.93%, and at the 
 - [`bst_x_training_runs.md`](../bst_x_training_runs.md): the run ledger, every run's per-metric best and mean, grouped global / per-taxonomy / per-series.
 - [`bst_x_overview_technical_appendix.md`](bst_x_overview_technical_appendix.md): the workings, per-experiment detail, comparability caveats, decisions on hold, secondary investigations, cross-references.
 - [`augmentation_framework.md`](augmentation_framework.md) and [`x3d_integration_macro_plan/`](x3d_integration_macro_plan/): the two most active sub-docs.
+
+## Appendix: namespace conventions (post-rebrand)
+
+Three spellings coexist by design after the BST -> BST-X rebrand. Each lives in one register; the others do not encroach.
+
+**`bst` (Chang lineage only).** Identifiers that ground us in Chang 2025's published baseline rather than the project derivative:
+
+- `class BST` and the five variant partials (`BST_0`, `BST_PPF`, `BST_CG`, `BST_AP`, `BST_CG_AP`) in `src/bst_x/stroke_classification/model/bst.py`.
+- The Chang-key entries of the `MODELS` dispatch dict in `bst_x_common.py` (the project-side alias `'BST_X'` sits alongside them).
+- Taxonomy ids `bst_25` / `bst_24` / `bst_12` and the constants `TAXONOMY_BST_25/24/12` (paper-faithful taxonomies).
+- The split column `split_bst_baseline` and constant `SPLITS_BST_BASELINE`.
+- The Chang-baseline run dir `experiments/bst_cg_ap_base_17_04_2026/` and its lowercase `bst_cg_ap_*.pt` weights.
+- The paper transcript at `local_scratch/bst_paper_md/`.
+
+**`bst_x` (Python identifiers; snake_case file + dir names).** The project rebrand in code:
+
+- Package dir `src/bst_x/`.
+- Module files `bst_x_common.py`, `bst_x_train.py`, `bst_x_infer.py`, `src/api/bst_x_inference.py`.
+- Builder `build_bst_x_network`, constants `BST_X_REFACTOR` / `BST_X_CLASSIFICATION`, exception `BstXInferenceUnavailable`.
+- Env vars `BST_X_CLIPS_DIR`, `BST_X_INPUTS_DIR`, `BST_X_MMPOSE_NPY_DIR`, etc.
+- Model-name dispatch key `'BST_X'` (the project alias of `BST_CG_AP`).
+- Weight prefix `bst_x_*.pt` in `experiments/run_*/weights/`.
+- Registry model ids `bst_x_une_v1_14_v2`, `bst_x_bst_24_bst_baseline`, etc.
+
+**`bst-x` (wire format; kebab-case).** Anything that crosses a JSON / YAML / package-manager boundary:
+
+- The `architecture` enum value `"bst-x"` in `docs/models_registry.yaml`, the Pydantic `Markup` / `LibraryPredictRequest` schemas, and the FE picker.
+- The `pyproject.toml` extras group `bst-x-runtime`.
+- The training venv name `venv-bst-x` (operator convention).
+- The FE filter / display strings the model-picker uses.
+
+The rule of thumb: pick the spelling by where the name is read. Python parser reads it as a Python identifier -> `bst_x`. JSON parser, package-manager, shell, or user reads it -> `bst-x`. Chang-baseline reference -> `bst`.

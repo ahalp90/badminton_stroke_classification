@@ -1,0 +1,26 @@
+{
+  "split": "val",
+  "n_strokes": 5250,
+  "macro_f1": 0.773044275665453,
+  "min_f1": 0.5709828393135725,
+  "accuracy": 0.7923809523809524,
+  "top2_accuracy": 0.9556190476190476,
+  "per_class_f1": {
+    "net_shot": 0.9150187065740247,
+    "return_net": 0.8477443609022556,
+    "smash": 0.6266666666666666,
+    "wrist_smash": 0.5709828393135725,
+    "lob": 0.8277027027027027,
+    "clear": 0.968,
+    "drive": 0.6271186440677966,
+    "drop": 0.7085889570552147,
+    "passive_drop": 0.6359447004608294,
+    "push": 0.6186726659167604,
+    "rush": 0.752,
+    "cross_court_net_shot": 0.7855917667238422,
+    "short_service": 0.9862068965517241,
+    "long_service": 0.9523809523809523
+  },
+  "source": "compute_val_metrics.py (live forward pass on /app/bst_inputs/val)",
+  "weights": "/app/src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt"
+}

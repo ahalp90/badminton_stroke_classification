@@ -16,7 +16,7 @@ Skeleton drafted 2026-04-26. Sections 1-6 captured in step 4 of the pre-phase-2 
 
 ## 1. TemPose variant classes (deleted from `model/tempose.py` in step 5)
 
-**Original location:** `src/bst_refactor/stroke_classification/model/tempose.py:156-667` (four classes).
+**Original location:** `src/bst_x/stroke_classification/model/tempose.py:156-667` (four classes).
 
 **Why preserved through phase 0/1:** byte-identity reproduction with the upstream BST repo. TemPose is the BST paper's predecessor and its source was kept verbatim alongside `bst.py` so any backed-out comparison run could fall back to the original code.
 
@@ -560,7 +560,7 @@ class TemPose_TF(nn.Module):
 
 ## 2. Original BST `Hyp` namedtuple defaults
 
-**Original location:** `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py:85-101` (commented-out block at SHA `342a573`).
+**Original location:** `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py:85-101` (commented-out block at SHA `342a573`).
 
 **Why preserved:** the BST paper's published numbers are produced with these defaults; reproducing those numbers requires this exact configuration.
 
@@ -591,9 +591,9 @@ The original BST recipe also ran with `num_cycles=0.25` in the cosine scheduler 
 
 ---
 
-## 3. LR-schedule and aux-schedule retune rationale (excised from `bst_train.py`)
+## 3. LR-schedule and aux-schedule retune rationale (excised from `bst_x_train.py`)
 
-**Original location:** `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py:65-138` at SHA `342a573`.
+**Original location:** `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py:65-138` at SHA `342a573`.
 
 **Why preserved through phase 1:** the dated rationale paragraphs ("LR-SCHEDULE RETUNE 2026-04-17", "AUX-SCHEDULE 2026-04-18") record decisions that materially affected the active config. Useful for ablation interpretation and for picking up the work after a long context gap.
 
@@ -674,7 +674,7 @@ Current state: `scratch/architecture_notes/bst_x_overview.md` (under "current LR
 
 ## 4. Orphan dataset classes (deleted from `shuttleset_dataset.py` in step 5)
 
-**Original location:** `src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py:142-633` at SHA `342a573`.
+**Original location:** `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py:142-633` at SHA `342a573`.
 
 **Why preserved through phase 1:** these were experimental dataset variants for ablation studies that never made it onto the active path. Kept in case the ablation revived.
 
@@ -693,7 +693,7 @@ class Dataset_npy(Dataset):
     live flat under a single directory and split/label come from
     ``clips_master.csv`` at collation time, so this class's directory walk
     no longer matches what the writers produce. The only caller,
-    ``Task.compare_pred_gt_on_specific_type`` in ``bst_train.py``, is a
+    ``Task.compare_pred_gt_on_specific_type`` in ``bst_x_train.py``, is a
     debug helper that is never invoked from the training or test paths.
 
     Use ``Dataset_npy_collated`` for BST training. If this helper ever
@@ -1068,7 +1068,7 @@ def prepare_npy_collated_single_pose_loaders(
 
 ## 5. `compare_pred_gt_on_specific_type` debug helper
 
-**Original location:** `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py:706-733` at SHA `342a573`.
+**Original location:** `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py:706-733` at SHA `342a573`.
 
 **Purpose:** Debug helper that loaded `Dataset_npy` and compared per-sample predictions against ground truth for a chosen stroke type. Output a Pandas DataFrame of mismatches with `Ball Round` / `Pred` / `GT` columns.
 
@@ -1111,7 +1111,7 @@ def compare_pred_gt_on_specific_type(self, dir_path: Path):
 
 ## 6. `normalize_joints` upstream default (changed in `prepare_train_on_shuttleset.py` step 5)
 
-**Original location:** `src/bst_refactor/stroke_classification/preparing_data/prepare_train_on_shuttleset.py:160-175` at SHA `342a573`.
+**Original location:** `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py:160-175` at SHA `342a573`.
 
 **Original signature:** `normalize_joints(..., center_align=False)` (matching upstream BST verbatim).
 
@@ -1139,17 +1139,17 @@ For reproducing the BST paper's published numbers, use `center_align=False` and 
 
 ---
 
-## 7. Migration anchors and task-anchored comments removed from `bst_train.py` (step 10)
+## 7. Migration anchors and task-anchored comments removed from `bst_x_train.py` (step 10)
 
 **Original locations at SHA `342a573`:**
 
-- `bst_train.py:1-2`:
+- `bst_x_train.py:1-2`:
   ```python
   # Consolidated BST training script for ShuttleSet
   # Replaces: bst_main.py, bst_main_summary_writer.py, bst_backbone_main.py
   ```
-- `bst_train.py:53-57`: refactor cross-ref to `scratch/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` (block comment preserved as-is below).
-- `bst_train.py:151`:
+- `bst_x_train.py:53-57`: refactor cross-ref to `scratch/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` (block comment preserved as-is below).
+- `bst_x_train.py:151`:
   ```python
   use_aux_schedule=True,    # Aggressive CG/AP annealing — matches preferred config from run_20260418_151139.
   ```
@@ -1166,9 +1166,9 @@ The `completed_general_refactors/` directory at `scratch/architecture_notes/comp
 
 **2026-04-26:** moved out of `src/` into `scratch/project_history/`:
 
-- `src/bst_refactor/deprecated/` → `scratch/project_history/bst_refactor_deprecated/`
-- `src/bst_refactor/ShuttleSet/deprecated/` → `scratch/project_history/shuttleset_deprecated/`
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/tmp/` → `scratch/project_history/main_on_shuttleset_tmp/`
+- `src/bst_x/deprecated/` → `scratch/project_history/bst_refactor_deprecated/`
+- `src/bst_x/ShuttleSet/deprecated/` → `scratch/project_history/shuttleset_deprecated/`
+- `src/bst_x/stroke_classification/main_on_shuttleset/tmp/` → `scratch/project_history/main_on_shuttleset_tmp/`
 
 The relocated trees include:
 - The original BST author's pre-phase-1 scripts (`gen_my_dataset.py`, `get_each_class_total.py`, etc.).

@@ -6,7 +6,7 @@ Cross-references video durations from ffprobe against YouTube metadata
 Usage:
     python scripts/validate_videos.py \
         --video-dir /scratch/comp320a-data \
-        --match-csv src/bst_refactor/ShuttleSet/set/match.csv \
+        --match-csv src/bst_x/ShuttleSet/set/match.csv \
         --cache-file youtube_durations.csv \
         --tolerance 5
 """

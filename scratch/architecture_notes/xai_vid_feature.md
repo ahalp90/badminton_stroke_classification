@@ -107,7 +107,7 @@ Risk that survives: the `_pos.npy` existence check at stage A.5 runs against eng
 The training data was collated from sticky_anchor's per-frame slot pick. For the overlay to show "what the model received", we draw that exact slot. If the chosen-slot record isn't recoverable, fallback is rendering both detection slots (with one of them being the visual hitter).
 
 - Check: `ls /scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor/` to see file naming. Look for a per-clip `*_chosen_slot.npy` or `*_slot.npy` or `*_ndet.npy` (the per-frame detection count, which alongside bbox proximity to court pos may be enough to back out the slot).
-- Code check: `src/bst_refactor/preparing_data/apply_heuristic.py` (the sticky_anchor entrypoint per memory) for whether it writes a chosen-slot sidecar.
+- Code check: `src/bst_x/preparing_data/apply_heuristic.py` (the sticky_anchor entrypoint per memory) for whether it writes a chosen-slot sidecar.
 
 If absent, fallback rendering shows both slots faded equally; attribution still maps onto the slot that fed the model (the one indexed by `n_players` axis in JnB), we just lose the visual disambiguation.
 
@@ -118,7 +118,7 @@ Verified during scoping. Recorded here for reference:
 - `POSE_BONE_MULTIPLIER['JnB_bone'] = 1` (`preparing_data/shuttleset_dataset.py:25`).
 - `get_bone_pairs('coco')` returns 19 ordered pairs (`shuttleset_dataset.py:28-40`): head (5 pairs), ears-to-shoulders (2), arms (4), torso (4), legs (4).
 - `create_bones` (`shuttleset_dataset.py:79-89`) produces `(t, m, 19, 2)` bone tensors, zeroed where either endpoint joint is zero (sentinel for missing).
-- In-dim layout in the flat model input: `[joints (17 × 2)][bones (19 × 2)]` per (frame, player). Source: training-loop reshape at `bst_train.py:239` applied to a tensor whose shape ends in `(..., J+B=36, 2)`.
+- In-dim layout in the flat model input: `[joints (17 × 2)][bones (19 × 2)]` per (frame, player). Source: training-loop reshape at `bst_x_train.py:239` applied to a tensor whose shape ends in `(..., J+B=36, 2)`.
 
 So `attr.reshape(B, T, n_players, 36, 2)` gives a clean unflattened tensor for downstream per-joint / per-bone slicing.
 
@@ -284,12 +284,12 @@ Optional polish (defer unless quick):
 
 ### Read-only references
 
-- `src/bst_refactor/stroke_classification/model/bst.py` (forward + CG/AP buffers).
-- `src/bst_refactor/stroke_classification/model/tempose.py` (attention impl).
-- `src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py` (POSE_BONE_MULTIPLIER, get_bone_pairs, create_bones).
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py:239` (view-flatten that defines in_dim layout).
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/manifest.yaml`.
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/predictions/serial_5.pt`.
+- `src/bst_x/stroke_classification/model/bst.py` (forward + CG/AP buffers).
+- `src/bst_x/stroke_classification/model/tempose.py` (attention impl).
+- `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py` (POSE_BONE_MULTIPLIER, get_bone_pairs, create_bones).
+- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py:239` (view-flatten that defines in_dim layout).
+- `src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/manifest.yaml`.
+- `src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/predictions/serial_5.pt`.
 - `/scratch/comp320a/ShuttleSet/clips/**.mp4` (engelbart-only).
 - `/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor/{stem}_raw_kps.npy` + siblings.
 - `/scratch/comp320a/ShuttleSet/shuttle_npy_flat/{stem}.npy`.

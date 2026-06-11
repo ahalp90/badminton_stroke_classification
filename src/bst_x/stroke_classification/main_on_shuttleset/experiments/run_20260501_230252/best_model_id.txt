@@ -1,0 +1,118 @@
+Best model of run_20260501_230252/ - #4
+  #4: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4.pt
+
+Pair-cap follow-up to the first CDB-F1 run (run_20260501_164658).
+Same config plus a cap on smash and wrist_smash at ratio 0.7.
+
+The cap forces alpha[smash] >= 0.7 * alpha[wrist_smash] each
+epoch, after the standard renormalisation. Whatever bump is
+needed to lift alpha[smash] to the threshold gets subtracted
+uniformly from the other 12 classes, so mean alpha stays 1.0.
+Reason it exists: scalar CDB-F1 alpha tracks per-class F1 but
+can't see pair confusion. When ws gets high alpha (because its
+F1 is low), the gradient pushes the model toward predicting ws
+over smash on the ambiguous samples. The cap was supposed to
+claw back the 5.5% smash lost in run_20260501_164658 while ws
+held within 1% of its +4% lift.
+
+Hparams:
+  taxonomy=une_merge_v1_nosides, split_column=split_v2,
+  drop_unknown=True, n_epochs=80, warm_up_step=100,
+  early_stop_n_epochs=40, scheduler num_cycles=0.5, lr=5e-4,
+  batch_size=128, use_aux_schedule=True, aux_fade_end_epoch=15,
+  label_smoothing=0.0,
+  class_weights=None,
+  adaptive_focal={tau:1.0, gamma:1.0, momentum:0.9,
+                  warm_up_epochs:5, f1_floor:0.0,
+                  pair_caps:[{numer:smash, denom:wrist_smash,
+                              ratio:0.7}]}.
+  ablation_id=None
+  (resolves to une_merge_v1_nosides_split_v2_dropunk).
+
+The cap didn't pay off. Smash lifted 1.2% on the first CDB-F1
+run, but ws gave back 5.2%. The hope was smash +2-4% with ws
+holding within 1%; neither half worked. Macro and accuracy
+stayed flat because the trade cancelled out.
+
+Per-serial (num_strokes=4202, 14 classes, 5 seeds):
+  - Serial 4: top macro 0.748, top acc 0.767, top-2 0.933, ws
+    0.418 (mid-pack). Best by head metrics, flagged.
+  - Serial 1: macro 0.745, ws 0.426 (run-high), acc 0.764,
+    top-2 0.936.
+  - Serial 2: macro 0.738, ws 0.424, acc 0.755, top-2 0.928,
+    smash 0.597 (run-low).
+  - Serial 3: macro 0.735, ws 0.357 (run-low), acc 0.762,
+    top-2 0.938, smash 0.646 (run-high).
+  - Serial 5: macro 0.734, ws 0.427, acc 0.754, top-2 0.937,
+    smash 0.563 (run-low).
+
+Mean across 5: macro 0.7402, min 0.4105, acc 0.7604, top-2 0.9344.
+
+Vs first CDB-F1 run_20260501_164658 mean
+(0.7432 / 0.4621 / 0.7617 / 0.9351):
+  macro -0.3, min -5.2, acc -0.1, top-2 -0.1.
+
+Vs class-weighted run_20260501_110525 mean
+(0.7478 / 0.4221 / 0.7695 / 0.9360):
+  macro -0.8, min -1.2, acc -0.9, top-2 -0.2.
+
+Vs LS=0.15 run_20260501_073430 mean
+(0.7471 / 0.4168 / 0.7686 / 0.9378):
+  macro -0.7, min -0.6, acc -0.8, top-2 -0.3.
+
+Per-class shifts vs the first CDB-F1 run: smash +1.2%, drive
++1.5%, passive_drop +1.7%, cross_court_net_shot +1.3%, drop
++0.4%, net_shot +0.1%, ws -5.2%, rush -2.7%, long_service -0.7%,
+return_net -0.5%, push -0.4%, clear -0.4%, lob -0.3%,
+short_service -0.2%.
+
+Wrist_smash range: 0.357 to 0.427 (range 0.071). First CDB-F1
+range was 0.413 to 0.486 (range 0.073). Roughly the same width;
+all five seeds shifted ~5% lower as a group. Smash range: 0.563
+to 0.646 (range 0.083); first CDB-F1 was 0.570 to 0.615 (range
+0.045). Smash widened a bit: the cap forces alpha[smash] up
+every epoch, but smash F1 ends up wherever each seed's training
+trajectory takes it.
+
+S4 cost check: ws on S4 sits at 0.418, 0.7 above the within-run
+ws mean of 0.411 (S4 was the second-highest ws after S1's
+0.426 and S5's 0.427). Smash on S4 0.629 sits 2.0 above run mean
+of 0.609. So S4 picked up extra smash without giving back ws.
+The run-level mean shows the cap traded ws for smash overall,
+just not on this seed.
+
+Summary: nothing on CDB has improved meaningfully over the base
+gamma=1 / tau=1 settings from run_20260501_164658. Class
+weights, the gamma sweep, the tau sweep, and the pair-cap have
+all landed within seed variance of (or below) those base means.
+The space left to search is gamma=2 (more aggressive per-example
+modulator) or Seesaw-F1 (full pair-aware mitigation matrix).
+
+TensorBoard run folders (in tb/):
+  S1: serial_1  (run-high ws, mid macro)
+  S2: serial_2  (low macro, run-low smash)
+  S3: serial_3  (run-low ws, run-high smash)
+  S4: serial_4  (flagged best, top macro / acc)
+  S5: serial_5  (run-low macro / smash, mid ws)
+
+=== Serial 4 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4  F1-score
+avg                                                Avg                                    0.75
+min                                                Min                                    0.42
+0                                 net_shot                                                0.90
+1                                 return_net                                              0.81
+2                                 smash                                                   0.63
+3                                 wrist_smash                                             0.42
+4                                 lob                                                     0.77
+5                                 clear                                                   0.95
+6                                 drive                                                   0.63
+7                                 drop                                                    0.66
+8                                 passive_drop                                            0.69
+9                                 push                                                    0.65
+10                                rush                                                    0.76
+11                                cross_court_net_shot                                    0.69
+12                                short_service                                           0.97
+13                                long_service                                            0.95
+Accuracy: 0.767
+Top2 Accuracy: 0.933

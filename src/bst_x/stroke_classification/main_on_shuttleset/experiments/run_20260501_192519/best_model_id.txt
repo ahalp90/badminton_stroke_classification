@@ -1,0 +1,109 @@
+Best model of run_20260501_192519/ - #2
+  #2: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
+
+Follow-up to the first CDB-F1 run (run_20260501_164658), tau softened
+from 1 to 0.5; alpha range narrows from ~0.20-1.80 at tau=1 to
+~0.48-1.44. Ran on engelbart alongside bourbaki's gamma=0 follow-up
+run_20260501_192113. Combo A (une_merge_v1_nosides + split_v2 +
+dropunk), label_smoothing=0.0, class_weights=None, adaptive_focal=
+{tau:0.5, gamma:1, momentum:0.9, warm_up_epochs:5, f1_floor:0}.
+Wanted to check if the alpha shape itself was costing the easy
+classes.
+
+Hparams:
+  taxonomy=une_merge_v1_nosides, split_column=split_v2,
+  drop_unknown=True, n_epochs=80, warm_up_step=100,
+  early_stop_n_epochs=40, scheduler num_cycles=0.5, lr=5e-4,
+  batch_size=128, use_aux_schedule=True, aux_fade_end_epoch=15,
+  label_smoothing=0.0,
+  class_weights=None,
+  adaptive_focal={tau:0.5, gamma:1.0, momentum:0.9,
+                  warm_up_epochs:5, f1_floor:0.0}.
+  ablation_id=None
+  (resolves to une_merge_v1_nosides_split_v2_dropunk).
+
+Result: head metrics (macro / acc / top-2) match or slightly beat
+the first run, but the wrist_smash gain is gone: mean ws 0.412 sits
+roughly back at class-weighted's 0.422. Smash, drive, passive_drop,
+rush all picked up; push gave back its +6.7% pickup from the first
+run.
+
+  S2 best by macro / acc / top-2: top macro 0.753, top acc 0.772,
+  top-2 0.940. Run-low ws 0.367 on the same seed, so it's a
+  head-metric flag rather than a ws flag. Top-of-run ws on S5
+  (0.447) but with middling macro.
+
+Per-serial (num_strokes=4202, 14 classes, 5 seeds):
+  - Serial 1: macro 0.743, min 0.394, acc 0.764, top-2 0.936.
+    Mid-run on every metric.
+  - Serial 2: top macro 0.753, top acc 0.772, top-2 0.940, smash
+    0.670 (run-top), rush 0.803 (run-top), short_service 0.988
+    (run-top). Min ws 0.367 (run-low). Flagged best.
+  - Serial 3: macro 0.744, min 0.419, acc 0.768, drop 0.674
+    (run-top), passive_drop 0.709 (run-top).
+  - Serial 4: macro 0.742, min 0.433, acc 0.764, lob 0.790
+    (run-top).
+  - Serial 5: macro 0.744, top min 0.447, acc 0.765, top top-2
+    0.941, return_net 0.846 (run-top).
+
+Mean across 5: macro 0.7452, min 0.4119, acc 0.7665, top-2 0.9389.
+
+Vs the first CDB-F1 run mean
+(0.7432 / 0.4621 / 0.7617 / 0.9351):
+  macro +0.2, min -5.0, acc +0.5, top-2 +0.4.
+
+Vs class-weighted run_20260501_110525 mean
+(0.7478 / 0.4221 / 0.7695 / 0.9360):
+  macro -0.3, min -1.0, acc -0.3, top-2 +0.3.
+
+Vs LS=0.15 run_20260501_073430 mean
+(0.7471 / 0.4168 / 0.7686 / 0.9378):
+  macro -0.2, min -0.5, acc -0.2, top-2 +0.1.
+
+Per-class shifts vs the first run: drive +2.8, smash +2.3,
+passive_drop +1.1, rush +1.1, net_shot / return_net / services
++0.6 each, lob +0.4, cross_court +0.3, drop -0.3, clear -0.5,
+long_service -0.7, push -0.7, wrist_smash -5.0.
+
+Wrist_smash range across 5 seeds: 0.367-0.447 (range 0.080). First
+run was 0.413-0.486 (range 0.073); spread similar but the band
+shifts down ~5%. S2's top-of-run macro 0.753 matches the first
+run's S2 0.753 exactly, so head capacity didn't move; it just shifted
+off the bottleneck classes onto the easier ones.
+
+With bourbaki's gamma=0 follow-up (run_20260501_192113), both runs
+point the same way: the first run's wrist_smash gain came from both
+the aggressive tau=1 alpha and the gamma=1 modulator. Pull either
+and ws drops back. The first run stays the wrist_smash default; next
+is pair-cap CDB on smash (~10 LOC) to address the pair-confusion
+residual directly.
+
+TensorBoard run folders (in tb/):
+  S1: serial_1  (mid-run on every metric)
+  S2: serial_2  (flagged best, top macro / acc / top-2 / smash /
+                 rush / short_service; run-low ws 0.367)
+  S3: serial_3  (run-top drop, run-top passive_drop)
+  S4: serial_4  (run-top lob)
+  S5: serial_5  (top ws 0.447, top top-2, run-top return_net)
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2  F1-score
+avg                                                Avg                                    0.75
+min                                                Min                                    0.37
+0                                 net_shot                                                0.90
+1                                 return_net                                              0.82
+2                                 smash                                                   0.67
+3                                 wrist_smash                                             0.37
+4                                 lob                                                     0.78
+5                                 clear                                                   0.96
+6                                 drive                                                   0.62
+7                                 drop                                                    0.67
+8                                 passive_drop                                            0.70
+9                                 push                                                    0.67
+10                                rush                                                    0.80
+11                                cross_court_net_shot                                    0.63
+12                                short_service                                           0.99
+13                                long_service                                            0.98
+Accuracy: 0.772
+Top2 Accuracy: 0.940

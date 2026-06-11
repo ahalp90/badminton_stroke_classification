@@ -31,7 +31,7 @@ Walk the current engelbart flat dir, compute per-clip MMPose fail rate from each
 
 ### Design
 
-Reuse the scan structure in `src/bst_refactor/validation_scripts/validate_zeroed_frames.py`:
+Reuse the scan structure in `src/bst_x/validation_scripts/validate_zeroed_frames.py`:
 - That script already iterates `clips_master.csv`, filters by taxonomy (applies merge_map / standalone_set), and derives split from the `split_column` argument.
 - For each clip that survives filtering, it loads `{flat_dir}/{clip_stem}_failed.npy` and computes the fail rate.
 - We lean on the same pattern but write a smaller script that focuses on emitting the stem list rather than printing analysis.
@@ -88,7 +88,7 @@ Run MMPose 2D pose estimation on a clip-stem subset, without applying any court 
 ### Design
 
 Sibling module to `prepare_train_on_shuttleset.py`, lives at:
-`src/bst_refactor/stroke_classification/preparing_data/raw_extract.py`
+`src/bst_x/stroke_classification/preparing_data/raw_extract.py`
 
 Mirrors the structure of `prepare_2d_dataset_npy_from_raw_video` (line 526 in `prepare_train_on_shuttleset.py`) but:
 
@@ -230,14 +230,14 @@ Per `reference_venv_paths` memory: BST/TrackNet venv on engelbart. Same venv use
 New files created:
 
 - `scripts/find_busted_clips.py` (~30-40 lines).
-- `src/bst_refactor/stroke_classification/preparing_data/raw_extract.py` (~120-160 lines; structural clone of `prepare_2d_dataset_npy_from_raw_video` plus the padded-array save logic).
+- `src/bst_x/stroke_classification/preparing_data/raw_extract.py` (~120-160 lines; structural clone of `prepare_2d_dataset_npy_from_raw_video` plus the padded-array save logic).
 - `scratch/architecture_notes/busted_whole_clips_phase1.txt` (materialized by running Task A; one stem per line).
 
 Intentionally NOT created today:
 
-- `src/bst_refactor/stroke_classification/preparing_data/apply_heuristic.py` — follow-up.
-- `src/bst_refactor/stroke_classification/preparing_data/heuristics/` package — follow-up.
-- Any modification to `prepare_train_on_shuttleset.py`, `collate_npy`, `bst_train.py`, `bst_infer.py`, `shuttleset_dataset.py`, or `pipeline/`.
+- `src/bst_x/stroke_classification/preparing_data/apply_heuristic.py` — follow-up.
+- `src/bst_x/stroke_classification/preparing_data/heuristics/` package — follow-up.
+- Any modification to `prepare_train_on_shuttleset.py`, `collate_npy`, `bst_x_train.py`, `bst_x_infer.py`, `shuttleset_dataset.py`, or `pipeline/`.
 
 ## Verification checklist before closing the session
 
@@ -253,10 +253,10 @@ Intentionally NOT created today:
 
 ## Sanity references
 
-- MMPose result structure: `src/bst_refactor/stroke_classification/preparing_data/prepare_train_on_shuttleset.py:261-292`.
+- MMPose result structure: `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py:261-292`.
 - Resume marker pattern: same file, line 566 (`if not Path(save_branch + "_failed.npy").exists():`).
 - GPU cleanup: same file, lines 589-590.
-- Clip scanning / filtering logic to reuse in the scanner: `src/bst_refactor/validation_scripts/validate_zeroed_frames.py:175-280`.
+- Clip scanning / filtering logic to reuse in the scanner: `src/bst_x/validation_scripts/validate_zeroed_frames.py:175-280`.
 - Homography + projection code (NOT called in raw_extract, but referenced in the parent plan's sticky_anchor math): `prepare_train_on_shuttleset.py:100-154` (`get_court_info`, `to_court_coordinate`, `normalize_position`).
 
 ## What follows (not today)
@@ -354,12 +354,12 @@ Raw extraction for Phase 1 is done. This section records what actually happened,
 1. Wrote `scripts/find_busted_clips.py`. First pass used the plan's whole-clip `fail_rate > 0.50` criterion, emitted **222 stems**, split 143/45/34 train/val/test. (Plan guessed 110/49/33 from an older analysis; total matched, split ratios didn't.)
 2. Clarified that the intended criterion was the **hit-zone fail rate** (matches the `hit_zone_heatmap` filter in `validate_zeroed_frames.py`), not whole-clip. Added `--hit-zone`, `--set-dir`, `--video-metadata-csv`, `--hit-window` flags. Kept whole-clip as the default mode so the flag doesn't change existing behaviour.
 3. Re-ran the scanner with `--hit-zone --hit-window 10 --exclude-unknown`. Emitted **1,716 stems**. This is the canonical Phase 1 busted set from here on. The 222-stem whole-clip list is retained as a historical artefact at `scratch/architecture_notes/busted_whole_clips_phase1.txt`; the canonical hit-zone list lives at `scratch/architecture_notes/busted_hit_zone_clips_phase1.txt`.
-4. Wrote `src/bst_refactor/stroke_classification/preparing_data/raw_extract.py`. Five-array schema (`_raw_kps`, `_raw_bboxes`, `_raw_scores`, `_raw_kp_scores`, `_raw_ndet`), NaN padding, int8 `ndet`, `_raw_ndet.npy` as the resume marker. `--inspect-result` and `--dry-run` flags for pre-flight verification. End-of-run summary prints the unique list of clips that triggered over-detection warnings (survives tmux scrollback truncation).
+4. Wrote `src/bst_x/stroke_classification/preparing_data/raw_extract.py`. Five-array schema (`_raw_kps`, `_raw_bboxes`, `_raw_scores`, `_raw_kp_scores`, `_raw_ndet`), NaN padding, int8 `ndet`, `_raw_ndet.npy` as the resume marker. `--inspect-result` and `--dry-run` flags for pre-flight verification. End-of-run summary prints the unique list of clips that triggered over-detection warnings (survives tmux scrollback truncation).
 5. Initial extract ran at `N_max = 8` against the 222-clip whole-clip list. Completed successfully, but **193 of 222 clips** triggered the over-detection cap (87%). Plan said "basically never fires"; that was true for the full 33k corpus, not for the busted subset which is specifically over-represented in crowded-frame clips.
 6. Preserved the N=8 extract at `/scratch/.../dataset_npy_between_2_hits_with_max_limits_flat_raw_phase1_n8/` for optional later diffing against N=16 on the stems where the two lists overlap.
 7. Re-extracted the 1,716-clip hit-zone list at `N_max = 16` to `/scratch/.../dataset_npy_between_2_hits_with_max_limits_flat_raw_phase1/`. At N=16 only 0.79% of frames (~780 / ~98k) hit the cap; raising further isn't needed.
 8. Rsynced the canonical raw extract back to local for heuristic iteration.
-9. Added `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/summarise_raw_ndet.py` as a diagnostic helper (per-clip and aggregate detection-count breakdown, with optional `bbox_score` filter for "likely real persons"). Not in the plan as-written; added to quantify the over-detection picture.
+9. Added `src/bst_x/validation_scripts/mmpose_heuristic_investigation/summarise_raw_ndet.py` as a diagnostic helper (per-clip and aggregate detection-count breakdown, with optional `bbox_score` filter for "likely real persons"). Not in the plan as-written; added to quantify the over-detection picture.
 
 ### Divergences from the plan as-written
 
@@ -370,7 +370,7 @@ Raw extraction for Phase 1 is done. This section records what actually happened,
 | Expected split 110/49/33 | 143/45/34 on whole-clip (222 total); hit-zone split not yet tabulated | Old analysis input; the total was the load-bearing figure. |
 | `N_max = 8` is safe | N=8 hit on 193/222 (87%) of whole-clip run; bumped to 16 | Busted subset is crowded-frame-heavy. At N=16, <1% of frames truncate. |
 | Clips dir at `/scratch/comp320a/ShuttleSet_data_merged_25/ShuttleSet/clips` | Actual: `/scratch/comp320a/ShuttleSet/clips` | Plan's nested path was a wrong guess; `--clips-dir` override was the intended correction point. |
-| `set/` + `video_metadata.csv` under `/scratch` | Actual: repo-tracked under `src/bst_refactor/ShuttleSet/` | These files are committed to git, not symlinked out to `/scratch` like `clips/` / `raw_video/` / `shuttle_csv/` / `shuttle_npy/`. |
+| `set/` + `video_metadata.csv` under `/scratch` | Actual: repo-tracked under `src/bst_x/ShuttleSet/` | These files are committed to git, not symlinked out to `/scratch` like `clips/` / `raw_video/` / `shuttle_csv/` / `shuttle_npy/`. |
 | Two new files (scanner + extractor) | Three: added `summarise_raw_ndet.py` | Needed to quantify ndet distribution after the N=8 warnings fired. |
 | No end-of-run warning summary | Added a unique-clip summary at end of raw_extract run | tmux scrollback can lose per-clip warnings; end-of-run survives. |
 
@@ -384,10 +384,10 @@ Raw extraction for Phase 1 is done. This section records what actually happened,
 ### Artefacts produced
 
 New files on local (not yet committed):
-- `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/find_busted_clips.py` (+ `--hit-zone` / `--set-dir` / `--video-metadata-csv` / `--hit-window` flags).
-- `src/bst_refactor/stroke_classification/preparing_data/raw_extract.py`.
-- `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/summarise_raw_ndet.py`.
-- `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/diagnose_top_k_capture.py` and `render_detection_overlays.py` (added later in the session as the sticky_anchor selector design developed).
+- `src/bst_x/validation_scripts/mmpose_heuristic_investigation/find_busted_clips.py` (+ `--hit-zone` / `--set-dir` / `--video-metadata-csv` / `--hit-window` flags).
+- `src/bst_x/stroke_classification/preparing_data/raw_extract.py`.
+- `src/bst_x/validation_scripts/mmpose_heuristic_investigation/summarise_raw_ndet.py`.
+- `src/bst_x/validation_scripts/mmpose_heuristic_investigation/diagnose_top_k_capture.py` and `render_detection_overlays.py` (added later in the session as the sticky_anchor selector design developed).
 
 On engelbart (not yet committed):
 - `scratch/architecture_notes/busted_whole_clips_phase1.txt` (222 stems, whole-clip).
@@ -417,7 +417,7 @@ Raw extract also synced to local for heuristic iteration (path is per-machine; n
 - Player-dominance-by-size/centrality confirmed by user audit; area + centre-distance are reliable signals.
 - 5 clips with 100% zeroed hit-zones have been rsynced for visual inspection; findings pending.
 - The 222 vs 1,716 scope change means the heuristic runs over 7.7x more clips than originally scoped; storage and I/O still trivial at N=16 (under 1 GB for the full raw set).
-- Homography is calibrated to the outer (doubles) taped court. Current `eps = 0.01` filter gives only ~6 cm sideline / ~13 cm baseline of slack, ~1/8 to 1/20 of real in-play overflow. See `mmpose_heuristic_investigation.md` "Court-space geometry and buffer sizing (2026-04-22)" for the full audit including overlay PNG reference (`src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/homography_overlay_3_1_18_3_f032.png`).
+- Homography is calibrated to the outer (doubles) taped court. Current `eps = 0.01` filter gives only ~6 cm sideline / ~13 cm baseline of slack, ~1/8 to 1/20 of real in-play overflow. See `mmpose_heuristic_investigation.md` "Court-space geometry and buffer sizing (2026-04-22)" for the full audit including overlay PNG reference (`src/bst_x/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/homography_overlay_3_1_18_3_f032.png`).
 
 ### Design stance: irrecoverable clips
 

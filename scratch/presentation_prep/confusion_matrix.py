@@ -1,7 +1,7 @@
 """Confusion matrix render for the supervisor presentation.
 
 Reads a per-split predictions npz (``<split>_serial_<n>.npz`` produced by
-``bst_train`` at end-of-serial, or post-hoc by ``bst_infer --fe``) and renders a
+``bst_x_train`` at end-of-serial, or post-hoc by ``bst_x_infer --fe``) and renders a
 dual-panel confusion matrix: precision-normalised (columns sum to 1) and
 recall-normalised (rows sum to 1). Class order is performance-ascending by
 per-class F1 so the smash / wrist_smash pair sits at the bottom-left.
@@ -12,7 +12,7 @@ The 'Blues' colourmap is a single-hue sequential, universally readable
 Usage::
 
     python scratch/presentation_prep/confusion_matrix.py \\
-        --predictions src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_<id>/predictions/test_serial_5.npz
+        --predictions src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_<id>/predictions/test_serial_5.npz
 """
 from __future__ import annotations
 
@@ -94,7 +94,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--predictions", type=Path, required=True,
                         help="Path to a predictions/<split>_serial_<n>.npz dumped by "
-                             "bst_train (end-of-serial) or bst_infer --fe")
+                             "bst_x_train (end-of-serial) or bst_x_infer --fe")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT_PATH)
     parser.add_argument("--figsize", type=str, default="20,9",
                         help="W,H in inches; bump for taxonomies with many classes (e.g. 28,13 for ~24)")

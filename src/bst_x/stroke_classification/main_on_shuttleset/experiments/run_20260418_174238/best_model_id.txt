@@ -1,0 +1,33 @@
+Best model of run_20260418_174238/ - #3
+  #3: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_3.pt
+
+Run A: paired control with CG/AP on throughout (no annealing), 80-epoch schedule:
+  n_epochs=80, warm_up_step=100, early_stop_n_epochs=40,
+  scheduler num_cycles=0.5, lr=5e-4, batch_size=128,
+  use_aux_schedule=False.
+First run under the run_tracker-era bst_train.py.
+
+Purpose: test whether CG/AP contribute anything under the retuned LR, or whether
+run_20260418_151139's slight macro F1 lift was the fade itself vs. just the shorter
+schedule. Macro F1 mean 0.826 vs 0.829 for the annealed run (18_15): within noise.
+Supports the hypothesis that CG/AP aren't actually doing much under the retuned LR.
+
+Metric split:
+  - Serial 3: best macro F1 (0.828, tied with S2 but with stronger min F1 0.603).
+  - Serial 2: top accuracy (0.851) but min F1 0.538, same lucky-accuracy pattern
+    as 18_15 S2. Included for reference but not tracked.
+
+TensorBoard run folders (in tb/):
+  S1: serial_1  (best min F1)
+  S2: serial_2  (top accuracy, weakest min F1)
+  S3: serial_3  (best macro F1)
+  S4: serial_4
+  S5: serial_5
+
+=== Serial 3 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_3) ===
+Test (num_strokes: 3486) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...
+F1-score                                           0.828 0.603
+Accuracy: 0.844
+Top2 Accuracy: 0.963

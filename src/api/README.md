@@ -26,7 +26,7 @@ What's not built yet:
 | `inference.py` | **Stub** `run_inference(video_path, model_name)` — returns hardcoded mock predictions after a 3-second sleep so the frontend's polling loop exercises end-to-end. To be replaced with a handler dispatcher. |
 | `jobs.py` | `JobStore`: in-memory job state map with thread lock, `JobStatus` enum (queued/processing/complete/failed), `Job` dataclass. Lost on process restart — SQLite-backed replacement is future work. |
 | `registry.py` | Tier 1 read-only registry endpoints. Loads `docs/models_registry.yaml` + each entry's `manifest.yaml`, serves sidecar JSONs (predictions, per-class stats, clip_index). Mounted via `app.include_router` under `/api` prefix. |
-| `config.py` | Env-driven config: `REPO_ROOT`, `REGISTRY_PATH`, `BST_CLIPS_DIR`, `UPLOAD_DIR`, `MAX_FILE_SIZE_MB`, `ALLOWED_EXTENSIONS`, `EXPERIMENTS_DIR`, job TTL + cleanup interval. |
+| `config.py` | Env-driven config: `REPO_ROOT`, `REGISTRY_PATH`, `BST_X_CLIPS_DIR`, `UPLOAD_DIR`, `MAX_FILE_SIZE_MB`, `ALLOWED_EXTENSIONS`, `EXPERIMENTS_DIR`, job TTL + cleanup interval. |
 
 ## Routes
 
@@ -49,7 +49,7 @@ What's not built yet:
 | `GET` | `/api/registry/<model_id>/splits/<split>/stats` | Per-class metrics for the chosen split. |
 | `GET` | `/api/registry/<model_id>/splits/<split>/clips` | Paginated + filterable list of per-clip prediction summaries (`limit`, `offset`, `true_class`, `predicted_class`, `errors_only`). |
 | `GET` | `/api/registry/<model_id>/splits/<split>/clips/<stem>` | Single clip's full prediction detail. |
-| `GET` | `/api/clips/<stem>/video` | Stream the source mp4 (resolves under `BST_CLIPS_DIR`; 404 with helpful message when unset). |
+| `GET` | `/api/clips/<stem>/video` | Stream the source mp4 (resolves under `BST_X_CLIPS_DIR`; 404 with helpful message when unset). |
 
 ## Import rules (target state)
 

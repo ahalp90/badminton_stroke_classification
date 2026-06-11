@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS players (
 CREATE TABLE IF NOT EXISTS jobs (
     job_id        TEXT PRIMARY KEY,
     video_sha256  TEXT NOT NULL,         -- content hash for cache lookup
-    handler       TEXT NOT NULL,         -- "bric" / "bst" / "mock"
+    handler       TEXT NOT NULL,         -- "bric" / "bst-x" / "mock"
     run_id        TEXT,                  -- model checkpoint id (cache invalidation key)
     submitted_at  TIMESTAMP NOT NULL,
     completed_at  TIMESTAMP,

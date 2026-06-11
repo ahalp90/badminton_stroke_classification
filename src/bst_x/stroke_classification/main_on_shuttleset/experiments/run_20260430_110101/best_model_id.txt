@@ -1,0 +1,110 @@
+Best model of run_20260430_110101/ - #4
+  #4: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_4.pt
+
+Phase 2 sanity train, run 2 of 3 (combo B: une_merge_v1 + split_v2
++ dropunk) on the unified sticky_anchor mmpose clean dir over the
+full 32,203-stem extract. Direct apples-to-apples vs Phase-1 V4
+baseline run_20260420_171101 (same combo, same hparams).
+
+Hparams:
+  taxonomy=une_merge_v1, split_column=split_v2,
+  drop_unknown=True, n_epochs=80, warm_up_step=100,
+  early_stop_n_epochs=40, scheduler num_cycles=0.5, lr=5e-4,
+  batch_size=128, use_aux_schedule=True, aux_fade_end_epoch=15.
+  ablation_id=None (resolves to une_merge_v1_split_v2_dropunk).
+
+Metric split (num_strokes=4202, 28 classes):
+  - Serial 4: top macro (0.743), top accuracy (0.770), top top-2
+    (0.944). Flagged. Min 0.245 (Top_wrist_smash).
+  - Serial 2: top min (0.373, Top_wrist_smash). Macro 0.735, acc
+    0.764, top-2 0.938. Min metric is dominated by ~600-sample
+    class with high seed variance, so not the gate here.
+  - Serial 5: balanced (macro 0.740, min 0.347, acc 0.767).
+  - Serial 3: macro 0.741, weak min 0.312.
+  - Serial 1: weakest overall (min 0.309, macro 0.737).
+
+Mean across 5: macro 0.739, min 0.317, acc 0.766, top-2 0.938.
+
+Vs V4 baseline run_20260420_171101 mean (0.741 / 0.389 / 0.766 /
+0.936):
+  macro -0.002, min -0.072, acc -0.000, top-2 +0.002.
+
+**Mean min F1 dropped 7 pp from Phase-1 to Phase-2** despite
+cleaner pose data. Same direction as Phase-1 sticky_anchor mixed
+retrain (run_20260425_150548): macro / acc / top-2 hold steady,
+min F1 collapses because Top_wrist_smash gets worse with the
+cleaned pose data, not better. Per-serial Top_wrist_smash F1
+ranges 0.245-0.373; Bottom_wrist_smash ranges 0.427-0.508. Both
+wrist_smash sides are below their Phase-1 V4 numbers.
+
+Possible reasons (speculation, not verified):
+  - The sticky_anchor heuristic cleans noise that wrist_smash
+    happens to need to disambiguate from smash. Earlier per-class
+    frame-zeroing audit showed wrist_smash isn't in the
+    heavy-zeroing tail; the data-quality-bottleneck hypothesis is
+    already dead. So this is more likely about *which* signals
+    sticky_anchor preserves vs the previous heuristic, not how
+    many frames it zeroes.
+  - Top_wrist_smash has only ~605 training samples (per BST paper
+    Table F), so seed lottery dominates: per-serial range here is
+    0.128 (5x the seed range on combo C's min metric).
+
+Seed variance comparison:
+  combo B Phase-2 ranges: macro 0.008, min 0.128, acc 0.007,
+    top-2 0.011
+  combo B Phase-1 V4: macro / acc / top-2 ranges all reduced;
+    min variance widens here because Top_wrist_smash is now the
+    dominant noise source.
+
+Implication for the wider sanity-train arc: same sticky_anchor
+cleaning that lifts macro / accuracy slightly hurts wrist_smash
+specifically. Run 3 (combo A: une_merge_v1_nosides + split_v2)
+will be the cleanest test of whether collapsing the side prefix
+recovers the wrist_smash floor on Phase-2 data, the same way the
+Phase-1 collapsed-classes ablation (run_20260425_185421) recovered
+it from run_20260425_150548. Augmentation + focal loss / class
+weighting (per bst_x_overview.md "next steps") remains the
+expected fix.
+
+TensorBoard run folders (in tb/):
+  S1: serial_1  (weakest)
+  S2: serial_2  (top min, but dominated by small-support class)
+  S3: serial_3
+  S4: serial_4  (flagged best, top macro / acc / top-2)
+  S5: serial_5  (balanced)
+
+=== Serial 4 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_4) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_4  F1-score
+avg                                                Avg                            0.74
+min                                                Min                            0.24
+0                          Top_net_shot                                           0.89
+1                          Top_return_net                                         0.78
+2                          Top_smash                                              0.67
+3                          Top_wrist_smash                                        0.24
+4                          Top_lob                                                0.81
+5                          Top_clear                                              0.96
+6                          Top_drive                                              0.66
+7                          Top_drop                                               0.69
+8                          Top_passive_drop                                       0.63
+9                          Top_push                                               0.60
+10                         Top_rush                                               0.75
+11                         Top_cross_court_net_shot                               0.64
+12                         Top_short_service                                      0.98
+13                         Top_long_service                                       0.97
+14                         Bottom_net_shot                                        0.90
+15                         Bottom_return_net                                      0.81
+16                         Bottom_smash                                           0.68
+17                         Bottom_wrist_smash                                     0.43
+18                         Bottom_lob                                             0.78
+19                         Bottom_clear                                           0.98
+20                         Bottom_drive                                           0.62
+21                         Bottom_drop                                            0.68
+22                         Bottom_passive_drop                                    0.68
+23                         Bottom_push                                            0.61
+24                         Bottom_rush                                            0.74
+25                         Bottom_cross_court_net_shot                            0.66
+26                         Bottom_short_service                                   0.99
+27                         Bottom_long_service                                    0.97
+Accuracy: 0.770
+Top2 Accuracy: 0.944

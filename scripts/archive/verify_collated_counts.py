@@ -8,7 +8,7 @@ under any venv on engelbart or bourbaki.
 
 Run::
 
-    python src/bst_refactor/validation_scripts/verify_collated_counts.py
+    python src/bst_x/validation_scripts/verify_collated_counts.py
 
 Override the scratch root with ``--root /some/other/path`` if needed.
 Exits 0 on all-OK, 1 on any mismatch or missing path.

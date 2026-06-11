@@ -3,11 +3,11 @@
 Covers config parsing, kill rules, verdict computation, top-3 movers,
 reference promotion, requires evaluation, state IO with atomic write,
 search log rendering, resume reconciliation, and end-to-end cell flow
-via a monkeypatched bst_train shim.
+via a monkeypatched bst_x_train shim.
 
 Run from repo root::
 
-    PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \\
+    PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \\
         pytest tests/test_hparam_sweep.py -v
 """
 
@@ -35,7 +35,7 @@ CLASSES = [
 
 def make_metrics(macro: float, min_f1: float, accuracy: float = 0.76,
                  top2: float = 0.94, per_class: dict | None = None) -> dict:
-    """Build a metrics dict mirroring what bst_train writes to manifest.yaml."""
+    """Build a metrics dict mirroring what bst_x_train writes to manifest.yaml."""
     if per_class is None:
         # Default: spread classes around macro. Min class gets min_f1.
         per_class = {cls: macro for cls in CLASSES}
@@ -832,7 +832,7 @@ class TestRobustness:
     def test_bst_train_nonzero_marks_cell_failed_advances(self, tmp_path,
                                                           baseline_runs,
                                                           monkeypatch):
-        """A non-zero bst_train rc should fail this cell, not the session."""
+        """A non-zero bst_x_train rc should fail this cell, not the session."""
         config = make_session_config(cells=[
             {'name': 'crash_cell', 'augmentation': {'p_flip': 0.25}},
             {'name': 'next_cell', 'augmentation': {'cap_y': 0.075}},

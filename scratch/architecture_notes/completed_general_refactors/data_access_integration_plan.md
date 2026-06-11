@@ -15,7 +15,7 @@ Scope of his branch vs main (as of the ultimate commit):
 ```
  .env.example                             |  30 ++
  .gitignore                               |   2 +
- src/bst_refactor/pipeline/data_access.py | 452 +++++++
+ src/bst_x/pipeline/data_access.py | 452 +++++++
  tests/test_data_access.py                | 311 +++++
  4 files changed, 795 insertions(+)
 ```
@@ -56,7 +56,7 @@ worth keeping. What needs swapping is the backend that walks the filesystem
 and decides split/label — the public `get_clip_records(...)` + `ClipRecord`
 + `DataPaths` interface is perfectly fine.
 
-We also already have `src/bst_refactor/pipeline/clip_index.py`
+We also already have `src/bst_x/pipeline/clip_index.py`
 (commit `41f3487`, November 2026) which is a one-function subset
 (`build_clip_path_index(clips_dir) -> dict[str, Path]`) of what Curtis
 built. Ported properly, `data_access.py` could supersede the low-level
@@ -102,7 +102,7 @@ helper or complement it.
 
 | File on Curtis's branch | Port? | Notes |
 |---|---|---|
-| `src/bst_refactor/pipeline/data_access.py` (452 LOC) | **Port with rewrite** of the backend. API + CLI + TUI surface kept; filesystem-walk logic replaced with CSV-driven resolution. |
+| `src/bst_x/pipeline/data_access.py` (452 LOC) | **Port with rewrite** of the backend. API + CLI + TUI surface kept; filesystem-walk logic replaced with CSV-driven resolution. |
 | `tests/test_data_access.py` (311 LOC) | **Port with fake-fs updates**. Fake filesystems need the new layout (nested clips + flat shuttle + flat mmpose), and the split/class source changes from folder names to a synthetic CSV fixture. |
 | `.env.example` (30 LOC) | **Port as-is** with path examples updated for the current `shuttle_npy_flat` + flat mmpose convention. |
 | `.gitignore` additions | **Port** (ensures `.env` stays local). Two lines. |
@@ -110,8 +110,8 @@ helper or complement it.
 No file deleted on Curtis's branch, so no reverse-ports needed.
 
 On our side (to review during the port):
-- `src/bst_refactor/pipeline/clip_index.py` (62 LOC, committed at `41f3487`) — decide whether to keep, fold into `data_access.py`, or have `data_access.py` call it internally.
-- `src/bst_refactor/pipeline/config.py` — source of `CLIPS_OUTPUT_DIR`, `SHUTTLE_OUTPUT_DIR`, `TAXONOMIES`, `DEFAULT_TAXONOMY`, `Taxonomy`. Curtis imports these already; no change expected.
+- `src/bst_x/pipeline/clip_index.py` (62 LOC, committed at `41f3487`) — decide whether to keep, fold into `data_access.py`, or have `data_access.py` call it internally.
+- `src/bst_x/pipeline/config.py` — source of `CLIPS_OUTPUT_DIR`, `SHUTTLE_OUTPUT_DIR`, `TAXONOMIES`, `DEFAULT_TAXONOMY`, `Taxonomy`. Curtis imports these already; no change expected.
 - `notebooks/clips_master.csv` — the CSV that provides split + raw_type_en + player_side per clip_stem. Curtis's backend will read this instead of walking folders.
 
 ## Approach: port with a CSV-driven backend
@@ -123,7 +123,7 @@ Keep `DataPaths` and `ClipRecord` essentially unchanged. Rewrite
 so that it:
 
 1. Reads `clips_master.csv` once (path from `DataPaths`, defaulting to
-   `notebooks/clips_master.csv` via an env var like `BST_CLIPS_CSV` +
+   `notebooks/clips_master.csv` via an env var like `BST_X_CLIPS_CSV` +
    config default).
 2. Accepts a new `split_column` parameter (defaulting to
    `'split_bst_baseline'` for backward compat with Curtis's intent
@@ -156,10 +156,10 @@ directory tree uses.
 ```python
 @dataclass
 class DataPaths:
-    clips_dir: Path = field(default_factory=lambda: _env_path('BST_CLIPS_DIR', CLIPS_OUTPUT_DIR))
+    clips_dir: Path = field(default_factory=lambda: _env_path('BST_X_CLIPS_DIR', CLIPS_OUTPUT_DIR))
     shuttle_npy_dir: Path = field(default_factory=lambda: _env_path('BST_SHUTTLE_NPY_DIR', SHUTTLE_OUTPUT_DIR))
-    mmpose_npy_dir: Path | None = field(default_factory=lambda: _env_path_or_none('BST_MMPOSE_NPY_DIR'))
-    clips_csv: Path = field(default_factory=lambda: _env_path('BST_CLIPS_CSV', REPO_ROOT / 'notebooks' / 'clips_master.csv'))
+    mmpose_npy_dir: Path | None = field(default_factory=lambda: _env_path_or_none('BST_X_MMPOSE_NPY_DIR'))
+    clips_csv: Path = field(default_factory=lambda: _env_path('BST_X_CLIPS_CSV', REPO_ROOT / 'notebooks' / 'clips_master.csv'))
 
 
 def get_clip_records(
@@ -207,10 +207,10 @@ overrides always win. Curtis's `.env.example` is a good template;
 update the commented HPC paths to reflect post-Phase-2 layout:
 
 ```
-BST_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips
+BST_X_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips
 BST_SHUTTLE_NPY_DIR=/scratch/comp320a/ShuttleSet/shuttle_npy_flat
-BST_MMPOSE_NPY_DIR=/scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat
-BST_CLIPS_CSV=/home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+BST_X_MMPOSE_NPY_DIR=/scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat
+BST_X_CLIPS_CSV=/home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
 ```
 
 `.env` goes to `.gitignore` (per Curtis's branch). No secrets — just
@@ -238,7 +238,7 @@ changes.
 | Module | Current use | Post-integration |
 |---|---|---|
 | `pipeline/clip_index.py` | Low-level `{stem: Path}` index, used by nothing in-repo yet (designed for upcoming Arch 2 + Arch 1 wrist crop Datasets) | Unchanged. `data_access.py` calls it internally in `get_clip_records` when building the clips-on-disk side of the record. |
-| `pipeline/config.py` | Source of `CLIPS_OUTPUT_DIR`, `SHUTTLE_OUTPUT_DIR`, `TAXONOMIES`, `DEFAULT_TAXONOMY`, `Taxonomy` | No change. `data_access.py` imports these; new `BST_CLIPS_CSV` env var resolves via `data_access` only. |
+| `pipeline/config.py` | Source of `CLIPS_OUTPUT_DIR`, `SHUTTLE_OUTPUT_DIR`, `TAXONOMIES`, `DEFAULT_TAXONOMY`, `Taxonomy` | No change. `data_access.py` imports these; new `BST_X_CLIPS_CSV` env var resolves via `data_access` only. |
 | `preparing_data/prepare_train_on_shuttleset.py::collate_npy` | CSV-driven since Phase 1. Derives labels via `taxonomy.merge_map` + `standalone_set`, resolves flat per-clip files. | Could optionally call `data_access.get_clip_records()` for the clip enumeration step. Not required — it already has its own loop that works. Follow-up simplification, not blocking. |
 | `validation_scripts/validate_zeroed_frames.py::scan_clips` | CSV-driven since Phase 2. Iterates `clips_master.csv` directly. | Candidate for `data_access.get_clip_records()` refactor. Follow-up once `data_access` is ported. |
 | `validation_scripts/fail_rate_per_class.py::main` | CSV-driven since Phase 2. | Same candidate as above. |
@@ -248,13 +248,13 @@ changes.
 
 | File | Action |
 |---|---|
-| `src/bst_refactor/pipeline/data_access.py` | New file. ~500 LOC, same shape as Curtis's but CSV-driven backend. |
+| `src/bst_x/pipeline/data_access.py` | New file. ~500 LOC, same shape as Curtis's but CSV-driven backend. |
 | `tests/test_data_access.py` | New file. Port Curtis's tests; update fake filesystem + add synthetic `clips_master.csv` fixture. |
 | `.env.example` | New file at repo root. Based on Curtis's with paths updated for post-Phase-2 layout. |
 | `.gitignore` | Add `.env`. |
-| `src/bst_refactor/pipeline/README.md` | Add `data_access.py` row to the Module Reference table. Expand the "For Downstream Consumers" section to cover the CSV-aware API alongside the `clip_index.py` helper. |
-| `src/bst_refactor/data_pipeline_to_model_train.md` | Add a reference to `data_access.py` in the Stage 3 video-Dataset subsection (next to `clip_index.py`). |
-| `src/bst_refactor/pipeline/clip_index.py` | Cross-reference `data_access.py` in the module docstring. No code change. |
+| `src/bst_x/pipeline/README.md` | Add `data_access.py` row to the Module Reference table. Expand the "For Downstream Consumers" section to cover the CSV-aware API alongside the `clip_index.py` helper. |
+| `src/bst_x/data_pipeline_to_model_train.md` | Add a reference to `data_access.py` in the Stage 3 video-Dataset subsection (next to `clip_index.py`). |
+| `src/bst_x/pipeline/clip_index.py` | Cross-reference `data_access.py` in the module docstring. No code change. |
 
 ## Verification
 

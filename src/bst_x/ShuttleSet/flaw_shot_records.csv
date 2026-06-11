@@ -1,0 +1,30 @@
+match,set,rally,ball_round,stroke_type,reason,measure
+1,1,30,2,bottom_推球,serious error,removed
+3,2,12,2,bottom_長球,non-courtview,removed
+3,2,24,3,bottom_放小球,non-courtview,removed
+5,1,4,1,未知球種,time & frame_num not in order,modified
+5,1,9,1,未知球種,time & frame_num not in order,modified
+5,3,10,29,bottom_挑球,listed twice in original csv,modified
+5,3,26,12,挑球,time & frame_num not in order,modified
+5,3,26,13,未知球種,time & frame_num not in order,modified
+7,1,2,1,未知球種,time & frame_num not in order,modified
+7,1,23,2,bottom_推球,frame num gap,removed
+7,1,39,1,未知球種,time & frame_num not in order,modified
+7,1,39,2,bottom_推球,frame num gap,removed
+7,2,8,1,未知球種,time & frame_num not in order,modified
+7,2,18,1,未知球種,time & frame_num not in order,modified
+7,2,21,1,未知球種,time & frame_num not in order,modified
+7,2,22,1,未知球種,time & frame_num not in order,modified
+7,2,32,1,未知球種,time & frame_num not in order,modified
+9,0,0,0,whole,whole labeling incorrect,removed
+10,0,0,0,whole,whole labeling incorrect,removed
+11,1,34,1,未知球種,time & frame_num not in order,modified
+12,0,0,0,whole,all frame numbers incorrect,removed
+17,2,18,4,撲球,time & frame_num not in order,modified
+21,1,13,18,未知球種,time & frame_num not in order,modified
+27,0,0,0,whole,video removed,removed
+28,1,10,18,未知球種,time & frame_num not in order,modified
+28,1,33,27,未知球種,time & frame_num not in order,modified
+28,1,33,28,未知球種,time & frame_num not in order,modified
+34,1,19,18,未知球種,time & frame_num not in order,modified
+38,2,7,19,未知球種,time & frame_num not in order,modified

@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-EXPERIMENTS = REPO_ROOT / "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments"
+EXPERIMENTS = REPO_ROOT / "src/bst_x/stroke_classification/main_on_shuttleset/experiments"
 
 # Current best: aug v1 + p_jitter=0.3 (project min-F1 high).
 AUG_V1_RUN = "run_20260505_154907"

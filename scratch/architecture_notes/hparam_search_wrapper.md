@@ -1,6 +1,6 @@
 # Hparam search wrapper: planning doc
 
-A small orchestration layer around `bst_train.py` for sequencing
+A small orchestration layer around `bst_x_train.py` for sequencing
 multi-cell hparam searches with within-cell pruning, between-cell
 verdict-conditional skipping, and resumption from abrupt termination.
 
@@ -13,7 +13,7 @@ rebuild.
 
 In scope:
 - Sequence cells from a YAML config in priority order.
-- Drive `bst_train.py` per cell, capturing per-serial test metrics.
+- Drive `bst_x_train.py` per cell, capturing per-serial test metrics.
 - Apply within-cell early-kill rules on macro F1 and a min F1 floor.
 - Apply between-cell verdict logic: only run conditional cells if
   parents earned the right verdict.
@@ -24,16 +24,16 @@ Out of scope:
 - A surrogate model or response-surface fitting (Optuna and friends).
   This is a hand-sequenced search, not Bayesian optimisation.
 - Distributed orchestration. Single-host, single-GPU on engelbart.
-- Modifications to `bst_train.py` beyond what's strictly needed for
+- Modifications to `bst_x_train.py` beyond what's strictly needed for
   per-serial invocation (see open question 1).
 - A web dashboard or live UI. The search log markdown file is the UI.
 
 ## Architecture
 
-The wrapper is one Python script (`src/bst_refactor/stroke_classification/main_on_shuttleset/hparam_sweep.py`) that:
+The wrapper is one Python script (`src/bst_x/stroke_classification/main_on_shuttleset/hparam_sweep.py`) that:
 1. Loads a cell-config YAML (the search plan).
 2. For each cell in queue order: sets the augmentation hparams,
-   invokes bst_train one serial at a time, parses the per-serial test
+   invokes bst_x_train one serial at a time, parses the per-serial test
    output as it lands, applies kill rules, writes per-serial lines to
    the search log, finally writes the cell verdict.
 3. Updates `state.json` after every state transition for resumption.
@@ -43,18 +43,18 @@ The wrapper is one Python script (`src/bst_refactor/stroke_classification/main_o
 It does NOT:
 - Re-implement training. It calls the existing entry point.
 - Re-implement test-metric collection. It reads from the per-run
-  manifest.yaml that bst_train already writes.
+  manifest.yaml that bst_x_train already writes.
 - Touch the existing per-run output format (manifest.yaml,
   best_model_id.txt, test logs, TB events). Those are written by the
   existing pipeline; the wrapper just reads them.
 
 The wrapper lives at
-`src/bst_refactor/stroke_classification/main_on_shuttleset/hparam_sweep.py`,
-beside `bst_train.py`. Despite being generic in design, it directly
-invokes bst_train.py and shares its experiments/ output tree, so
-sitting alongside bst_train.py is the natural home rather than the
+`src/bst_x/stroke_classification/main_on_shuttleset/hparam_sweep.py`,
+beside `bst_x_train.py`. Despite being generic in design, it directly
+invokes bst_x_train.py and shares its experiments/ output tree, so
+sitting alongside bst_x_train.py is the natural home rather than the
 top-level `scripts/`. Search-session outputs land in
-`src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/aug_hparam_sweep/`.
+`src/bst_x/stroke_classification/main_on_shuttleset/experiments/aug_hparam_sweep/`.
 
 ## Cell config schema
 
@@ -342,7 +342,7 @@ running on would risk a divergence that resume can't recover from.
 
 Means are stored as dicts (not arrays) so search-log writers and tests
 can read by metric name without tracking position. Cell entries also
-carry `failed_reason` / `failed_at_serial` (when bst_train returns
+carry `failed_reason` / `failed_at_serial` (when bst_x_train returns
 non-zero), `killed_reason` / `killed_at_serial` (kill rule trip), and
 `skipped_reason` (requires not satisfied). Statuses cover `pending`,
 `running`, `complete`, `killed`, `failed`, `skipped`.
@@ -359,7 +359,7 @@ and picks up where it left off):
 3. Reconcile state.json's `serials_done` to manifest.yaml's count.
    Manifest is authoritative — if state.json says 4 but manifest only
    has 3 entries, the wrapper died mid-S4. Resume from S4.
-4. Re-run from the next missing serial. Note: bst_train.py does not
+4. Re-run from the next missing serial. Note: bst_x_train.py does not
    currently set explicit seeds (no `torch.manual_seed` etc.), so
    each Python invocation pulls a fresh OS-random seed at process
    start. A re-run S4 will produce *different* metrics than the
@@ -368,14 +368,14 @@ and picks up where it left off):
    then over a slightly different mix of serials than originally
    planned. Small noise contribution. If bit-exact reproducibility
    becomes important, add `torch.manual_seed(serial_no)` etc. in
-   bst_train's serial setup; that's a separate, deliberate change.
+   bst_x_train's serial setup; that's a separate, deliberate change.
 5. Continue through remaining serials and remaining cells per normal.
 
 Failure modes handled:
 - **Wrapper killed mid-training**: re-run that serial fresh on resume.
 - **Wrapper killed between cells**: state.json has the verdict and
   the cell's run dir is complete; resume picks up at the next cell.
-- **bst_train exits non-zero (CUDA OOM, transient driver hiccup,
+- **bst_x_train exits non-zero (CUDA OOM, transient driver hiccup,
   filesystem blip)**: the wrapper marks the cell `failed`, records the
   exit code in `failed_reason`, sets verdict LOSE, and advances to the
   next cell. The session keeps running rather than nuking the queue
@@ -400,7 +400,7 @@ Failure modes handled:
 `requires:` clauses can reference any earlier cell's outcome by name.
 Verdicts populate the namespace with `WIN` / `TIE` / `LOSE`; cells
 that were skipped (parent didn't satisfy their requires) appear as
-`SKIPPED`; cells where bst_train returned non-zero appear as
+`SKIPPED`; cells where bst_x_train returned non-zero appear as
 `FAILED`. Use `parent != LOSE` if you want to gate on "not killed";
 `parent == WIN` if you want strict promotion. SKIPPED is treated as
 neither WIN nor LOSE — write the clause defensively if you care.
@@ -412,17 +412,17 @@ authoritative for what it owns.
 
 ## Per-serial invocation
 
-The existing `bst_train.py` runs all 5 serials in one Python process
+The existing `bst_x_train.py` runs all 5 serials in one Python process
 inside `train_network`. For the wrapper to apply per-serial pruning
 and resume from a partial cell, training has to be invokable
 serial-by-serial. Two approaches:
 
 **Option A**: add a `--serial-no` CLI flag that runs only the named
-serial (1-5) and exits. Wrapper calls bst_train 5 times per cell
-sequentially. Cleanest. Modifies bst_train's entry point but not
+serial (1-5) and exits. Wrapper calls bst_x_train 5 times per cell
+sequentially. Cleanest. Modifies bst_x_train's entry point but not
 its core training logic.
 
-**Option B**: leave bst_train's serial loop intact, have the wrapper
+**Option B**: leave bst_x_train's serial loop intact, have the wrapper
 poll the cell's manifest.yaml for new entries while training runs in
 background. Pruning is best-effort: kills a running training process
 mid-serial if the previous serial's metrics tripped a kill rule.
@@ -482,8 +482,8 @@ high_variance_warn_stdev: 0.010
 
 ## What touches existing code
 
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/hparam_sweep.py`: new file.
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py`:
+- `src/bst_x/stroke_classification/main_on_shuttleset/hparam_sweep.py`: new file.
+- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py`:
   add argparse with `--serial-no`, `--run-id`, `--log-path`, and the
   five augmentation overrides (`--p-flip`, `--p-jitter`, `--cap-y`,
   `--cap-x`, `--eps`). Gate the serial loop on `--serial-no` when
@@ -504,8 +504,8 @@ detection added more than expected), covering config parsing,
 kill rules, verdict logic, search-log writing, state.json IO, resume
 flow, and CLI.
 
-bst_train.py changes: ~80-120 lines, larger than initially estimated.
-Reason: bst_train.py currently has zero argparse — the `Hyp` namedtuple
+bst_x_train.py changes: ~80-120 lines, larger than initially estimated.
+Reason: bst_x_train.py currently has zero argparse — the `Hyp` namedtuple
 is constructed inline at the bottom of the file and `resume_from` is
 hardcoded `None`. Adding `--serial-no` is one flag, but we also need:
 - `--run-id` to resume into an existing run dir
@@ -518,7 +518,7 @@ Either as individual flags (cleaner, more lines) or a single
 individual flags — explicit and greppable.
 
 Tests: ~400-600 lines spanning unit + integration + smoke. The mock
-`bst_train` shim is ~50 lines.
+`bst_x_train` shim is ~50 lines.
 
 Not an infra project. Sensible orchestration over the existing pipeline.
 
@@ -528,16 +528,16 @@ All previously open questions resolved. Recording the decisions
 here so the design rationale is preserved.
 
 **Per-serial invocation: Option A confirmed.** Add `--serial-no N`
-flag to bst_train. Wrapper invokes per-serial. The existing
+flag to bst_x_train. Wrapper invokes per-serial. The existing
 `resume_from` parameter, `track_run`/`track_serial` infrastructure,
-and the serial loop at bst_train.py:1124 already support resuming
+and the serial loop at bst_x_train.py:1124 already support resuming
 into an existing run dir; the change is small (~30-50 lines added,
 no core training-logic changes):
 
 1. CLI flag `--serial-no N` parsed alongside the existing args.
-2. The serial loop at bst_train.py:1124 gates on the flag: when set,
+2. The serial loop at bst_x_train.py:1124 gates on the flag: when set,
    run only that serial and exit.
-3. Test log open mode (bst_train.py:1122 `'w'`) flips to `'a'` when
+3. Test log open mode (bst_x_train.py:1122 `'w'`) flips to `'a'` when
    `--serial-no > 1`. Otherwise S2-S5 invocations would clobber the
    S1 block.
 4. `_validate_and_record_arch` is currently `serial_no == 1`-gated.
@@ -546,9 +546,9 @@ no core training-logic changes):
    cell) don't double-validate or skip-validate incorrectly.
 
 **Wrapper location: stroke_classification/main_on_shuttleset/.**
-Sits beside bst_train.py rather than top-level `scripts/`. It's
+Sits beside bst_x_train.py rather than top-level `scripts/`. It's
 a per-project orchestration tool, not a generic utility — the
-location reflects its dependency on bst_train.py.
+location reflects its dependency on bst_x_train.py.
 
 **Cell-config YAML: session-dir SSOT.**
 - Config lives at `<session_dir>/config.yaml`, never duplicated.
@@ -607,7 +607,7 @@ The wrapper has enough state machinery (kill rules, verdict logic,
 resume reconciliation) to warrant unit + integration tests. Same
 location as the augmentation tests: `tests/test_hparam_sweep.py`.
 
-Mock approach: a fake `bst_train` shim that, when invoked with
+Mock approach: a fake `bst_x_train` shim that, when invoked with
 `--serial-no N` and a `--run-dir`, simulates training by writing a
 manifest.yaml entry with pre-canned metrics and a (small) fake
 weight file. Tests scriptable via a `metrics_fixture.yaml` defining
@@ -676,7 +676,7 @@ suite; the wrapper's logic is what we're testing.
 - **Conditional cell skipping with multi-parent requires**: one
   parent LOSE one parent WIN, `and` clause → skipped; `or` clause
   → runs.
-- **End-to-end happy path**: 2-cell config, mock bst_train returning
+- **End-to-end happy path**: 2-cell config, mock bst_x_train returning
   pre-set metrics, run to completion, assert search log is fully
   populated and final state.json correct.
 - **End-to-end with kill**: cell 1 metrics trip S3 macro tolerance,
@@ -688,7 +688,7 @@ suite; the wrapper's logic is what we're testing.
 
 ### Smoke tests
 
-A single end-to-end test that uses the real bst_train.py with a
+A single end-to-end test that uses the real bst_x_train.py with a
 2-epoch + 1-class subset of data, 2 serials, 1 cell. Verifies
-the wrapper's invocation pattern actually drives bst_train as
+the wrapper's invocation pattern actually drives bst_x_train as
 intended. Slow (~30s) but worth one.

@@ -2,7 +2,7 @@
 
 Single source of truth for where ShuttleSet annotations live and which
 videos / shots have been curated out. Mirrors the relevant pieces of
-`bst_refactor.pipeline.config` so BRIC code never needs to import from
+`bst_x.pipeline.config` so BRIC code never needs to import from
 that module.
 
 ShuttleSet upstream annotations live under ``training/data/shuttleset/annotations/``:
@@ -75,7 +75,7 @@ SPLITS_V2_PATH = Path(__file__).resolve().parent / 'shuttleset_splits_v2.csv'
 # BST clip-window default
 # ---------------------------------------------------------------------------
 # 'between_2_hits_with_max_limits' is BST's default. See
-# bst_refactor.pipeline.clip_generator._compute_clip_bounds for the rule:
+# bst_x.pipeline.clip_generator._compute_clip_bounds for the rule:
 # [prev_shot, next_shot + 0.25s] clamped to ±1.5s of the target frame.
 CLIP_WINDOW = 'between_2_hits_with_max_limits'
 
@@ -92,7 +92,7 @@ def parse_flaw_records(
     ``stroke_type`` column is ``'whole'``, the entire match is excluded;
     otherwise the specific (set, rally, ball_round) shot is removed.
 
-    Logic mirrored from ``bst_refactor.pipeline.config.parse_flaw_records``.
+    Logic mirrored from ``bst_x.pipeline.config.parse_flaw_records``.
 
     :param csv_path: Path to flaw_shot_records.csv.
     :return: (excluded_video_ids, removed_shot_tuples).
@@ -143,7 +143,7 @@ EXCLUDED_VIDEOS, REMOVED_SHOTS = _load_flaw_records()
 # Train/val/test splits
 # ---------------------------------------------------------------------------
 
-# BST's original baseline split, from `bst_refactor.pipeline.config._SPLITS_RAW`.
+# BST's original baseline split, from `bst_x.pipeline.config._SPLITS_RAW`.
 # Raw — does not strip EXCLUDED_VIDEOS. Apply the filter at the call site if
 # needed (e.g. enrichment script does ``if vid in EXCLUDED_VIDEOS: continue``).
 # Kept here so the enriched master CSV can populate ``split_bst_baseline`` for
@@ -205,7 +205,7 @@ SPLITS_V2: dict[str, list[int]] = _load_splits_v2()
 
 # ---------------------------------------------------------------------------
 # Clip-bounds derivation — mirrored from
-# ``bst_refactor.pipeline.clip_generator``.
+# ``bst_x.pipeline.clip_generator``.
 #
 # We mirror rather than import because BST's ``clip_generator`` does
 # ``from moviepy import VideoFileClip`` at module load (for clip-writing
@@ -223,7 +223,7 @@ def compute_temporal_bounds(
     same rally, and ``end_f`` is the next shot's. First/last shots in a
     rally get -1 (handled as a fallback by ``compute_clip_bounds``).
 
-    Mirrored from ``bst_refactor.pipeline.clip_generator.compute_temporal_bounds``.
+    Mirrored from ``bst_x.pipeline.clip_generator.compute_temporal_bounds``.
     """
     parts = []
     for set_i, group_idx in shots_df.groupby('set').groups.items():
@@ -257,7 +257,7 @@ def compute_clip_bounds(row, clip_window: str, fps: float) -> tuple[int, int]:
     ``'between_2_hits_with_max_limits'``. BRIC uses ``CLIP_WINDOW``
     (= ``'between_2_hits_with_max_limits'``) — the ±1.5s clamped variant.
 
-    Mirrored from ``bst_refactor.pipeline.clip_generator._compute_clip_bounds``.
+    Mirrored from ``bst_x.pipeline.clip_generator._compute_clip_bounds``.
     """
     t = int(fps) // 2       # frames in 0.5 sec
     frame_num = int(row['frame_num'])

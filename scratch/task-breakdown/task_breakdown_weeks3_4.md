@@ -160,7 +160,7 @@ This fortnight's focus is on two things: (1) figuring out the real compute and d
 
 **Jared:**
 - **Dataset Description** (~3 hrs): ShuttleSet overview, our taxonomy decisions (why we collapsed from 18 to 14 types — draw on Scott's taxonomy report for this), class statistics, split strategy rationale. Source material: Isiah's EDA notebook, Scott's taxonomy report, `pipeline/config.py`.
-- **Experimental Setup** (~3 hrs): Hardware specs (engelbart V100), training hyperparameters, evaluation metrics, baselines we compare against. Source: `bst_train.py`, architecture research notes in `scratch/`.
+- **Experimental Setup** (~3 hrs): Hardware specs (engelbart V100), training hyperparameters, evaluation metrics, baselines we compare against. Source: `bst_x_train.py`, architecture research notes in `scratch/`.
 
 **Ethan:**
 - **System Architecture diagram + writeup** (~3 hrs): End-to-end system diagram showing frontend → API → preprocessing → model inference → results. Technology stack summary. Should draw from the compute analysis above.
@@ -212,7 +212,7 @@ This fortnight's focus is on two things: (1) figuring out the real compute and d
    - Coordinate with Kiri on how the UI sends crop parameters.
 
 4. **Inference API hookup** (~3 hrs)
-   - Wire `bst_infer.py` (or a wrapper) into the existing FastAPI endpoints.
+   - Wire `bst_x_infer.py` (or a wrapper) into the existing FastAPI endpoints.
    - Replace mock responses with real BST model predictions.
    - This is the bridge from "demo with fake data" to "demo with real inference."
 

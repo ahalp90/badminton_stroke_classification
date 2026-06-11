@@ -1,0 +1,78 @@
+Best model of run_20260425_185421/ - #1
+  #1: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt
+
+Phase 1 sticky_anchor + collapsed-classes ablation. Same data as
+run_20260425_150548 (28-class sticky_anchor); only the label space
+changes. Top_/Bottom_ side prefix dropped, so 28 classes collapse to
+14 on the theory that the side split forces the model to learn
+essentially-mirrored poses as separate classes.
+
+Hparams:
+  taxonomy=une_merge_v1_nosides, split_column=split_v2,
+  drop_unknown=True, n_epochs=80, warm_up_step=100,
+  early_stop_n_epochs=40, scheduler num_cycles=0.5, lr=5e-4,
+  batch_size=128, use_aux_schedule=True, aux_fade_end_epoch=15.
+  ablation_id=une_merge_v1_nosides_split_v2_dropunk_h_sticky_anchor.
+
+Metric split:
+  - Serial 1: top min F1 (0.424), top top-2 (0.940). Flagged on min,
+    matching V4 baseline's pick policy when min is the gate metric.
+  - Serial 3: top macro F1 (0.748).
+  - Serial 2: top accuracy (0.770), low min (0.396).
+  - Serial 5: balanced (macro 0.746, min 0.419, acc 0.766, top-2 0.936).
+  - Serial 4: worst (min 0.350, macro 0.732).
+
+Mean across 5: macro 0.743, min 0.397, acc 0.766, top-2 0.938.
+
+Vs sticky_anchor (run_20260425_150548, 28-class) mean
+(macro 0.748 / min 0.333 / acc 0.774 / top-2 0.942):
+  macro -0.005, min +0.064, acc -0.008, top-2 -0.004.
+Vs V4 baseline (run_20260420_171101, 28-class committed) mean
+(macro 0.741 / min 0.389 / acc 0.766 / top-2 0.936):
+  macro +0.002, min +0.008, acc -0.0002, top-2 +0.002.
+
+What collapsing actually moved:
+  - Min variance halved (range 0.074 vs sticky's 0.124).
+    Worst-seed min 0.350 vs sticky's 0.235.
+  - Per-class F1 stabilised across seeds for the wrist_smash family.
+    14-class wrist_smash F1 ~ support-weighted mean of the 28-class
+    Top_wrist_smash + Bottom_wrist_smash (sticky 0.332 + 0.448).
+  - Mean min lift vs sticky_anchor is partly noise correction (sticky
+    had one outlier-bad serial at 0.235); cleaner comparison is vs V4,
+    where it's +0.008 -- within noise.
+  - Macro / acc / top-2 essentially tied with V4. Absolute performance
+    didn't change; the collapse just halved the class space without
+    hurting per-stroke results.
+
+Doubled per-class N reduced the seed lottery on rare classes; absolute
+performance didn't change. Next step before bolting on the 3dcnn is
+augmentation (per Isiah's writeup) and class weighting / focal loss.
+
+TensorBoard run folders (in tb/):
+  S1: serial_1  (flagged best, top min and top-2)
+  S2: serial_2  (top accuracy)
+  S3: serial_3  (top macro)
+  S4: serial_4  (worst)
+  S5: serial_5  (balanced)
+
+=== Serial 1 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides  F1-score
+avg                                                Avg                                  0.75
+min                                                Min                                  0.42
+0                                 net_shot                                              0.90
+1                                 return_net                                            0.80
+2                                 smash                                                 0.62
+3                                 wrist_smash                                           0.42
+4                                 lob                                                   0.78
+5                                 clear                                                 0.96
+6                                 drive                                                 0.61
+7                                 drop                                                  0.66
+8                                 passive_drop                                          0.68
+9                                 push                                                  0.61
+10                                rush                                                  0.77
+11                                cross_court_net_shot                                  0.66
+12                                short_service                                         0.99
+13                                long_service                                          0.99
+Accuracy: 0.765
+Top2 Accuracy: 0.940

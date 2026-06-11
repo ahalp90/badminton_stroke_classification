@@ -1,0 +1,87 @@
+Best model of run_20260505_111211/ - #5
+  #5: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt
+
+Augmentation framework v1. Coupled centreline flip + pos+shuttle
+constrained jitter (cap_y=0.05, cap_x=0.10, eps=0.15, p_flip=0.5,
+p_jitter=0.2). Replaces the broken joints-only RandomTranslation_batch
+with the corrected multi-stream coupled formulation. JnB_bone-only at
+present. Hparams otherwise identical to the wipe_drop best
+(run_20260503_172922).
+
+Hparams:
+  taxonomy=une_merge_v1_nosides, split_column=split_v2,
+  drop_unknown=True, n_epochs=80, warm_up_step=100,
+  early_stop_n_epochs=40, scheduler num_cycles=0.5, lr=5e-4,
+  batch_size=128, use_aux_schedule=True, aux_fade_end_epoch=15,
+  label_smoothing=0.0,
+  class_weights=None,
+  adaptive_focal={tau:1.0, gamma:1.0, momentum:0.9,
+                  warm_up_epochs:5, f1_floor:0.0},
+  augmentation={p_flip:0.5, p_jitter:0.2, cap_y:0.05, cap_x:0.10,
+                eps:0.15}.
+  ablation_id=wipe_drop  <- new aug runs on top of the wipe_drop
+                            collated arrays; aug doesn't change
+                            collation, so the dir is reused.
+
+Per-serial (num_strokes=4202, 14 classes, 5 seeds):
+  - Serial 1: macro 0.7361, min 0.4832, acc 0.7592, top-2 0.9367.
+  - Serial 2: macro 0.7395, min 0.4505, acc 0.7570, top-2 0.9388.
+  - Serial 3: macro 0.7321, min 0.4945, acc 0.7520, top-2 0.9412.
+  - Serial 4: macro 0.7521 (top), min 0.4435, acc 0.7699 (top),
+    top-2 0.9436 (top).
+  - Serial 5: macro 0.7341, min 0.5034 (top), acc 0.7573, top-2 0.9405.
+    Smash 0.5034, wrist_smash 0.5177: first project serial where
+    smash takes over as the floor class. Flagged best.
+
+Mean across 5: macro 0.7388, min 0.4750, acc 0.7591, top-2 0.9402.
+
+Vs wipe_drop best (run_20260503_172922) mean
+(0.7481 / 0.4742 / 0.7653 / 0.9353):
+  macro -0.9, min flat (+0.1), acc -0.6, top-2 +0.5.
+
+Per-class shifts vs wipe_drop, 5-serial mean (% absolute):
+  drive +1.6, wrist_smash +0.4, clear +0.4, short_service +0.2,
+  return_net ~0, lob -0.5, rush -0.5, net_shot -0.5,
+  long_service -0.8, drop -1.0, passive_drop -1.3, push -2.1,
+  smash -3.0, cross_court_net_shot -5.7.
+
+S5 picked on the floor lift. The smash/ws parity at ~0.51 each is
+the structural inversion CDB-F1 was built for. Macro is middling
+across the 5 serials and pair sum 1.021 is lower than wipe_drop S2's
+1.104, so the pick is on the floor rather than the ceiling. Min F1
+also a project high.
+
+Possible issue under investigation: jitter shifts that push the
+shuttle off-screen on x get the (0, 0) sentinel, by design (mirroring
+the y off-screen zeroing the model already learns from on top-of-court
+shuttle drops). Whether the model adapts the same way on the x variant
+is open. Cross_court_net_shot dropped 5.7% this run, the kind of
+edge-of-frame class where the mechanism would bite hardest, but
+frequency unknown yet. Aug/shuttle_oob_rate TB scalar going in next
+to measure it, offline estimator script in scripts/ for a number
+before the next training run. If subsequent runs don't flag this
+further, it was empirically tolerable.
+
+Full writeup: bst_x_overview.md (augmentation framework v1 section).
+
+=== Serial 5 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5  F1-score
+avg                                                Avg                                    0.73
+min                                                Min                                    0.50
+0                                 net_shot                                                0.90
+1                                 return_net                                              0.80
+2                                 smash                                                   0.50
+3                                 wrist_smash                                             0.52
+4                                 lob                                                     0.78
+5                                 clear                                                   0.94
+6                                 drive                                                   0.62
+7                                 drop                                                    0.63
+8                                 passive_drop                                            0.64
+9                                 push                                                    0.62
+10                                rush                                                    0.70
+11                                cross_court_net_shot                                    0.65
+12                                short_service                                           0.98
+13                                long_service                                            0.97
+Accuracy: 0.757
+Top2 Accuracy: 0.941

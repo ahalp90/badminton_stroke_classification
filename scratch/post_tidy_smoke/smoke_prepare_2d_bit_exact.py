@@ -23,7 +23,7 @@ script confirms that empirically against a reference extract.
 Required env vars:
   CLIPS_DIR       -- dir with N small mp4s to re-extract pose from
   REFERENCE_DIR   -- dir holding the reference _pos / _joints / _failed npys
-                     (typically the committed BST_MMPOSE_NPY_DIR)
+                     (typically the committed BST_X_MMPOSE_NPY_DIR)
   SCRATCH_DIR     -- where the post-tidy run writes its outputs
                      (must NOT collide with REFERENCE_DIR or CLIPS_DIR)
 
@@ -36,17 +36,17 @@ Usage on engelbart:
   cd ~/badminton_stroke_classifier
   source /home/ahalperi/.venvs/venv-mmpose/bin/activate
 
-  # Hand-pick 5-10 stems present in BST_MMPOSE_NPY_DIR; copy/symlink their
+  # Hand-pick 5-10 stems present in BST_X_MMPOSE_NPY_DIR; copy/symlink their
   # mp4s into a fresh sample dir.
   mkdir -p /tmp/prepare_2d_smoke_clips/sample
   for stem in 19_1_5_1 19_1_5_2 19_1_5_3 19_1_5_4 19_1_5_5; do
-      find $BST_CLIPS_DIR -name "${stem}.mp4" -exec ln -sf {} /tmp/prepare_2d_smoke_clips/sample/${stem}.mp4 \\;
+      find $BST_X_CLIPS_DIR -name "${stem}.mp4" -exec ln -sf {} /tmp/prepare_2d_smoke_clips/sample/${stem}.mp4 \\;
   done
 
   export CLIPS_DIR=/tmp/prepare_2d_smoke_clips
-  export REFERENCE_DIR=$BST_MMPOSE_NPY_DIR
+  export REFERENCE_DIR=$BST_X_MMPOSE_NPY_DIR
   export SCRATCH_DIR=/tmp/prepare_2d_smoke_outputs
-  export PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification
+  export PYTHONPATH=src/bst_x:src/bst_x/stroke_classification
   python scratch/post_tidy_smoke/smoke_prepare_2d_bit_exact.py
 
   # Switch to main and run the same script against the same SCRATCH_DIR

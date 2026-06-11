@@ -26,13 +26,13 @@ services:
       - CORS_ORIGINS=*
       - DATA_DIR=/data
       # Where the SCP'd live-inference tensors live inside the container.
-      # The code expects: $BST_INPUTS_DIR/{test,val}/{JnB_bone,pos,shuttle,videos_len}.npy
-      # If your DATA_HOST_DIR points directly at a `bst_inputs` tree (with
+      # The code expects: $BST_X_INPUTS_DIR/{test,val}/{JnB_bone,pos,shuttle,videos_len}.npy
+      # If your DATA_HOST_DIR points directly at a `bst_x_inputs` tree (with
       # test/ and val/ at its root), `/data` is correct. If it points at a
-      # parent that contains a `bst_inputs/` folder, change this to
-      # `/data/bst_inputs`. Without this set, the per-clip browser and the
+      # parent that contains a `bst_x_inputs/` folder, change this to
+      # `/data/bst_x_inputs`. Without this set, the per-clip browser and the
       # "Errors only" filter stay hidden (live=false on every model).
-      - BST_INPUTS_DIR=/data
+      - BST_X_INPUTS_DIR=/data
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 1
     expose:
       - "8000"

@@ -68,7 +68,7 @@ List of all registered model checkpoints with metadata.
       "id":               "bst_x_v1_wipe_drop_s5",
       "display_name":     "BST-X v1, wipe_drop run, serial 5 (current best)",
       "description":      "14-class taxonomy, augmentation v1 + adaptive focal loss.",
-      "architecture":     "bst",
+      "architecture":     "bst-x",
       "is_default":       true,
       "taxonomy":         "une_merge_v1_nosides",
       "num_classes":      14,
@@ -94,7 +94,7 @@ List of all registered model checkpoints with metadata.
 | `id` | string | Opaque; pass back in subsequent requests targeting this model. |
 | `display_name` | string | Rendered in the model picker. |
 | `description` | string | Free-text. |
-| `architecture` | enum | `"bric"` \| `"bst"` (extensible). Drives architecture-grouping in the picker and internal dispatch routing. |
+| `architecture` | enum | `"bric"` \| `"bst-x"` (extensible). Drives architecture-grouping in the picker and internal dispatch routing. |
 | `is_default` | bool | Registry author marks one entry per architecture as default-best. Picker shows defaults; "show all variants" toggle exposes the rest. |
 | `taxonomy` | string | Identifier for the class taxonomy. |
 | `num_classes` | int | `class_list.length`. |
@@ -294,7 +294,7 @@ HTML5 `<video>` scrubbing works.
 **Response:** binary `video/mp4`.
 
 **Errors:** `404` if the clip isn't in any registered model's clip
-index, or if `BST_CLIPS_DIR` is unset / the file isn't on this host.
+index, or if `BST_X_CLIPS_DIR` is unset / the file isn't on this host.
 
 ---
 
@@ -347,7 +347,7 @@ Submit a video plus markup; returns a job ID for polling.
 
 | Field | Type | Notes |
 |---|---|---|
-| `architecture` | enum \| null | `"bric"` \| `"bst"`. Simple-mode model pick — backend resolves to the registry entry with `is_default: true` for that architecture. |
+| `architecture` | enum \| null | `"bric"` \| `"bst-x"`. Simple-mode model pick — backend resolves to the registry entry with `is_default: true` for that architecture. |
 | `model_id` | string \| null | Explicit-mode override. Wins over `architecture` if both supplied. At least one of `architecture` / `model_id` is required (else 4xx). |
 | `orientation` | string | `"portrait"`. |
 | `video_label` | string \| null | Optional human-readable upload name (analytics retrieval). Defaults to original filename. |

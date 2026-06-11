@@ -44,7 +44,7 @@ The dense companion to [`bst_x_overview.md`](bst_x_overview.md). Per-run best/me
 
 ### Schedule
 
-`bst_train.py:62-79` plus the cosine call at `:308-314`: `n_epochs=80`, `early_stop_n_epochs=40`, `batch_size=128`, `lr=5e-4`, `warm_up_step=100`, `num_cycles=0.5`, `use_aux_schedule=True`, `aux_fade_end_epoch=15`. The shape is a compressed warm-start-then-finetune: ~4 epochs warmup, ~15 epochs of CG/AP warm-start ramping to 0, then ~65 epochs of pure backbone under cooling LR. The BST paper's defaults (`n_epochs=1600`, `warm_up_step=400`, `early_stop_n_epochs=300`, `num_cycles=0.25`, `aux_fade_end_epoch=60`) and the dated retune rationale are at `historical_bst.md` section 3.
+`bst_x_train.py:62-79` plus the cosine call at `:308-314`: `n_epochs=80`, `early_stop_n_epochs=40`, `batch_size=128`, `lr=5e-4`, `warm_up_step=100`, `num_cycles=0.5`, `use_aux_schedule=True`, `aux_fade_end_epoch=15`. The shape is a compressed warm-start-then-finetune: ~4 epochs warmup, ~15 epochs of CG/AP warm-start ramping to 0, then ~65 epochs of pure backbone under cooling LR. The BST paper's defaults (`n_epochs=1600`, `warm_up_step=400`, `early_stop_n_epochs=300`, `num_cycles=0.25`, `aux_fade_end_epoch=60`) and the dated retune rationale are at `historical_bst.md` section 3.
 
 ### Loss / label smoothing
 
@@ -58,7 +58,7 @@ From Series G (2026-05-30) onward the fix is baked into the `taxon_pinned_w_pred
 
 **Backward compat with old weights**: the architecture is unchanged, so old weights from `run_20260501_164658` and earlier load cleanly against the new trees (no shape mismatch). But test-time output shifts slightly, because the previously-zeroed frames now carry real shuttle xy the old weights never trained against in that exact distribution. Architecture compat yes; inference reproducibility against the original training distribution no. Flag it when comparing old-weight inference numbers against runs trained on the new trees.
 
-**Active classes**: the head dim comes from the classes present in train `labels.npy` at first serial, via `bst_common.derive_active_classes_from_labels` (val/test asserted as subsets); manifest `extra.arch` records `n_classes_full`, `n_active_classes`, `has_unknown`, `unknown_first`, `active_class_list`. Pre-fix (pre-2026-05-01) v1/nosides/raw_35 weights are not mechanically resumable post-fix (head-dim shape mismatch); merged_25 dropunk is comparable across that boundary. Full story in [`bst_x_issues_and_bugs_squashed.md`](bst_x_issues_and_bugs_squashed.md).
+**Active classes**: the head dim comes from the classes present in train `labels.npy` at first serial, via `bst_x_common.derive_active_classes_from_labels` (val/test asserted as subsets); manifest `extra.arch` records `n_classes_full`, `n_active_classes`, `has_unknown`, `unknown_first`, `active_class_list`. Pre-fix (pre-2026-05-01) v1/nosides/raw_35 weights are not mechanically resumable post-fix (head-dim shape mismatch); merged_25 dropunk is comparable across that boundary. Full story in [`bst_x_issues_and_bugs_squashed.md`](bst_x_issues_and_bugs_squashed.md).
 
 ### X3D-S branch: design detail
 
@@ -72,7 +72,7 @@ The overview has the summary; this is the reasoning behind the choices.
 
 **Open training questions.** (1) Schedule: the right sequence for fine-tuning X3D-S on badminton video first, then co-training end-to-end, the length of each phase, the learning rates, what to freeze when. (2) Temporal cut-in: the reported contact times are noisy, so where the X3D-S window sits relative to them matters; options are a fixed offset centred on the reported time, a learned offset, or a wider window that self-aligns. Hit-frame metadata is derivable without re-extraction (Method A: CSV correlation; Method B: shuttle trajectory inversion; detail in `augmentation_framework.md`). (3) MMPose drops: the window has to cope with the residual detection-layer drops (heavy net occlusion); the candidate fix is temporal interpolation, worst case pinning to the shuttle velocity-reversal frame.
 
-**Wiring note.** When I add the X3D-S branch, I'll source the head dim from `task.n_active_classes` and run `_validate_and_record_arch` on serial 1, mirroring the bst_train.py pattern. Hardcoding `taxonomy.n_classes` in the fusion module would put the unknown ghost back.
+**Wiring note.** When I add the X3D-S branch, I'll source the head dim from `task.n_active_classes` and run `_validate_and_record_arch` on serial 1, mirroring the bst_x_train.py pattern. Hardcoding `taxonomy.n_classes` in the fusion module would put the unknown ghost back.
 
 ## Experiment log
 
@@ -80,7 +80,7 @@ Chronological. Each entry: setup, what I expected, what happened, the takeaway (
 
 ### LR schedule retune (Q4), 2026-04-17
 
-`bst_train.py:308-314` calls `get_cosine_schedule_with_warmup`. The original BST recipe passed `num_cycles=0.25` alongside `n_epochs=1600`, `warm_up_step=400`, `early_stop_n_epochs=300`. At `num_cycles=0.25` only a quarter of the cosine runs across the budget, so the LR barely decays; BST-default runs converge around epoch 60 and early-stop fires around 360, so the scheduler never had time to lower the rate. I compressed `n_epochs` to match real convergence and bumped `num_cycles` so the cosine actually hits zero:
+`bst_x_train.py:308-314` calls `get_cosine_schedule_with_warmup`. The original BST recipe passed `num_cycles=0.25` alongside `n_epochs=1600`, `warm_up_step=400`, `early_stop_n_epochs=300`. At `num_cycles=0.25` only a quarter of the cosine runs across the budget, so the LR barely decays; BST-default runs converge around epoch 60 and early-stop fires around 360, so the scheduler never had time to lower the rate. I compressed `n_epochs` to match real convergence and bumped `num_cycles` so the cosine actually hits zero:
 
 | param | was | now |
 |---|---|---|
@@ -117,7 +117,7 @@ A full re-extract of all 32,203 stems (Phase 1 only repaired 1,716). Three artef
 
 - **Raw extract**: 32,203 stems at `/scratch/comp320a/ShuttleSet_keypoints_raw/` on both nodes, bit-identical (30,487 freshly re-extracted over ~20h plus the 1,716 Phase-1 backfill). Verified by file counts, an empty cross-node `rsync --checksum`, and a byte-identity gate on the overlap with max abs diff 0.000e+00. Per-frame `ndet` baseline at `raw_ndet_stats_outputs/baseline_2026-04-29.md` (0% `ndet=0`, 0.53% `ndet=1` floor).
 - **sticky_anchor + audit**: clean dir at `/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor/`, byte-identical cross-node. Overall fail rate 5.38% to 0.93%, hit-zone near-hit fail 5.98% to 0.58% (the near/away gradient flipped sign: the hit zone is now the cleanest zone, not the noisiest), per-stroke ratios 19x-76x on the worst-hit strokes. 17 residual fully-zeroed clips look like irreducibly broken broadcasts. Writeup at `mmpose_heuristic/phase1_vs_phase2_2026-04-29.md`.
-- **Collation + env flip**: three collated trees per active (taxonomy, split) combo, mirrored, byte-identical, counts cross-checked against `clips_master.csv`. `BST_MMPOSE_NPY_DIR` flipped to the clean dir, one-step rollback at `.env.bak.2026-04-29`.
+- **Collation + env flip**: three collated trees per active (taxonomy, split) combo, mirrored, byte-identical, counts cross-checked against `clips_master.csv`. `BST_X_MMPOSE_NPY_DIR` flipped to the clean dir, one-step rollback at `.env.bak.2026-04-29`.
 
 ### Phase 2 sanity-train, 2026-04-30
 
@@ -145,7 +145,7 @@ Sequential 5-serial sweeps on combo A nosides + v2 + dropunk; each step gated th
 
 **Decision: skip vanilla focal, jump to CDB-F1.** Vanilla and manually-alpha focal are the same lever as class-weighted CE, just per-sample-gated, so they'd hit the same central-tendency ceiling. CDB-F1 (per-class alpha = `(1 - F1_c)^tau` from an EMA of train F1, optionally times focal `(1 - p_t)^gamma`) is the right escalation: low-F1 classes get persistently escalated weight, which can push bad seeds toward the basin S2 found. Design in `class_f1_focal_design.md` (verified against the ACCV 2020 paper); the Seesaw-style companion in `seesaw_f1_focal_design.md` is held as a second arm.
 
-**CDB-F1 first run** (#17, LS=0.0 + `adaptive_focal{tau=1, gamma=1, momentum=0.9, warm_up_epochs=5, f1_floor=0}`). vs class-weighted: macro -0.5, min +4.0, acc -0.8. vs LS=0.1 baseline: macro +0.1, min +8.7. The range tightens to 0.413-0.486 (vs 0.378-0.518 class-weighted), so the bimodal-seed problem is solved, though the ceiling isn't broken (S2 0.486 < class-weighted 0.518). Per-class shifts vs class-weighted: ws +4.0, **push +6.7** (adaptive picked it up as a second bottleneck the static config missed), smash -5.5 (pair-confusion with ws); the rest -1 to -3. Shipped as `loss/adaptive_focal.py` (~190 lines) + 6 edits in `bst_train.py` + 36 unit tests; with `adaptive_focal=None` the legacy path is bit-identical. **The largest floor lift on wrist_smash of any loss-side run.**
+**CDB-F1 first run** (#17, LS=0.0 + `adaptive_focal{tau=1, gamma=1, momentum=0.9, warm_up_epochs=5, f1_floor=0}`). vs class-weighted: macro -0.5, min +4.0, acc -0.8. vs LS=0.1 baseline: macro +0.1, min +8.7. The range tightens to 0.413-0.486 (vs 0.378-0.518 class-weighted), so the bimodal-seed problem is solved, though the ceiling isn't broken (S2 0.486 < class-weighted 0.518). Per-class shifts vs class-weighted: ws +4.0, **push +6.7** (adaptive picked it up as a second bottleneck the static config missed), smash -5.5 (pair-confusion with ws); the rest -1 to -3. Shipped as `loss/adaptive_focal.py` (~190 lines) + 6 edits in `bst_x_train.py` + 36 unit tests; with `adaptive_focal=None` the legacy path is bit-identical. **The largest floor lift on wrist_smash of any loss-side run.**
 
 **CDB-F1 follow-ups.** gamma=0 (#18) and tau=0.5 (#19) both lose 2.8-5.0 of the ws lift and smash recovers, so the ws gain came from the aggressive tau=1 alpha and the gamma=1 modulator together; soften either and ws drops back. pair-cap (#20, `alpha[smash]/alpha[wrist_smash] >= 0.7`): smash recovered 1.2 of its 5.5, ws gave back 5.2 of its +4, macro flat as the trade cancelled. gamma=2 (#21, the RetinaNet default): traded 4.1 of ws for 1.3 of smash, macro -0.7. **Every CDB knob is now run, tau=1 + gamma=1 is the floor-lift sweet spot, and the smash drop is structural pair-confusion a scalar per-class alpha can't resolve.** No CDB run breaks the 0.74-0.75 macro plateau; per-class trajectory in `train_val_test_split_analysis.md`.
 
@@ -258,9 +258,9 @@ Sketched in `augmentation_framework.md`: extend CDB-F1 from per-class scalar alp
 
 ### Cleanup backlog
 
-#### Dedup bst_train.py and bst_infer.py scaffolding
+#### Dedup bst_x_train.py and bst_x_infer.py scaffolding
 
-`bst_infer.py` and `bst_train.py` still each carry their own `Task` class with `get_network_architecture`, the `pose_style` + `in_dim` arithmetic, and the dataloader setup from `preparing_data.shuttleset_dataset`. The `MODELS` dict and `derive_active_classes_from_labels` already moved to `bst_common.py` (created for the active-class fix), so the `Task` duplication is what's left. The genuinely different parts are small: `bst_infer.py` does argmax-only predictions with no metrics, and its Task has a `load_weight` instead of the cache-or-train `seek_network_weights`. Two entry points is few enough that I'm leaving the rest for now; when a third arrives (a Gradio backend, ONNX export, or the fusion pipeline once X3D-S lands), the move is to lift the shared `Task` base and the dataloader helpers into `bst_common.py` alongside `MODELS`. A mirror TODO is pinned at the top of `bst_infer.py`.
+`bst_x_infer.py` and `bst_x_train.py` still each carry their own `Task` class with `get_network_architecture`, the `pose_style` + `in_dim` arithmetic, and the dataloader setup from `preparing_data.shuttleset_dataset`. The `MODELS` dict and `derive_active_classes_from_labels` already moved to `bst_x_common.py` (created for the active-class fix), so the `Task` duplication is what's left. The genuinely different parts are small: `bst_x_infer.py` does argmax-only predictions with no metrics, and its Task has a `load_weight` instead of the cache-or-train `seek_network_weights`. Two entry points is few enough that I'm leaving the rest for now; when a third arrives (a Gradio backend, ONNX export, or the fusion pipeline once X3D-S lands), the move is to lift the shared `Task` base and the dataloader helpers into `bst_x_common.py` alongside `MODELS`. A mirror TODO is pinned at the top of `bst_x_infer.py`.
 
 ## Comparability caveats
 
@@ -275,7 +275,7 @@ Sketched in `augmentation_framework.md`: extend CDB-F1 from per-class scalar alp
 - [`bst_x_training_runs.md`](../bst_x_training_runs.md): the run ledger, every run's per-metric best and mean.
 - [`bst_x_issues_and_bugs_squashed.md`](bst_x_issues_and_bugs_squashed.md): the unknown ghost channel and the other squashed bugs.
 - `model/bst.py`: model defaults (`d_model=100, d_head=128, n_head=6`), CG/AP branches in `BST.forward`, the `CrossTransformerLayer` docstring.
-- `main_on_shuttleset/bst_train.py`: the cosine schedule and Hyp namedtuple configuration.
+- `main_on_shuttleset/bst_x_train.py`: the cosine schedule and Hyp namedtuple configuration.
 - `tuning_thoughts.md`: broader HP strategy; Q4/Q5 are items it didn't cover.
 - `architecture_1_bst_3dcnn_racket_extension_09_April.md`: the initial X3D-S fusion design doc.
 - `mmpose_heuristic/mmpose_heuristic_investigation.md`: the full sticky_anchor design and recovery-routes.

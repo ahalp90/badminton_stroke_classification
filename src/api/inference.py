@@ -1,6 +1,6 @@
 """Inference stub for the badminton stroke classifier API.
 
-The real BST/MMPose/TrackNet pipeline lives in src/bst_refactor/ and is the
+The real BST/MMPose/TrackNet pipeline lives in src/bst_x/ and is the
 remit of the ML team (Ari, Scott). This module is a contract-shaped *stub*
 that supplies the FE with realistic-looking results so the rest of the
 stack (upload → status → results, library_predict, the Results panel) can

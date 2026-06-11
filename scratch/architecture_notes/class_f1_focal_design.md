@@ -3,7 +3,7 @@
 Design doc for the class-F1-driven focal loss arm queued behind the
 class-weighting smoke test + manually-alpha focal cells. Output of the
 research prompt at `scratch/architecture_notes/class_f1_focal_exploration_prompt.md`.
-Recommends the variant, the implementation surface in `bst_train.py`,
+Recommends the variant, the implementation surface in `bst_x_train.py`,
 and the gate condition for "this worked".
 
 ---
@@ -323,7 +323,7 @@ We need three new pieces and one branch addition:
    end-of-epoch. This is cheap — same `argmax` we'd use for
    accuracy, plus three `sum()` calls per class per batch. No
    second forward pass.
-3. **A loss-build branch in `bst_train.py`** that picks adaptive
+3. **A loss-build branch in `bst_x_train.py`** that picks adaptive
    focal when the new `Hyp.adaptive_focal` config field is set,
    keeps the existing class-weighted CE branch when only
    `Hyp.class_weights` is set, and falls back to uniform CE
@@ -335,9 +335,9 @@ We need three new pieces and one branch addition:
    `_asdict()` in `run_tracker.py:160`.
 
 Two files touched:
-1. **NEW** `src/bst_refactor/stroke_classification/main_on_shuttleset/loss/adaptive_focal.py`
+1. **NEW** `src/bst_x/stroke_classification/main_on_shuttleset/loss/adaptive_focal.py`
    — ~120-line module. Skeleton below.
-2. `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py`
+2. `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py`
    — 5 small edits.
 
 ### 5a. `loss/adaptive_focal.py` skeleton
@@ -467,7 +467,7 @@ def per_class_f1_from_counts(
     return f1
 ```
 
-### 5b. `bst_train.py` edits
+### 5b. `bst_x_train.py` edits
 
 (Line numbers below reference the post-class_weights state of the
 file, see the surface map at the top of this design pass for current
@@ -589,8 +589,8 @@ extra serialisation code. Manifest will record the full config dict
 adaptive_focal:`.
 
 Total: ~120 lines new module + ~25 lines across 6 small edits in
-`bst_train.py`. Within the prompt's stated budget of "~50-150 lines
-new module + 4-6 edits to bst_train.py".
+`bst_x_train.py`. Within the prompt's stated budget of "~50-150 lines
+new module + 4-6 edits to bst_x_train.py".
 
 ## 6. Diagnostic + manifest plumbing
 
@@ -753,7 +753,7 @@ data, the adaptive arm is solving an unconfirmed problem.
 
 Park status: design is complete, prompt is satisfied, ready to
 re-enter when class-weighting + manually-alpha focal cells have
-landed. No `bst_train.py` edits made yet (per the user's "docs only"
+landed. No `bst_x_train.py` edits made yet (per the user's "docs only"
 instruction in the design pass).
 
 ---
@@ -830,7 +830,7 @@ val_improvability_gate={
 }
 ```
 
-Turn it on with `use_val_improvability_gate=True`, `--val-improvability-gate` on the bst_train CLI, or `use_val_improvability_gate: true` on a `collation_runner` cell. It requires adaptive_focal (it modulates that alpha; bst_train raises if the gate is on with plain CE). TensorBoard logs `Revert/{c}` per class so the gate's action is visible, and `Alpha/{c}` shows the gated multiplier.
+Turn it on with `use_val_improvability_gate=True`, `--val-improvability-gate` on the bst_x_train CLI, or `use_val_improvability_gate: true` on a `collation_runner` cell. It requires adaptive_focal (it modulates that alpha; bst_x_train raises if the gate is on with plain CE). TensorBoard logs `Revert/{c}` per class so the gate's action is visible, and `Alpha/{c}` shows the gated multiplier.
 
 ### Honest ceiling
 
@@ -838,4 +838,4 @@ Even a perfect gate buys a point or two of macro. The classes it feeds (the stil
 
 ### Status
 
-Built 2026-05-31 (`apply_val_gate` in this module plus the wiring in `bst_train.py` and the `collation_runner` forward). Off by default, not yet run. Unit tests in `tests/test_adaptive_focal.py` section 9; two independent reviews passed. Full analysis, tables and figures in `scratch/architecture_notes/alpha_arc_analysis/`.
+Built 2026-05-31 (`apply_val_gate` in this module plus the wiring in `bst_x_train.py` and the `collation_runner` forward). Off by default, not yet run. Unit tests in `tests/test_adaptive_focal.py` section 9; two independent reviews passed. Full analysis, tables and figures in `scratch/architecture_notes/alpha_arc_analysis/`.

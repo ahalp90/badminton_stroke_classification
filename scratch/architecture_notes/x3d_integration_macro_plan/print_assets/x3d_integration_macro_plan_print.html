@@ -418,15 +418,15 @@ final conv block; ~40 frames is the upper limit. Source:
 Method B (shuttle horizontal-velocity sign reversal, independent
 verification). Re-extraction of source clips not required. Method A
 scaffold already exists at
-<code>src/bst_refactor/validation_scripts/hit_frame_lookup.py</code>.
+<code>src/bst_x/validation_scripts/hit_frame_lookup.py</code>.
 Source: <code>augmentation_framework.md:790-868</code>.</li>
 <li>Existing data path:
 <ul>
-<li>Per-clip .mp4 in <code>BST_CLIPS_DIR</code>
+<li>Per-clip .mp4 in <code>BST_X_CLIPS_DIR</code>
 (<code>/scratch/comp320a/ShuttleSet/clips/{split}/{Top|Bottom}_{stroke}/*.mp4</code>);
 1920×1080 H.264.</li>
 <li>Per-clip MMPose npy at
-<code>BST_MMPOSE_NPY_DIR/{stem}_joints.npy</code> (F, 2, 17, 2),
+<code>BST_X_MMPOSE_NPY_DIR/{stem}_joints.npy</code> (F, 2, 17, 2),
 <code>_pos.npy</code>, <code>_failed.npy</code>. Wrists are COCO indices
 9 (left) / 10 (right); torso anchors are shoulders 5/6 and hips
 11/12.</li>
@@ -455,7 +455,7 @@ stage runs.</p>
 <ul>
 <li><strong>Code dedup (already done)</strong>:
 <code>bst_common.py</code> exists at
-<code>src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py</code>
+<code>src/bst_x/stroke_classification/main_on_shuttleset/bst_common.py</code>
 carrying <code>MODELS</code>, <code>Tee</code>,
 <code>build_bst_network</code>,
 <code>derive_active_classes_from_labels</code>, and
@@ -491,7 +491,7 @@ metadata derivation</h2>
 the existing collated tensors, plus a diagnostic comparison between
 Method A and Method B.</p>
 <p><strong>Existing entry point</strong>:
-<code>src/bst_refactor/validation_scripts/hit_frame_lookup.py</code>
+<code>src/bst_x/validation_scripts/hit_frame_lookup.py</code>
 already implements Method A’s CSV-correlation logic (per-clip → 0-based
 hit-frame index in the clip on disk). It is library-shaped, not yet
 wired to a sidecar writer.</p>
@@ -948,11 +948,11 @@ signal-positive for fusion; below that and the wrist-crop content
 question reopens.</p>
 <p><strong>Deliverable shape</strong>:
 <code>main_on_shuttleset/x3d_s_train.py</code> (mirror of
-<code>bst_train.py</code>), checkpoint dir under
+<code>bst_x_train.py</code>), checkpoint dir under
 <code>experiments/</code>, manifest record per the existing pattern,
 comparison entry in <code>nosides_runs_table.md</code>.</p>
 <p><strong>Dependencies</strong>: Stage 4 wrist-crop artefacts.</p>
-<h2 id="stage-6-bst-x3d-s-fusion-integration">Stage 6 — BST + X3D-S
+<h2 id="stage-6-bst-x3d-s-fusion-integration">Stage 6 — BST-X + X3D-S
 fusion integration</h2>
 <p><strong>Goal</strong>: the actual Arch 1 build. Two sub-questions:
 where to fuse (architecture), and how to schedule training
@@ -1161,7 +1161,7 @@ once.</li>
 with the env-var pattern (<code>BST_WRIST_CROP_DIR</code>) mirroring the
 existing layout. Confirm before Stage 4 launches.</li>
 <li><strong>Code home.</strong> Does Arch 1 live as new files under
-<code>src/bst_refactor/stroke_classification/arch1/</code>, or extend
+<code>src/bst_x/stroke_classification/arch1/</code>, or extend
 the existing <code>model/</code>, <code>preparing_data/</code>,
 <code>main_on_shuttleset/</code> trees in place? Latter is
 lighter-weight; former isolates the X3D-S work for cleaner branching and
@@ -1242,29 +1242,29 @@ gate (mean macro and mean min ws both up)</td>
 touch (forward inventory)</h2>
 <p>For when each stage’s sub-plan is written:</p>
 <ul>
-<li><code>src/bst_refactor/validation_scripts/hit_frame_lookup.py</code>
+<li><code>src/bst_x/validation_scripts/hit_frame_lookup.py</code>
 (Stage 1; extend)</li>
-<li><code>src/bst_refactor/validation_scripts/wrist_loss_in_hit_window.py</code>
+<li><code>src/bst_x/validation_scripts/wrist_loss_in_hit_window.py</code>
 (Stage 2; new)</li>
-<li><code>src/bst_refactor/preparing_data/wrist_crop_spec.py</code>
+<li><code>src/bst_x/preparing_data/wrist_crop_spec.py</code>
 (Stage 3; new — name TBD)</li>
-<li><code>src/bst_refactor/pipeline/wrist_crop_extractor.py</code>
+<li><code>src/bst_x/pipeline/wrist_crop_extractor.py</code>
 (Stage 4; new)</li>
-<li><code>src/bst_refactor/stroke_classification/preparing_data/wrist_crop_dataset.py</code>
+<li><code>src/bst_x/stroke_classification/preparing_data/wrist_crop_dataset.py</code>
 (Stage 4; new)</li>
-<li><code>src/bst_refactor/stroke_classification/main_on_shuttleset/x3d_s_train.py</code>
+<li><code>src/bst_x/stroke_classification/main_on_shuttleset/x3d_s_train.py</code>
 (Stage 5; new)</li>
-<li><code>src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py</code>
+<li><code>src/bst_x/stroke_classification/main_on_shuttleset/bst_common.py</code>
 (Stage 0; extract from existing duplication per
 <code>bst_x_overview.md:472-473</code>)</li>
-<li><code>src/bst_refactor/stroke_classification/model/fusion/</code>
+<li><code>src/bst_x/stroke_classification/model/fusion/</code>
 (Stage 6; new dir, fusion modules per shortlist)</li>
-<li><code>src/bst_refactor/stroke_classification/main_on_shuttleset/arch1_train.py</code>
+<li><code>src/bst_x/stroke_classification/main_on_shuttleset/arch1_train.py</code>
 (Stage 6; new)</li>
-<li><code>src/bst_refactor/stroke_classification/model/bst.py</code>
+<li><code>src/bst_x/stroke_classification/model/bst.py</code>
 (Stage 6; possibly extend with optional <code>x3d_branch</code> flag, or
 leave untouched and wrap)</li>
-<li><code>src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py</code>
+<li><code>src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py</code>
 (Stage 4-6; either extend existing class or build parallel + zip)</li>
 <li><code>.env.example</code> (each stage; new env vars for paths)</li>
 <li><code>scratch/architecture_notes/bst_x_overview.md</code> (each

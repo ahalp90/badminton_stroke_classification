@@ -1,6 +1,6 @@
 """Top-1 confidence calibration (ECE + reliability diagrams) for dumped prediction npzs.
 
-Reads the per-stroke logit dumps written by ``dump_topk_predictions`` (bst_common),
+Reads the per-stroke logit dumps written by ``dump_topk_predictions`` (bst_x_common),
 takes the top-1 softmax probability as the served confidence, and reports Expected
 and Maximum Calibration Error plus a reliability diagram and confidence histogram for
 each split. Also fits a single temperature on val (min NLL) and reports the ECE it
@@ -26,7 +26,7 @@ import numpy as np
 from scipy.optimize import minimize_scalar
 
 EXPERIMENTS = Path(
-    '/home/ariel/Documents/COSC594/badminton_stroke_classification/src/bst_refactor/'
+    '/home/ariel/Documents/COSC594/badminton_stroke_classification/src/bst_x/'
     'stroke_classification/main_on_shuttleset/experiments'
 )
 OUT_DIR = Path(__file__).resolve().parent / 'calibration'

@@ -5,7 +5,7 @@
 Six-stage roadmap to land an X3D-S wrist-crop branch fused with BST. The macro plan surfaces every question per stage; per-stage detail lives in dedicated docs.
 
 - **Stage 1 — Hit-frame metadata derivation:** dedicated plan landed at `stage_1_hit_frame_derivation.md`. Method A (CSV correlation) + Method B' (shuttle direction reversal cross-referenced against player wrist-velocity peaks per Liu et al. 2023). No code yet.
-- **Stage 2 — Wrist-loss assessment + dominant-wrist preflight:** dedicated plan landed at `stage_2_wrist_loss_assessment.md`. The handedness + Top/Bottom-keypoint-convention prelim is fully scoped: 27-player handedness data sourced from Wikipedia (3 lefties: Marin, Momota, Katethong; rest right-handed); spec'd a static-bias L/R diagnostic and an inter-frame L/R consistency diagnostic; the inter-frame script is written and code-reviewed at `src/bst_refactor/validation_scripts/keypoint_lr_interframe_diagnostic.py`. The wrist-loss-rate measurement proper has not started yet.
+- **Stage 2 — Wrist-loss assessment + dominant-wrist preflight:** dedicated plan landed at `stage_2_wrist_loss_assessment.md`. The handedness + Top/Bottom-keypoint-convention prelim is fully scoped: 27-player handedness data sourced from Wikipedia (3 lefties: Marin, Momota, Katethong; rest right-handed); spec'd a static-bias L/R diagnostic and an inter-frame L/R consistency diagnostic; the inter-frame script is written and code-reviewed at `src/bst_x/validation_scripts/keypoint_lr_interframe_diagnostic.py`. The wrist-loss-rate measurement proper has not started yet.
 - **Stages 3-6:** still as scoped in the per-stage sections below; no dedicated docs yet.
 
 What's blocking what: Stage 1 unblocks Stages 2-4. Stage 2 unblocks Stage 3.B (dominant-wrist heuristic). Stage 4 unblocks Stage 5. Stage 5 + Stage 6 are the actual model training.
@@ -24,10 +24,10 @@ Scope is the X3D-S branch from data derivation through fused training. Out of sc
 
 - Model: X3D-S, K400 pretrained via `torch.hub.load('facebookresearch/pytorchvideo', 'x3d_s', pretrained=True)`. Selected against XS / M / L / XL. SSv2 weights not officially available for X3D, parked.  Source: `bst_x_overview.md:124-131`.
 - Target input shape: 39 frames × stride=1, fine-tuning toward this from K400's default 13 × stride=6. RF reaches the full window by the final conv block; ~40 frames is the upper limit. Source: `bst_x_overview.md:133-135`.
-- Hit-frame derivation: Method A (CSV correlation, deterministic) + Method B (shuttle horizontal-velocity sign reversal, independent verification). Re-extraction of source clips not required. Method A scaffold already exists at `src/bst_refactor/validation_scripts/hit_frame_lookup.py`. Source: `augmentation_framework.md:790-868`.
+- Hit-frame derivation: Method A (CSV correlation, deterministic) + Method B (shuttle horizontal-velocity sign reversal, independent verification). Re-extraction of source clips not required. Method A scaffold already exists at `src/bst_x/validation_scripts/hit_frame_lookup.py`. Source: `augmentation_framework.md:790-868`.
 - Existing data path:
-    - Per-clip .mp4 in `BST_CLIPS_DIR` (`/scratch/comp320a/ShuttleSet/clips/{split}/{Top|Bottom}_{stroke}/*.mp4`); 1920×1080 H.264.
-    - Per-clip MMPose npy at `BST_MMPOSE_NPY_DIR/{stem}_joints.npy` (F, 2, 17, 2), `_pos.npy`, `_failed.npy`. Wrists are COCO indices 9 (left) / 10 (right); torso anchors are shoulders 5/6 and hips 11/12.
+    - Per-clip .mp4 in `BST_X_CLIPS_DIR` (`/scratch/comp320a/ShuttleSet/clips/{split}/{Top|Bottom}_{stroke}/*.mp4`); 1920×1080 H.264.
+    - Per-clip MMPose npy at `BST_X_MMPOSE_NPY_DIR/{stem}_joints.npy` (F, 2, 17, 2), `_pos.npy`, `_failed.npy`. Wrists are COCO indices 9 (left) / 10 (right); torso anchors are shoulders 5/6 and hips 11/12.
     - Collated tensors at `npy_wipe_drop/{train,val,test}/`: pose, pos, shuttle, videos_len, labels, all padded to seq_len=100.
     - `clips_master.csv` carries `clip_stem`, `raw_type_en`, `player_side`, split column, and the rally/ball_round indices needed to rederive the windowing.
 - Keypoint loss rate: 0.93% either-slot post-sticky_anchor; 6.25% shuttle-only. Per-class hit-zone fail rate cut to 0.58%. Source: `frame_zeroing.md`.
@@ -38,12 +38,12 @@ Scope is the X3D-S branch from data derivation through fused training. Out of sc
 
 Things that aren't a stage of their own but must land before any stage runs.
 
-- **Code dedup (already done)**: `bst_common.py` exists at `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py` carrying `MODELS`, `Tee`, `build_bst_network`, `dump_topk_predictions`, and `compute_data_provenance`. The X3D-S training script imports from there, no further extraction needed; the `bst_x_overview.md:472-473` "leave it for now" note pre-dates this refactor.
-- **Pinned-taxonomy wiring (changed by the taxon_pinned_w_preds refactor, 2026-05-30)**: head dim is `taxonomy.n_classes` directly. `labels.npy` lands in `[0, n_classes)` at collation time, so there's no runtime active/full remap and no unknown ghost. The deleted machinery (`derive_active_classes_from_labels`, `_validate_and_record_arch`, `task.n_active_classes`, the `extra.arch` manifest block) must NOT be reintroduced. New training scripts mirror `bst_train`: `resolve_taxonomy(name)` -> head `taxonomy.n_classes`, `Task._assert_label_coverage` as the train-start guard (train covers every class; val/test carry no class absent from train), and `config.classes` written into the manifest.
+- **Code dedup (already done)**: `bst_x_common.py` exists at `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py` carrying `MODELS`, `Tee`, `build_bst_x_network`, `dump_topk_predictions`, and `compute_data_provenance`. The X3D-S training script imports from there, no further extraction needed; the `bst_x_overview.md:472-473` "leave it for now" note pre-dates this refactor.
+- **Pinned-taxonomy wiring (changed by the taxon_pinned_w_preds refactor, 2026-05-30)**: head dim is `taxonomy.n_classes` directly. `labels.npy` lands in `[0, n_classes)` at collation time, so there's no runtime active/full remap and no unknown ghost. The deleted machinery (`derive_active_classes_from_labels`, `_validate_and_record_arch`, `task.n_active_classes`, the `extra.arch` manifest block) must NOT be reintroduced. New training scripts mirror `bst_x_train`: `resolve_taxonomy(name)` -> head `taxonomy.n_classes`, `Task._assert_label_coverage` as the train-start guard (train covers every class; val/test carry no class absent from train), and `config.classes` written into the manifest.
 - **Storage location**: artefacts go on /scratch on engelbart (extraction host), rsync'd to bourbaki post-extract per the existing cross-node pattern. Local disk is not a candidate.
 - **Solo X3D-S baseline gate**: before fusion, X3D-S is trained alone on the wrist crops as a 14-class classifier. The solo number is the lower bound for "fusion adds something". This sits inside Stage 5 but must be planned for in Stage 4's storage layout (the same artefacts feed solo and fused).
 - **Capacity Run 2 + augmentation landing**: scheduled before X3D-S fusion build per the active-priorities ordering at `bst_x_overview.md:51-56`. The fusion baseline is whatever's best after those land, not `run_20260503_172922` directly.
-- **Continued-training writes a NEW run folder (build before any checkpoint-warm-start / multi-stage X3D-S training)**: there is no load-checkpoint-and-train-further path today; `bst_train` loads an existing serial weight and *skips* training. When continued / multi-stage training is built (an X3D-S solo fine-tune that warm-starts from a checkpoint, or staged BST training), it must mint a fresh `run_id` and write its own `tb/`, `weights/`, `manifest.yaml`, `best_model_id.txt` into that new folder, recording `resumed_from: <source run_id>`. It must NOT resume into and overwrite the source run's outputs; a finished run dir is left untouched. (This is the reason the `taxon_pinned_w_preds` refactor needs no manifest `.bak` machinery: nothing re-opens a finished run to mutate it.)
+- **Continued-training writes a NEW run folder (build before any checkpoint-warm-start / multi-stage X3D-S training)**: there is no load-checkpoint-and-train-further path today; `bst_x_train` loads an existing serial weight and *skips* training. When continued / multi-stage training is built (an X3D-S solo fine-tune that warm-starts from a checkpoint, or staged BST training), it must mint a fresh `run_id` and write its own `tb/`, `weights/`, `manifest.yaml`, `best_model_id.txt` into that new folder, recording `resumed_from: <source run_id>`. It must NOT resume into and overwrite the source run's outputs; a finished run dir is left untouched. (This is the reason the `taxon_pinned_w_preds` refactor needs no manifest `.bak` machinery: nothing re-opens a finished run to mutate it.)
 
 ## Stage 1 — Hit-frame metadata derivation
 
@@ -51,7 +51,7 @@ Things that aren't a stage of their own but must land before any stage runs.
 
 **Goal**: produce a sidecar `hit_frame_idx.npy` per split (train/val/test), aligned to the existing collated tensors, plus a diagnostic comparison between Method A and Method B'.
 
-**Existing entry point**: `src/bst_refactor/validation_scripts/hit_frame_lookup.py` already implements Method A's CSV-correlation logic (per-clip → 0-based hit-frame index in the clip on disk). It is library-shaped, not yet wired to a sidecar writer.
+**Existing entry point**: `src/bst_x/validation_scripts/hit_frame_lookup.py` already implements Method A's CSV-correlation logic (per-clip → 0-based hit-frame index in the clip on disk). It is library-shaped, not yet wired to a sidecar writer.
 
 **Working hypothesis (revised)**: Method B (shuttle-trajectory inversion) may end up being the primary, not just verification. Reasoning: ShuttleSet's CSV annotations carry visible jitter (clips_master rows show this on inspection of repeated stems), and the windowing-rule reconstruction inherits whatever drift the original annotators introduced when they marked the contact frame by eye, especially on fast strokes. TrackNet's velocity-sign reversal is a direct physical signal: the bird's horizontal velocity flips at contact regardless of who hit it. The variance comparison Method A vs Method B is therefore a primary diagnostic, not just a quality check on Method A. Whichever shows tighter per-stroke variance against a hand-checked sample becomes the canonical hit-frame source.
 
@@ -216,11 +216,11 @@ Need to pick one. Default recommendation absent further data: option 4 (direct j
 
 A solo X3D-S that beats chance (1/14 ≈ 7%) is the floor. A solo number in the 0.55-0.65 macro F1 band is plausible given the wrist-only context (wide bands of stroke-distinctive whole-body motion are gone; only the racket-end signal remains). Anything ≥ ~0.5 macro is signal-positive for fusion; below that and the wrist-crop content question reopens.
 
-**Deliverable shape**: `main_on_shuttleset/x3d_s_train.py` (mirror of `bst_train.py`), checkpoint dir under `experiments/`, manifest record per the existing pattern, comparison entry in `nosides_runs_table.md`.
+**Deliverable shape**: `main_on_shuttleset/x3d_s_train.py` (mirror of `bst_x_train.py`), checkpoint dir under `experiments/`, manifest record per the existing pattern, comparison entry in `nosides_runs_table.md`.
 
 **Dependencies**: Stage 4 wrist-crop artefacts.
 
-## Stage 6 — BST + X3D-S fusion integration
+## Stage 6 — BST-X + X3D-S fusion integration
 
 **Goal**: the actual Arch 1 build. Two sub-questions: where to fuse (architecture), and how to schedule training (optimisation).
 
@@ -298,7 +298,7 @@ These cut across multiple stages and want answering early so they don't compound
 
 1. **Resolution lock.** 112² vs 160². Affects Stage 4 (storage), Stage 5 (compute), Stage 6 (compute). One number, picked once.
 2. **Storage location.** /scratch on bourbaki/engelbart, with the env-var pattern (`BST_WRIST_CROP_DIR`) mirroring the existing layout. Confirm before Stage 4 launches.
-3. **Code home.** Does Arch 1 live as new files under `src/bst_refactor/stroke_classification/arch1/`, or extend the existing `model/`, `preparing_data/`, `main_on_shuttleset/` trees in place? Latter is lighter-weight; former isolates the X3D-S work for cleaner branching and rollback.
+3. **Code home.** Does Arch 1 live as new files under `src/bst_x/stroke_classification/arch1/`, or extend the existing `model/`, `preparing_data/`, `main_on_shuttleset/` trees in place? Latter is lighter-weight; former isolates the X3D-S work for cleaner branching and rollback.
 4. **Splits.** Stick with combo A nosides (`une_merge_v1_nosides + split_v2 + dropunk`) for X3D-S solo and fused, mirroring active BST baseline. The cross-player swap-val-test direction (`bst_x_overview.md:443-453`) stays parked.
 5. **Reproducibility scaffolding.** Run-id, manifest, per-serial seeding, weight-cache pattern, and recording `extra.x3d_arch` (frames, stride, resolution, pretrain-source) into the manifest directly (the `_validate_and_record_arch` helper is deleted, see Stage 0). Stage 0 cleanup work.
 6. **Data versioning.** A new `ablation_id` like `arch1_v0` to mark the new collated tree variant if any of the existing tensors get re-collated to add the hit-frame sidecar or wrist-crop pointer.
@@ -320,17 +320,17 @@ Each stage ships with its own validation harness. The macro plan locks the shape
 
 For when each stage's sub-plan is written:
 
-- `src/bst_refactor/validation_scripts/hit_frame_lookup.py` (Stage 1; extend)
-- `src/bst_refactor/validation_scripts/wrist_loss_in_hit_window.py` (Stage 2; new)
-- `src/bst_refactor/preparing_data/wrist_crop_spec.py` (Stage 3; new — name TBD)
-- `src/bst_refactor/pipeline/wrist_crop_extractor.py` (Stage 4; new)
-- `src/bst_refactor/stroke_classification/preparing_data/wrist_crop_dataset.py` (Stage 4; new)
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/x3d_s_train.py` (Stage 5; new)
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py` (Stage 0; extract from existing duplication per `bst_x_overview.md:472-473`)
-- `src/bst_refactor/stroke_classification/model/fusion/` (Stage 6; new dir, fusion modules per shortlist)
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/arch1_train.py` (Stage 6; new)
-- `src/bst_refactor/stroke_classification/model/bst.py` (Stage 6; possibly extend with optional `x3d_branch` flag, or leave untouched and wrap)
-- `src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py` (Stage 4-6; either extend existing class or build parallel + zip)
+- `src/bst_x/validation_scripts/hit_frame_lookup.py` (Stage 1; extend)
+- `src/bst_x/validation_scripts/wrist_loss_in_hit_window.py` (Stage 2; new)
+- `src/bst_x/preparing_data/wrist_crop_spec.py` (Stage 3; new — name TBD)
+- `src/bst_x/pipeline/wrist_crop_extractor.py` (Stage 4; new)
+- `src/bst_x/stroke_classification/preparing_data/wrist_crop_dataset.py` (Stage 4; new)
+- `src/bst_x/stroke_classification/main_on_shuttleset/x3d_s_train.py` (Stage 5; new)
+- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py` (Stage 0; extract from existing duplication per `bst_x_overview.md:472-473`)
+- `src/bst_x/stroke_classification/model/fusion/` (Stage 6; new dir, fusion modules per shortlist)
+- `src/bst_x/stroke_classification/main_on_shuttleset/arch1_train.py` (Stage 6; new)
+- `src/bst_x/stroke_classification/model/bst.py` (Stage 6; possibly extend with optional `x3d_branch` flag, or leave untouched and wrap)
+- `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py` (Stage 4-6; either extend existing class or build parallel + zip)
 - `.env.example` (each stage; new env vars for paths)
 - `scratch/architecture_notes/bst_x_overview.md` (each stage; experiment log entries)
 - `scratch/architecture_notes/` (each stage; per-stage writeups, names TBD)

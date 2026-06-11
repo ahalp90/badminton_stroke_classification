@@ -1,21 +1,21 @@
 [project]
 name = "badminton-stroke-classification"
 version = "0.1.0"
-description = "Capstone — BST + BRIC stroke classifiers and supporting pipeline."
+description = "Capstone — BST-X + BRIC stroke classifiers and supporting pipeline."
 requires-python = ">=3.11"
 
 # ---------------------------------------------------------------------------
 # Shared base — installed by every `uv sync`.
-# These deps are needed by every architecture (BRIC, BST handler) as well as
+# These deps are needed by every architecture (BRIC, BST-X handler) as well as
 # the FastAPI backend. Architecture-specific deps go in the extras groups
 # below.
 #
 # Compatible coexistence notes:
-#   - BRIC and BST inference handlers can share one venv. Both use PyTorch,
+#   - BRIC and BST-X inference handlers can share one venv. Both use PyTorch,
 #     TrackNetV3, opencv, fastapi.
 #   - **MMPose is the exception.** Its numpy<2 ceiling forces isolation; the
-#     BST pipeline's existing pattern is to call MMPose-using code via
-#     subprocess (see src/bst_refactor/pipeline/shuttle_extractor.py and
+#     BST-X pipeline's existing pattern is to call MMPose-using code via
+#     subprocess (see src/bst_x/pipeline/shuttle_extractor.py and
 #     stroke_classification/preparing_data/). That subprocess venv is
 #     managed separately from this pyproject.
 #   - Therefore numpy>=2 is fine for everything in this pyproject. Modern
@@ -24,7 +24,7 @@ requires-python = ">=3.11"
 # Install patterns:
 #   - BRIC training:                     uv sync --extra bric --extra dev
 #   - BRIC inference only:               uv sync --extra bric-runtime
-#   - Unified API server (both arches):  uv sync --extra bric-runtime --extra bst-runtime
+#   - Unified API server (both arches):  uv sync --extra bric-runtime --extra bst-x-runtime
 #   - Dev tooling only (lint / tests):   uv sync --extra dev
 # ---------------------------------------------------------------------------
 dependencies = [
@@ -79,26 +79,26 @@ bric = [
     "badminton-stroke-classification[bric-runtime,bric-train]",
 ]
 
-# BST handler runtime deps for the unified API server.
+# BST-X handler runtime deps for the unified API server.
 #
 # **Pre-populated as a starting guess** from the project's existing
-# requirements.txt (which is BST's source of truth). Comments mirror the
-# usage notes from that file. The BST pipeline owner should prune this
+# requirements.txt (which is BST-X's source of truth). Comments mirror the
+# usage notes from that file. The BST-X pipeline owner should prune this
 # down to inference-only deps once the handler is wired — training-only
 # tooling (tensorboard, mlflow, matplotlib, etc.) can move to a future
-# `bst-train` extras group.
+# `bst-x-train` extras group.
 #
 # MMPose deliberately omitted — runs via subprocess into its own venv,
-# per the BST pipeline's existing isolation pattern.
-bst-runtime = [
-    "positional-encodings",   # BST transformer model uses these (tempose.py)
+# per the BST-X pipeline's existing isolation pattern.
+bst-x-runtime = [
+    "positional-encodings",   # BST-X transformer model uses these (tempose.py)
     "torchinfo",              # Model summary utility (imported by tempose.py)
     "torcheval",              # multiclass_f1_score; may be used at eval time
     "transformers",           # HF cosine LR schedule (training); in case shared modules import
     "tensorboard",            # SummaryWriter; module-load import in bst_train.py
     "mlflow",                 # Experiment tracking
     "scikit-learn",           # Eval / preprocessing utilities
-    "matplotlib",             # Plots; rarely needed at inference, BST owner can drop
+    "matplotlib",             # Plots; rarely needed at inference, BST-X owner can drop
 ]
 
 # Dev tooling.
@@ -132,7 +132,7 @@ torchvision = [{ index = "pytorch-cuda", marker = "sys_platform == 'linux'" }]
 exclude = [
     "notebooks/",
     "**/deprecated/",
-    "src/bst_refactor/TrackNetV3/",
+    "src/bst_x/TrackNetV3/",
     "src/bric/perception/_vendor/",   # All vendored upstream code (currently TrackNetV3)
     "scratch/project_history/",
 ]

@@ -1,0 +1,67 @@
+# Round 1 of the augmentation hparam search.
+#
+# Design read: vs the wipe_drop best, the locked-config aug v1 first run
+# was -0.9 macro and ~flat min; bumping p_jitter 0.2 -> 0.3 in
+# run_20260505_154907 lifted macro +0.6 and min +0.3, putting the aug at
+# parity-or-better than wipe_drop on macro/acc and clearly ahead on min
+# and top-2.
+#
+# Three open questions this round answers:
+#   1. Does lowering p_flip recover cross_court_net_shot? It dropped ~5%
+#      vs wipe_drop and didn't move with the p_jitter bump, suggesting
+#      the regression isn't on the exposure axis. Likely flip-mediated.
+#   2. Does extending the magnitude axis (cap_y/cap_x bump) keep paying?
+#      The first p_jitter bump was a clear win on the same axis.
+#   3. Does p_jitter keep paying past 0.3? Lowest novelty of the three;
+#      tests whether the exposure curve has plateaued.
+#
+# Conditional pairs at the end test the interactions between any
+# winning singles. Gates are on the singles' verdicts.
+
+session_name: aug_v1_round_1
+
+reference:
+  current_best_run: run_20260505_154907   # aug v1 + p_jitter=0.3
+  wipe_drop_best_run: run_20260503_172922 # absolute floor reference
+
+base_config:
+  augmentation:
+    p_flip:   0.5
+    p_jitter: 0.3
+    cap_y:    0.05
+    cap_x:    0.10
+    eps:      0.15
+
+cells:
+  # Singles: each touches exactly one knob from the base, run in priority
+  # order so the riskiest hypothesis fires first.
+
+  - name: p_flip_25
+    augmentation:
+      p_flip: 0.25
+
+  - name: cap_bump
+    augmentation:
+      cap_y: 0.075
+      cap_x: 0.15
+
+  - name: p_jitter_40
+    augmentation:
+      p_jitter: 0.4
+
+  # Conditional pairs: only run when the relevant single(s) didn't
+  # actively hurt performance. Tests interaction effects on the axes
+  # the singles already validated.
+
+  - name: p_flip_25_x_p_jitter_30
+    requires: "p_flip_25 != LOSE"
+    augmentation:
+      p_flip:   0.25
+      p_jitter: 0.3
+
+  - name: p_flip_25_x_cap_bump
+    requires: "p_flip_25 != LOSE and cap_bump == WIN"
+    augmentation:
+      p_flip: 0.25
+      cap_y:  0.075
+      cap_x:  0.15

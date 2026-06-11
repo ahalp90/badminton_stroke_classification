@@ -1,0 +1,29 @@
+Best model of bst_cg_ap_base_17_04_2026/ is #2 run
+bst_cg_ap_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2.pt
+
+Original BST paper hyperparameters, unchanged:
+  n_epochs=1600, warm_up_step=400, early_stop_n_epochs=300,
+  scheduler num_cycles=0.25, lr=5e-4, batch_size=128.
+No CG/AP annealing (feature didn't exist yet; equivalent to use_aux_schedule=False).
+
+Only difference vs. the official BST author's build: used TrackNetV3 WITH inpaint
+(accidental) where the original BST build used TrackNetV3 WITHOUT inpaint. That
+shuttle-input difference is what's responsible for this baseline beating the paper's
+published numbers on F1 macro, F1 min, and accuracy. Corresponds to commit 8810e95.
+
+Superseded by run_20260417_191851, which retunes the schedule (n_epochs, num_cycles,
+warm_up_step, early_stop_n_epochs) so cosine LR decay happens meaningfully in the real
+train window.
+
+TensorBoard run folders (in tb/):
+  S1: serial_1
+  S2: serial_2  (best on test)
+  S3: serial_3  (best on val; the run that motivated the retune)
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2) ===
+Test (num_strokes: 3486) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...
+F1-score                                           0.823 0.585
+Accuracy: 0.841
+Top2 Accuracy: 0.963

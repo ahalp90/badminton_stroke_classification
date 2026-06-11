@@ -29,17 +29,17 @@ The heuristic runs on the raw MMPose output stored on disk; the expensive MMPose
 
 ## Current status (2026-04-29)
 
-Phase 2 raw extract is now done. The full 32,203-stem unified raw dir lives at `/scratch/comp320a/ShuttleSet_keypoints_raw/` on both bourbaki and engelbart, byte-identical across nodes. Composition: 30,487 freshly extracted on the A100 + V100 across two shards (over ~20 hours wall) plus the 1,716 Phase-1 backfill rsynced in from engelbart's old `_flat_raw_phase1` dir. Verification: file counts match expected (32,203 stems × 5 files = 161,015 npys), `rsync -avn --delete --checksum` clean cross-node, failsafe gate on the 1,716 overlap passed 50/50 with max abs diff 0.000e+00 on `_pos`/`_joints`. Post-extract `ndet` distribution captured at `src/bst_refactor/validation_scripts/raw_ndet_stats_outputs/baseline_2026-04-29.md`: 0% `ndet=0`, 0.53% `ndet=1` floor (irreducible per-frame failure rate for any two-player heuristic), 1.12% `ndet=16` cap exercise, modal `ndet=10`.
+Phase 2 raw extract is now done. The full 32,203-stem unified raw dir lives at `/scratch/comp320a/ShuttleSet_keypoints_raw/` on both bourbaki and engelbart, byte-identical across nodes. Composition: 30,487 freshly extracted on the A100 + V100 across two shards (over ~20 hours wall) plus the 1,716 Phase-1 backfill rsynced in from engelbart's old `_flat_raw_phase1` dir. Verification: file counts match expected (32,203 stems × 5 files = 161,015 npys), `rsync -avn --delete --checksum` clean cross-node, failsafe gate on the 1,716 overlap passed 50/50 with max abs diff 0.000e+00 on `_pos`/`_joints`. Post-extract `ndet` distribution captured at `src/bst_x/validation_scripts/raw_ndet_stats_outputs/baseline_2026-04-29.md`: 0% `ndet=0`, 0.53% `ndet=1` floor (irreducible per-frame failure rate for any two-player heuristic), 1.12% `ndet=16` cap exercise, modal `ndet=10`.
 
 Next: `apply_heuristic.py --heuristic sticky_anchor` over the unified raw dir → `/scratch/comp320a/ShuttleSet_keypoints_clean/`, then `validate_zeroed_frames.py` for comparison vs Phase-1 numbers, then collation + sanity train. The motivating decision-gate failure from Phase 1 (mixed retrain didn't lift `Top_wrist_smash`) still holds; the value of doing Phase 2 now is whether removing the heuristic-frame-drop bug from the full training set lifts the wrist_smash floor enough to justify the new clean dir as the canonical training source.
 
 **Update later 2026-04-29:** sticky_anchor now run over the full 32,203-stem unified raw dir; output at `/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor/`, mirrored byte-identical to engelbart. Three `validate_zeroed_frames.py` reports landed (the three active taxonomy + split combos). Direct Phase-1 vs Phase-2 comparison written up at `phase1_vs_phase2_2026-04-29.md` in this dir. Headline: overall fail rate 5.38% -> 0.93%, hit-zone fail rate near hit 5.98% -> 0.58% (the gradient sign flipped, near-hit is now the cleanest zone), per-stroke gains 19x to 76x on the strokes Phase-1 was failing hardest on. Collation + sanity train is the next gate.
 
-**Update even-later 2026-04-29:** collation done for all three active (taxonomy, split) combos; trees at `/scratch/comp320a/ShuttleSet_data_<tax>/npy_<tax>_<split>_dropunk/`, mirrored bourbaki, cross-node byte-identical, per-split clip counts cross-verified by `src/bst_refactor/validation_scripts/verify_collated_counts.py`. `BST_MMPOSE_NPY_DIR` flipped to the new clean dir (`.env.bak.2026-04-29` is the rollback). The pipeline is now end-to-end ready for a sanity-train against the new extract. Decision gate: does `Top_wrist_smash` clear the V4 baseline floor that Phase-1's mixed retrain failed to clear?
+**Update even-later 2026-04-29:** collation done for all three active (taxonomy, split) combos; trees at `/scratch/comp320a/ShuttleSet_data_<tax>/npy_<tax>_<split>_dropunk/`, mirrored bourbaki, cross-node byte-identical, per-split clip counts cross-verified by `src/bst_x/validation_scripts/verify_collated_counts.py`. `BST_X_MMPOSE_NPY_DIR` flipped to the new clean dir (`.env.bak.2026-04-29` is the rollback). The pipeline is now end-to-end ready for a sanity-train against the new extract. Decision gate: does `Top_wrist_smash` clear the V4 baseline floor that Phase-1's mixed retrain failed to clear?
 
 ### Reproducibility caveat for the legacy nested dirs
 
-The old `/scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat/` (committed Phase-1 filtered extract) and its `_flat_raw_phase1` sibling are the only way to bit-exactly reproduce the V4 / Phase-1 baseline numbers. Once we flip `BST_MMPOSE_NPY_DIR` to the new clean dir and start training against it, those legacy dirs become dead weight from a pipeline-input perspective. They can be deleted to free `/scratch` quota, but if we do we lose exact reproducibility for V4.
+The old `/scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat/` (committed Phase-1 filtered extract) and its `_flat_raw_phase1` sibling are the only way to bit-exactly reproduce the V4 / Phase-1 baseline numbers. Once we flip `BST_X_MMPOSE_NPY_DIR` to the new clean dir and start training against it, those legacy dirs become dead weight from a pipeline-input perspective. They can be deleted to free `/scratch` quota, but if we do we lose exact reproducibility for V4.
 
 Realistically the new extract is a strict improvement: heuristic-frame-drop bug removed across the full set, `N_max=16` consistently applied, sticky_anchor about to run over all 32,203 stems instead of the 1,716 hit-zone subset. Future runs should never come out worse on the same metric. The only thing we'd lose is the ability to re-derive the historical baseline number itself. Keep the legacy dirs around at least until the Phase-2 sanity-train numbers are in and the writeup cites whichever baseline we settle on.
 
@@ -60,7 +60,7 @@ Phase 0, Phase 1 raw extract, heuristic implementation, and Phase 1 mixed retrai
 - **One residual investigated in detail (19_2_10_7)**: cause is upstream MMPose detection-layer gap under heavy occlusion, not Voronoi crossover. Per-frame replay + image inspection on 2026-04-25; details in the Failure modes section.
 - **Net-crossover zeroing is a mathematically possible failure, but unobserved**: no clip in the inspected residuals actually exhibits Voronoi-induced zeroing. The 3.5% upper-bound estimate in earlier writeups assumed this was the cause on 19_2_10_7; that attribution was wrong.
 - **Phase 1 mixed retrain done** (`run_20260425_150548`): decision gate failed on `Top_wrist_smash` (-0.057 mean vs V4 baseline) while macro / acc / top-2 each lifted by ~0.007. Best S3 macro 0.755, min 0.352, acc 0.780.
-- **Per-class frame-zeroing audit done** (`src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/zeroed_frames_class_audit.py`, output at `analysis_outputs/zeroed_frames_class_audit__run_20260425_150548.{txt,csv}`): the F1-bottom classes are not the heavily-zeroed ones; the worst-zeroed class has near-perfect F1. The data-quality-bottleneck hypothesis for the F1 floor is empirically dead.
+- **Per-class frame-zeroing audit done** (`src/bst_x/validation_scripts/mmpose_heuristic_investigation/zeroed_frames_class_audit.py`, output at `analysis_outputs/zeroed_frames_class_audit__run_20260425_150548.{txt,csv}`): the F1-bottom classes are not the heavily-zeroed ones; the worst-zeroed class has near-perfect F1. The data-quality-bottleneck hypothesis for the F1 floor is empirically dead.
 - **Recovery routes parked for Phase 2**: gap-fill post-processing (interpolate over MMPose detection gaps) and homography-fail X3D-S-only rescue (independent stream when court coords are unusable). Neither is currently scoped.
 
 ## Decoupling: raw extract plus post-processing
@@ -93,14 +93,14 @@ Running MMPose on 33k clips takes ~50 hr on V100. Running it multiple times to i
 Strict separation: raw extracts and the primary committed filtered extract are never overwritten. Paths are referenced via the `.env` convention Curtis established for `pipeline.data_access` (`.env.example` at the repo root, `pipeline/data_access.py`). Relevant variable:
 
 ```
-BST_MMPOSE_NPY_DIR=/scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat
+BST_X_MMPOSE_NPY_DIR=/scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat
 ```
 
 Per-clip flat dirs on engelbart, all under the same parent:
 
 ```
 {parent_dir}/
-  dataset_npy_between_2_hits_with_max_limits_flat/                  # primary committed, read-only (= $BST_MMPOSE_NPY_DIR)
+  dataset_npy_between_2_hits_with_max_limits_flat/                  # primary committed, read-only (= $BST_X_MMPOSE_NPY_DIR)
   dataset_npy_between_2_hits_with_max_limits_flat_raw_phase1/       # raw N=16 extract, read-only
   dataset_npy_between_2_hits_with_max_limits_flat_raw_phase1_n8/    # historical N=8 raw, read-only
   dataset_npy_between_2_hits_with_max_limits_flat_failsafe_gate/    # byte-identity gate output, scratch
@@ -109,7 +109,7 @@ Per-clip flat dirs on engelbart, all under the same parent:
 
 The `_h_<heuristic>` suffix extends the existing flat-dir naming consistent with the `_raw_phase1` extensions.
 
-`apply_heuristic.py` refuses to write unless `--output-dir` is distinct from both `--raw-dir` and `BST_MMPOSE_NPY_DIR`. Two-line guard against typos destroying data we can't cheaply recompute (1,716 clip re-extract is ~20 min V100 time; the committed extract is the baseline for every comparison).
+`apply_heuristic.py` refuses to write unless `--output-dir` is distinct from both `--raw-dir` and `BST_X_MMPOSE_NPY_DIR`. Two-line guard against typos destroying data we can't cheaply recompute (1,716 clip re-extract is ~20 min V100 time; the committed extract is the baseline for every comparison).
 
 **Downstream collated dir** (for the Phase 1 mixed re-train, produced by Step 3 in `prepare_train_on_shuttleset.py`): post-2026-04-21 short naming convention.
 
@@ -126,7 +126,7 @@ Existing flat dirs on scratch already match the current naming convention. The n
 
 - Sample 50 clip stems from `scratch/architecture_notes/busted_hit_zone_clips_phase1.txt`. Lex-sort, take every `len // 50`-th stem. Deterministic, no seeding. Draws from the busted list rather than `clips_master.csv` because raw extracts only exist for those 1,716 stems.
 - Run `apply_heuristic.py --heuristic current` on those stems against the raw extract, writing to `..._flat_failsafe_gate/`.
-- For each stem's three output arrays, compare against `$BST_MMPOSE_NPY_DIR`:
+- For each stem's three output arrays, compare against `$BST_X_MMPOSE_NPY_DIR`:
   - `np.array_equal` on `_failed.npy` (bool).
   - `np.allclose(rtol=0, atol=1e-5)` on `_pos.npy` and `_joints.npy` (float; tolerance absorbs float32 projection-chain non-associativity).
 - On any mismatch: stop and investigate plumbing before trusting `sticky_anchor`. Usual suspects: keypoint-index ordering, bbox row order when multiple on-court people exist, `normalize_joints` vs `normalize_position` step order, resolution-scale application.
@@ -134,7 +134,7 @@ Existing flat dirs on scratch already match the current naming convention. The n
 Canonical gate command (run from the repo root with both package roots on PYTHONPATH; same pair `conftest.py` uses for tests):
 
 ```
-PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
     python -m preparing_data.failsafe_bst_mmpose_zeroing_check_equivalence \
         --raw-dir /scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat_raw_phase1 \
         --busted-stems-file scratch/architecture_notes/busted_hit_zone_clips_phase1.txt \
@@ -142,12 +142,12 @@ PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
         --scratch-output-dir /scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat_failsafe_gate
 ```
 
-`--committed-dir` is auto-detected from `$BST_MMPOSE_NPY_DIR` when unset. `apply_heuristic` calls `pipeline.data_access.load_repo_dotenv()` at module load, which loads the repo-root `.env`, so the collision guards fire without a prior shell export. (The original opaque side-effect-import was lifted to an explicit call by step Q; behaviour is the same.)
+`--committed-dir` is auto-detected from `$BST_X_MMPOSE_NPY_DIR` when unset. `apply_heuristic` calls `pipeline.data_access.load_repo_dotenv()` at module load, which loads the repo-root `.env`, so the collision guards fire without a prior shell export. (The original opaque side-effect-import was lifted to an explicit call by step Q; behaviour is the same.)
 
 ### Apply heuristic (canonical run)
 
 ```
-PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
     python -m preparing_data.apply_heuristic \
         --raw-dir /scratch/comp320a/.../dataset_npy_..._flat_raw_phase1 \
         --output-dir /scratch/comp320a/.../dataset_npy_..._flat_h_sticky_anchor \
@@ -161,12 +161,12 @@ Hyperparameters expose as CLI args; defaults in the Hyperparameters section belo
 
 After `sticky_anchor` runs on the full 1,716 clips:
 
-- Build a symlink-merged flat dir at `$BST_MMPOSE_NPY_DIR/../dataset_npy_between_2_hits_with_max_limits_flat_h_sticky_anchor_phase1_merged/`.
+- Build a symlink-merged flat dir at `$BST_X_MMPOSE_NPY_DIR/../dataset_npy_between_2_hits_with_max_limits_flat_h_sticky_anchor_phase1_merged/`.
 - For each stem in `clips_master.csv` with `split_v2 in ('train','val','test')`:
   - If stem is in `busted_hit_zone_clips_phase1.txt`: symlink the three `sticky_anchor` outputs from `..._flat_h_sticky_anchor/`.
-  - Otherwise: symlink from `$BST_MMPOSE_NPY_DIR`.
+  - Otherwise: symlink from `$BST_X_MMPOSE_NPY_DIR`.
 - Collate via `python -m preparing_data.prepare_train_on_shuttleset --skip-trajectory --skip-pose --clip-npy-dir <merged_dir>` with the Phase 1 ablation_id (`npy_une_merge_v1_split_v2_dropunk_h_sticky_anchor` under `ShuttleSet_data_une_merge_v1/`).
-- Retrain V4 via `bst_train.py` pointing at the new collated dir. 5 serials, same hyperparameters as the committed V4 run (`run_20260420_171101/`).
+- Retrain V4 via `bst_x_train.py` pointing at the new collated dir. 5 serials, same hyperparameters as the committed V4 run (`run_20260420_171101/`).
 
 **Decision gate**: conjunction of (a) >25% relative reduction in zeroing rate on target classes, (b) no >5% relative regression on non-target classes, (c) >=0.02 min-F1 lift on target-class aggregate OR >=0.005 macro-F1 lift overall. All measured against committed V4.
 
@@ -279,7 +279,7 @@ The annotation target is the outer (doubles) taped court. No "further taped line
 
 ### Visual confirmation on clip `3_1_18_3` (video id 3)
 
-Overlay PNG at `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/homography_overlay_3_1_18_3_f032.png` (frame 32, top player mid-smash). The cyan rectangle (annotated corners, scaled from 1280x720 homography resolution up to the clip's 1920x1080 resolution) sits exactly on the outer doubles taped lines. A derived orange pair (doubles-sidelines minus 7.54% inset) lands precisely on the visible singles sidelines, independently verifying the annotations are on the outer taped lines.
+Overlay PNG at `src/bst_x/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/homography_overlay_3_1_18_3_f032.png` (frame 32, top player mid-smash). The cyan rectangle (annotated corners, scaled from 1280x720 homography resolution up to the clip's 1920x1080 resolution) sits exactly on the outer doubles taped lines. A derived orange pair (doubles-sidelines minus 7.54% inset) lands precisely on the visible singles sidelines, independently verifying the annotations are on the outer taped lines.
 
 Implied singles-sideline normalised x coordinates: **x = 0.0754** and **x = 0.9246** (since (6.10 - 5.18) / 2 / 6.10 = 0.0754). Singles play occupies ~85% of the horizontal [0, 1] range; the outer ~7.5% on each side is the doubles tramline.
 
@@ -588,15 +588,15 @@ None of these need Phase 1 work; hooks exist via CLI args.
 
 ## References
 
-- `src/bst_refactor/stroke_classification/preparing_data/prepare_train_on_shuttleset.py`: original `detect_players_2d`, `check_pos_in_court`, `to_court_coordinate`, `normalize_position`, `normalize_joints`, and the zeroing decision inside `detect_players_2d`.
-- `src/bst_refactor/stroke_classification/preparing_data/apply_heuristic.py`: CLI + `run` library entry point.
-- `src/bst_refactor/stroke_classification/preparing_data/heuristics/`: package with `__init__.py`, `base.py`, `current.py`, `sticky_anchor.py`.
-- `src/bst_refactor/stroke_classification/preparing_data/failsafe_bst_mmpose_zeroing_check_equivalence.py`: byte-identity gate.
-- `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/render_sticky_anchor_overlays.py`: overlay renderer (partial-pick fix landed 2026-04-25).
-- `src/bst_refactor/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/busted_hit_zone_after_sticky_anchor.txt`: 61 stems still-busted after sticky_anchor.
-- `src/bst_refactor/validation_scripts/validate_zeroed_frames.py` and `fail_rate_per_class.py`: per-class fail-rate diagnostics.
-- `src/bst_refactor/validation_scripts/zeroed_frames_analysis_outputs/analysis_unemergev1_v2_20260421_1159.txt`: original analysis confirming the busted-clip class skew.
-- `src/bst_refactor/stroke_classification/preparing_data/keypoints_schema.md`: COCO joint indices (15 and 16 = ankles, 11 and 12 = hips, 13 and 14 = knees, 5 and 6 = shoulders).
+- `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py`: original `detect_players_2d`, `check_pos_in_court`, `to_court_coordinate`, `normalize_position`, `normalize_joints`, and the zeroing decision inside `detect_players_2d`.
+- `src/bst_x/stroke_classification/preparing_data/apply_heuristic.py`: CLI + `run` library entry point.
+- `src/bst_x/stroke_classification/preparing_data/heuristics/`: package with `__init__.py`, `base.py`, `current.py`, `sticky_anchor.py`.
+- `src/bst_x/stroke_classification/preparing_data/failsafe_bst_mmpose_zeroing_check_equivalence.py`: byte-identity gate.
+- `src/bst_x/validation_scripts/mmpose_heuristic_investigation/render_sticky_anchor_overlays.py`: overlay renderer (partial-pick fix landed 2026-04-25).
+- `src/bst_x/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/busted_hit_zone_after_sticky_anchor.txt`: 61 stems still-busted after sticky_anchor.
+- `src/bst_x/validation_scripts/validate_zeroed_frames.py` and `fail_rate_per_class.py`: per-class fail-rate diagnostics.
+- `src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/analysis_unemergev1_v2_20260421_1159.txt`: original analysis confirming the busted-clip class skew.
+- `src/bst_x/stroke_classification/preparing_data/keypoints_schema.md`: COCO joint indices (15 and 16 = ankles, 11 and 12 = hips, 13 and 14 = knees, 5 and 6 = shoulders).
 - `scratch/architecture_notes/busted_hit_zone_clips_phase1.txt`: the canonical 1,716 hit-zone-busted stem list.
 - `scratch/architecture_notes/busted_whole_clips_phase1.txt`: historical 222 whole-clip-busted list.
 - `scratch/architecture_notes/mmpose_heuristic/mmpose_phase1_extraction_plan.md`: Phase 1 execution log.
@@ -627,7 +627,7 @@ Phase 1 raw extraction executed.
 - N_max bumped 8 -> 16. Original plan said N_max=8 "basically never fires"; false on the busted subset (87% of the first 222-clip extract triggered the cap). At N=16, only 0.79% of frames hit.
 - Score-filtered ndet peaks at 8; players reliably the most salient detections by bbox area and horizontal centrality. Load-bearing input for the sticky_anchor design revisit.
 - New artefacts: `find_busted_clips.py` gained `--hit-zone` flags; `raw_extract.py` prints end-of-run unique-clip summary; `summarise_raw_ndet.py` added.
-- Path canon corrections: clips dir at `/scratch/comp320a/ShuttleSet/clips`; `set/` and `video_metadata.csv` are committed to git under `src/bst_refactor/ShuttleSet/`, NOT symlinked to `/scratch`.
+- Path canon corrections: clips dir at `/scratch/comp320a/ShuttleSet/clips`; `set/` and `video_metadata.csv` are committed to git under `src/bst_x/ShuttleSet/`, NOT symlinked to `/scratch`.
 
 ### 2026-04-22: Phase 1 execution completion
 

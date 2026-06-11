@@ -1,0 +1,70 @@
+Best model of run_20260503_172922/ - #2
+  #2: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
+
+Shuttle-unzeroing-on-keypoint-fail run, branch shuttle/wipe-drop.
+Single change vs main: drops shuttle[failed,:] = 0 at
+prepare_train_on_shuttleset.py:866-867 (~14k frames, 0.84% of
+extract). Hparams otherwise identical to the first CDB-F1 run
+(run_20260501_164658).
+
+The train loop has no breadcrumb for this change; ablation_id is the
+only signal that the shuttle-unzeroing collation was loaded. Flag
+explicitly when comparing across runs.
+
+Hparams:
+  taxonomy=une_merge_v1_nosides, split_column=split_v2,
+  drop_unknown=True, n_epochs=80, warm_up_step=100,
+  early_stop_n_epochs=40, scheduler num_cycles=0.5, lr=5e-4,
+  batch_size=128, use_aux_schedule=True, aux_fade_end_epoch=15,
+  label_smoothing=0.0,
+  class_weights=None,
+  adaptive_focal={tau:1.0, gamma:1.0, momentum:0.9,
+                  warm_up_epochs:5, f1_floor:0.0}.
+  ablation_id=wipe_drop  <- only signal of the data change.
+
+Per-serial (num_strokes=4202, 14 classes, 5 seeds):
+  - Serial 1: macro 0.7452, min 0.4462, acc 0.7637, top-2 0.9374.
+  - Serial 2: macro 0.7559 (top), min 0.4935, acc 0.7684 (tied S4),
+    top-2 0.9334. Smash 0.610, ws 0.494, pair-sum 1.104 (run-high).
+    Flagged best.
+  - Serial 3: macro 0.7430, min 0.5044 (top ws), acc 0.7608,
+    top-2 0.9348.
+  - Serial 4: macro 0.7461, min 0.4561, acc 0.7684 (tied S2),
+    top-2 0.9307.
+  - Serial 5: macro 0.7504, min 0.4706, acc 0.7653, top-2 0.9403.
+
+Mean across 5: macro 0.7481, min 0.4742, acc 0.7653, top-2 0.9353.
+
+Vs first CDB-F1 run (run_20260501_164658) mean
+(0.7432 / 0.4621 / 0.7617 / 0.9351):
+  macro +0.5, min +1.2, acc +0.4, top-2 flat.
+
+Per-class shifts vs first CDB-F1 run, 5-serial mean (% absolute):
+  passive_drop +3.2, smash +1.5, wrist_smash +1.2, rush +0.9,
+  cross_court_net_shot +0.5, lob +0.3, short_service +0.1,
+  long_service +0.1, net_shot +0.2, drop +0.2, return_net -0.2,
+  drive ~0, push -0.6, clear -0.5.
+
+Full writeup: bst_x_overview.md (shuttle-unzeroing-on-keypoint-fail section).
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2  F1-score
+avg                                                Avg                                    0.76
+min                                                Min                                    0.49
+0                                 net_shot                                                0.89
+1                                 return_net                                              0.83
+2                                 smash                                                   0.61
+3                                 wrist_smash                                             0.49
+4                                 lob                                                     0.77
+5                                 clear                                                   0.95
+6                                 drive                                                   0.63
+7                                 drop                                                    0.67
+8                                 passive_drop                                            0.72
+9                                 push                                                    0.62
+10                                rush                                                    0.75
+11                                cross_court_net_shot                                    0.69
+12                                short_service                                           0.98
+13                                long_service                                            0.98
+Accuracy: 0.768
+Top2 Accuracy: 0.933

@@ -2,7 +2,7 @@
 
 A flat namespace for things BRIC needs that are architecture-agnostic.
 Some originated inside BST (taxonomy, court) and were decoupled here
-so BRIC doesn't import from `bst_refactor.*` directly; others are
+so BRIC doesn't import from `bst_x.*` directly; others are
 generic helpers (video I/O, frame-window math) that any architecture
 working with video would want.
 
@@ -10,9 +10,9 @@ working with video would want.
 
 | Module | Origin | Purpose |
 |--------|--------|---------|
-| `taxonomy.py` | mirrors `bst_refactor.pipeline.config` | The 14-class stroke taxonomy + class-merge rules. Single source of truth for `stroke_type` strings emitted by the contract. |
-| `court.py` | mirrors `bst_refactor.pipeline.court_utils` | Homography utilities (`project`, `convert_homogeneous`, `get_court_info`) + reference court constants (`REF_COURT_M`, `REF_COURT_CORNERS_M`). |
-| `player_mapping.py` | mirrors `bst_refactor.pipeline.player_mapping` | Heuristic player identification: maps top/bottom court-side to which named player it actually is, including set-3 mid-game switch handling. |
+| `taxonomy.py` | mirrors `bst_x.pipeline.config` | The 14-class stroke taxonomy + class-merge rules. Single source of truth for `stroke_type` strings emitted by the contract. |
+| `court.py` | mirrors `bst_x.pipeline.court_utils` | Homography utilities (`project`, `convert_homogeneous`, `get_court_info`) + reference court constants (`REF_COURT_M`, `REF_COURT_CORNERS_M`). |
+| `player_mapping.py` | mirrors `bst_x.pipeline.player_mapping` | Heuristic player identification: maps top/bottom court-side to which named player it actually is, including set-3 mid-game switch handling. |
 | `dataset.py` | new | Canonical paths to ShuttleSet assets (annotations, video metadata, homography CSV). |
 | `video_io.py` | new | cv2 wrapper: `get_video_info`, `iter_frames`, `read_frame_at`, `read_frames`, `write_frame_thumbnail`. Defaults to RGB ordering; exposes a `VideoInfo` dataclass. |
 | `temporal.py` | new | Frame-window helpers: `clip_window_seconds`, `clip_window_frames`, `subsample_indices`. `subsample_indices` picks N indices uniformly from a coverage-second window centred on a target frame, with stride that adapts to source fps so real-world coverage stays constant. |
@@ -24,7 +24,7 @@ working with video would want.
 
 ## Why copy not import (for the BST-mirrored modules)
 
-`src/bst_refactor/` is a dependency for Model A. Importing into BRIC
+`src/bst_x/` is a dependency for Model A. Importing into BRIC
 would couple to BST's internal structure (which can move without
 warning) and create a cycle if BST ever needs to share with us.
 

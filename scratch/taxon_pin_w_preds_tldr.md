@@ -41,7 +41,7 @@ The PR arrives with a changelog and a test plan attached. Nothing for the FE tea
 
 - **Predictions-JSON converter.** New runs emit npz, not the FE-shaped per-clip JSON. A small post-hoc tool reads the npz (which now carries `clip_stems`) + manifest and emits `predictions/{val,test}.json`. Decoupled from training; lands when the FE side is ready to consume real (non-mock) predictions.
 - **Temperature-scaled calibration.** Raw logits are in the npz, so post-hoc temperature fitting against val NLL is a small standalone job. Not bundled with the train cycle.
-- **`src/api/bst_inference.py` hardcoded class list.** The live-inference path hardcodes the 14-class list as a Python constant. Fine for the current best model; breaks when new taxonomies register. Flagged in the PR explanation as a forward concern; FE-team workstream call when to parameterise it.
+- **`src/api/bst_x_inference.py` hardcoded class list.** The live-inference path hardcodes the 14-class list as a Python constant. Fine for the current best model; breaks when new taxonomies register. Flagged in the PR explanation as a forward concern; FE-team workstream call when to parameterise it.
 
 ## Bottom line
 

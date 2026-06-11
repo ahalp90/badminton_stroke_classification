@@ -5,7 +5,7 @@ Same 32,203-clip universe, same 1,722,058 total frames, same `une_merge_v1` taxo
 - **Phase-1** (baseline): legacy `/scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat/`. Source report: `analysis_unemergev1_v2_20260421_1159.txt`.
 - **Phase-2**: new unified raw extract (RTMDet-nano + RTMPose-L, `N_max=16`) + `sticky_anchor` heuristic, written to `/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor/`. Source report: `analysis_unemergev1_v2_20260429_1905.txt`.
 
-Both reports live alongside each other in `src/bst_refactor/validation_scripts/zeroed_frames_analysis_outputs/`.
+Both reports live alongside each other in `src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/`.
 
 ## Headline numbers
 
@@ -76,6 +76,6 @@ The three Phase-2 runs (`une_merge_v1_nosides + split_v2`, `une_merge_v1 + split
 
 ## Source files (engelbart, repo path under home/ahalperi/)
 
-- Phase-1: `src/bst_refactor/validation_scripts/zeroed_frames_analysis_outputs/analysis_unemergev1_v2_20260421_1159.txt`
-- Phase-2: `src/bst_refactor/validation_scripts/zeroed_frames_analysis_outputs/analysis_unemergev1_v2_20260429_1905.txt`
+- Phase-1: `src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/analysis_unemergev1_v2_20260421_1159.txt`
+- Phase-2: `src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/analysis_unemergev1_v2_20260429_1905.txt`
 - Phase-2 sibling reports (same numbers, different bucketing): `analysis_unemergev1nosides_v2_20260429_1904.txt`, `analysis_merged25_bstbaseline_20260429_1906.txt`

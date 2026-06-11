@@ -1,0 +1,47 @@
+# Note: the Avg/Min values originally written by show_f1_results in this run
+# were computed over all 29 taxonomy slots, including the empty 'unknown' slot
+# that drop_unknown=True leaves with no test ground-truth. That pulled Avg low
+# by 28/29 and pinned Min at 0 on every serial. Patched in-place below to the
+# masked values from manifest.yaml (macro/min over present classes only).
+# No per-class table exists for this run; follow-on runs surface it via
+# show_details=True + per_class_f1 in the manifest.
+
+=== Serial 1 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1) ===
+Test (num_strokes: 3335) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...
+F1-score                                           0.769 0.346
+Accuracy: 0.790
+Top2 Accuracy: 0.945
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_2) ===
+Test (num_strokes: 3335) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...
+F1-score                                           0.760 0.414
+Accuracy: 0.781
+Top2 Accuracy: 0.940
+
+=== Serial 3 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_3) ===
+Test (num_strokes: 3335) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...
+F1-score                                           0.772 0.381
+Accuracy: 0.791
+Top2 Accuracy: 0.945
+
+=== Serial 4 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_4) ===
+Test (num_strokes: 3335) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...
+F1-score                                           0.762 0.302
+Accuracy: 0.787
+Top2 Accuracy: 0.937
+
+=== Serial 5 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_5) ===
+Test (num_strokes: 3335) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...
+F1-score                                           0.769 0.301
+Accuracy: 0.788
+Top2 Accuracy: 0.939

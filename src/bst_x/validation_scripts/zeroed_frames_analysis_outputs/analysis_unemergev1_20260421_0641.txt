@@ -1,0 +1,138 @@
+WARNING: match.csv not found in /scratch/comp320a/ShuttleSet/set, skipping flaw analysis
+Scanning /scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat ...
+  clips_csv: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+  split_column: split_bst_baseline   taxonomy: une_merge_v1
+  + loading shuttle visibility from /scratch/comp320a/ShuttleSet/shuttle_npy_flat
+
+=================================================================
+  MMPose Detection Failure Analysis
+=================================================================
+  Taxonomy:   une_merge_v1
+  Data root:  /scratch/comp320a/ShuttleSet_data_merged_25
+
+  Overall: 121,852 / 1,775,308 frames failed (6.86%)
+           across 33,481 clips
+
+  Note: on MMPose-failed frames, joints, court positions, AND shuttle
+  coords are all zeroed. The transformer does NOT mask them in attention.
+
+--- Per-split breakdown ---
+  Split      Clips     Total Frames    Failed Frames    Fail Rate
+  train     25,741        1,332,217           87,249        6.55%
+  val        4,241          244,097           19,053        7.81%
+  test       3,499          198,994           15,550        7.81%
+
+--- Per-stroke-type fail rates ---
+  Stroke Type               Clips         Failed / Total    Fail Rate
+  unknown                    1278        29,175 / 53,250       54.79%
+  smash                      2362       16,613 / 120,850       13.75%
+  long_service                359         2,270 / 19,838       11.44%
+  wrist_smash                1559         7,829 / 78,867        9.93%
+  clear                      2661       13,722 / 186,248        7.37%
+  drop                       1979        7,921 / 119,705        6.62%
+  return_net                 3374        8,592 / 144,218        5.96%
+  lob                        5157       17,225 / 324,227        5.31%
+  short_service              1858         2,784 / 73,588        3.78%
+  push                       2652        4,327 / 140,442        3.08%
+  net_shot                   5824        7,399 / 303,086        2.44%
+  drive                      1523         1,274 / 61,332        2.08%
+  cross_court_net_shot       1226         1,244 / 61,552        2.02%
+  rush                        471           321 / 16,586        1.94%
+  passive_drop               1198         1,156 / 71,519        1.62%
+
+--- Clip failure tiers (excl. unknown/) ---
+  100% failed (completely blank):             2 clips  (+152 from unknown/)
+  > 90% failed:                               7 clips  (+183 from unknown/)
+  > 75% failed:                              20 clips  (+288 from unknown/)
+  > 50% failed:                             222 clips  (+733 from unknown/)
+
+--- Completely blank clips (100% failed): 2  (+152 from unknown/) ---
+  test/Top_wrist_smash/40_2_14_2   (23 frames)
+  train/Bottom_short_service/3_2_24_1   (36 frames)
+
+--- Clips above 50% threshold: 222  (+733 from unknown/) ---
+  test/Top_wrist_smash/40_2_14_2                          23/23 (100.0%)
+  train/Bottom_short_service/3_2_24_1                     36/36 (100.0%)
+  train/Top_long_service/3_2_12_1                         48/49 (98.0%)
+  train/Bottom_short_service/3_2_36_1                     32/33 (97.0%)
+  test/Bottom_long_service/44_2_25_1                      28/30 (93.3%)
+  train/Top_drive/3_1_30_3                                23/25 (92.0%)
+  train/Bottom_cross_court_net_shot/19_1_22_7             20/22 (90.9%)
+  train/Bottom_return_net/24_1_5_11                       24/28 (85.7%)
+  train/Top_drop/30_2_35_3                                27/32 (84.4%)
+  train/Top_smash/22_1_10_2                               43/51 (84.3%)
+  val/Top_smash/37_1_23_2                                 49/60 (81.7%)
+  val/Top_smash/38_2_35_2                                 49/60 (81.7%)
+  train/Bottom_short_service/6_2_23_1                     44/54 (81.5%)
+  train/Top_smash/1_1_25_11                               44/54 (81.5%)
+  train/Bottom_return_net/18_1_31_12                      20/25 (80.0%)
+  train/Bottom_short_service/11_2_27_1                    26/33 (78.8%)
+  train/Bottom_drive/3_1_30_4                             18/23 (78.3%)
+  train/Top_return_net/15_3_30_6                          10/13 (76.9%)
+  train/Bottom_return_net/2_2_20_6                        19/25 (76.0%)
+  val/Bottom_drive/37_2_18_9                              22/29 (75.9%)
+  train/Top_long_service/11_2_11_1                        30/40 (75.0%)
+  train/Top_drop/34_1_6_2                                 53/71 (74.6%)
+  train/Bottom_return_net/15_2_2_6                        17/23 (73.9%)
+  test/Top_smash/42_2_11_2                                50/68 (73.5%)
+  train/Top_clear/5_1_7_33                                36/49 (73.5%)
+  train/Top_smash/18_1_33_9                               36/49 (73.5%)
+  train/Top_drop/22_1_9_2                                 41/56 (73.2%)
+  train/Bottom_rush/33_1_27_5                             35/48 (72.9%)
+  val/Bottom_return_net/36_2_10_14                        24/33 (72.7%)
+  train/Top_net_shot/3_2_24_2                             31/43 (72.1%)
+  train/Bottom_return_net/30_3_3_6                        18/25 (72.0%)
+  val/Bottom_short_service/37_1_2_1                       41/57 (71.9%)
+  val/Bottom_return_net/36_1_22_13                        22/31 (71.0%)
+  train/Top_smash/7_1_2_2                                 24/34 (70.6%)
+  train/Top_drop/34_1_2_2                                 50/71 (70.4%)
+  train/Bottom_short_service/3_2_2_1                      26/37 (70.3%)
+  train/Bottom_wrist_smash/1_3_14_9                       40/57 (70.2%)
+  train/Top_smash/34_2_15_2                               44/63 (69.8%)
+  train/Bottom_push/3_1_30_2                              30/43 (69.8%)
+  train/Top_smash/1_1_13_33                               38/56 (67.9%)
+  train/Top_short_service/11_2_35_1                       23/34 (67.6%)
+  train/Top_push/6_2_23_2                                 33/49 (67.3%)
+  train/Top_smash/30_2_30_2                               43/64 (67.2%)
+  train/Bottom_short_service/11_2_38_1                    22/33 (66.7%)
+  train/Top_drop/34_1_13_2                                47/71 (66.2%)
+  train/Top_push/11_3_24_2                                35/53 (66.0%)
+  train/Top_smash/13_2_9_12                               35/53 (66.0%)
+  train/Bottom_drive/11_3_2_2                             34/52 (65.4%)
+  train/Top_net_shot/11_3_12_2                            32/49 (65.3%)
+  train/Top_drop/22_1_31_2                                45/69 (65.2%)
+  ... and 172 more (truncated)
+
+--- Flaw analysis: skipped (pass --set-dir to enable) ---
+
+=================================================================
+  Shuttle (TrackNet) Detection Failure Analysis
+=================================================================
+  Overall: 108,980 / 1,722,058 frames with shuttle not detected (6.33%)
+           across 32,203 clips with shuttle data
+
+  Note: shuttle visibility=0 means TrackNetV3 could not locate the
+  shuttle. This is independent of MMPose — both can fail on the
+  same frame or on different frames.
+
+--- Per-split shuttle detection ---
+  Split      Clips     Total Frames   Shuttle Missed    Miss Rate
+  train     24,866        1,297,361           79,039        6.09%
+  val        4,000          233,101           15,140        6.50%
+  test       3,337          191,596           14,801        7.73%
+
+--- MMPose × Shuttle failure overlap (excl. unknown/) ---
+                                   Shuttle OK     Shuttle BAD       Row Total
+  MMPose FAILED                        84,359           8,298          92,657
+  MMPose OK                         1,528,503         100,682       1,629,185
+  Column Total                      1,612,862         108,980       1,721,842
+
+  Both OK:           1,528,503  (88.77%)
+  MMPose only fail:     84,359  (4.90%)
+  Shuttle only fail:   100,682  (5.85%)
+  Both fail:             8,298  (0.48%)
+
+--- Hit-frame analysis: skipped (pass --set-dir to enable) ---
+
+Saved: /home/ahalperi/badminton_stroke_classifier/src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/fail_rate_histogram_unemergev1_20260421_0641.png
+Saved: /home/ahalperi/badminton_stroke_classifier/src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/temporal_pattern_unemergev1_20260421_0641.png

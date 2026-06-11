@@ -34,12 +34,12 @@ pose-fail frames). Different stream, different recovery.
 ## Sources
 
 - Shuttle crosstab + cohort counts:
-  `src/bst_refactor/validation_scripts/zeroed_frames_analysis_outputs/analysis_merged25_bstbaseline_20260429_1906.txt`
+  `src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/analysis_merged25_bstbaseline_20260429_1906.txt`
   (crosstab lines 128-137, overall shuttle miss line 115).
 - Shuttle wipe design + cohort table:
   `scratch/architecture_notes/frame_zeroing.md`.
 - Wipe removed in code:
-  `src/bst_refactor/stroke_classification/preparing_data/prepare_train_on_shuttleset.py`
+  `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py`
   (the prose comment near line 898 sits where `shuttle[failed, :] = 0`
   used to be; dropped at commit 4e478fc, branch shuttle/wipe-drop).
 - Pose before/after:
@@ -48,7 +48,7 @@ pose-fail frames). Different stream, different recovery.
   Phase-2 report `analysis_unemergev1_v2_20260429_1905.txt` (same
   outputs dir).
 - `ndet=1` floor:
-  `src/bst_refactor/validation_scripts/raw_ndet_stats_outputs/baseline_2026-04-29.md`.
+  `src/bst_x/validation_scripts/raw_ndet_stats_outputs/baseline_2026-04-29.md`.
 - sticky_anchor heuristic design:
   `scratch/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md`.
 
