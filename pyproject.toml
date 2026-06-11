@@ -95,7 +95,7 @@ bst-x-runtime = [
     "torchinfo",              # Model summary utility (imported by tempose.py)
     "torcheval",              # multiclass_f1_score; may be used at eval time
     "transformers",           # HF cosine LR schedule (training); in case shared modules import
-    "tensorboard",            # SummaryWriter; module-load import in bst_train.py
+    "tensorboard",            # SummaryWriter; module-load import in bst_x_train.py
     "mlflow",                 # Experiment tracking
     "scikit-learn",           # Eval / preprocessing utilities
     "matplotlib",             # Plots; rarely needed at inference, BST-X owner can drop

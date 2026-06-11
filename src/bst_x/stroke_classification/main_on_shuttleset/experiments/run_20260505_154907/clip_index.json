@@ -1,7 +1,7 @@
 {
   "_mock_data": false,
   "_real_stems": true,
-  "_notes": "56 real stems (28 test + 28 val) sampled from clips_master.csv, class-balanced. row_index is the row in the collated tensors at scratch/bst_inputs/{split}/JnB_bone.npy etc.",
+  "_notes": "56 real stems (28 test + 28 val) sampled from clips_master.csv, class-balanced. row_index is the row in the collated tensors at scratch/bst_x_inputs/{split}/JnB_bone.npy etc.",
   "clips": {
     "24_3_8_2": {
       "video_path": "train/Bottom_cross_court_net_shot/19_1_22_7.mp4",

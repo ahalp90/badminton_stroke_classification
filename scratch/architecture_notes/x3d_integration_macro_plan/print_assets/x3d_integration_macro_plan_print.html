@@ -454,10 +454,10 @@ conclusion), pre-head concat (<code>bst.py:415</code>,
 stage runs.</p>
 <ul>
 <li><strong>Code dedup (already done)</strong>:
-<code>bst_common.py</code> exists at
-<code>src/bst_x/stroke_classification/main_on_shuttleset/bst_common.py</code>
+<code>bst_x_common.py</code> exists at
+<code>src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py</code>
 carrying <code>MODELS</code>, <code>Tee</code>,
-<code>build_bst_network</code>,
+<code>build_bst_x_network</code>,
 <code>derive_active_classes_from_labels</code>, and
 <code>compute_data_provenance</code>. The X3D-S training script imports
 from there, no further extraction needed; the
@@ -468,7 +468,7 @@ source head dim from <code>task.n_active_classes</code> and run
 <code>_validate_and_record_arch</code> on serial 1 per
 <code>bst_x_overview.md:150</code>. Hardcoding
 <code>taxonomy.n_classes</code> would put the unknown ghost back.
-<code>bst_common.derive_active_classes_from_labels</code> is the
+<code>bst_x_common.derive_active_classes_from_labels</code> is the
 helper.</li>
 <li><strong>Storage location</strong>: artefacts go on /scratch on
 engelbart (extraction host), rsync’d to bourbaki post-extract per the
@@ -1254,7 +1254,7 @@ touch (forward inventory)</h2>
 (Stage 4; new)</li>
 <li><code>src/bst_x/stroke_classification/main_on_shuttleset/x3d_s_train.py</code>
 (Stage 5; new)</li>
-<li><code>src/bst_x/stroke_classification/main_on_shuttleset/bst_common.py</code>
+<li><code>src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py</code>
 (Stage 0; extract from existing duplication per
 <code>bst_x_overview.md:472-473</code>)</li>
 <li><code>src/bst_x/stroke_classification/model/fusion/</code>

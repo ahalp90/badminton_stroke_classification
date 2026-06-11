@@ -19,11 +19,11 @@ of a cell:
    batch starts) has the full 9-key schema and is internally row-aligned.
 
 No torch, no GPU, no model load -- pure data checks, so it runs fast in any venv
-on bourbaki (venv-bst is fine). Run with the collation root visible:
+on bourbaki (venv-bst-x is fine). Run with the collation root visible:
 
     BST_X_COLLATED_DATA_ROOT=/scratch/comp320a \
         PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
-        /home/ahalperi/.venvs/venv-bst/bin/python -m pytest tests/test_remote_preflight.py -v
+        /home/ahalperi/.venvs/venv-bst-x/bin/python -m pytest tests/test_remote_preflight.py -v
 
 (or rely on .env carrying BST_X_COLLATED_DATA_ROOT). Without the root set, the
 /scratch-dependent tests skip, so this is a no-op on the laptop except the

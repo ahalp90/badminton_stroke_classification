@@ -21,6 +21,6 @@
     "short_service": 0.9862068965517241,
     "long_service": 0.9523809523809523
   },
-  "source": "compute_val_metrics.py (live forward pass on /app/bst_inputs/val)",
-  "weights": "/app/src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt"
+  "source": "compute_val_metrics.py (live forward pass on /app/bst_x_inputs/val)",
+  "weights": "/app/src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt"
 }

@@ -47,8 +47,8 @@ mim install mmcv==2.1.0
 pip install -r stroke_classification/preparing_data/requirements.txt
 
 # 3. BST training venv
-python3.11 -m venv venv-bst
-source venv-bst/bin/activate
+python3.11 -m venv venv-bst-x
+source venv-bst-x/bin/activate
 pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
 pip install -r stroke_classification/requirements.txt
 ```
@@ -64,12 +64,12 @@ python -m pipeline.build_dataset --skip-shuttle            # download + clips + 
 # Optional: shuttle extraction (uses BST venv for TrackNetV3)
 python -m pipeline.build_dataset --skip-download \
     --tracknet-dir TrackNetV3 \
-    --tracknet-python /path/to/venv-bst/bin/python
+    --tracknet-python /path/to/venv-bst-x/bin/python
 # Resume after crash (skip completed steps 3-5, run only shuttle extraction)
 python -m pipeline.build_dataset \
     --skip-download --skip-resolution --skip-clips --skip-verify \
     --tracknet-dir TrackNetV3 \
-    --tracknet-python /path/to/venv-bst/bin/python
+    --tracknet-python /path/to/venv-bst-x/bin/python
 
 # ── Stage 2: Pose estimation (MMPose venv) ──────────────────────────
 source venv-mmpose/bin/activate
@@ -82,7 +82,7 @@ python -m preparing_data.prepare_train_on_shuttleset \
     --skip-trajectory --skip-collate                       # pose only (no shuttle CSV needed)
 
 # ── Stage 3: Collation + training (BST venv) ────────────────────────
-source venv-bst/bin/activate
+source venv-bst-x/bin/activate
 export PYTHONPATH=src/bst_x:src/bst_x/stroke_classification
 
 python -m preparing_data.prepare_train_on_shuttleset \
@@ -438,7 +438,7 @@ Every invocation writes under `main_on_shuttleset/experiments/<run_id>/`, where 
 
 - **Manifest** (`experiments/<run_id>/manifest.yaml`): source of truth for hparams, git SHA + host, per-serial metrics (`macro_f1`, `min_f1`, `accuracy`, `top2_accuracy`, `num_strokes`), paths to each serial's weight file and TB dir, plus a `log_path:` pointer back to the matching test log. Tracked in git.
 - **Best-model notes** (`experiments/<run_id>/best_model_id.txt`): freeform notes flagging the best-performing serial(s) and the config context, written by hand after eyeballing the test log. Tracked in git alongside the manifest.
-- **Model weights** (`experiments/<run_id>/weights/bst_CG_AP_..._une_v1_14[_N].pt`): one best-validation-F1 checkpoint per serial. Gitignored by default; `src/bst_x/stroke_classification/.gitignore` carries a per-run tactical `!` unignore for the serial(s) flagged in `best_model_id.txt`, so git history stays small while the best checkpoints are still shareable.
+- **Model weights** (`experiments/<run_id>/weights/bst_x_..._une_v1_14[_N].pt`): one best-validation-F1 checkpoint per serial. Gitignored by default; `src/bst_x/stroke_classification/.gitignore` carries a per-run tactical `!` unignore for the serial(s) flagged in `best_model_id.txt`, so git history stays small while the best checkpoints are still shareable.
 - **TensorBoard logs** (`experiments/<run_id>/tb/serial_N/`): per-serial event directories grouped under one run folder. Launch with `tensorboard --logdir experiments/<run_id>/tb` to see all serials of a run in one view. Each subfolder holds **two** event files: a larger one (60-70 KB) with the per-epoch scalar curves (train/val loss, val macro/min F1, `Schedule/aux_factor`) and a tiny one (~1.6 KB) with the end-of-run HParams summary (best/2nd-best macro F1 and min F1, best val loss, their epochs, `stopped_epoch`). Gitignored.
 - **Test logs** (`main_on_shuttleset/test_logs/test_<timestamp>.log`): all serials' test-set output (`=== Serial N (...) ===` headers, macro F1 table, accuracy, top-2 accuracy) auto-captured via the `Tee` class so metrics survive a dropped terminal. One file per script invocation; the run's manifest points at it via `log_path:`. Grep with `grep -E 'Accuracy|macro' test_logs/test_*.log` for a quick summary across runs, or use `run_overview.py` for a proper tabulation.
 

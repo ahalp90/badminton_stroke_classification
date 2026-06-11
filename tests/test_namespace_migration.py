@@ -721,9 +721,13 @@ def _baseline_lowercased_gate() -> bool:
     return any(EXPERIMENTS.glob('run_*/weights/bst_x_*.pt'))
 
 
-def test_t10_baseline_dir_has_three_weights():
+def test_t10_baseline_dir_has_at_least_one_tracked_weight():
+    """The design doc says three Chang baseline weights exist on disk; in git
+    only the serial-2 .pt was ever tracked. CI's fresh clone shows just that
+    one. Assert at least one is present (i.e. the baseline dir is alive in
+    the repo), and that nothing in it carries the rebrand prefix."""
     weights = sorted(p.name for p in (BASELINE_DIR / 'weights').glob('*.pt'))
-    assert len(weights) == 3, weights
+    assert len(weights) >= 1, weights
 
 
 def test_t10_baseline_dir_never_carries_bst_x_prefix():
@@ -732,18 +736,21 @@ def test_t10_baseline_dir_never_carries_bst_x_prefix():
     assert bst_x == []
 
 
-def test_t10_baseline_weight_triple_matches_state():
+def test_t10_baseline_weight_files_match_expected_prefix():
+    """Any baseline weight present must match the expected case for the current
+    rebrand stage: mixed-case pre-6b.2, lowercase post-6b.2."""
     weights = {p.name for p in (BASELINE_DIR / 'weights').glob('*.pt')}
-    if _baseline_lowercased_gate():
-        assert weights == BASELINE_TRIPLE_LOWER
-    else:
-        assert weights == BASELINE_TRIPLE_MIXED
+    expected = BASELINE_TRIPLE_LOWER if _baseline_lowercased_gate() else BASELINE_TRIPLE_MIXED
+    # Subset: locally all three may be on disk; on CI only the tracked subset.
+    assert weights.issubset(expected), (weights - expected)
 
 
-def test_t10_baseline_manifest_matches_weight_triple():
-    """Catches a files-renamed-manifest-missed half-application. The baseline
-    manifest uses ``experiments/``-relative paths; compare basenames so the test
-    is convention-agnostic."""
+def test_t10_baseline_manifest_declares_the_full_triple():
+    """Catches a files-renamed-manifest-missed half-application. The manifest
+    is git-tracked, so the full triple shows up on CI regardless of which
+    weight files happen to be tracked alongside it. The baseline manifest uses
+    ``experiments/``-relative paths; compare basenames so the test is
+    convention-agnostic."""
     manifest = yaml.safe_load((BASELINE_DIR / 'manifest.yaml').read_text())
     serial_basenames = {Path(s['weights_path']).name for s in manifest['serials']}
     expected = BASELINE_TRIPLE_LOWER if _baseline_lowercased_gate() else BASELINE_TRIPLE_MIXED
@@ -756,10 +763,13 @@ def test_t10_baseline_manifest_matches_weight_triple():
 
 TEXT_EXTS = {
     '.py', '.md', '.yaml', '.yml', '.toml', '.sh', '.ipynb', '.txt', '.tsv',
-    '.jsx', '.js', '.gitignore',
+    '.jsx', '.js',
 }
-EXPLICIT_TEXT_NAMES = {'.env.example', 'docker-compose.yml', 'docker-compose.dev.yml',
-                       'docker-compose.prod.yml'}
+# .gitignore must be matched by name: pathlib treats the leading dot as a
+# hidden-file prefix, so Path('.gitignore').suffix is '' and a TEXT_EXTS
+# entry never fires.
+EXPLICIT_TEXT_NAMES = {'.gitignore', '.env.example', 'docker-compose.yml',
+                       'docker-compose.dev.yml', 'docker-compose.prod.yml'}
 
 GLOBAL_EXCLUDE_PREFIXES = (
     'scratch/project_history/',

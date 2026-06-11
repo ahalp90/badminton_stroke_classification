@@ -50,7 +50,7 @@ src/bst_x/stroke_classification/main_on_shuttleset/
   experiments/
     run_20260418_174244/
       manifest.yaml                             (tracked in git)
-      weights/bst_CG_AP_..._merged_25.pt        (gitignored)
+      weights/bst_x_..._merged_25.pt            (gitignored)
       tb/serial_1/, serial_2/, ...              (gitignored)
   test_logs/
     test_20260418_174244.log                    (unchanged, pairs with run_id)
@@ -84,7 +84,7 @@ extra:
     npy_collated_dir: npy_v2_taxon_pinned_w_preds
 serials:
   - serial_no: 1
-    weights_path: experiments/run_.../weights/bst_CG_AP_..._1.pt
+    weights_path: experiments/run_.../weights/bst_x_..._1.pt
     tb_dir: experiments/run_.../tb/serial_1
     metrics:
       macro_f1: 0.834

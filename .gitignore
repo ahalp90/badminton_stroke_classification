@@ -29,19 +29,19 @@ venv/
 # Multi-GB depending on how many clips are pulled; never worth committing.
 scratch/raw_extract_local/
 #symlinks
-src/bst_refactor/ShuttleSet/raw_video
-src/bst_refactor/ShuttleSet/clips
-src/bst_refactor/ShuttleSet/shuttle_csv
-src/bst_refactor/ShuttleSet/shuttle_npy
-src/bst_refactor/stroke_classification/preparing_data/ShuttleSet_data_une_merge_v1
+src/bst_x/ShuttleSet/raw_video
+src/bst_x/ShuttleSet/clips
+src/bst_x/ShuttleSet/shuttle_csv
+src/bst_x/ShuttleSet/shuttle_npy
+src/bst_x/stroke_classification/preparing_data/ShuttleSet_data_une_merge_v1
 #wildcard for various taxonomies--could cause a problem if you unluckily picked this root name
-src/bst_refactor/stroke_classification/preparing_data/ShuttleSet_data_*
-src/bst_refactor/stroke_classification/main_on_shuttleset/tmp/
-src/bst_refactor/stroke_classification/main_on_shuttleset/preparing_data
+src/bst_x/stroke_classification/preparing_data/ShuttleSet_data_*
+src/bst_x/stroke_classification/main_on_shuttleset/tmp/
+src/bst_x/stroke_classification/main_on_shuttleset/preparing_data
 
 # Model weights + TB logs for stroke_classification (including per-run
 # tactical unignores for best checkpoints) live in
-# src/bst_refactor/stroke_classification/.gitignore so this file doesn't
+# src/bst_x/stroke_classification/.gitignore so this file doesn't
 # get swamped as more runs pile up.
 # one-off large sanity check/inspection files
 scratch/sticky_anchor_inspection
