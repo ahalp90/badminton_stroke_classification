@@ -13,6 +13,7 @@ tensorboard           # Backs torch.utils.tensorboard.SummaryWriter (imported at
 torcheval             # multiclass_f1_score used in the bst_x_train training loop
 transformers          # HuggingFace; provides get_cosine_schedule_with_warmup for the bst_x_train LR schedule
 pyyaml                # tests/test_active_classes.py reads taxonomy YAMLs
+parse                 # TrackNetV3 vendor dep (src/bric/perception/_vendor/tracknetv3)
 
 
 # --- Backend API ---

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme, Btn } from '../shared';
 import { fmtTime } from '../utils/format';
-import { Scrubber } from './Scrubber';
 
 const frameModules = import.meta.glob('../data/frames/*.jpg', { eager: true, import: 'default' });
 const frameUrl = (id) => frameModules[`../data/frames/${id}.jpg`];
@@ -338,18 +337,7 @@ export function CourtBoundaryStep({ video, onComplete }) {
             <div style={{ marginLeft: 'auto', fontSize: 12, color: t.muted, fontFamily: "'JetBrains Mono', monospace" }}>
               {fmtTime(currentTime)} / {fmtTime(duration)}
             </div>
-          </div>
-          <Scrubber
-            duration={duration}
-            currentTime={currentTime}
-            loaded={0}
-            strokes={[]}
-            activeId={null}
-            onSelectStroke={() => {}}
-            strokeTimes={[]}
-            showPips={false}
-            onSeek={seekTo}
-          />
+          </div>        
         </div>
       )}
 

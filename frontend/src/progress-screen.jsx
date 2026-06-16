@@ -31,12 +31,10 @@ const LOG_EVENTS = [
  * Translates the wizard's in-memory state into the schema documented in docs/api_contract.md on 
  * feat/bric-pipeline. The backend validates this via the Pydantic Markup model in src/api/main.py.
  *
- * Frames are derived as seconds × fps. Library matches carry an explicit fps in matches.json; 
- * uploads fall back to 30 fps (the canned stub echoes whatever we send anyway).
- *
  * Markup state shape is the new multi-stroke form: `markup.annotations` is a list of 
- * {id, startSec, targetSec, endSec}. A migration branch below also handles the legacy 
- * single-stroke `markup.timeframe` shape so in-flight sessions don't break across this change. */
+ * {id, targetSec}.
+ **/
+
 function buildMarkupPayload(task) {
   const m = task?.markup;
   if (!m) return null;
@@ -47,37 +45,34 @@ function buildMarkupPayload(task) {
   // Intrinsic source resolution, so the backend can resolution-check the
   // normalised boundary against the model input minimum.
   const frameDims = m.frameDims && m.frameDims.w > 0 && m.frameDims.h > 0 ? m.frameDims : null;
-  const fps = video?.fps && video.fps > 0 ? video.fps : 30;
 
   // Resolve the in-memory annotation list, with migration from the old
   // single-`timeframe` shape and legacy `markup.player` (1/2 → top/bottom).
   let strokes = Array.isArray(m.annotations) ? m.annotations : null;
   if (!strokes && m.timeframe) {
     const tf = m.timeframe;
-    strokes = [{ startSec: tf.startSec, targetSec: tf.targetSec, endSec: tf.endSec }];
+    strokes = [{ targetSec: tf.targetSec }];
   }
   strokes = strokes || [];
-  const playerSide = m.playerSide
+  const startingSide = m.playerSide
     ?? (m.player === 1 ? 'top' : m.player === 2 ? 'bottom' : null);
+  const flip = (s) => s === 'top' ? 'bottom' : (s === 'bottom' ? 'top' : null);
 
   // Drop any half-set stroke before sending — frontend guards against this at the Confirm Timeframe 
   // button, but the migration path can produce half-set entries from old persisted state.
   const annotations = strokes
-    .filter(a =>
-      a && a.startSec != null && a.targetSec != null && a.endSec != null
-    )
-    .map(a => ({
-      target_frame: Math.round(a.targetSec * fps),
-      region_start_frame: Math.round(a.startSec * fps),
-      region_end_frame: Math.round(a.endSec * fps),
-      player_side: playerSide,
+    .filter(a => a && a.targetSec != null)
+    .sort((a, b) => a.targetSec - b.targetSec)
+    .map((a, i) => ({
+      target_sec: a.targetSec,
+      player_side: startingSide == null ? null : (i % 2 === 0 ? startingSide : flip(startingSide)),
     }));
 
   // Pick the first enabled model from Configure as the explicit choice;
   // architecture defaults to 'bst-x'.
   const enabledModel = (task?.models || []).find(mm => task?.enabled?.[mm.id]) || null;
   return {
-    architecture: 'bst-x',
+    architecture: enabledModel?.architecture ?? 'bst-x',
     model_id: enabledModel?.id ?? null,
     orientation: m.orientation || 'portrait',
     video_label: video?.filename || video?.match || null,
@@ -152,22 +147,29 @@ export function ProgressScreen({ task, onComplete }) {
           // Always use "default" here; if the frontend later needs to pick a specific
           // checkpoint, gate it on _available_models output.
           const params = new URLSearchParams({ model: 'default' });
-          // Trim the upload to the bounding span across every marked stroke.
-          // Legacy `markup.timeframe` (single-stroke shape) is still honoured
-          // so sessions mid-flight across this change keep working.
-          const strokes = Array.isArray(task?.markup?.annotations)
-            ? task.markup.annotations
-            : (task?.markup?.timeframe ? [task.markup.timeframe] : []);
-          const starts = strokes
-            .map(s => s?.startSec)
-            .filter(v => v != null);
-          const ends = strokes
-            .map(s => s?.endSec)
-            .filter(v => v != null);
-          if (starts.length) params.set('start_sec', String(Math.min(...starts)));
-          if (ends.length && Math.max(...ends) > (starts.length ? Math.min(...starts) : 0)) {
-            params.set('end_sec', String(Math.max(...ends)));
-          }
+          // Trim-to-bounding-span optimisation disabled — `_apply_crop` uses
+          // `ffmpeg -c copy` which cuts on keyframe boundaries only, producing
+          // non-frame-accurate output (often a near-empty file for short clips
+          // on H.264 with sparse keyframes). BRIC's per-stroke frame extraction
+          // needs every frame decodable, so we send the full upload and let
+          // bric_inference.classify() handle window selection in-memory. Re-enable
+          // once `_apply_crop` is fixed (frame-accurate libx264 re-encode, per
+          // `src/bric/preprocessing/slice_rallies.py` pattern).
+          //
+          // const strokes = Array.isArray(task?.markup?.annotations)
+          //   ? task.markup.annotations
+          //   : (task?.markup?.timeframe ? [task.markup.timeframe] : []);
+          // const starts = strokes
+          //   .map(s => s?.startSec)   
+          //   .filter(v => v != null);
+          // const ends = strokes
+          //   .map(s => s?.endSec)
+          //   .filter(v => v != null);
+          // if (starts.length) params.set('start_sec', String(Math.min(...starts)));
+          // if (ends.length && Math.max(...ends) > (starts.length ? Math.min(...starts) : 0)) {
+          //   params.set('end_sec', String(Math.max(...ends)));
+          // }
+
           // XHR rather than fetch - needed for upload-progress events for the
           // visible byte-flow phase (fetch does not surface them).
           upRes = await new Promise((resolve, reject) => {

@@ -25,28 +25,21 @@ export function PillButton({ label, badge, badgeColor, isActive, onSelect, onDel
     >
       <span style={{ color: isActive ? '#fff' : badgeColor }}>{badge}</span>
       <span>{label}</span>
-      {isActive && (
-        <span style={{ fontSize: 10, opacity: 0.85, marginLeft: 2 }}>
-          (editing)
-        </span>
-      )}
-      {(hover || isActive) && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          title="Delete stroke"
-          style={{
-            background: isActive ? 'rgba(255,255,255,0.25)' : 'transparent',
-            color: isActive ? '#fff' : t.muted,
-            border: 'none', cursor: 'pointer',
-            width: 16, height: 16, borderRadius: 3,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, fontWeight: 700, lineHeight: 1,
-            marginLeft: 2,
-          }}
-        >
-          ×
-        </button>
-      )}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        title="Delete stroke"
+        style={{
+          background: isActive ? 'rgba(255,255,255,0.25)' : 'transparent',
+          color: isActive ? '#fff' : t.muted,
+          border: 'none', cursor: 'pointer',
+          width: 16, height: 16, borderRadius: 3,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 12, fontWeight: 700, lineHeight: 1,
+          marginLeft: 2,
+        }}
+      >
+        ×
+      </button>
     </div>
   );
 }
