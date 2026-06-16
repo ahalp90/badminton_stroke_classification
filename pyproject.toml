@@ -85,7 +85,7 @@ bric = [
 # requirements.txt (which is BST-X's source of truth). Comments mirror the
 # usage notes from that file. The BST-X pipeline owner should prune this
 # down to inference-only deps once the handler is wired — training-only
-# tooling (tensorboard, mlflow, matplotlib, etc.) can move to a future
+# tooling (tensorboard, matplotlib, etc.) can move to a future
 # `bst-x-train` extras group.
 #
 # MMPose deliberately omitted — runs via subprocess into its own venv,
@@ -96,7 +96,6 @@ bst-x-runtime = [
     "torcheval",              # multiclass_f1_score; may be used at eval time
     "transformers",           # HF cosine LR schedule (training); in case shared modules import
     "tensorboard",            # SummaryWriter; module-load import in bst_x_train.py
-    "mlflow",                 # Experiment tracking
     "scikit-learn",           # Eval / preprocessing utilities
     "matplotlib",             # Plots; rarely needed at inference, BST-X owner can drop
 ]

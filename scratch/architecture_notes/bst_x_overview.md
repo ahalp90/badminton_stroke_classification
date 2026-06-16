@@ -76,7 +76,7 @@ Across all 32,203 clips it cut the overall drop rate 5.38% to 0.93%, and at the 
 
 1. **X3D-S wrist-crop fusion** (primary): the signal booster. Model and input shape are settled; fusion depth, schedule, window placement and drop-handling are open.
 2. **Capacity Run 2**: widen the encoder (d_model 100 to 192, trim d_head 128 to 32). Run 1 widened the head MLP instead, went flat and cost wrist_smash. Unlikely to be worthwhile compared to improving the data signal, but worth exploring. I could not find any literature in the model heritage justifying the inverted bottleneck transformer widths.
-3. **Series J (wd endpoints + alpha-revert)**: done. wd 4e-1 with the decay exclusion is the new default optimiser setting (it lifts the floor where the worst class is starved, bst_24 both splits and une; flat elsewhere); focal-alpha-revert retired. Summary at [`final_sweep_executive_summary.md`](final_sweep_executive_summary.md).
+3. **Series J (wd endpoints + alpha-revert)**: done. wd 4e-1 with the decay exclusion is the new default optimiser setting (it lifts the floor where the worst class is starved, bst_24 both splits and une; flat elsewhere); focal-alpha-revert retired. Summary at [`bst_x_sweep_summary_wd_x_focal_alpha_revert.md`](bst_x_sweep_summary_wd_x_focal_alpha_revert.md).
 4. Smaller loose ends (augmentation round 2 flip ablation, the TCN dilation A/B): in the appendix.
 
 ## Pointers

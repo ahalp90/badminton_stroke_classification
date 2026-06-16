@@ -103,21 +103,6 @@ BST_X_COLLATED_DATA_ROOT=/scratch/comp320a/
 
 Registry entries in `docs/models_registry.yaml` encode `collated_dir` as relative paths under this root (e.g. `ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop`). `preparing_data/prepare_train_on_shuttleset.py` also reads this when constructing the collation output root (`<BST_X_COLLATED_DATA_ROOT>/ShuttleSet_data_<taxonomy>/npy_<ablation_id>/`); if unset, the collator falls back to the in-repo `preparing_data/ShuttleSet_data_<taxonomy>/` for local dev.
 
-## Pending additions
-
-These dirs will appear once the planned re-extract + rebuild lands. Update this doc when they do.
-
-1. **Unknown-class re-extract.** The 1,278 clips currently filtered out by `scripts/build_extract_stems.py` (because `raw_type_en == 'unknown'`) need MMPose run against them. Outputs land under `ShuttleSet_keypoints_raw/` (new stems alongside the existing 32,203) and propagate through `apply_heuristic.py` into `ShuttleSet_keypoints_clean_sticky_anchor/`.
-
-2. **Rebuilt best-ablation collations.** Once the cleaned keypoints are unknown-inclusive, rebuild the best-ablation config across the three relevant `(taxonomy, split)` pairs:
-   - `merged_25` on `split_bst_baseline` (BST original 25-class, BST baseline split)
-   - `une_merge_v1` on `split_v2` (14-class with sides, project split_v2)
-   - `une_merge_v1_nosides` on `split_v2` (14-class no sides, project split_v2)
-
-   Each lands under its taxonomy tree using the short-form `npy_<ablation>/` naming. The ablation tag will reflect whichever config wins the pre-submission rerun pass.
-
-3. **Registry expansion.** Once the rebuilt collations land, the FE-facing registry grows to one entry per `(taxonomy × split × ablation)` combo we want surfaced. The contract in `frontend_integration_guide.md` already accommodates this through the `taxonomy`, `split_column`, and `ablation_id` fields in each entry.
-
 ## Regenerating this inventory
 
 If you want to refresh the layout block, run on engelbart or bourbaki:

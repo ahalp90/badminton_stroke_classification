@@ -24,7 +24,6 @@ python-multipart  # Required for file upload endpoints
 # --- Testing & Infrastructure ---
 pytest
 httpx  # Required by FastAPI TestClient
-mlflow  # Experiment tracking
 
 # bst_x subproject has complex dependencies; so requires 2-3 separate venvs depending on how you run it.
 # req Python 3.11.x. Probably 3.11.15 should be fine (to test soon).

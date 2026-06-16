@@ -772,7 +772,6 @@ EXPLICIT_TEXT_NAMES = {'.gitignore', '.env.example', 'docker-compose.yml',
                        'docker-compose.dev.yml', 'docker-compose.prod.yml'}
 
 GLOBAL_EXCLUDE_PREFIXES = (
-    'scratch/project_history/',
     'local_scratch/',
 )
 

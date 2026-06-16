@@ -29,7 +29,7 @@ The project's target taxonomy drops the unknown bucket, merges Top/Bottom side v
 
 Best run on this set (`run_20260505_154907`, 5-serial mean over the 4,202-stroke test split): macro 0.745 / min-class 0.478 / accuracy 0.764 / top-2 0.939.
 
-![Per-class F1, current best vs prior project best, 14-class taxonomy, 5 serials each](scratch/presentation_prep/bar_chart_per_class_f1.png)
+![Per-class F1, current best vs prior project best, 14-class taxonomy, 5 serials each](scratch/presentation_prep/bar_chart_per_class_f1_final.png)
 
 Core ablation graph and confusion-matrix charts: [`scratch/presentation_prep/`](scratch/presentation_prep/).
 

@@ -1,4 +1,5 @@
 """Backfill val aggregate metrics into a run's manifest, no forward pass.
+Use to populate val metrics if a run's manifest doesn't have them.
 
 Training records val per-class F1 + the best-macro epoch under each serial's
 ``extra.val_at_best_macro_epoch``, but not the aggregate scalars. This completes
