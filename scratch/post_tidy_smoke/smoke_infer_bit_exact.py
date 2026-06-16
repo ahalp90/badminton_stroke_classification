@@ -20,7 +20,7 @@ Optional env vars (defaults match the active Hyp on pre-phase-2-tidy):
 Usage on engelbart:
   cd ~/badminton_stroke_classifier
   source /home/ahalperi/.venvs/venv-bst/bin/activate
-  export BST_X_DATA_DIR=~/badminton_stroke_classifier/src/bst_x/stroke_classification/preparing_data/ShuttleSet_data_une_v1_14/npy_v2_taxon_pinned_w_preds
+  export BST_X_DATA_DIR=~/badminton_stroke_classifier/src/bst_x/preparing_data/ShuttleSet_data_une_v1_14/npy_v2_taxon_pinned_w_preds
   export WEIGHT_PATH=<full path to a recent .pt checkpoint matching the active Hyp>
 
   # CuBLAS deterministic mode -- without this CUDA picks different matmul
@@ -31,7 +31,7 @@ Usage on engelbart:
 
   # PYTHONPATH gives access to both package roots (matches conftest.py
   # for tests and the documented invocation pattern post-step-P).
-  export PYTHONPATH=src/bst_x:src/bst_x/stroke_classification
+  export PYTHONPATH=src/bst_x
 
   # Run on pre-phase-2-tidy
   git checkout pre-phase-2-tidy
@@ -60,7 +60,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from main_on_shuttleset.bst_x_infer import Task
+from bst_x_infer import Task
 from pipeline.config import resolve_taxonomy
 
 

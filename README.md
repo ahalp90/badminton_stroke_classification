@@ -14,7 +14,7 @@ TemPose-TF (2023) and BST (Chang 2025) are the two published benchmarks for badm
 | --- | --- | --- | --- | --- |
 | TemPose-TF (2023, prior published benchmark) | 0.794 | 0.493 | 0.819 | 0.950 |
 | BST paper, variable-length (Chang 2025) | 0.810 | 0.576 | 0.832 | 0.959 |
-| Upgraded TrackNet w/ inpaint (`bst_cg_ap_base_17_04_2026`) | 0.823 | 0.585 | 0.841 | 0.963 |
+| Upgraded TrackNet w/ inpaint (`foundation_chang_baseline`) | 0.823 | 0.585 | 0.841 | 0.963 |
 | Training-schedule sweep (`run_20260417_191851`) | 0.830 | **0.627** | 0.844 | 0.964 |
 | Keypoint extraction heuristic (`run_20260429_202144`) | **0.831** | 0.577 | **0.849** | **0.968** |
 
@@ -74,7 +74,7 @@ Lists clips for a given `split` + `class` filter, paired with their shuttle and 
 
 ```bash
 # Set PYTHONPATH once for the session
-export PYTHONPATH=src/bst_x:src/bst_x/stroke_classification
+export PYTHONPATH=src/bst_x
 
 python -m pipeline.data_access --summary                       # counts per split/class
 python -m pipeline.data_access --split val --class Top_smash   # one row per matching clip
@@ -106,7 +106,7 @@ The pipeline expects clip and pose data inside the repo tree; symlink to `/scrat
 ```bash
 mkdir -p /scratch/comp320a/ShuttleSet/{raw_video,clips,shuttle_csv,shuttle_npy}
 
-cd ~/badminton_stroke_classification/src/bst_x/ShuttleSet
+cd ~/badminton_stroke_classification/data/shuttleset
 ln -s /scratch/comp320a/ShuttleSet/raw_video raw_video
 ln -s /scratch/comp320a/ShuttleSet/clips clips
 ln -s /scratch/comp320a/ShuttleSet/shuttle_csv shuttle_csv
@@ -117,7 +117,7 @@ Per-taxonomy MMPose output dir, same pattern:
 
 ```bash
 mkdir -p /scratch/comp320a/ShuttleSet_data_une_v1_14
-cd ~/badminton_stroke_classification/src/bst_x/stroke_classification/preparing_data
+cd ~/badminton_stroke_classification/src/bst_x/preparing_data
 ln -s /scratch/comp320a/ShuttleSet_data_une_v1_14 ShuttleSet_data_une_v1_14
 ```
 
@@ -133,7 +133,7 @@ HPC quickstart and GPU notes: [`scratch/hpc_quickstart.md`](scratch/hpc_quicksta
 
 ## Experiment tracking
 
-Each training run writes a manifest, per-serial metrics, and TensorBoard events under `src/bst_x/stroke_classification/main_on_shuttleset/experiments/<run_id>/`. Optional Aim UI for browsing runs: [`src/bst_x/run_tracker.md`](src/bst_x/run_tracker.md).
+Each training run writes a manifest, per-serial metrics, and TensorBoard events under `experiments/bst_x/shuttleset/<run_id>/`. Optional Aim UI for browsing runs: [`src/bst_x/run_tracker.md`](src/bst_x/run_tracker.md).
 
 ## API + frontend
 

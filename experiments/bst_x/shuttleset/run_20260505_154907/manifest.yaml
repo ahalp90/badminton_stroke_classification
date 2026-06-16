@@ -1,0 +1,217 @@
+run_id: run_20260505_154907
+started_at: '2026-05-05T15:49:07'
+git_sha: 2291ad85cf8d2ec7203e46f7fac08dcdca218414
+git_dirty: false
+host: engelbart.une.edu.au
+config:
+  n_epochs: 80
+  batch_size: 128
+  lr: 0.0005
+  warm_up_step: 100
+  taxonomy: une_merge_v1_nosides
+  seq_len: 100
+  early_stop_n_epochs: 40
+  pose_style: JnB_bone
+  use_3d_pose: false
+  train_partial: 1.0
+  use_aux_schedule: true
+  aux_fade_end_epoch: 15
+  clips_csv: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+  split_column: split_v2
+  drop_unknown: true
+  ablation_id: wipe_drop
+  label_smoothing: 0.0
+  class_weights: null
+  adaptive_focal:
+    tau: 1.0
+    gamma: 1.0
+    momentum: 0.9
+    warm_up_epochs: 5
+    f1_floor: 0.0
+  augmentation:
+    p_flip: 0.5
+    p_jitter: 0.3
+    cap_y: 0.05
+    cap_x: 0.1
+    eps: 0.15
+  expected_active_classes: null
+serials:
+- serial_no: 1
+  weights_path: experiments/bst_x/shuttleset/run_20260505_154907/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260505_154907/tb/serial_1
+  metrics:
+    macro_f1: 0.7548951506614685
+    min_f1: 0.4910179376602173
+    accuracy: 0.7717753450737744
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8947368264198303
+      return_net: 0.8100358843803406
+      smash: 0.629343569278717
+      wrist_smash: 0.4910179376602173
+      lob: 0.7791985869407654
+      clear: 0.9537648558616638
+      drive: 0.6640776991844177
+      drop: 0.6582278609275818
+      passive_drop: 0.6873239874839783
+      push: 0.6491885185241699
+      rush: 0.7777777314186096
+      cross_court_net_shot: 0.6245059370994568
+      short_service: 0.9760000109672546
+      long_service: 0.9733332991600037
+    top2_accuracy: 0.941694431223227
+  recorded_at: '2026-05-05T16:14:11'
+- serial_no: 2
+  weights_path: experiments/bst_x/shuttleset/run_20260505_154907/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260505_154907/tb/serial_2
+  metrics:
+    macro_f1: 0.7413626909255981
+    min_f1: 0.46265938878059387
+    accuracy: 0.7594002855782961
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8823124766349792
+      return_net: 0.8066825866699219
+      smash: 0.5965582728385925
+      wrist_smash: 0.46265938878059387
+      lob: 0.7814569473266602
+      clear: 0.9536423683166504
+      drive: 0.6313559412956238
+      drop: 0.6346555352210999
+      passive_drop: 0.6585366129875183
+      push: 0.6482939720153809
+      rush: 0.7906977534294128
+      cross_court_net_shot: 0.5670498013496399
+      short_service: 0.9718875885009766
+      long_service: 0.9932885766029358
+    top2_accuracy: 0.9381247025226083
+  recorded_at: '2026-05-05T16:39:42'
+- serial_no: 3
+  weights_path: experiments/bst_x/shuttleset/run_20260505_154907/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260505_154907/tb/serial_3
+  metrics:
+    macro_f1: 0.7392059564590454
+    min_f1: 0.43495145440101624
+    accuracy: 0.7596382674916706
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.882758617401123
+      return_net: 0.8051947951316833
+      smash: 0.6225402355194092
+      wrist_smash: 0.43495145440101624
+      lob: 0.7840636968612671
+      clear: 0.9589403867721558
+      drive: 0.6173361539840698
+      drop: 0.6506550312042236
+      passive_drop: 0.6745562553405762
+      push: 0.6158037781715393
+      rush: 0.8000000715255737
+      cross_court_net_shot: 0.5560166239738464
+      short_service: 0.9800796508789062
+      long_service: 0.965986430644989
+    top2_accuracy: 0.9407425035697287
+  recorded_at: '2026-05-05T17:05:15'
+- serial_no: 4
+  weights_path: experiments/bst_x/shuttleset/run_20260505_154907/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260505_154907/tb/serial_4
+  metrics:
+    macro_f1: 0.740157425403595
+    min_f1: 0.48591548204421997
+    accuracy: 0.7594002855782961
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8951724171638489
+      return_net: 0.7985436916351318
+      smash: 0.5360824465751648
+      wrist_smash: 0.48591548204421997
+      lob: 0.7880341410636902
+      clear: 0.9558232426643372
+      drive: 0.5849802494049072
+      drop: 0.6552462577819824
+      passive_drop: 0.6608187556266785
+      push: 0.6495726704597473
+      rush: 0.7317072749137878
+      cross_court_net_shot: 0.6692913770675659
+      short_service: 0.9780439734458923
+      long_service: 0.9729729890823364
+    top2_accuracy: 0.9357448833888624
+  recorded_at: '2026-05-05T17:30:34'
+- serial_no: 5
+  weights_path: experiments/bst_x/shuttleset/run_20260505_154907/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260505_154907/tb/serial_5
+  metrics:
+    macro_f1: 0.7478775382041931
+    min_f1: 0.5146726965904236
+    accuracy: 0.7674916706330319
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8923920392990112
+      return_net: 0.8184019327163696
+      smash: 0.5146726965904236
+      wrist_smash: 0.5186440348625183
+      lob: 0.7845767140388489
+      clear: 0.9465240240097046
+      drive: 0.6628352999687195
+      drop: 0.6821052432060242
+      passive_drop: 0.6764706373214722
+      push: 0.6546391844749451
+      rush: 0.7741935849189758
+      cross_court_net_shot: 0.6130267977714539
+      short_service: 0.9800796508789062
+      long_service: 0.951724112033844
+    top2_accuracy: 0.9407425035697287
+  recorded_at: '2026-05-05T17:55:34'
+log_path: experiments/bst_x/shuttleset/test_logs/test_20260505_154907.log
+best_serials:
+- 5
+notes: |
+  Augmentation framework v1, p_jitter bumped 0.2 -> 0.3 to test the
+  under-regularisation read on the previous aug run. Everything else
+  held: p_flip=0.5, cap_y=0.05, cap_x=0.10, eps=0.15. Hparams otherwise
+  identical to the previous aug run (run_20260505_111211).
+
+  Mean 0.7447 / 0.4779 / 0.7635 / 0.9394. Vs the previous aug run
+  (p_jitter=0.2) mean: macro +0.6, min +0.3, acc +0.4, top-2 ~flat.
+  Vs the wipe_drop best (run_20260503_172922) mean: macro -0.3,
+  min +0.4, acc -0.2, top-2 +0.4. Aug now at parity-or-better than
+  wipe_drop: head metrics within noise, floor and top-2 ahead.
+  Under-reg hypothesis was right.
+
+  S5 picked. Smash 0.515 / wrist_smash 0.519, smash again the floor
+  class for the second project run running. Pair sum 1.033, slightly
+  tighter than the previous S5's 1.021. Min F1 0.515 a project high.
+  S5 also lifts the mid-tier classes vs the previous S5: drop +4.7%,
+  rush +7.3%, drive +3.9%, push +3.4%, passive_drop +3.4%.
+
+  Cross_court_net_shot still down ~5% vs wipe_drop best. The bump
+  from p_jitter=0.2 to 0.3 didn't move it, so the regression isn't
+  on the exposure axis. Likely flip-mediated; p_flip ablation flagged
+  for follow-up.
+
+  Full writeup: bst_x_overview.md (augmentation framework v1 section).
+extra:
+  data_provenance:
+    clips_csv_path: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+    clips_csv_sha256: b510070204cfd7152c2b573b9970fa36e07b1816e1345e6f1b99ad85ce3c6f42
+    effective_ablation_id: wipe_drop
+    npy_collated_dir: npy_wipe_drop
+  arch:
+    n_classes_full: 15
+    n_active_classes: 14
+    has_unknown: true
+    unknown_first: false
+    active_class_list:
+    - net_shot
+    - return_net
+    - smash
+    - wrist_smash
+    - lob
+    - clear
+    - drive
+    - drop
+    - passive_drop
+    - push
+    - rush
+    - cross_court_net_shot
+    - short_service
+    - long_service

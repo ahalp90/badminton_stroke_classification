@@ -208,8 +208,8 @@ python scratch/research/scripts/player_overlap_analysis.py
 
 Inputs read:
 - `notebooks/clips_master.csv` (33,481 raw clips)
-- `src/bst_x/ShuttleSet/set/match.csv` (winner / loser / downcourt per match)
-- `src/bst_x/ShuttleSet/set/<vid>/set{1,2,3}.csv` (per-shot rally + flaw flags)
+- `data/shuttleset/set/match.csv` (winner / loser / downcourt per match)
+- `data/shuttleset/set/<vid>/set{1,2,3}.csv` (per-shot rally + flaw flags)
 - `scratch/research/discard_flags_split_v2_dropunk_nosides.csv` (filter c)
 
 Outputs written:

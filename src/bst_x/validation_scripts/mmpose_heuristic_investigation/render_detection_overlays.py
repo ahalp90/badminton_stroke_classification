@@ -117,9 +117,9 @@ def main() -> int:
     parser.add_argument('--clip-stem', type=str, required=True)
     parser.add_argument('--out-dir', type=Path, required=True)
     parser.add_argument('--homography-csv', type=Path,
-                        default=REPO_ROOT / 'src' / 'bst_x' / 'ShuttleSet' / 'set' / 'homography.csv')
+                        default=REPO_ROOT / 'data' / 'shuttleset' / 'set' / 'homography.csv')
     parser.add_argument('--resolution-csv', type=Path,
-                        default=REPO_ROOT / 'src' / 'bst_x' / 'ShuttleSet' / 'video_metadata.csv')
+                        default=REPO_ROOT / 'data' / 'shuttleset' / 'video_metadata.csv')
     parser.add_argument('--top-k', type=int, default=8)
     parser.add_argument('--margin', type=float, default=0.15,
                         help='Normalised tolerance for "on court" (default 0.15).')

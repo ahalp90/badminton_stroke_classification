@@ -16,7 +16,7 @@ requires-python = ">=3.11"
 #   - **MMPose is the exception.** Its numpy<2 ceiling forces isolation; the
 #     BST-X pipeline's existing pattern is to call MMPose-using code via
 #     subprocess (see src/bst_x/pipeline/shuttle_extractor.py and
-#     stroke_classification/preparing_data/). That subprocess venv is
+#     preparing_data/). That subprocess venv is
 #     managed separately from this pyproject.
 #   - Therefore numpy>=2 is fine for everything in this pyproject. Modern
 #     TrackNetV3 (per the vendored requirements.txt header) supports it.

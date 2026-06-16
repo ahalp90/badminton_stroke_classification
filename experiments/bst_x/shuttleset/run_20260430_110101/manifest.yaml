@@ -1,0 +1,244 @@
+run_id: run_20260430_110101
+started_at: '2026-04-30T11:01:01'
+git_sha: 4b4354612fc4e53e089bf7a87c9407dfa62f9466
+git_dirty: true
+host: engelbart.une.edu.au
+config:
+  n_epochs: 80
+  batch_size: 128
+  lr: 0.0005
+  warm_up_step: 100
+  taxonomy: une_merge_v1
+  seq_len: 100
+  early_stop_n_epochs: 40
+  pose_style: JnB_bone
+  use_3d_pose: false
+  train_partial: 1.0
+  use_aux_schedule: true
+  aux_fade_end_epoch: 15
+  clips_csv: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+  split_column: split_v2
+  drop_unknown: true
+  ablation_id: null
+serials:
+- serial_no: 1
+  weights_path: experiments/bst_x/shuttleset/run_20260430_110101/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260430_110101/tb/serial_1
+  metrics:
+    macro_f1: 0.7374330163002014
+    min_f1: 0.30927833914756775
+    accuracy: 0.7629700142789148
+    num_strokes: 4202
+    per_class_f1:
+      Top_net_shot: 0.8804070949554443
+      Top_return_net: 0.7711443305015564
+      Top_smash: 0.6534653902053833
+      Top_wrist_smash: 0.30927833914756775
+      Top_lob: 0.8006181716918945
+      Top_clear: 0.9587628841400146
+      Top_drive: 0.6406927108764648
+      Top_drop: 0.6766917109489441
+      Top_passive_drop: 0.5442176461219788
+      Top_push: 0.5882352590560913
+      Top_rush: 0.7352941632270813
+      Top_cross_court_net_shot: 0.5272727012634277
+      Top_short_service: 0.9838709831237793
+      Top_long_service: 0.9863013625144958
+      Bottom_net_shot: 0.9012178182601929
+      Bottom_return_net: 0.8193383812904358
+      Bottom_smash: 0.6159999966621399
+      Bottom_wrist_smash: 0.5076923370361328
+      Bottom_lob: 0.761006236076355
+      Bottom_clear: 0.9545454978942871
+      Bottom_drive: 0.64462810754776
+      Bottom_drop: 0.6527196764945984
+      Bottom_passive_drop: 0.7173912525177002
+      Bottom_push: 0.5375723242759705
+      Bottom_rush: 0.7407407164573669
+      Bottom_cross_court_net_shot: 0.7678571343421936
+      Bottom_short_service: 0.9844961762428284
+      Bottom_long_service: 0.9866666793823242
+    top2_accuracy: 0.9393146120894812
+  recorded_at: '2026-04-30T11:20:47'
+- serial_no: 2
+  weights_path: experiments/bst_x/shuttleset/run_20260430_110101/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_2.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260430_110101/tb/serial_2
+  metrics:
+    macro_f1: 0.7351675033569336
+    min_f1: 0.3734440207481384
+    accuracy: 0.7639219419324131
+    num_strokes: 4202
+    per_class_f1:
+      Top_net_shot: 0.891218900680542
+      Top_return_net: 0.8079469799995422
+      Top_smash: 0.5864661335945129
+      Top_wrist_smash: 0.3734440207481384
+      Top_lob: 0.8012140393257141
+      Top_clear: 0.9511567950248718
+      Top_drive: 0.5740740299224854
+      Top_drop: 0.679841935634613
+      Top_passive_drop: 0.5960264801979065
+      Top_push: 0.5714285373687744
+      Top_rush: 0.7536231279373169
+      Top_cross_court_net_shot: 0.6060605645179749
+      Top_short_service: 0.9841269850730896
+      Top_long_service: 1.0
+      Bottom_net_shot: 0.9025366902351379
+      Bottom_return_net: 0.8128078579902649
+      Bottom_smash: 0.6774193048477173
+      Bottom_wrist_smash: 0.4324324429035187
+      Bottom_lob: 0.7804107666015625
+      Bottom_clear: 0.96391761302948
+      Bottom_drive: 0.6134453415870667
+      Bottom_drop: 0.6666666865348816
+      Bottom_passive_drop: 0.682634711265564
+      Bottom_push: 0.5480225682258606
+      Bottom_rush: 0.7272726893424988
+      Bottom_cross_court_net_shot: 0.6292135119438171
+      Bottom_short_service: 0.9846153855323792
+      Bottom_long_service: 0.9866666793823242
+    top2_accuracy: 0.9378867206092337
+  recorded_at: '2026-04-30T11:45:38'
+- serial_no: 3
+  weights_path: experiments/bst_x/shuttleset/run_20260430_110101/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_3.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260430_110101/tb/serial_3
+  metrics:
+    macro_f1: 0.7411643862724304
+    min_f1: 0.31182795763015747
+    accuracy: 0.7674916706330319
+    num_strokes: 4202
+    per_class_f1:
+      Top_net_shot: 0.891566276550293
+      Top_return_net: 0.76691734790802
+      Top_smash: 0.6733332872390747
+      Top_wrist_smash: 0.31182795763015747
+      Top_lob: 0.796721339225769
+      Top_clear: 0.9465649127960205
+      Top_drive: 0.6553191542625427
+      Top_drop: 0.7086614370346069
+      Top_passive_drop: 0.6184210181236267
+      Top_push: 0.6546391248703003
+      Top_rush: 0.729411780834198
+      Top_cross_court_net_shot: 0.6887417435646057
+      Top_short_service: 0.984000027179718
+      Top_long_service: 0.9577465057373047
+      Bottom_net_shot: 0.904109537601471
+      Bottom_return_net: 0.8138957619667053
+      Bottom_smash: 0.6459144353866577
+      Bottom_wrist_smash: 0.47111108899116516
+      Bottom_lob: 0.7616098523139954
+      Bottom_clear: 0.9616368412971497
+      Bottom_drive: 0.6127660274505615
+      Bottom_drop: 0.6332046389579773
+      Bottom_passive_drop: 0.7058823704719543
+      Bottom_push: 0.5278592705726624
+      Bottom_rush: 0.6538461446762085
+      Bottom_cross_court_net_shot: 0.7155963182449341
+      Bottom_short_service: 0.9883268475532532
+      Bottom_long_service: 0.9729729890823364
+    top2_accuracy: 0.9326511185149928
+  recorded_at: '2026-04-30T12:05:29'
+- serial_no: 4
+  weights_path: experiments/bst_x/shuttleset/run_20260430_110101/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_4.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260430_110101/tb/serial_4
+  metrics:
+    macro_f1: 0.7430773973464966
+    min_f1: 0.24468086659908295
+    accuracy: 0.7703474535935269
+    num_strokes: 4202
+    per_class_f1:
+      Top_net_shot: 0.8943758010864258
+      Top_return_net: 0.7844036221504211
+      Top_smash: 0.6688103079795837
+      Top_wrist_smash: 0.24468086659908295
+      Top_lob: 0.8060150146484375
+      Top_clear: 0.9614396095275879
+      Top_drive: 0.66379314661026
+      Top_drop: 0.686440646648407
+      Top_passive_drop: 0.6296295523643494
+      Top_push: 0.5994065403938293
+      Top_rush: 0.7536231279373169
+      Top_cross_court_net_shot: 0.6428571343421936
+      Top_short_service: 0.984000027179718
+      Top_long_service: 0.9722221493721008
+      Bottom_net_shot: 0.8977900743484497
+      Bottom_return_net: 0.8128078579902649
+      Bottom_smash: 0.6838709712028503
+      Bottom_wrist_smash: 0.4265402853488922
+      Bottom_lob: 0.7761194109916687
+      Bottom_clear: 0.9792746901512146
+      Bottom_drive: 0.615384578704834
+      Bottom_drop: 0.675000011920929
+      Bottom_passive_drop: 0.6823529601097107
+      Bottom_push: 0.6063829660415649
+      Bottom_rush: 0.7368420362472534
+      Bottom_cross_court_net_shot: 0.6607142686843872
+      Bottom_short_service: 0.9884170293807983
+      Bottom_long_service: 0.9729729890823364
+    top2_accuracy: 0.9438362684435982
+  recorded_at: '2026-04-30T12:24:26'
+- serial_no: 5
+  weights_path: experiments/bst_x/shuttleset/run_20260430_110101/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_5.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260430_110101/tb/serial_5
+  metrics:
+    macro_f1: 0.7397600412368774
+    min_f1: 0.3469387888908386
+    accuracy: 0.7674916706330319
+    num_strokes: 4202
+    per_class_f1:
+      Top_net_shot: 0.8933333158493042
+      Top_return_net: 0.7990867495536804
+      Top_smash: 0.6478873491287231
+      Top_wrist_smash: 0.3469387888908386
+      Top_lob: 0.7856025695800781
+      Top_clear: 0.9511567950248718
+      Top_drive: 0.5897436141967773
+      Top_drop: 0.701298713684082
+      Top_passive_drop: 0.6989246606826782
+      Top_push: 0.6010928750038147
+      Top_rush: 0.7222222089767456
+      Top_cross_court_net_shot: 0.5454545617103577
+      Top_short_service: 0.995983898639679
+      Top_long_service: 1.0
+      Bottom_net_shot: 0.9019073843955994
+      Bottom_return_net: 0.8199999928474426
+      Bottom_smash: 0.6689655184745789
+      Bottom_wrist_smash: 0.4482758641242981
+      Bottom_lob: 0.7694805264472961
+      Bottom_clear: 0.954314649105072
+      Bottom_drive: 0.6473029255867004
+      Bottom_drop: 0.6511628031730652
+      Bottom_passive_drop: 0.678787887096405
+      Bottom_push: 0.5856353640556335
+      Bottom_rush: 0.6896551847457886
+      Bottom_cross_court_net_shot: 0.6538461446762085
+      Bottom_short_service: 0.9922481179237366
+      Bottom_long_service: 0.9729729890823364
+    top2_accuracy: 0.9383626844359829
+  recorded_at: '2026-04-30T12:49:14'
+log_path: experiments/bst_x/shuttleset/test_logs/test_20260430_110101.log
+best_serials:
+- 4
+notes: |
+  Phase 2 sanity train, run 2 of 3 (combo B: une_merge_v1 +
+  split_v2 + dropunk) on the unified sticky_anchor mmpose clean
+  dir. Best S4 (top macro 0.743, top acc 0.770, top top-2 0.944,
+  min 0.245 on Top_wrist_smash). Mean macro 0.739 (-0.002 vs V4
+  baseline run_20260420_171101 mean), min 0.317 (-0.072), acc
+  0.766 (0.000), top-2 0.938 (+0.002).
+  Mean min F1 drops ~7 pp from Phase-1 despite cleaner pose
+  data: macro / acc / top-2 hold steady, but Top_wrist_smash
+  gets worse with sticky_anchor cleaning, not better. Same
+  direction as Phase-1 sticky_anchor mixed retrain
+  run_20260425_150548. Min metric is dominated by ~600-sample
+  Top_wrist_smash class with seed range 0.128, so headline pick
+  follows the macro / acc / top-2 trio. Run 3 (combo A
+  une_merge_v1_nosides) will test whether collapsing the side
+  prefix recovers the wrist_smash floor the same way the
+  Phase-1 collapsed-classes ablation (run_20260425_185421) did.
+extra:
+  data_provenance:
+    clips_csv_path: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+    clips_csv_sha256: b510070204cfd7152c2b573b9970fa36e07b1816e1345e6f1b99ad85ce3c6f42
+    effective_ablation_id: une_merge_v1_split_v2_dropunk
+    npy_collated_dir: npy_une_merge_v1_split_v2_dropunk

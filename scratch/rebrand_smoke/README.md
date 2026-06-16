@@ -38,7 +38,7 @@ Exit code is non-zero on any mismatch; the report prints offender lists by categ
 
 ## What it checks
 
-- Every `*/weights/*.pt` under `src/<pkg>/stroke_classification/main_on_shuttleset/experiments/` matches its baseline under the expected-name map: `bst_CG_AP_<rest>.pt` -> `bst_x_<rest>.pt` inside `run_*/weights/`, and `bst_CG_AP_<rest>.pt` -> `bst_cg_ap_<rest>.pt` inside the Chang baseline dir.
+- Every `*/weights/*.pt` under `src/<pkg>/stroke_classification/experiments/` matches its baseline under the expected-name map: `bst_CG_AP_<rest>.pt` -> `bst_x_<rest>.pt` inside `run_*/weights/`, and `bst_CG_AP_<rest>.pt` -> `bst_cg_ap_<rest>.pt` inside the Chang baseline dir.
 - Per `(manifest, serial)`: the resolve flag is unchanged, and the manifest's `weights_path` basename matches the mapped expectation.
 - `fe_jsons/*` and `predictions/*.npz`: byte-identical (same relpath under src-map, same sha256).
 - `tb/**`: name + size identical (no content hash; the lists + sizes catch the only thing decision 7 needs).

@@ -16,7 +16,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-EXP = ROOT / "src/bst_x/stroke_classification/main_on_shuttleset/experiments"
+EXP = ROOT / "experiments/bst_x/shuttleset"
 OUT = ROOT / "scratch/bst_x_training_runs.md"
 
 # Legacy -> canonical taxonomy (pipeline/config.py TAXONOMY_ALIASES).
@@ -112,7 +112,7 @@ def run_id_cell(rid: str) -> str:
     (for the one legacy name) between the descriptive part and its date tail.
     Each half is its own code span so the underscores stay literal and the id
     keeps monospace; the <br> sits outside the spans so it renders as a break."""
-    if rid == "bst_cg_ap_base_17_04_2026":
+    if rid == "foundation_chang_baseline":
         head, tail = "bst_cg_ap_base", "_17_04_2026"
     elif rid.startswith("run_") and rid[4:12].isdigit():
         head, tail = rid[:12], rid[12:]  # run_YYYYMMDD | _HHMMSS[_micros]
@@ -311,7 +311,7 @@ W = out.append
 W("# BST-X Architecture-1 Training Runs\n")
 W("All 64 recorded training runs of the BST-X (Architecture-1) model on ShuttleSet, built directly "
   "from the per-run `manifest.yaml` files under "
-  "`src/bst_x/stroke_classification/main_on_shuttleset/experiments/`. Generated 2026-06-02.\n")
+  "`experiments/bst_x/shuttleset/`. Generated 2026-06-02.\n")
 W("**Metrics from held-out test set.** Shows `best-serial / mean-across-serials`, to 4 dp. The "
   "best serial comes from the manifest's `best_serials` field where it's filled in (#1–31 and #49–64); "
   "otherwise, matched to the only `weights/` .pt retained.\n")

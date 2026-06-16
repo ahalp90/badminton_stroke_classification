@@ -49,7 +49,7 @@ from pipeline.config import (
     label_for_row,
     resolve_taxonomy,
 )
-from main_on_shuttleset.bst_x_common import build_bst_x_network
+from bst_x_common import build_bst_x_network
 
 
 REAL_TAXONOMY_OBJECTS = [

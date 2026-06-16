@@ -75,7 +75,7 @@ def collect_shots(
     filters to a single player, this returns shots for BOTH players. The
     caller can filter by player if needed.
 
-    :param set_info_dir: Path to ShuttleSet/set/ containing match folders.
+    :param set_info_dir: Path to data/shuttleset/set/ containing match folders.
     :param v_info: Series from match.csv with 'video' and 'downcourt' fields.
         The Series name (index) should be the video ID.
     :param stroke_types_zh: List of Chinese stroke type strings to include.

@@ -39,7 +39,7 @@ pose-fail frames). Different stream, different recovery.
 - Shuttle wipe design + cohort table:
   `scratch/architecture_notes/frame_zeroing.md`.
 - Wipe removed in code:
-  `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py`
+  `src/bst_x/preparing_data/prepare_train_on_shuttleset.py`
   (the prose comment near line 898 sits where `shuttle[failed, :] = 0`
   used to be; dropped at commit 4e478fc, branch shuttle/wipe-drop).
 - Pose before/after:

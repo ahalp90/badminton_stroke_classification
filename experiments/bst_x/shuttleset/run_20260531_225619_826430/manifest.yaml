@@ -1,0 +1,427 @@
+run_id: run_20260531_225619_826430
+started_at: '2026-05-31T22:56:42'
+git_sha: 91867abd362f7911a3c95ad5ffe7599e2a5c0aef
+git_dirty: true
+host: bourbaki.une.edu.au
+config:
+  n_epochs: 80
+  batch_size: 128
+  lr: 0.0005
+  warm_up_step: 100
+  taxonomy: bst_25
+  seq_len: 100
+  early_stop_n_epochs: 40
+  pose_style: JnB_bone
+  use_3d_pose: false
+  train_partial: 1.0
+  use_aux_schedule: true
+  aux_fade_end_epoch: 15
+  clips_csv: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+  split_column: split_bst_baseline
+  collation_id: taxon_pinned_w_preds
+  ablation_id: focal_alpha_revert_overallocated
+  label_smoothing: 0.0
+  class_weights: null
+  adaptive_focal:
+    tau: 1.0
+    gamma: 1.0
+    momentum: 0.9
+    warm_up_epochs: 5
+    f1_floor: 0.0
+  use_val_improvability_gate: true
+  val_improvability_gate:
+    val_f1_smoothing_factor: 0.9
+    improvement_margin: 0.015
+    patience_epochs: 15
+    min_epochs_before_gating: 10
+    revert_step_per_epoch: 0.2
+    stop_gating_after_fraction: 0.75
+  augmentation:
+    p_flip: 0.5
+    p_jitter: 0.3
+    cap_y: 0.05
+    cap_x: 0.1
+    eps: 0.15
+  classes:
+  - Top_net_shot
+  - Top_return_net
+  - Top_smash
+  - Top_lob
+  - Top_clear
+  - Top_drive
+  - Top_drop
+  - Top_push
+  - Top_rush
+  - Top_cross_court_net_shot
+  - Top_short_service
+  - Top_long_service
+  - Bottom_net_shot
+  - Bottom_return_net
+  - Bottom_smash
+  - Bottom_lob
+  - Bottom_clear
+  - Bottom_drive
+  - Bottom_drop
+  - Bottom_push
+  - Bottom_rush
+  - Bottom_cross_court_net_shot
+  - Bottom_short_service
+  - Bottom_long_service
+  - unknown
+serials:
+- serial_no: 1
+  weights_path: experiments/bst_x/shuttleset/run_20260531_225619_826430/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260531_225619_826430/tb/serial_1
+  metrics:
+    macro_f1: 0.8214645385742188
+    min_f1: 0.6367713212966919
+    accuracy: 0.8399311531841652
+    num_strokes: 3486
+    per_class_f1:
+      Top_net_shot: 0.90337073802948
+      Top_return_net: 0.7692307233810425
+      Top_smash: 0.8939052224159241
+      Top_lob: 0.843999981880188
+      Top_clear: 0.967391312122345
+      Top_drive: 0.6521739363670349
+      Top_drop: 0.8313252925872803
+      Top_push: 0.7128713130950928
+      Top_rush: 0.8524590730667114
+      Top_cross_court_net_shot: 0.672897219657898
+      Top_short_service: 0.9268293380737305
+      Top_long_service: 0.7671233415603638
+      Bottom_net_shot: 0.8822171092033386
+      Bottom_return_net: 0.8201892375946045
+      Bottom_smash: 0.8811188340187073
+      Bottom_lob: 0.8264462947845459
+      Bottom_clear: 0.9597854614257812
+      Bottom_drive: 0.6367713212966919
+      Bottom_drop: 0.8640483617782593
+      Bottom_push: 0.6459143757820129
+      Bottom_rush: 0.7142857313156128
+      Bottom_cross_court_net_shot: 0.7692307829856873
+      Bottom_short_service: 0.9753694534301758
+      Bottom_long_service: 0.9217391014099121
+      unknown: 0.845921516418457
+    top2_accuracy: 0.9670109007458405
+  recorded_at: '2026-05-31T23:19:52'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 44
+      macro_f1: 0.819186134338379
+      min_f1: 0.5810397267341614
+      accuracy: 0.8432483474976393
+      top2_accuracy: 0.9660056657223796
+      per_class_f1:
+        Top_net_shot: 0.9219858646392822
+        Top_return_net: 0.8096676468849182
+        Top_smash: 0.8946459889411926
+        Top_lob: 0.8208695650100708
+        Top_clear: 0.9637305736541748
+        Top_drive: 0.6237623691558838
+        Top_drop: 0.886274516582489
+        Top_push: 0.6688103079795837
+        Top_rush: 0.7540983557701111
+        Top_cross_court_net_shot: 0.6756756901741028
+        Top_short_service: 0.9647058248519897
+        Top_long_service: 0.7906976342201233
+        Bottom_net_shot: 0.901065468788147
+        Bottom_return_net: 0.8337469100952148
+        Bottom_smash: 0.9029126167297363
+        Bottom_lob: 0.808053731918335
+        Bottom_clear: 0.9590361714363098
+        Bottom_drive: 0.6167401075363159
+        Bottom_drop: 0.8876712918281555
+        Bottom_push: 0.5810397267341614
+        Bottom_rush: 0.7241380214691162
+        Bottom_cross_court_net_shot: 0.7114094495773315
+        Bottom_short_service: 0.9347826242446899
+        Bottom_long_service: 0.9454545378684998
+        unknown: 0.8986783623695374
+- serial_no: 2
+  weights_path: experiments/bst_x/shuttleset/run_20260531_225619_826430/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_2.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260531_225619_826430/tb/serial_2
+  metrics:
+    macro_f1: 0.8158869743347168
+    min_f1: 0.6077347993850708
+    accuracy: 0.8336201950659782
+    num_strokes: 3486
+    per_class_f1:
+      Top_net_shot: 0.8868777751922607
+      Top_return_net: 0.8044691681861877
+      Top_smash: 0.8815165758132935
+      Top_lob: 0.8082473874092102
+      Top_clear: 0.970350444316864
+      Top_drive: 0.6077347993850708
+      Top_drop: 0.8463767766952515
+      Top_push: 0.681528627872467
+      Top_rush: 0.7666666507720947
+      Top_cross_court_net_shot: 0.6530611515045166
+      Top_short_service: 0.9230769276618958
+      Top_long_service: 0.930232584476471
+      Bottom_net_shot: 0.8888888955116272
+      Bottom_return_net: 0.800000011920929
+      Bottom_smash: 0.853210985660553
+      Bottom_lob: 0.8202020525932312
+      Bottom_clear: 0.9815303683280945
+      Bottom_drive: 0.6445497870445251
+      Bottom_drop: 0.8535031676292419
+      Bottom_push: 0.6311787366867065
+      Bottom_rush: 0.6875
+      Bottom_cross_court_net_shot: 0.7424241900444031
+      Bottom_short_service: 0.9705882668495178
+      Bottom_long_service: 0.9090908765792847
+      unknown: 0.8543689250946045
+    top2_accuracy: 0.963855421686747
+  recorded_at: '2026-05-31T23:42:28'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 43
+      macro_f1: 0.8155484771728516
+      min_f1: 0.580110490322113
+      accuracy: 0.8371104815864022
+      top2_accuracy: 0.9660056657223796
+      per_class_f1:
+        Top_net_shot: 0.8982558250427246
+        Top_return_net: 0.795755922794342
+        Top_smash: 0.8809946775436401
+        Top_lob: 0.8107143640518188
+        Top_clear: 0.9608355164527893
+        Top_drive: 0.6051281690597534
+        Top_drop: 0.8764479160308838
+        Top_push: 0.6605504155158997
+        Top_rush: 0.6792452931404114
+        Top_cross_court_net_shot: 0.698630154132843
+        Top_short_service: 0.9485714435577393
+        Top_long_service: 0.8260869979858398
+        Bottom_net_shot: 0.911854088306427
+        Bottom_return_net: 0.8238213658332825
+        Bottom_smash: 0.8957345485687256
+        Bottom_lob: 0.8037633895874023
+        Bottom_clear: 0.9715640544891357
+        Bottom_drive: 0.6536585688591003
+        Bottom_drop: 0.8662790060043335
+        Bottom_push: 0.580110490322113
+        Bottom_rush: 0.7241380214691162
+        Bottom_cross_court_net_shot: 0.739130437374115
+        Bottom_short_service: 0.945652186870575
+        Bottom_long_service: 0.9433962106704712
+        unknown: 0.8883928656578064
+- serial_no: 3
+  weights_path: experiments/bst_x/shuttleset/run_20260531_225619_826430/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_3.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260531_225619_826430/tb/serial_3
+  metrics:
+    macro_f1: 0.8260719180107117
+    min_f1: 0.6521739363670349
+    accuracy: 0.8396442914515204
+    num_strokes: 3486
+    per_class_f1:
+      Top_net_shot: 0.9000000357627869
+      Top_return_net: 0.8163265585899353
+      Top_smash: 0.890380322933197
+      Top_lob: 0.8152865767478943
+      Top_clear: 0.9679144620895386
+      Top_drive: 0.6521739363670349
+      Top_drop: 0.8227847814559937
+      Top_push: 0.7005988955497742
+      Top_rush: 0.8524590730667114
+      Top_cross_court_net_shot: 0.7058823108673096
+      Top_short_service: 0.914634108543396
+      Top_long_service: 0.8641975522041321
+      Bottom_net_shot: 0.8816705942153931
+      Bottom_return_net: 0.8294118046760559
+      Bottom_smash: 0.8752940893173218
+      Bottom_lob: 0.7916667461395264
+      Bottom_clear: 0.9761273264884949
+      Bottom_drive: 0.6798029541969299
+      Bottom_drop: 0.856269121170044
+      Bottom_push: 0.7069486379623413
+      Bottom_rush: 0.7142857313156128
+      Bottom_cross_court_net_shot: 0.7086614370346069
+      Bottom_short_service: 0.9708737730979919
+      Bottom_long_service: 0.9090908765792847
+      unknown: 0.8490566611289978
+    top2_accuracy: 0.9675846242111302
+  recorded_at: '2026-06-01T00:04:58'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 50
+      macro_f1: 0.8240293073654175
+      min_f1: 0.577114462852478
+      accuracy: 0.8375826251180358
+      top2_accuracy: 0.9669499527856469
+      per_class_f1:
+        Top_net_shot: 0.9114658832550049
+        Top_return_net: 0.8221574425697327
+        Top_smash: 0.9109588861465454
+        Top_lob: 0.7640449404716492
+        Top_clear: 0.9635416865348816
+        Top_drive: 0.577114462852478
+        Top_drop: 0.8947368264198303
+        Top_push: 0.6504064798355103
+        Top_rush: 0.7457627654075623
+        Top_cross_court_net_shot: 0.6394557952880859
+        Top_short_service: 0.9651162624359131
+        Top_long_service: 0.8636363744735718
+        Bottom_net_shot: 0.904321014881134
+        Bottom_return_net: 0.8337236642837524
+        Bottom_smash: 0.9052132368087769
+        Bottom_lob: 0.7566764950752258
+        Bottom_clear: 0.9617224335670471
+        Bottom_drive: 0.6421053409576416
+        Bottom_drop: 0.8746517896652222
+        Bottom_push: 0.6267281174659729
+        Bottom_rush: 0.7843137383460999
+        Bottom_cross_court_net_shot: 0.7246376872062683
+        Bottom_short_service: 0.966292142868042
+        Bottom_long_service: 0.9818181991577148
+        unknown: 0.9301310181617737
+- serial_no: 4
+  weights_path: experiments/bst_x/shuttleset/run_20260531_225619_826430/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_4.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260531_225619_826430/tb/serial_4
+  metrics:
+    macro_f1: 0.8073633313179016
+    min_f1: 0.5869565010070801
+    accuracy: 0.8333333333333334
+    num_strokes: 3486
+    per_class_f1:
+      Top_net_shot: 0.8634361624717712
+      Top_return_net: 0.8139534592628479
+      Top_smash: 0.9099099636077881
+      Top_lob: 0.8408644795417786
+      Top_clear: 0.9701896905899048
+      Top_drive: 0.6060605645179749
+      Top_drop: 0.8562874794006348
+      Top_push: 0.696864128112793
+      Top_rush: 0.8358209729194641
+      Top_cross_court_net_shot: 0.5869565010070801
+      Top_short_service: 0.9230769276618958
+      Top_long_service: 0.8354430794715881
+      Bottom_net_shot: 0.8715596199035645
+      Bottom_return_net: 0.7977839708328247
+      Bottom_smash: 0.844660222530365
+      Bottom_lob: 0.8397566080093384
+      Bottom_clear: 0.9706666469573975
+      Bottom_drive: 0.6666666269302368
+      Bottom_drop: 0.8022922873497009
+      Bottom_push: 0.6559999585151672
+      Bottom_rush: 0.6875
+      Bottom_cross_court_net_shot: 0.6095238327980042
+      Bottom_short_service: 0.9556649923324585
+      Bottom_long_service: 0.9026548266410828
+      unknown: 0.8404907584190369
+    top2_accuracy: 0.9650028686173264
+  recorded_at: '2026-06-01T00:27:30'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 50
+      macro_f1: 0.8171781349182129
+      min_f1: 0.5671641826629639
+      accuracy: 0.8449008498583569
+      top2_accuracy: 0.9660056657223796
+      per_class_f1:
+        Top_net_shot: 0.908062219619751
+        Top_return_net: 0.8429751992225647
+        Top_smash: 0.9170897006988525
+        Top_lob: 0.8111888766288757
+        Top_clear: 0.9639175534248352
+        Top_drive: 0.5957446694374084
+        Top_drop: 0.8920570015907288
+        Top_push: 0.6322580575942993
+        Top_rush: 0.7812500596046448
+        Top_cross_court_net_shot: 0.6201550364494324
+        Top_short_service: 0.9710982441902161
+        Top_long_service: 0.7058823704719543
+        Bottom_net_shot: 0.9046154022216797
+        Bottom_return_net: 0.8480725884437561
+        Bottom_smash: 0.8877805471420288
+        Bottom_lob: 0.803170382976532
+        Bottom_clear: 0.9689737558364868
+        Bottom_drive: 0.6395938992500305
+        Bottom_drop: 0.8684209585189819
+        Bottom_push: 0.5671641826629639
+        Bottom_rush: 0.7586206197738647
+        Bottom_cross_court_net_shot: 0.7096773982048035
+        Bottom_short_service: 0.9720669984817505
+        Bottom_long_service: 0.9454545378684998
+        unknown: 0.9141631126403809
+- serial_no: 5
+  weights_path: experiments/bst_x/shuttleset/run_20260531_225619_826430/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_5.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260531_225619_826430/tb/serial_5
+  metrics:
+    macro_f1: 0.8255811929702759
+    min_f1: 0.5903614163398743
+    accuracy: 0.8442340791738382
+    num_strokes: 3486
+    per_class_f1:
+      Top_net_shot: 0.9006622433662415
+      Top_return_net: 0.803519070148468
+      Top_smash: 0.8989247679710388
+      Top_lob: 0.8320610523223877
+      Top_clear: 0.967567503452301
+      Top_drive: 0.5903614163398743
+      Top_drop: 0.8517350554466248
+      Top_push: 0.6494464874267578
+      Top_rush: 0.8615384697914124
+      Top_cross_court_net_shot: 0.6666666865348816
+      Top_short_service: 0.9285714030265808
+      Top_long_service: 0.9069767594337463
+      Bottom_net_shot: 0.8914549946784973
+      Bottom_return_net: 0.829971194267273
+      Bottom_smash: 0.8832952380180359
+      Bottom_lob: 0.8286852836608887
+      Bottom_clear: 0.9816272258758545
+      Bottom_drive: 0.621761679649353
+      Bottom_drop: 0.8580246567726135
+      Bottom_push: 0.6504064798355103
+      Bottom_rush: 0.75
+      Bottom_cross_court_net_shot: 0.7333332896232605
+      Bottom_short_service: 0.9603960514068604
+      Bottom_long_service: 0.9380530714988708
+      unknown: 0.8544891476631165
+    top2_accuracy: 0.9693057946069994
+  recorded_at: '2026-06-01T00:50:06'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 69
+      macro_f1: 0.8248156356811523
+      min_f1: 0.5555555820465088
+      accuracy: 0.8479697828139755
+      top2_accuracy: 0.9700188857412654
+      per_class_f1:
+        Top_net_shot: 0.9121813178062439
+        Top_return_net: 0.8194842338562012
+        Top_smash: 0.9233333468437195
+        Top_lob: 0.8069565892219543
+        Top_clear: 0.9608355164527893
+        Top_drive: 0.6187845468521118
+        Top_drop: 0.8933601975440979
+        Top_push: 0.6602563858032227
+        Top_rush: 0.8125000596046448
+        Top_cross_court_net_shot: 0.633093535900116
+        Top_short_service: 0.9485714435577393
+        Top_long_service: 0.8292683362960815
+        Bottom_net_shot: 0.9110429883003235
+        Bottom_return_net: 0.8387096524238586
+        Bottom_smash: 0.900726318359375
+        Bottom_lob: 0.8141360878944397
+        Bottom_clear: 0.9812206625938416
+        Bottom_drive: 0.5957447290420532
+        Bottom_drop: 0.8617886304855347
+        Bottom_push: 0.5555555820465088
+        Bottom_rush: 0.7457627058029175
+        Bottom_cross_court_net_shot: 0.7538461089134216
+        Bottom_short_service: 0.966292142868042
+        Bottom_long_service: 0.9615384340286255
+        unknown: 0.9154013395309448
+log_path: experiments/bst_x/shuttleset/test_logs/test_20260531_225619_826430.log
+extra:
+  data_provenance:
+    clips_csv_path: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+    clips_csv_sha256: b510070204cfd7152c2b573b9970fa36e07b1816e1345e6f1b99ad85ce3c6f42
+    collation_id: taxon_pinned_w_preds
+    npy_collated_dir: npy_bst_baseline_taxon_pinned_w_preds
+notes: |-
+  Best S3 0.826 / 0.652, mean 0.819 / 0.615 (test macro / min).
+
+  focal_alpha_revert_overallocated hardly shifts anything across most taxonomies. The only noticeable difference is on une_v1_14 / v2, which is the taxonomy it was primarily built to target due to the alpha saturation across the smash classes. Here it noticeably lifts mean min-F1 (+0.016). Otherwise, pulls down single-best serial results on macro and min across all taxons except shuttleset_18 (best within noise at +0.002). Reduced mean-vs-best diff suggests it slightly regularises seed variation.

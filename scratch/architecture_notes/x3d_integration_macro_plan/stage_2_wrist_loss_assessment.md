@@ -296,7 +296,7 @@ To be written when Stage 2 proper kicks off after Stage 1 lands. Macro-plan §St
 - Stage 1 plan (consumes the dominant-wrist picker for Method B'): `stage_1_hit_frame_derivation.md`.
 - Pose extraction: `src/bst_x/stroke_classification/preparing_data/raw_extract.py:256` (model = `MMPoseInferencer("human")` = RTMPose-L on COCO-17).
 - Per-stroke metadata: `notebooks/clips_master.csv` (`aroundhead`, `backhand`, `player_side`).
-- Player roster source: `src/bst_x/ShuttleSet/set/match.csv` (winner / loser columns).
+- Player roster source: `data/shuttleset/set/match.csv` (winner / loser columns).
 - Handedness data file (once landed): `stage_2_outputs/player_handedness.csv`.
 - L/R static-bias diagnostic output (once run): `stage_2_outputs/keypoint_lr_diagnostic.md`.
 - L/R inter-frame flip diagnostic output (once run): `stage_2_outputs/keypoint_lr_interframe_diagnostic.md` + `keypoint_lr_interframe_per_clip.csv`.

@@ -99,7 +99,8 @@ def _print_table(rows: list[dict]) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('experiments_dir', nargs='?', default='experiments')
+    default_experiments = Path(__file__).resolve().parents[2] / 'experiments' / 'bst_x' / 'shuttleset'
+    parser.add_argument('experiments_dir', nargs='?', default=str(default_experiments))
     parser.add_argument('-c', '--config', default='n_epochs,use_aux_schedule,aux_fade_end_epoch',
                         help='comma-separated config keys to include (default: a few BST-relevant keys)')
     parser.add_argument('-m', '--metrics', default=None,

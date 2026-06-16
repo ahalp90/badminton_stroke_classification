@@ -64,24 +64,23 @@ def _first_importable(*candidates: str):
 
 def _experiments_dir() -> Path:
     candidate = (
-        REPO_ROOT / 'src' / 'bst_x' / 'stroke_classification'
-        / 'main_on_shuttleset' / 'experiments'
+        REPO_ROOT / 'experiments' / 'bst_x' / 'shuttleset'
     )
     if candidate.is_dir():
         return candidate
-    raise RuntimeError(f'No experiments dir under src/bst_x in {REPO_ROOT}')
+    raise RuntimeError(f'No experiments dir under experiments/bst_x/shuttleset in {REPO_ROOT}')
 
 
 def _common_module():
-    return _first_importable('main_on_shuttleset.bst_x_common')
+    return _first_importable('bst_x_common')
 
 
 def _train_module():
-    return _first_importable('main_on_shuttleset.bst_x_train')
+    return _first_importable('bst_x_train')
 
 
 def _infer_module():
-    return _first_importable('main_on_shuttleset.bst_x_infer')
+    return _first_importable('bst_x_infer')
 
 
 def _api_inference_module():
@@ -699,7 +698,7 @@ def test_t9_chang_attribution_intact():
 # T10: Chang baseline run untouched
 # ---------------------------------------------------------------------------
 
-BASELINE_DIR = EXPERIMENTS / 'bst_cg_ap_base_17_04_2026'
+BASELINE_DIR = EXPERIMENTS / 'foundation_chang_baseline'
 BASELINE_PREFIX_MIXED = 'bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25'
 BASELINE_PREFIX_LOWER = 'bst_cg_ap_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25'
 BASELINE_TRIPLE_MIXED = {
@@ -816,7 +815,7 @@ def _step8_landed() -> bool:
 
 def _step6_common_landed() -> bool:
     try:
-        importlib.import_module('main_on_shuttleset.bst_x_common')
+        importlib.import_module('bst_x_common')
         return True
     except ImportError:
         return False
@@ -949,11 +948,9 @@ def _stage6_in_scope(rel: str) -> bool:
         return True
     if rel == 'scripts/model_manifest.tsv':
         return True
-    if rel.startswith(('src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_',
-                       'src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_')):
+    if rel.startswith('experiments/bst_x/shuttleset/run_'):
         return True
-    if rel.startswith(('src/bst_x/stroke_classification/main_on_shuttleset/experiments/bst_cg_ap_base_',
-                       'src/bst_x/stroke_classification/main_on_shuttleset/experiments/bst_cg_ap_base_')):
+    if rel.startswith('experiments/bst_x/shuttleset/bst_cg_ap_base_'):
         return True
     return False
 
@@ -1011,9 +1008,9 @@ def _runner_modules() -> list[tuple[str, str]]:
     out = []
     for label, modgetter in (
         ('collation_runner', lambda: _first_importable(
-            'main_on_shuttleset.collation_runner')),
+            'collation_runner')),
         ('hparam_sweep', lambda: _first_importable(
-            'main_on_shuttleset.hparam_sweep')),
+            'hparam_sweep')),
     ):
         mod = modgetter()
         out.append((label, Path(mod.__file__).read_text()))

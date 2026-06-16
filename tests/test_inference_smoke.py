@@ -21,8 +21,8 @@ import pytest
 import torch
 import yaml
 
-from main_on_shuttleset import bst_x_infer
-from main_on_shuttleset.bst_x_common import build_bst_x_network, dump_topk_predictions
+import bst_x_infer
+from bst_x_common import build_bst_x_network, dump_topk_predictions
 from pipeline.config import resolve_taxonomy
 from preparing_data.shuttleset_dataset import Dataset_npy_collated
 from torch.utils.data import DataLoader

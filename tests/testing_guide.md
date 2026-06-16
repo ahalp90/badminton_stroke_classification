@@ -23,7 +23,7 @@ This runs all tests except the HPC integration test, which auto-skips when `BST_
 - **Prerequisites:** Project dependencies
 
 ### `test_sticky_anchor.py`
-**Sticky_anchor heuristic invariant tests.** Seven pinning tests for the per-slot Voronoi + EMA tracker (`src/bst_x/stroke_classification/preparing_data/heuristics/sticky_anchor.py`). Synthetic-only — uses an identity-homography court at 1280x720 so picking and EMA-reset behaviour can be verified deterministically. The X3D-S wrist-crop layer will consume the same per-slot pose stream, so these invariants are pinned before that work lands.
+**Sticky_anchor heuristic invariant tests.** Seven pinning tests for the per-slot Voronoi + EMA tracker (`src/bst_x/preparing_data/heuristics/sticky_anchor.py`). Synthetic-only — uses an identity-homography court at 1280x720 so picking and EMA-reset behaviour can be verified deterministically. The X3D-S wrist-crop layer will consume the same per-slot pose stream, so these invariants are pinned before that work lands.
 
 - **Prerequisites:** Project dependencies
 
@@ -70,6 +70,6 @@ GitHub Actions runs `pytest` on every push and PR (`.github/workflows/ci.yml`). 
 The root `conftest.py` adds two entries to `sys.path` so that imports used inside `bst_x` work from the test directory:
 
 - `src/bst_x` — allows `from pipeline.config import ...`, `from run_tracker import ...`
-- `src/bst_x/stroke_classification` — allows `from preparing_data.shuttleset_dataset import ...`, `from main_on_shuttleset.bst_x_common import ...`, `from model.tempose import ...`
+- `src/bst_x` — allows `from preparing_data.shuttleset_dataset import ...`, `from bst_x_common import ...`, `from model.tempose import ...`
 
-The same pair is the documented PYTHONPATH for non-test invocation post-step-P (`PYTHONPATH=src/bst_x:src/bst_x/stroke_classification python -m main_on_shuttleset.bst_x_train`), so tests and production share one resolution layout.
+The same pair is the documented PYTHONPATH for non-test invocation post-step-P (`PYTHONPATH=src/bst_x python -m bst_x_train`), so tests and production share one resolution layout.

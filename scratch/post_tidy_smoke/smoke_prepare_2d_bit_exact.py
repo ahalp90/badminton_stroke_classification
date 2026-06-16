@@ -46,7 +46,7 @@ Usage on engelbart:
   export CLIPS_DIR=/tmp/prepare_2d_smoke_clips
   export REFERENCE_DIR=$BST_X_MMPOSE_NPY_DIR
   export SCRATCH_DIR=/tmp/prepare_2d_smoke_outputs
-  export PYTHONPATH=src/bst_x:src/bst_x/stroke_classification
+  export PYTHONPATH=src/bst_x
   python scratch/post_tidy_smoke/smoke_prepare_2d_bit_exact.py
 
   # Switch to main and run the same script against the same SCRATCH_DIR

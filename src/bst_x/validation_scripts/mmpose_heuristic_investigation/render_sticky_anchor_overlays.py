@@ -270,11 +270,11 @@ def main() -> int:
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument(
         "--homography-csv", type=Path,
-        default=REPO_ROOT / "src" / "bst_x" / "ShuttleSet" / "set" / "homography.csv",
+        default=REPO_ROOT / "data" / "shuttleset" / "set" / "homography.csv",
     )
     parser.add_argument(
         "--resolution-csv", type=Path,
-        default=REPO_ROOT / "src" / "bst_x" / "ShuttleSet" / "video_metadata.csv",
+        default=REPO_ROOT / "data" / "shuttleset" / "video_metadata.csv",
     )
     parser.add_argument("--frames", type=str, default="all",
                         help='"all" or a range like "20:40".')

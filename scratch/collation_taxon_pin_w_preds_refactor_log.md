@@ -23,10 +23,10 @@ Repo-wide grep for the deprecated symbol surface, before any code edits. Five pa
 - `src/bst_x/pipeline/build_dataset.py` import + defaults (Step A)
 - `src/bst_x/pipeline/clip_generator.py` import + default (Step A)
 - `src/bst_x/pipeline/verify.py` import + default (Step A)
-- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py` full Hyp + Task + train_network + manifest surface (Step D)
-- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py` derive_active_classes_from_labels def (Step D)
-- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_infer.py` argparse + DEFAULT_TAXONOMY refs (Step D)
-- `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py` full collator surface (Step C)
+- `src/bst_x/bst_x_train.py` full Hyp + Task + train_network + manifest surface (Step D)
+- `src/bst_x/bst_x_common.py` derive_active_classes_from_labels def (Step D)
+- `src/bst_x/bst_x_infer.py` argparse + DEFAULT_TAXONOMY refs (Step D)
+- `src/bst_x/preparing_data/prepare_train_on_shuttleset.py` full collator surface (Step C)
 - `tests/test_active_classes.py`, `tests/test_data_access.py`, `tests/test_integration.py` (Step F)
 - `scratch/presentation_prep/eval_dump_predictions.py` delete (Step D10)
 - `scratch/presentation_prep/confusion_matrix.py` adapt to npz (Step D10)
@@ -37,7 +37,7 @@ Four code files and four doc files not in the original hit list.
 
 **Code:**
 
-1. `src/bst_x/stroke_classification/model/bst.py` lines 436-437 — `__main__` demo block imports `TAXONOMIES, DEFAULT_TAXONOMY` and reads `n_classes` for the smoke instantiation. Trivial: replace with `resolve_taxonomy('bst_25').n_classes` or similar concrete pick. ~2 lines.
+1. `src/bst_x/model/bst.py` lines 436-437 — `__main__` demo block imports `TAXONOMIES, DEFAULT_TAXONOMY` and reads `n_classes` for the smoke instantiation. Trivial: replace with `resolve_taxonomy('bst_25').n_classes` or similar concrete pick. ~2 lines.
 
 2. `src/bst_x/validation_scripts/fail_rate_per_class.py` — live validation script with `--drop-unknown` CLI flag piped through to `get_clip_records`. Needs adaptation: drop the CLI flag, switch to `--taxonomy` selection (taxonomy now carries the unknown-exclude rule via `excluded_base_stroke_types`). ~10 lines.
 
@@ -59,7 +59,7 @@ Four code files and four doc files not in the original hit list.
 - `tests/test_network.py`, `tests/test_video_io.py`, `tests/test_player_mapping.py`, `tests/test_temporal.py` — Arch2 tests.
 - `tests/test_adaptive_focal.py:49` — single comment, no code dependency.
 - `scripts/archive/*` (verify_v1_collate.py, verify_flatten.py) — archived scripts, won't run.
-- `src/bst_x/stroke_classification/.gitignore` — comment lines from project history.
+- `src/bst_x/.gitignore` — comment lines from project history.
 - Manifest YAML / `best_model_id.txt` under `experiments/run_*/` — historic artefacts; new runs won't write the deprecated fields; aliases handle resume.
 - `predictions/val.json`, `predictions/test.json` — covered by Step J fallback.
 

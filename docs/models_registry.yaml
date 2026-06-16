@@ -38,8 +38,8 @@ models:
     drop_unknown: true
     temperature: 1.0
     num_classes: 14
-    manifest_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260531_005535_005154/manifest.yaml
-    weights_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260531_005535_005154/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_3.pt
+    manifest_path: experiments/bst_x/shuttleset/run_20260531_005535_005154/manifest.yaml
+    weights_path: experiments/bst_x/shuttleset/run_20260531_005535_005154/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_3.pt
 
   # ── The five alternate BST-X cells. Same taxon_pinned_w_preds collation as the
   #    default above; they differ by taxonomy and/or split. serial_no on each is
@@ -57,8 +57,8 @@ models:
     drop_unknown: true
     temperature: 1.0
     num_classes: 24
-    manifest_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260530_225714_593038/manifest.yaml
-    weights_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260530_225714_593038/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_5.pt
+    manifest_path: experiments/bst_x/shuttleset/run_20260530_225714_593038/manifest.yaml
+    weights_path: experiments/bst_x/shuttleset/run_20260530_225714_593038/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_5.pt
 
   - id: bst_x_bst_25_bst_baseline
     display_name: "BST-X, bst_25 (BST-baseline split)"
@@ -73,8 +73,8 @@ models:
     drop_unknown: true
     temperature: 1.0
     num_classes: 25
-    manifest_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260530_210600_435552/manifest.yaml
-    weights_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260530_210600_435552/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25.pt
+    manifest_path: experiments/bst_x/shuttleset/run_20260530_210600_435552/manifest.yaml
+    weights_path: experiments/bst_x/shuttleset/run_20260530_210600_435552/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25.pt
 
   - id: bst_x_bst_12_v2
     display_name: "BST-X, bst_12 (v2 split)"
@@ -89,8 +89,8 @@ models:
     drop_unknown: true
     temperature: 1.0
     num_classes: 12
-    manifest_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260530_192738_970644/manifest.yaml
-    weights_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260530_192738_970644/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_4.pt
+    manifest_path: experiments/bst_x/shuttleset/run_20260530_192738_970644/manifest.yaml
+    weights_path: experiments/bst_x/shuttleset/run_20260530_192738_970644/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_4.pt
 
   - id: bst_x_bst_24_v2
     display_name: "BST-X, bst_24 (v2 split)"
@@ -105,8 +105,8 @@ models:
     drop_unknown: true
     temperature: 1.0
     num_classes: 24
-    manifest_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260601_184437_030823/manifest.yaml
-    weights_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260601_184437_030823/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_3.pt
+    manifest_path: experiments/bst_x/shuttleset/run_20260601_184437_030823/manifest.yaml
+    weights_path: experiments/bst_x/shuttleset/run_20260601_184437_030823/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_3.pt
 
   - id: bst_x_shuttleset_18_v2
     display_name: "BST-X, shuttleset_18 (v2 split)"
@@ -121,8 +121,8 @@ models:
     drop_unknown: true
     temperature: 1.0
     num_classes: 18
-    manifest_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260601_153738_936523/manifest.yaml
-    weights_path: src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260601_153738_936523/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_5.pt
+    manifest_path: experiments/bst_x/shuttleset/run_20260601_153738_936523/manifest.yaml
+    weights_path: experiments/bst_x/shuttleset/run_20260601_153738_936523/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_5.pt
 
   # ── BRIC (R(2+1)D-18 RGB + fusion). Diverges from the BST schema: its
   #    provenance axis is `config.variant` (not collation/ablation), and it has

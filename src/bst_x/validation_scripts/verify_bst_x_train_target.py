@@ -7,7 +7,7 @@ path exists under the expected scratch root.
 
 Run from the repo root::
 
-    PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \\
+    PYTHONPATH=src/bst_x \\
         python src/bst_x/validation_scripts/verify_bst_train_target.py
 
 Override the scratch root with ``--root /some/other/path`` if needed.
@@ -40,7 +40,7 @@ def main() -> int:
 
     # Pull the live hyp namedtuple from bst_x_train.py without running its
     # if __name__ == '__main__': block.
-    bst_x_train = importlib.import_module('main_on_shuttleset.bst_x_train')
+    bst_x_train = importlib.import_module('bst_x_train')
     hyp = bst_x_train.hyp
 
     print('hyp config:')

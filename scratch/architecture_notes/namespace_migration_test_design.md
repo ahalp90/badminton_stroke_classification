@@ -9,7 +9,7 @@ Locked decisions this suite verifies:
 1. `MODELS` dict in `bst_x_common.py` gains `'BST_X': BST_CG_AP` as an alias; the five Chang keys stay.
 2. Default `model_name` flips `'BST_CG_AP'` to `'BST_X'` at `bst_x_train.py:942,1394` and `bst_x_infer.py:99,175,317`.
 3. The case-mix branch at `bst_x_train.py:979-985` becomes `save_name = self.model_name.lower()`; new runs write `bst_x_*.pt`.
-4. Every `bst_CG_AP_*.pt` under `experiments/run_*/weights/` is renamed to `bst_x_*.pt`. The Chang baseline at `experiments/bst_cg_ap_base_17_04_2026/weights/` keeps its three files but lowercases their prefix in place (`bst_CG_AP_` → `bst_cg_ap_`), with its manifest and .txt notes following, so the new save-name rule resumes it. (Revised 2026-06-11; was "its three files stay".)
+4. Every `bst_CG_AP_*.pt` under `experiments/run_*/weights/` is renamed to `bst_x_*.pt`. The Chang baseline at `experiments/foundation_chang_baseline/weights/` keeps its three files but lowercases their prefix in place (`bst_CG_AP_` → `bst_cg_ap_`), with its manifest and .txt notes following, so the new save-name rule resumes it. (Revised 2026-06-11; was "its three files stay".)
 5. Manifest `weights_path` lines, `docs/models_registry.yaml`, `scripts/model_manifest.tsv` `dest_path` basenames (the models-v1 release assets keep their pre-rebrand names; only the tsv's dest column moves), and the `src/api/bst_x_inference.py:53` literal update in lockstep.
 6. `fe_jsons/*.json.gz` and `predictions/*.npz` carry no model_name strings; untouched.
 7. TB logs untouched.
@@ -62,7 +62,7 @@ Numbers the specs below rely on. Re-verify any that look stale at implementation
 
 | Fact | Value |
 |---|---|
-| Experiment dirs under `main_on_shuttleset/experiments/` | 66 (64 `run_*` + `bst_cg_ap_base_17_04_2026` + `aug_hparam_sweep`) |
+| Experiment dirs under `main_on_shuttleset/experiments/` | 66 (64 `run_*` + `foundation_chang_baseline` + `aug_hparam_sweep`) |
 | Dirs with a `manifest.yaml` | 64 (`run_20260503_063338` and `aug_hparam_sweep` have none) |
 | `weights_path` entries across manifests | 312; 137 resolve on disk, 175 pruned (prune-to-best) |
 | Weight `.pt` files on disk under `*/weights/` | 186, all prefixed `bst_CG_AP_`; 64 git-tracked |
@@ -226,7 +226,7 @@ Imports of `pipeline.*` / `main_on_shuttleset.*` / `model.*` resolve through `co
 - **Location.** `tests/test_namespace_migration.py`.
 - **Runs.** Standing, both; holds today. The expected triple flips at the 6b.2 commit. Gate the post-rename expectation on a different signal from the asserted property, per the self-gating rule: `any(EXPERIMENTS.glob('run_*/weights/bst_x_*.pt'))` — the run-dir rename lands in the same 6b.2 commit as the baseline lowercase.
 - **Spec.**
-  - `BASE = EXPERIMENTS / 'bst_cg_ap_base_17_04_2026'`. Assert the weights dir contains exactly three files, pinned as literals for the current state:
+  - `BASE = EXPERIMENTS / 'foundation_chang_baseline'`. Assert the weights dir contains exactly three files, pinned as literals for the current state:
     - Gate signal false (pre-6b.2): `bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25.pt` / `..._merged_25_2.pt` / `..._merged_25_3.pt` (mixed case).
     - Gate signal true (post-6b.2): the same three names with the prefix lowercased to `bst_cg_ap_`. Also assert NO `bst_x_*.pt` in the dir — the baseline must never take the project prefix.
   - Pin literals, not a glob: a `bst_CG_AP_*_merged_25_*.pt` glob misses the serial-1 file (no `_<n>` suffix). A rename script written off that glob would miss one of the three.

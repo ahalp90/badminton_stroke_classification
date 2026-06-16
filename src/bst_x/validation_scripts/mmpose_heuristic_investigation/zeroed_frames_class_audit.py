@@ -47,7 +47,7 @@ BST_X = SCRIPT_DIR.parents[1]
 REPO_ROOT = SCRIPT_DIR.parents[3]
 DEFAULT_CLIPS_CSV = REPO_ROOT / 'notebooks' / 'clips_master.csv'
 EXPERIMENTS_DIR = (
-    BST_X / 'stroke_classification/main_on_shuttleset/experiments'
+    BST_X / 'experiments'
 )
 DEFAULT_OUT_DIR = SCRIPT_DIR / 'analysis_outputs'
 

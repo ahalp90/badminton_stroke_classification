@@ -1,0 +1,67 @@
+run_id: bst_cg_ap_base_17_04_2026
+started_at: '2026-04-17T09:19:40'
+git_sha: 8810e95
+git_dirty: null
+host: engelbart.une.edu.au
+log_path: experiments/bst_x/shuttleset/test_logs/test_20260417_091933.log
+config:
+  n_epochs: 1600
+  warm_up_step: 400
+  early_stop_n_epochs: 300
+  batch_size: 128
+  lr: 0.0005
+  scheduler_num_cycles: 0.25
+  taxonomy: merged_25
+  seq_len: 100
+  pose_style: JnB_bone
+  use_3d_pose: false
+  train_partial: 1.0
+  use_aux_schedule: false
+  aux_fade_end_epoch: null
+serials:
+- serial_no: 1
+  weights_path: experiments/bst_x/shuttleset/bst_cg_ap_base_17_04_2026/weights/bst_cg_ap_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25.pt
+  tb_dir: experiments/bst_x/shuttleset/bst_cg_ap_base_17_04_2026/tb/serial_1
+  metrics:
+    macro_f1: 0.814
+    min_f1: 0.577
+    accuracy: 0.835
+    top2_accuracy: 0.956
+    num_strokes: 3486
+  recorded_at: null
+- serial_no: 2
+  weights_path: experiments/bst_x/shuttleset/bst_cg_ap_base_17_04_2026/weights/bst_cg_ap_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2.pt
+  tb_dir: experiments/bst_x/shuttleset/bst_cg_ap_base_17_04_2026/tb/serial_2
+  metrics:
+    macro_f1: 0.823
+    min_f1: 0.585
+    accuracy: 0.841
+    top2_accuracy: 0.963
+    num_strokes: 3486
+  recorded_at: null
+- serial_no: 3
+  weights_path: experiments/bst_x/shuttleset/bst_cg_ap_base_17_04_2026/weights/bst_cg_ap_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_3.pt
+  tb_dir: experiments/bst_x/shuttleset/bst_cg_ap_base_17_04_2026/tb/serial_3
+  metrics:
+    macro_f1: 0.816
+    min_f1: 0.539
+    accuracy: 0.836
+    top2_accuracy: 0.963
+    num_strokes: 3486
+  recorded_at: null
+best_serials:
+- 2
+notes: 'Original BST paper hyperparameters, unchanged.
+
+  Only difference vs. the official BST author''s build: used TrackNetV3 WITH inpaint
+
+  (accidental) where the original BST build used TrackNetV3 WITHOUT inpaint. That
+
+  shuttle-input difference is responsible for this baseline beating the paper''s
+
+  published numbers on F1 macro, F1 min, and accuracy.
+
+  Superseded by run_20260417_191851, which retunes the LR schedule so cosine decay
+
+  happens meaningfully in the real train window.'
+legacy: true

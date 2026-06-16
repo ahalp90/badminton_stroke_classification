@@ -46,12 +46,12 @@ grep -n "driven_flight" src/bst_x/pipeline/config.py
 # Also line ~76 maps 'driven_flight' -> 'drive' under UNE_MERGE_V1_MAP (the good one).
 
 # 2. Confirm derive_active_classes_from_labels is still in bst_x_common.py and called from bst_x_train.
-grep -n "derive_active_classes_from_labels" src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py
-grep -n "derive_active_classes_from_labels\|_derive_active_classes_from_loaded_labels" src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py
+grep -n "derive_active_classes_from_labels" src/bst_x/bst_x_common.py
+grep -n "derive_active_classes_from_labels\|_derive_active_classes_from_loaded_labels" src/bst_x/bst_x_train.py
 # Expected: definition at bst_x_common.py around line 80; caller in bst_x_train.py around line 761.
 
 # 3. Confirm _validate_and_record_arch is still where the doc thinks it is.
-grep -n "_validate_and_record_arch" src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py
+grep -n "_validate_and_record_arch" src/bst_x/bst_x_train.py
 # Expected: definition around line 913, callers around 1228.
 
 # 4. Confirm build_extract_stems.py hasn't already grown an --only-unknown flag.
@@ -59,7 +59,7 @@ grep -n "only.unknown\|raw_type_en" scripts/build_extract_stems.py
 # Expected: --keep-unknown flag exists; no --only-unknown yet.
 
 # 5. Confirm collate_npy is still where the doc thinks it is, with the drop_unknown filter at the docd line.
-grep -n "def collate_npy\|drop_unknown" src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py
+grep -n "def collate_npy\|drop_unknown" src/bst_x/preparing_data/prepare_train_on_shuttleset.py
 # Expected: collate_npy def around line 714; drop_unknown filter inside, around line 767-768.
 
 # 6. Confirm the 1,278 unknown clip count from clips_master.csv.
@@ -79,7 +79,7 @@ ssh engelbart 'ls -la /scratch/comp320a/ | grep -E "(_unknown|taxon_pinned)"'
 
 # 8. Confirm bst_x_train.py:803 still constructs weight filename from taxonomy.name
 #    (this is one of the spots the path-source-from-manifest patch in D7 needs to touch).
-grep -n "taxonomy_info = f._.self.taxonomy.name" src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py
+grep -n "taxonomy_info = f._.self.taxonomy.name" src/bst_x/bst_x_train.py
 # Expected: line ~803.
 
 # 9. Confirm the scratch smoke tests' state (they use class_list() which goes away).
@@ -94,7 +94,7 @@ grep -n "active_class_list\|extra.*arch\|config.*classes" src/api/registry.py
 # someone landed Patch 2 ahead of us; audit Step J before re-doing.
 
 # 11. Confirm the predictions JSON output dir is still in the placeholder state.
-find src/bst_x/stroke_classification/main_on_shuttleset/experiments \
+find experiments/bst_x/shuttleset \
     -name 'test.json' -o -name 'val.json' 2>/dev/null | head -5
 # Expected: val.json + test.json at run_20260505_154907/predictions/ with
 # _mock_data: false, _real_stems: true, y_pred a placeholder the live BST
@@ -957,7 +957,7 @@ The `_resolve_class_list` fallback in J1 is a separate concern. It stays for now
 
 ### Step E. Runner script
 
-New file: `src/bst_x/stroke_classification/main_on_shuttleset/collation_runner.py`. Thin loop over a session config, one cell per (taxonomy, split, collation_id, n_serials), plus an optional training `ablation_id` per cell. No kill rules, no verdict logic. State persisted to `state.json` for resume.
+New file: `src/bst_x/collation_runner.py`. Thin loop over a session config, one cell per (taxonomy, split, collation_id, n_serials), plus an optional training `ablation_id` per cell. No kill rules, no verdict logic. State persisted to `state.json` for resume.
 
 ```python
 """Drive bst_x_train.py through a list of (taxonomy, split, knobs) cells.
@@ -1201,18 +1201,18 @@ Important: the `class_list` returned by `registry.py` for a given model entry co
 - `src/bst_x/pipeline/build_dataset.py` (default taxonomy reference; remove `MERGE_MAP` re-export if unused after the dust settles)
 - `src/bst_x/pipeline/clip_generator.py` (taxonomy default reference)
 - `src/bst_x/pipeline/verify.py` (taxonomy default reference)
-- `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py` (`collate_npy` rewrite, CLI changes)
-- `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py` (Dataset_npy_collated loads clip_stems; adjust_to_partial_train_set mirrors clip_stems)
-- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py` (Hyp tuple, train_network return value, dump_predictions, asserts, _validate_and_record_arch deletion, CLI flags)
-- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_infer.py` (--fe + --fe-output-dir, batch dump path)
-- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py` (delete derive_active_classes_from_labels, add dump_topk_predictions)
-- `src/bst_x/stroke_classification/main_on_shuttleset/collation_runner.py` (new)
+- `src/bst_x/preparing_data/prepare_train_on_shuttleset.py` (`collate_npy` rewrite, CLI changes)
+- `src/bst_x/preparing_data/shuttleset_dataset.py` (Dataset_npy_collated loads clip_stems; adjust_to_partial_train_set mirrors clip_stems)
+- `src/bst_x/bst_x_train.py` (Hyp tuple, train_network return value, dump_predictions, asserts, _validate_and_record_arch deletion, CLI flags)
+- `src/bst_x/bst_x_infer.py` (--fe + --fe-output-dir, batch dump path)
+- `src/bst_x/bst_x_common.py` (delete derive_active_classes_from_labels, add dump_topk_predictions)
+- `src/bst_x/collation_runner.py` (new)
 - `scripts/build_extract_stems.py` (`--only-unknown` flag)
 - `scratch/presentation_prep/eval_dump_predictions.py` (deleted)
 - `scratch/presentation_prep/confusion_matrix.py` (npz reader instead of .pt)
 - `src/api/registry.py` (`_resolve_class_list` helper + JSON field rename with back-compat; ~30 lines per Step J)
 - `src/api/inference.py` (predictions-JSON field back-compat at `_load_test_preds`, one line + comment per Step J3)
-- `src/bst_x/run_tracker.py` *or* `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py` (one line landing `config.classes` into the manifest payload per Step D1.5; recommended in bst_x_train at the `track_run` call site)
+- `src/bst_x/run_tracker.py` *or* `src/bst_x/bst_x_train.py` (one line landing `config.classes` into the manifest payload per Step D1.5; recommended in bst_x_train at the `track_run` call site)
 - `scratch/post_tidy_smoke/smoke_infer_bit_exact.py` (currently uses `taxonomy.class_list()` and `n_active_classes` kwarg at lines ~117-118; both go away under the rip). Two options: (a) delete the smoke script since the legacy-fallback path it tests is being removed; (b) update it to use `taxonomy.classes` and pass `n_class=taxonomy.n_classes` to the network builder. (a) is cleaner unless the smoke is actively used in CI.
 - `scratch/post_tidy_smoke/smoke_prepare_2d_bit_exact.py` (verify no taxonomy.name / class_list dependencies; touch only if grep finds them).
 
@@ -1260,8 +1260,8 @@ These files were checked during planning and don't touch the bandaid surfaces, s
 - `src/bst_x/run_tracker.py` (manifest writer; agnostic to the arch block contents, just stores whatever extras the caller passes)
 - `src/bst_x/aim_backfill.py` (aim mirror; doesn't depend on `extra.arch`)
 - `src/bst_x/pipeline/clip_index.py` (path indexer; no taxonomy dependency)
-- `src/bst_x/stroke_classification/main_on_shuttleset/hparam_sweep.py` (kill/verdict logic operates on metrics; needs minor audit for CLI flag shape compatibility — see Step F3 — but the core loop is unaffected)
-- `src/bst_x/stroke_classification/loss/adaptive_focal.py` (consumes `n_classes` + `class_names` which `bst_x_train` continues to pass; no change needed)
+- `src/bst_x/hparam_sweep.py` (kill/verdict logic operates on metrics; needs minor audit for CLI flag shape compatibility — see Step F3 — but the core loop is unaffected)
+- `src/bst_x/loss/adaptive_focal.py` (consumes `n_classes` + `class_names` which `bst_x_train` continues to pass; no change needed)
 
 ## Drift-detection rules
 

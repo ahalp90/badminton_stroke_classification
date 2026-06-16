@@ -95,7 +95,7 @@ Three spellings coexist by design after the BST -> BST-X rebrand. Each lives in 
 - The Chang-key entries of the `MODELS` dispatch dict in `bst_x_common.py` (the project-side alias `'BST_X'` sits alongside them).
 - Taxonomy ids `bst_25` / `bst_24` / `bst_12` and the constants `TAXONOMY_BST_25/24/12` (paper-faithful taxonomies).
 - The split column `split_bst_baseline` and constant `SPLITS_BST_BASELINE`.
-- The Chang-baseline run dir `experiments/bst_cg_ap_base_17_04_2026/` and its lowercase `bst_cg_ap_*.pt` weights.
+- The Chang-baseline run dir `experiments/foundation_chang_baseline/` and its lowercase `bst_cg_ap_*.pt` weights.
 - The paper transcript at `local_scratch/bst_paper_md/`.
 
 **`bst_x` (Python identifiers; snake_case file + dir names).** The project rebrand in code:

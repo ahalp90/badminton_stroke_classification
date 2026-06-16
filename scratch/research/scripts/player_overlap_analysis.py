@@ -18,9 +18,9 @@ import yaml
 
 REPO = Path('/home/ariel/Documents/COSC594/badminton_stroke_classification')
 CLIPS_CSV = REPO / 'notebooks' / 'clips_master.csv'
-MATCH_CSV = REPO / 'src/bst_x/ShuttleSet/set/match.csv'
-SET_DIR = REPO / 'src/bst_x/ShuttleSet/set'
-FLAW_CSV = REPO / 'src/bst_x/ShuttleSet/flaw_shot_records.csv'
+MATCH_CSV = REPO / 'data/shuttleset/set/match.csv'
+SET_DIR = REPO / 'data/shuttleset/set'
+FLAW_CSV = REPO / 'data/shuttleset/flaw_shot_records.csv'
 DISCARD_CSV = REPO / 'scratch/research/discard_flags_split_v2_dropunk_nosides.csv'
 
 CHARTS_DIR = REPO / 'scratch/research/charts'
@@ -190,7 +190,7 @@ PHASE_2_NOSIDES_RUNS = [
 
 def compute_median_class_ranks() -> dict:
     """For each class, compute median test F1 across Phase 2 nosides runs."""
-    EXP = REPO / 'src/bst_x/stroke_classification/main_on_shuttleset/experiments'
+    EXP = REPO / 'experiments/bst_x/shuttleset'
     per_run_per_class = {}
     for run_id in PHASE_2_NOSIDES_RUNS:
         m = yaml.safe_load(open(EXP / run_id / 'manifest.yaml'))

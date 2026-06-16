@@ -24,7 +24,7 @@ the cwd repo.
 Run in the tb-viewer venv (aim + tensorboard + tensorflow + pyyaml):
     ~/.venvs/tb-viewer/bin/python aim_backfill.py \
         --repo /path/to/.aim_repos/bst --wipe \
-        src/bst_x/stroke_classification/main_on_shuttleset/experiments
+        experiments/bst_x/shuttleset
     ~/.venvs/tb-viewer/bin/aim up --repo /path/to/.aim_repos/bst
 """
 
@@ -129,7 +129,7 @@ def _best_serials(manifest: dict, run_dir: Path) -> set[int]:
 
 
 def _resolve_log_path(manifest: dict, experiments_dir: Path) -> Path | None:
-    """Locate the serial test log in the test_logs/ sibling of experiments/.
+    """Locate the serial test log inside experiments_dir/test_logs/.
 
     The log pairs with the run by name (test_<run_id timestamp>.log), so we
     rebuild it from run_id rather than trusting manifest.log_path, which was
@@ -137,7 +137,7 @@ def _resolve_log_path(manifest: dict, experiments_dir: Path) -> Path | None:
     machines. Returns None when the log wasn't pulled down (descriptions are
     optional).
     """
-    test_logs = experiments_dir.parent / 'test_logs'
+    test_logs = experiments_dir / 'test_logs'
     run_id = manifest.get('run_id', '')
     candidate = test_logs / f"test_{run_id.removeprefix('run_')}.log"
     if candidate.exists():

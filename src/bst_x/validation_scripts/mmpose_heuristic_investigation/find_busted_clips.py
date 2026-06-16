@@ -82,9 +82,9 @@ def main() -> int:
                              'around the hit frame) instead of whole-clip. '
                              'Requires --set-dir and --video-metadata-csv.')
     parser.add_argument('--set-dir', type=Path, default=None,
-                        help='Path to ShuttleSet/set/ (required with --hit-zone).')
+                        help='Path to data/shuttleset/set/ (required with --hit-zone).')
     parser.add_argument('--video-metadata-csv', type=Path, default=None,
-                        help='Path to ShuttleSet/video_metadata.csv '
+                        help='Path to data/shuttleset/video_metadata.csv '
                              '(required with --hit-zone).')
     parser.add_argument('--hit-window', type=int, default=10,
                         help='Frames either side of hit to include in the '

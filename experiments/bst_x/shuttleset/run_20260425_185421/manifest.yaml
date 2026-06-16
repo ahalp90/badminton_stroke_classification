@@ -1,0 +1,166 @@
+run_id: run_20260425_185421
+started_at: '2026-04-25T18:54:21'
+git_sha: a956eaf88090030c0745c5fc0499233bd91f82d1
+git_dirty: true
+host: engelbart.une.edu.au
+config:
+  n_epochs: 80
+  batch_size: 128
+  lr: 0.0005
+  warm_up_step: 100
+  taxonomy: une_merge_v1_nosides
+  seq_len: 100
+  early_stop_n_epochs: 40
+  pose_style: JnB_bone
+  use_3d_pose: false
+  train_partial: 1.0
+  use_aux_schedule: true
+  aux_fade_end_epoch: 15
+  clips_csv: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+  split_column: split_v2
+  drop_unknown: true
+  ablation_id: une_merge_v1_nosides_split_v2_dropunk_h_sticky_anchor
+serials:
+- serial_no: 1
+  weights_path: experiments/run_20260425_185421/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt
+  tb_dir: experiments/run_20260425_185421/tb/serial_1
+  metrics:
+    macro_f1: 0.7462009787559509
+    min_f1: 0.42376238107681274
+    accuracy: 0.7651118514992861
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8989070653915405
+      return_net: 0.800000011920929
+      smash: 0.6162161827087402
+      wrist_smash: 0.42376238107681274
+      lob: 0.7844408750534058
+      clear: 0.9561855792999268
+      drive: 0.610169529914856
+      drop: 0.6580086946487427
+      passive_drop: 0.6765578389167786
+      push: 0.611341655254364
+      rush: 0.7741935849189758
+      cross_court_net_shot: 0.6640625
+      short_service: 0.9863014221191406
+      long_service: 0.9866666793823242
+    top2_accuracy: 0.9395525940028557
+  recorded_at: '2026-04-25T19:18:19'
+- serial_no: 2
+  weights_path: experiments/run_20260425_185421/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
+  tb_dir: experiments/run_20260425_185421/tb/serial_2
+  metrics:
+    macro_f1: 0.7412752509117126
+    min_f1: 0.39635539054870605
+    accuracy: 0.7701094716801523
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.900937020778656
+      return_net: 0.8196721076965332
+      smash: 0.6497462391853333
+      wrist_smash: 0.39635539054870605
+      lob: 0.7920318841934204
+      clear: 0.949935793876648
+      drive: 0.5955556035041809
+      drop: 0.6541666388511658
+      passive_drop: 0.6823529601097107
+      push: 0.6120218634605408
+      rush: 0.7022900581359863
+      cross_court_net_shot: 0.6499999761581421
+      short_service: 0.9863014221191406
+      long_service: 0.9864864945411682
+    top2_accuracy: 0.93717277486911
+  recorded_at: '2026-04-25T19:42:02'
+- serial_no: 3
+  weights_path: experiments/run_20260425_185421/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3.pt
+  tb_dir: experiments/run_20260425_185421/tb/serial_3
+  metrics:
+    macro_f1: 0.7481501698493958
+    min_f1: 0.39540231227874756
+    accuracy: 0.7691575440266539
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8963660597801208
+      return_net: 0.7975460290908813
+      smash: 0.6612377762794495
+      wrist_smash: 0.39540231227874756
+      lob: 0.78125
+      clear: 0.9544863700866699
+      drive: 0.599552571773529
+      drop: 0.6822033524513245
+      passive_drop: 0.6808510422706604
+      push: 0.6322418451309204
+      rush: 0.770370364189148
+      cross_court_net_shot: 0.649789035320282
+      short_service: 0.986138641834259
+      long_service: 0.9866666793823242
+    top2_accuracy: 0.9390766301761067
+  recorded_at: '2026-04-25T20:05:24'
+- serial_no: 4
+  weights_path: experiments/run_20260425_185421/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4.pt
+  tb_dir: experiments/run_20260425_185421/tb/serial_4
+  metrics:
+    macro_f1: 0.7315138578414917
+    min_f1: 0.3499999940395355
+    accuracy: 0.7584483579247977
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8908007740974426
+      return_net: 0.7937649488449097
+      smash: 0.6544850468635559
+      wrist_smash: 0.3499999940395355
+      lob: 0.7823343873023987
+      clear: 0.9443037509918213
+      drive: 0.5948275923728943
+      drop: 0.6436781883239746
+      passive_drop: 0.6329114437103271
+      push: 0.5665723085403442
+      rush: 0.7692307829856873
+      cross_court_net_shot: 0.6567164659500122
+      short_service: 0.9882352948188782
+      long_service: 0.9733332991600037
+    top2_accuracy: 0.9364588291289861
+  recorded_at: '2026-04-25T20:29:58'
+- serial_no: 5
+  weights_path: experiments/run_20260425_185421/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt
+  tb_dir: experiments/run_20260425_185421/tb/serial_5
+  metrics:
+    macro_f1: 0.7464478611946106
+    min_f1: 0.4192139804363251
+    accuracy: 0.766301761066159
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.9004207849502563
+      return_net: 0.8065268397331238
+      smash: 0.6418439745903015
+      wrist_smash: 0.4192139804363251
+      lob: 0.7817178964614868
+      clear: 0.9526248574256897
+      drive: 0.6051502823829651
+      drop: 0.656000018119812
+      passive_drop: 0.6747720241546631
+      push: 0.5932203531265259
+      rush: 0.7786259651184082
+      cross_court_net_shot: 0.6692913770675659
+      short_service: 0.984375
+      long_service: 0.9864864945411682
+    top2_accuracy: 0.9355069014754879
+  recorded_at: '2026-04-25T20:54:34'
+log_path: test_logs/test_20260425_185421.log
+best_serials:
+- 1
+notes: |
+  Collapsed-classes ablation on sticky_anchor data. 28 classes -> 14
+  by dropping the Top_/Bottom_ side prefix (tax. une_merge_v1_nosides).
+  Pairs with run_20260425_150548 (28-class sticky_anchor, same data).
+  Best S1 (macro 0.746, min 0.424, acc 0.765). Mean macro 0.743 (-0.005 vs sticky), min 0.397
+  (+0.064 vs sticky, +0.008 vs V4 baseline), acc 0.766, top-2 0.938.
+  Min variance halved across seeds (range 0.074 vs sticky's 0.124).
+  Rare-class variance dropped, absolute performance didn't.
+  Augmentation + class weighting / focal loss next.
+extra:
+  data_provenance:
+    clips_csv_path: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+    clips_csv_sha256: b510070204cfd7152c2b573b9970fa36e07b1816e1345e6f1b99ad85ce3c6f42
+    effective_ablation_id: une_merge_v1_nosides_split_v2_dropunk_h_sticky_anchor
+    npy_collated_dir: npy_une_merge_v1_nosides_split_v2_dropunk_h_sticky_anchor

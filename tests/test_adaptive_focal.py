@@ -28,7 +28,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from main_on_shuttleset.loss.adaptive_focal import (
+from loss.adaptive_focal import (
     AdaptiveFocalLoss,
     accumulate_class_counts,
     per_class_f1_from_counts,
