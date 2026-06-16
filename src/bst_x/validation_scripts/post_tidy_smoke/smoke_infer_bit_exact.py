@@ -105,12 +105,10 @@ def main() -> int:
         batch_size=128,
     )
     task.get_network_architecture(
+        taxonomy=taxonomy,
         model_name=model_name,
         seq_len=seq_len,
         in_channels=in_channels,
-        taxonomy=taxonomy,
-        n_active_classes=taxonomy.n_classes,
-        active_class_list=list(taxonomy.classes),
     )
     task.load_weight(weight_path)
     preds = task.infer()

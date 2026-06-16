@@ -38,7 +38,7 @@ Scope is the X3D-S branch from data derivation through fused training. Out of sc
 
 Things that aren't a stage of their own but must land before any stage runs.
 
-- **Code dedup (already done)**: `bst_x_common.py` exists at `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py` carrying `MODELS`, `Tee`, `build_bst_x_network`, `dump_topk_predictions`, and `compute_data_provenance`. The X3D-S training script imports from there, no further extraction needed; the `bst_x_overview.md:472-473` "leave it for now" note pre-dates this refactor.
+- **Code dedup (already done)**: `bst_x_common.py` exists at `src/bst_x/bst_x_common.py` carrying `MODELS`, `Tee`, `build_bst_x_network`, `dump_topk_predictions`, and `compute_data_provenance`. The X3D-S training script imports from there, no further extraction needed; the `bst_x_overview.md:472-473` "leave it for now" note pre-dates this refactor.
 - **Pinned-taxonomy wiring (changed by the taxon_pinned_w_preds refactor, 2026-05-30)**: head dim is `taxonomy.n_classes` directly. `labels.npy` lands in `[0, n_classes)` at collation time, so there's no runtime active/full remap and no unknown ghost. The deleted machinery (`derive_active_classes_from_labels`, `_validate_and_record_arch`, `task.n_active_classes`, the `extra.arch` manifest block) must NOT be reintroduced. New training scripts mirror `bst_x_train`: `resolve_taxonomy(name)` -> head `taxonomy.n_classes`, `Task._assert_label_coverage` as the train-start guard (train covers every class; val/test carry no class absent from train), and `config.classes` written into the manifest.
 - **Storage location**: artefacts go on /scratch on engelbart (extraction host), rsync'd to bourbaki post-extract per the existing cross-node pattern. Local disk is not a candidate.
 - **Solo X3D-S baseline gate**: before fusion, X3D-S is trained alone on the wrist crops as a 14-class classifier. The solo number is the lower bound for "fusion adds something". This sits inside Stage 5 but must be planned for in Stage 4's storage layout (the same artefacts feed solo and fused).
@@ -216,7 +216,7 @@ Need to pick one. Default recommendation absent further data: option 4 (direct j
 
 A solo X3D-S that beats chance (1/14 ≈ 7%) is the floor. A solo number in the 0.55-0.65 macro F1 band is plausible given the wrist-only context (wide bands of stroke-distinctive whole-body motion are gone; only the racket-end signal remains). Anything ≥ ~0.5 macro is signal-positive for fusion; below that and the wrist-crop content question reopens.
 
-**Deliverable shape**: `main_on_shuttleset/x3d_s_train.py` (mirror of `bst_x_train.py`), checkpoint dir under `experiments/`, manifest record per the existing pattern, comparison entry in `nosides_runs_table.md`.
+**Deliverable shape**: `src/bst_x/x3d_s_train.py` (mirror of `bst_x_train.py`), checkpoint dir under `experiments/`, manifest record per the existing pattern, comparison entry in `nosides_runs_table.md`.
 
 **Dependencies**: Stage 4 wrist-crop artefacts.
 
@@ -288,7 +288,7 @@ Plus the RacketVision (2025) finding that naive concatenation degraded performan
 6. **Hparam search budget.** What's the realistic compute budget for Stage 6? Number of full 5-serial runs informs whether the fusion-method shortlist is N=1 (depth-first) or N=2-3 (breadth-first).
 7. **Eval baseline.** A/B against `run_20260503_172922` on combo A nosides, plus the latest landed runs from Capacity Run 2 and the augmentation set. The "what does the fusion need to clear to count as a win" question wants an explicit number before launch (e.g., +1 pp macro and +2 pp wrist_smash, or whatever the user wants).
 
-**Deliverable shape**: `main_on_shuttleset/arch1_train.py`, fusion module under `model/fusion/` (or extended `bst.py`), per-fusion-method ablation suite, full writeup at `docs/architecture_notes/bst_x_overview.md`'s experiment log.
+**Deliverable shape**: `src/bst_x/arch1_train.py`, fusion module under `model/fusion/` (or extended `bst.py`), per-fusion-method ablation suite, full writeup at `docs/architecture_notes/bst_x_overview.md`'s experiment log.
 
 **Dependencies**: Stages 1-5 all upstream.
 
@@ -298,7 +298,7 @@ These cut across multiple stages and want answering early so they don't compound
 
 1. **Resolution lock.** 112² vs 160². Affects Stage 4 (storage), Stage 5 (compute), Stage 6 (compute). One number, picked once.
 2. **Storage location.** /scratch on bourbaki/engelbart, with the env-var pattern (`BST_WRIST_CROP_DIR`) mirroring the existing layout. Confirm before Stage 4 launches.
-3. **Code home.** Does Arch 1 live as new files under `src/bst_x/stroke_classification/arch1/`, or extend the existing `model/`, `preparing_data/`, `main_on_shuttleset/` trees in place? Latter is lighter-weight; former isolates the X3D-S work for cleaner branching and rollback.
+3. **Code home.** Does Arch 1 live as new files under `src/bst_x/arch1/`, or extend the existing `model/`, `preparing_data/`, `main_on_shuttleset/` trees in place? Latter is lighter-weight; former isolates the X3D-S work for cleaner branching and rollback.
 4. **Splits.** Stick with combo A nosides (`une_merge_v1_nosides + split_v2 + dropunk`) for X3D-S solo and fused, mirroring active BST baseline. The cross-player swap-val-test direction (`bst_x_overview.md:443-453`) stays parked.
 5. **Reproducibility scaffolding.** Run-id, manifest, per-serial seeding, weight-cache pattern, and recording `extra.x3d_arch` (frames, stride, resolution, pretrain-source) into the manifest directly (the `_validate_and_record_arch` helper is deleted, see Stage 0). Stage 0 cleanup work.
 6. **Data versioning.** A new `ablation_id` like `arch1_v0` to mark the new collated tree variant if any of the existing tensors get re-collated to add the hit-frame sidecar or wrist-crop pointer.
@@ -324,13 +324,13 @@ For when each stage's sub-plan is written:
 - `src/bst_x/validation_scripts/wrist_loss_in_hit_window.py` (Stage 2; new)
 - `src/bst_x/preparing_data/wrist_crop_spec.py` (Stage 3; new — name TBD)
 - `src/bst_x/pipeline/wrist_crop_extractor.py` (Stage 4; new)
-- `src/bst_x/stroke_classification/preparing_data/wrist_crop_dataset.py` (Stage 4; new)
-- `src/bst_x/stroke_classification/main_on_shuttleset/x3d_s_train.py` (Stage 5; new)
-- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py` (Stage 0; extract from existing duplication per `bst_x_overview.md:472-473`)
-- `src/bst_x/stroke_classification/model/fusion/` (Stage 6; new dir, fusion modules per shortlist)
-- `src/bst_x/stroke_classification/main_on_shuttleset/arch1_train.py` (Stage 6; new)
-- `src/bst_x/stroke_classification/model/bst.py` (Stage 6; possibly extend with optional `x3d_branch` flag, or leave untouched and wrap)
-- `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py` (Stage 4-6; either extend existing class or build parallel + zip)
+- `src/bst_x/preparing_data/wrist_crop_dataset.py` (Stage 4; new)
+- `src/bst_x/x3d_s_train.py` (Stage 5; new)
+- `src/bst_x/bst_x_common.py` (Stage 0; extract from existing duplication per `bst_x_overview.md:472-473`)
+- `src/bst_x/model/fusion/` (Stage 6; new dir, fusion modules per shortlist)
+- `src/bst_x/arch1_train.py` (Stage 6; new)
+- `src/bst_x/model/bst.py` (Stage 6; possibly extend with optional `x3d_branch` flag, or leave untouched and wrap)
+- `src/bst_x/preparing_data/shuttleset_dataset.py` (Stage 4-6; either extend existing class or build parallel + zip)
 - `.env.example` (each stage; new env vars for paths)
 - `docs/architecture_notes/bst_x_overview.md` (each stage; experiment log entries)
 - `docs/architecture_notes/` (each stage; per-stage writeups, names TBD)

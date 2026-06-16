@@ -1049,7 +1049,7 @@ reproduced snippet text and update the inline citations.
 
 ### A1. Court-coord normalisation of `pos`
 
-File: `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py`
+File: `src/bst_x/preparing_data/prepare_train_on_shuttleset.py`
 
 `to_court_coordinate` projects camera-frame foot positions through
 the per-clip homography; `normalize_position` then divides by the
@@ -1094,7 +1094,7 @@ for y on the court borders. There is no clamp on the output.
 
 ### A2. Camera-resolution normalisation of `shuttle`
 
-File: `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py`. Lines 190-199:
+File: `src/bst_x/preparing_data/prepare_train_on_shuttleset.py`. Lines 190-199:
 
 ```python
 def normalize_shuttlecock(arr: np.ndarray, v_width, v_height):
@@ -1113,7 +1113,7 @@ applied to the shuttle stream.
 
 ### A3. Bbox-relative normalisation of joints
 
-File: `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py`. Lines 150-187:
+File: `src/bst_x/preparing_data/prepare_train_on_shuttleset.py`. Lines 150-187:
 
 ```python
 def normalize_joints(
@@ -1157,7 +1157,7 @@ in this same bbox-relative space.
 
 ### A4. PPF: Pose-Position Fusion at the input
 
-File: `src/bst_x/stroke_classification/model/bst.py`.
+File: `src/bst_x/model/bst.py`.
 
 Forward-pass call site, lines 280-286 (inside `BST.forward`,
 immediately after `JnB` reshape and before `self.tcn_pose`):
@@ -1196,7 +1196,7 @@ of it.
 
 ### A5. Sticky_anchor `generous_margin` parameter
 
-File: `src/bst_x/stroke_classification/preparing_data/heuristics/sticky_anchor.py`.
+File: `src/bst_x/preparing_data/heuristics/sticky_anchor.py`.
 
 `StickyAnchorParams` dataclass field at line 62:
 
@@ -1221,7 +1221,7 @@ above the centreline rather than by `generous_margin` directly.
 ### A6. RandomTranslation_batch joints-only call site
 
 Class definition at
-`src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py`,
+`src/bst_x/preparing_data/shuttleset_dataset.py`,
 lines 121-137:
 
 ```python
@@ -1249,7 +1249,7 @@ Confirms: per-sample shift drawn `np.random.uniform(-0.3, 0.3, size=(n, d))`
 single-flip on `p=0.3`.
 
 Call site at
-`src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py`,
+`src/bst_x/bst_x_train.py`,
 lines 196-205 (inside `train_one_epoch`):
 
 ```python

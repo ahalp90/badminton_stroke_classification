@@ -47,13 +47,12 @@ any future extension) can do the same two calls.
 
 ```
 experiments/bst_x/shuttleset/
-  experiments/
-    run_20260418_174244/
-      manifest.yaml                             (tracked in git)
-        weights/bst_x_..._merged_25.pt            (gitignored)
-      tb/serial_1/, serial_2/, ...              (gitignored)
+  run_20260418_174244/
+    manifest.yaml                             (tracked in git)
+    weights/bst_x_..._merged_25.pt            (gitignored)
+    tb/serial_1/, serial_2/, ...              (gitignored)
   test_logs/
-    test_20260418_174244.log                    (unchanged, pairs with run_id)
+    test_20260418_174244.log                  (unchanged, pairs with run_id)
 ```
 
 Launch TensorBoard with `tensorboard --logdir experiments/<run_id>/tb` to
@@ -105,8 +104,8 @@ the entry in place rather than appending a duplicate.
 
 ```bash
 cd src/bst_x
-python ../run_overview.py                              # default experiments/
-python ../run_overview.py -c n_epochs,use_aux_schedule -m macro_f1,min_f1
+python run_overview.py                              # default experiments/bst_x/shuttleset/
+python run_overview.py -c n_epochs,use_aux_schedule -m macro_f1,min_f1
 ```
 
 Prints one row per run with mean/stdev/max across serials.
@@ -131,7 +130,7 @@ the training loop breaks either way.
 
 ### Backfill (the canonical way to populate Aim)
 
-`aim_backfill.py` rebuilds Aim from every `experiments/*/manifest.yaml`
+`aim_backfill.py` rebuilds Aim from every `experiments/bst_x/shuttleset/*/manifest.yaml`
 plus the run's TB event files. Each serial becomes a run `<run_id>_s<N>`
 carrying:
 

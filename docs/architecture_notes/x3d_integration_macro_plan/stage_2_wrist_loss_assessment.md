@@ -116,7 +116,7 @@ Two minor notes:
 
 ### COCO-17 keypoint convention recap
 
-RTMPose-L (the model we run via `MMPoseInferencer("human")` in `src/bst_x/stroke_classification/preparing_data/raw_extract.py:256`) outputs the standard COCO 17-keypoint set. Wrists are:
+RTMPose-L (the model we run via `MMPoseInferencer("human")` in `src/bst_x/preparing_data/raw_extract.py:256`) outputs the standard COCO 17-keypoint set. Wrists are:
 
 - **Index 9: `left_wrist`** — the player's anatomical left wrist.
 - **Index 10: `right_wrist`** — the player's anatomical right wrist.
@@ -294,7 +294,7 @@ To be written when Stage 2 proper kicks off after Stage 1 lands. Macro-plan §St
 
 - Macro plan Stage 2 entry: `x3d_integration_macro_plan.md` §Stage 2.
 - Stage 1 plan (consumes the dominant-wrist picker for Method B'): `stage_1_hit_frame_derivation.md`.
-- Pose extraction: `src/bst_x/stroke_classification/preparing_data/raw_extract.py:256` (model = `MMPoseInferencer("human")` = RTMPose-L on COCO-17).
+- Pose extraction: `src/bst_x/preparing_data/raw_extract.py:256` (model = `MMPoseInferencer("human")` = RTMPose-L on COCO-17).
 - Per-stroke metadata: `notebooks/clips_master.csv` (`aroundhead`, `backhand`, `player_side`).
 - Player roster source: `data/shuttleset/set/match.csv` (winner / loser columns).
 - Handedness data file (once landed): `stage_2_outputs/player_handedness.csv`.

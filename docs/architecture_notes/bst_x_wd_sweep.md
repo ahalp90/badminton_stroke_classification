@@ -188,8 +188,8 @@ What each lambda means as a timescale (une_v1_14: N=22743, batch 128 so M=178 it
 Launch (repo root, both package roots on PYTHONPATH; on bourbaki use venv-bst and set `BST_X_COLLATED_DATA_ROOT` so the collation dir resolves):
 
 ```bash
-PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
-  python -m main_on_shuttleset.collation_runner scratch/runners/wd_sweep_une_v1_14
+PYTHONPATH=src/bst_x \
+  python -m collation_runner scratch/runners/wd_sweep_une_v1_14
 ```
 
 `state.json` is written alongside `config.yaml`, so a killed runner resumes mid-sweep without re-running finished serials.

@@ -7,7 +7,7 @@ import yaml
 import matplotlib.pyplot as plt
 
 DATA_PATH = '/tmp/nosides_tb_extract.json'
-EXP_DIR = 'src/bst_x/stroke_classification/main_on_shuttleset/experiments'
+EXP_DIR = 'experiments/bst_x/shuttleset'
 CHARTS_DIR = Path('docs/architecture_notes/charts')
 CHARTS_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -30,7 +30,7 @@ Out of scope:
 
 ## Architecture
 
-The wrapper is one Python script (`src/bst_x/stroke_classification/main_on_shuttleset/hparam_sweep.py`) that:
+The wrapper is one Python script (`src/bst_x/hparam_sweep.py`) that:
 1. Loads a cell-config YAML (the search plan).
 2. For each cell in queue order: sets the augmentation hparams,
    invokes bst_x_train one serial at a time, parses the per-serial test
@@ -49,12 +49,12 @@ It does NOT:
   existing pipeline; the wrapper just reads them.
 
 The wrapper lives at
-`src/bst_x/stroke_classification/main_on_shuttleset/hparam_sweep.py`,
+`src/bst_x/hparam_sweep.py`,
 beside `bst_x_train.py`. Despite being generic in design, it directly
 invokes bst_x_train.py and shares its experiments/ output tree, so
 sitting alongside bst_x_train.py is the natural home rather than the
 top-level `scripts/`. Search-session outputs land in
-`src/bst_x/stroke_classification/main_on_shuttleset/experiments/aug_hparam_sweep/`.
+`experiments/bst_x/shuttleset/aug_hparam_sweep/`.
 
 ## Cell config schema
 
@@ -242,7 +242,7 @@ not_yet_pruned_cells_ahead`. Refreshed on each serial completion.
 
 ## Search log format
 
-`experiments/aug_hparam_sweep/sweep_<start_timestamp>/manifest.md`,
+`experiments/bst_x/shuttleset/aug_hparam_sweep/sweep_<start_timestamp>/manifest.md`,
 markdown, appended-to as the session progresses. Top of file is a
 running summary table; below that, one section per cell.
 
@@ -306,7 +306,7 @@ running on would risk a divergence that resume can't recover from.
 ```json
 {
   "session_name": "aug_v1_round_1",
-  "session_dir": "/.../experiments/aug_hparam_sweep/sweep_20260506_090000_aug_v1_round_1",
+  "session_dir": "/.../experiments/bst_x/shuttleset/aug_hparam_sweep/sweep_20260506_090000_aug_v1_round_1",
   "current_best_run": "run_20260505_154907",
   "current_best_mean": {
     "macro_f1": 0.7447, "min_f1": 0.4779,
@@ -434,9 +434,9 @@ Resolved: Option A (see Decisions log below).
 ## CLI
 
 ```
-python -m main_on_shuttleset.hparam_sweep --new-session <name>
-python -m main_on_shuttleset.hparam_sweep <session_dir>
-python -m main_on_shuttleset.hparam_sweep --dry-run <session_dir>
+python -m hparam_sweep --new-session <name>
+python -m hparam_sweep <session_dir>
+python -m hparam_sweep --dry-run <session_dir>
 ```
 
 `--dry-run` prints the queue, the parsed `requires:` graph, and the
@@ -482,8 +482,8 @@ high_variance_warn_stdev: 0.010
 
 ## What touches existing code
 
-- `src/bst_x/stroke_classification/main_on_shuttleset/hparam_sweep.py`: new file.
-- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py`:
+- `src/bst_x/hparam_sweep.py`: new file.
+- `src/bst_x/bst_x_train.py`:
   add argparse with `--serial-no`, `--run-id`, `--log-path`, and the
   five augmentation overrides (`--p-flip`, `--p-jitter`, `--cap-y`,
   `--cap-x`, `--eps`). Gate the serial loop on `--serial-no` when
@@ -545,17 +545,17 @@ no core training-logic changes):
    of S1 (or per-serial invocations starting at S2+ in a resumed
    cell) don't double-validate or skip-validate incorrectly.
 
-**Wrapper location: stroke_classification/main_on_shuttleset/.**
+**Wrapper location: src/bst_x/.**
 Sits beside bst_x_train.py rather than top-level `scripts/`. It's
 a per-project orchestration tool, not a generic utility — the
 location reflects its dependency on bst_x_train.py.
 
 **Cell-config YAML: session-dir SSOT.**
 - Config lives at `<session_dir>/config.yaml`, never duplicated.
-- New session: `python hparam_sweep.py --new-session <name>` creates
-  `experiments/aug_hparam_sweep/sweep_<timestamp>_<name>/`, drops a
+- New session: `python -m hparam_sweep --new-session <name>` creates
+  `experiments/bst_x/shuttleset/aug_hparam_sweep/sweep_<timestamp>_<name>/`, drops a
   template config.yaml in, exits. User edits, then runs
-  `python hparam_sweep.py <session_dir>`.
+  `python -m hparam_sweep <session_dir>`.
 
 **Verdict thresholds: ±0.5% on macro, ±1.0% on min.**
 Reasoning: per-seed macro stdev observed ~0.006, so each 5-serial
@@ -595,7 +595,7 @@ not_yet_pruned_cells_ahead`. Refresh displayed estimate at every
 serial completion.
 
 **Git tracking: full session dir.**
-Track everything in `experiments/aug_hparam_sweep/sweep_*/`:
+Track everything in `experiments/bst_x/shuttleset/aug_hparam_sweep/sweep_*/`:
 config.yaml, state.json, manifest.md. Total ~30KB per session;
 state.json being tracked lets you diagnose where a search died
 later. Per-cell run dirs continue to use the existing weights

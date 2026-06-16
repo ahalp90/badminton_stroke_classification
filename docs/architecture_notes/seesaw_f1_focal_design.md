@@ -381,9 +381,9 @@ stability, because the modified denominator can underflow at large
 logit magnitudes. This is the one piece that requires care.
 
 Two files touched:
-1. **NEW** `src/bst_x/stroke_classification/main_on_shuttleset/loss/adaptive_seesaw.py`
+1. **NEW** `src/bst_x/loss/adaptive_seesaw.py`
    — ~180 lines.
-2. `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py`
+2. `src/bst_x/bst_x_train.py`
    — same ~6 edits as the CDB-F1 design, plus the
    `adaptive_seesaw` branch.
 

@@ -335,9 +335,9 @@ We need three new pieces and one branch addition:
    `_asdict()` in `run_tracker.py:160`.
 
 Two files touched:
-1. **NEW** `src/bst_x/stroke_classification/main_on_shuttleset/loss/adaptive_focal.py`
+1. **NEW** `src/bst_x/loss/adaptive_focal.py`
    — ~120-line module. Skeleton below.
-2. `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py`
+2. `src/bst_x/bst_x_train.py`
    — 5 small edits.
 
 ### 5a. `loss/adaptive_focal.py` skeleton

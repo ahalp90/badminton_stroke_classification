@@ -91,7 +91,7 @@ Three spellings coexist by design after the BST -> BST-X rebrand. Each lives in 
 
 **`bst` (Chang lineage only).** Identifiers that ground us in Chang 2025's published baseline rather than the project derivative:
 
-- `class BST` and the five variant partials (`BST_0`, `BST_PPF`, `BST_CG`, `BST_AP`, `BST_CG_AP`) in `src/bst_x/stroke_classification/model/bst.py`.
+- `class BST` and the five variant partials (`BST_0`, `BST_PPF`, `BST_CG`, `BST_AP`, `BST_CG_AP`) in `src/bst_x/model/bst.py`.
 - The Chang-key entries of the `MODELS` dispatch dict in `bst_x_common.py` (the project-side alias `'BST_X'` sits alongside them).
 - Taxonomy ids `bst_25` / `bst_24` / `bst_12` and the constants `TAXONOMY_BST_25/24/12` (paper-faithful taxonomies).
 - The split column `split_bst_baseline` and constant `SPLITS_BST_BASELINE`.

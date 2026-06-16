@@ -275,7 +275,7 @@ Sketched in `augmentation_framework.md`: extend CDB-F1 from per-class scalar alp
 - [`bst_x_training_runs.md`](../../experiments/bst_x/bst_x_training_runs.md): the run ledger, every run's per-metric best and mean.
 - [`bst_x_issues_and_bugs_squashed.md`](bst_x_issues_and_bugs_squashed.md): the unknown ghost channel and the other squashed bugs.
 - `model/bst.py`: model defaults (`d_model=100, d_head=128, n_head=6`), CG/AP branches in `BST.forward`, the `CrossTransformerLayer` docstring.
-- `main_on_shuttleset/bst_x_train.py`: the cosine schedule and Hyp namedtuple configuration.
+- `bst_x_train.py`: the cosine schedule and Hyp namedtuple configuration.
 - `tuning_thoughts.md`: broader HP strategy; Q4/Q5 are items it didn't cover.
 - `architecture_1_bst_3dcnn_racket_extension_09_April.md`: the initial X3D-S fusion design doc.
 - `mmpose_heuristic/mmpose_heuristic_investigation.md`: the full sticky_anchor design and recovery-routes.

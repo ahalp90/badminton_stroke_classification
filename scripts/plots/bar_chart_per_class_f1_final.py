@@ -1,9 +1,10 @@
-"""Per-class F1 bar chart — final best run vs first Phase 2 nosides baseline.
+"""Per-class F1 bar chart — final best BST-X run vs first clean-keypoint baseline.
 
-Asymmetric comparison: the new run's bar is its best serial (S2); the baseline
-bar is the 5-serial mean. Error bars span min-max across each run's serial
-cell. Final best is run_20260602_143618_156220 (4 serials); baseline is
-run_20260430_170325 (5 serials).
+Like-for-like comparison: each bar is that run's manifest-declared best serial.
+Error bars span min-max across the run's full serial cell so seed spread is
+still visible. Final best is run_20260602_143618_156220 (4 serials, S2 best);
+baseline is run_20260430_170325 (5 serials, S4 best) — the first nosides run
+on the cleaned keypoint extraction in this taxonomy.
 """
 from pathlib import Path
 
@@ -14,16 +15,12 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXPERIMENTS = REPO_ROOT / "experiments/bst_x/shuttleset"
 
-# Final best BST-X run; serial 2 is best by both test macro and min F1.
 BEST_RUN = "run_20260602_143618_156220"
-BEST_SERIAL = 2
 BEST_LABEL = "final best"
-# First Phase 2 nosides run (sanity A, LS=0.1); shown as 5-serial mean to match
-# the 11 May presentation chart.
 BASELINE_RUN = "run_20260430_170325"
-BASELINE_LABEL = "first nosides (Phase 2 LS=0.1)"
+BASELINE_LABEL = "sticky_anchor frame recovery; lr & module scheduling; ls=0.1"
 
-OUT_PATH = REPO_ROOT / "docs/images/bar_chart_per_class_f1_final.png"
+OUT_PATH = REPO_ROOT / "docs/images/bar_chart_class_f1_14c_bst_x.png"
 
 # Tol muted (protanopia-safe, qualitative). Sand for baseline, indigo for current best.
 COLOUR_BASELINE = "#DDCC77"
@@ -31,10 +28,10 @@ COLOUR_BEST     = "#332288"
 COLOUR_CALLOUT  = "#CC6677"  # rose for the wrist_smash annotation
 
 
-def load_grid(run_id: str) -> tuple[list[str], np.ndarray, list[dict]]:
-    """Read per_class_f1 for every serial of a run.
+def load_grid(run_id: str) -> tuple[list[str], np.ndarray, list[dict], int]:
+    """Read per_class_f1 for every serial of a run plus its declared best serial.
 
-    :return: (class_names, full grid of shape (n_serials, n_classes), serials list)
+    :return: (class_names, full grid of shape (n_serials, n_classes), serials list, best_serial_no)
     """
     manifest = yaml.safe_load((EXPERIMENTS / run_id / "manifest.yaml").read_text())
     serials = manifest["serials"]
@@ -43,24 +40,27 @@ def load_grid(run_id: str) -> tuple[list[str], np.ndarray, list[dict]]:
         [s["metrics"]["per_class_f1"][cls] for cls in class_names]
         for s in serials
     ])
-    return class_names, f1_grid, serials
+    best_serial_no = manifest["best_serials"][0]
+    return class_names, f1_grid, serials, best_serial_no
 
 
 def main():
-    best_classes, best_grid, best_serials = load_grid(BEST_RUN)
-    base_classes, base_grid, base_serials = load_grid(BASELINE_RUN)
+    best_classes, best_grid, best_serials, best_sn = load_grid(BEST_RUN)
+    base_classes, base_grid, base_serials, base_sn = load_grid(BASELINE_RUN)
     assert best_classes == base_classes, "Class lists differ between runs"
     class_names = best_classes
 
-    # New run: bar = best serial (S2 here). Baseline: bar = 5-serial mean.
-    best_row_full = next(s for s in best_serials if s["serial_no"] == BEST_SERIAL)
+    # Both bars are the manifest-declared best serial of their run.
+    best_row_full = next(s for s in best_serials if s["serial_no"] == best_sn)
+    base_row_full = next(s for s in base_serials if s["serial_no"] == base_sn)
     best_row = np.array([best_row_full["metrics"]["per_class_f1"][cls] for cls in class_names])
+    base_row = np.array([base_row_full["metrics"]["per_class_f1"][cls] for cls in class_names])
     best_macro = float(best_row_full["metrics"]["macro_f1"])
-    base_row = base_grid.mean(axis=0)
-    base_macro = float(np.mean([s["metrics"]["macro_f1"] for s in base_serials]))
+    base_macro = float(base_row_full["metrics"]["macro_f1"])
 
     # Error bars span min-max across each run's serial cell, framed against the
-    # bar value. Clip negatives (when a non-bar serial beat the bar's row).
+    # best-serial bar so seed spread is still visible. Clip negatives
+    # (best-by-macro serial may not be the per-class top in every column).
     best_yerr = np.stack([best_row - best_grid.min(axis=0), best_grid.max(axis=0) - best_row])
     base_yerr = np.stack([base_row - base_grid.min(axis=0), base_grid.max(axis=0) - base_row])
     best_yerr = np.clip(best_yerr, 0, None)
@@ -75,19 +75,16 @@ def main():
     x = np.arange(n)
     bar_width = 0.4
 
-    n_best_serials = best_grid.shape[0]
-    n_base_serials = base_grid.shape[0]
-
     fig, ax = plt.subplots(figsize=(13, 6))
     ax.bar(
         x - bar_width / 2, base_row, bar_width,
         yerr=base_yerr, capsize=3, color=COLOUR_BASELINE,
-        label=f"{BASELINE_LABEL} ({BASELINE_RUN}; macro mean {base_macro:.3f})",
+        label=f"{BASELINE_LABEL} ({BASELINE_RUN} S{base_sn}; macro {base_macro:.3f})",
     )
     ax.bar(
         x + bar_width / 2, best_row, bar_width,
         yerr=best_yerr, capsize=3, color=COLOUR_BEST,
-        label=f"{BEST_LABEL} ({BEST_RUN} S{BEST_SERIAL}; macro {best_macro:.3f})",
+        label=f"{BEST_LABEL} ({BEST_RUN} S{best_sn}; macro {best_macro:.3f})",
     )
 
     ax.axhline(base_macro, color=COLOUR_BASELINE, linestyle="--", linewidth=1, alpha=0.6)
@@ -117,10 +114,10 @@ def main():
     ax.set_xticks(x)
     ax.set_xticklabels(class_names, rotation=35, ha="right")
     ax.set_ylabel("F1 score")
-    ax.set_ylim(0, 1)
-    ax.set_title(
-        f"Per-class F1: {BEST_LABEL} (best serial) vs {BASELINE_LABEL} (serial mean) "
-        f"— error bars span min-max across each cell ({n_best_serials} / {n_base_serials} serials)"
+    ax.set_ylim(0.2, 1)
+    fig.suptitle(
+        "Per-class F1 on custom 14 class taxonomy testing fine-grained confusion. "
+        "Best serial each. Error bars: inter-serial range."
     )
     ax.legend(loc="lower right")
     ax.grid(axis="y", alpha=0.3)

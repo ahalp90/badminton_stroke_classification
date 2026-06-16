@@ -284,12 +284,12 @@ Optional polish (defer unless quick):
 
 ### Read-only references
 
-- `src/bst_x/stroke_classification/model/bst.py` (forward + CG/AP buffers).
-- `src/bst_x/stroke_classification/model/tempose.py` (attention impl).
-- `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py` (POSE_BONE_MULTIPLIER, get_bone_pairs, create_bones).
-- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py:239` (view-flatten that defines in_dim layout).
-- `src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/manifest.yaml`.
-- `src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/predictions/serial_5.pt`.
+- `src/bst_x/model/bst.py` (forward + CG/AP buffers).
+- `src/bst_x/model/tempose.py` (attention impl).
+- `src/bst_x/preparing_data/shuttleset_dataset.py` (POSE_BONE_MULTIPLIER, get_bone_pairs, create_bones).
+- `src/bst_x/bst_x_train.py:239` (view-flatten that defines in_dim layout).
+- `experiments/bst_x/shuttleset/run_20260505_154907/manifest.yaml`.
+- `experiments/bst_x/shuttleset/run_20260505_154907/predictions/serial_5.pt`.
 - `/scratch/comp320a/ShuttleSet/clips/**.mp4` (engelbart-only).
 - `/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor/{stem}_raw_kps.npy` + siblings.
 - `/scratch/comp320a/ShuttleSet/shuttle_npy_flat/{stem}.npy`.

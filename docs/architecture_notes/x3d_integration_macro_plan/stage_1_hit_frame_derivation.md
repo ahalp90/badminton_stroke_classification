@@ -48,7 +48,7 @@ The deliverable is data + diagnostics, not training. Implementation happens in a
 
 - Clip windowing rule is `between_2_hits_with_max_limits` with the 100-frame cap. Stem format is `{vid}_{set}_{rally}_{ball_round}`. Source: `pipeline/clip_generator.py:_compute_clip_bounds`.
 - Method A scaffold exists at `src/bst_x/validation_scripts/hit_frame_lookup.py:25`. It returns a `dict[stem -> hit_idx_disk]` derived from `ShuttleSet/set/*.csv` plus `video_metadata.csv`. CPU-only, runs in seconds. Not yet writing sidecars.
-- Collation pads everything to seq_len=100 via `make_seq_len_same` at `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py:43`. Two cases: `videos_len > 100` strides the disk clip; `videos_len <= 100` zero-pads on the right. Striding shifts the hit index; padding does not.
+- Collation pads everything to seq_len=100 via `make_seq_len_same` at `src/bst_x/preparing_data/shuttleset_dataset.py:43`. Two cases: `videos_len > 100` strides the disk clip; `videos_len <= 100` zero-pads on the right. Striding shifts the hit index; padding does not.
 - Shuttle stream: `shuttle.npy` per split is `(n_clips, 100, 2)` xy in court-normalised coordinates. The TrackNetV3-inpaint version is what `wipe_drop` collation pulls in; gaps are the inpaint output's own residual misses, not raw zeros.
 - Collated trees live under `npy_wipe_drop/{train,val,test}/` per `bst_x_overview.md` X3D-S anchor section. Sidecars from Stage 1 land in the same dirs.
 - Source clips on engelbart at `BST_X_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips/{split}/{Top|Bottom}_{stroke}/{stem}.mp4`. Source `clips_master.csv` at `notebooks/clips_master.csv` carries `clip_stem`, `raw_type_en`, `player_side`, `split_v2`, plus `aroundhead` / `backhand` flags.
@@ -280,7 +280,7 @@ These are the items the plan deliberately leaves to the implementer rather than 
 - Macro plan: `x3d_integration_macro_plan.md` §Stage 1.
 - Method A + B framing: `augmentation_framework.md` "How hit-frame metadata would get derived" section (around line 836).
 - Method A scaffold: `src/bst_x/validation_scripts/hit_frame_lookup.py`.
-- Collation pad/stride logic: `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py:43` (`make_seq_len_same`).
+- Collation pad/stride logic: `src/bst_x/preparing_data/shuttleset_dataset.py:43` (`make_seq_len_same`).
 - Clips master: `notebooks/clips_master.csv`.
 - HPC paths: `~/.claude/projects/.../memory/reference_hpc.md`.
 - Hsu et al. paper: `~/Documents/COSC594/enhancing_badminton_game_analysis_an_approach_to_shot_refinement.pdf`.

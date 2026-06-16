@@ -438,7 +438,7 @@ cd /home/ahalperi/badminton_stroke_classifier
 #### B2. `raw_extract.py` (no code change)
 
 ```bash
-PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
+PYTHONPATH=src/bst_x \
     /home/ahalperi/.venvs/venv-bst/bin/python -m preparing_data.raw_extract \
     --clip-stems-file /scratch/comp320a/ShuttleSet_keypoints_raw_unknown/stems_unknown.txt \
     --save-dir /scratch/comp320a/ShuttleSet_keypoints_raw_unknown \
@@ -450,7 +450,7 @@ Wall time: ~1,278 / 32,203 of the original Phase-2 budget. Roughly 1.5 hours on 
 #### B3. `apply_heuristic.py` (no code change; collision guards already in place)
 
 ```bash
-PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
+PYTHONPATH=src/bst_x \
     /home/ahalperi/.venvs/venv-bst/bin/python -m preparing_data.apply_heuristic \
     --raw-dir /scratch/comp320a/ShuttleSet_keypoints_raw_unknown \
     --output-dir /scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor_unknown \
@@ -987,7 +987,7 @@ def invoke_bst_train(*, serial_no: int, run_id: str, log_path: Path, cell: dict)
     env = os.environ.copy()
     env['PYTHONPATH'] = ':'.join([str(src_root), str(stroke_root)])
     cmd = [
-        sys.executable, '-m', 'main_on_shuttleset.bst_x_train',
+        sys.executable, '-m', 'bst_x_train',
         '--serial-no',   str(serial_no),
         '--run-id',      run_id,
         '--log-path',    str(log_path),

@@ -3,7 +3,7 @@ import os
 import json
 from tensorboard.backend.event_processing import event_accumulator
 
-EXP_DIR = 'src/bst_x/stroke_classification/main_on_shuttleset/experiments'
+EXP_DIR = 'experiments/bst_x/shuttleset'
 
 NOSIDES_RUNS = [
     ('run_20260425_185421', 'P1 baseline'),
