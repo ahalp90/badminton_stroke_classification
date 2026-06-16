@@ -3,14 +3,15 @@ import json
 import logging
 import os
 import uuid
+import shutil
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Literal, Optional
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from .config import (
@@ -22,6 +23,7 @@ from .config import (
     MAX_FILE_SIZE_MB,
     MIN_MODEL_INPUT_PX,
     UPLOAD_DIR,
+    REPO_ROOT,
 )
 from .inference import run_inference
 from .jobs import JobStatus, JobStore
@@ -40,14 +42,12 @@ class BoundaryPoint(BaseModel):
 
 
 class StrokeAnnotation(BaseModel):
-    target_frame: int = Field(ge=0)
-    region_start_frame: int = Field(ge=0)
-    region_end_frame: int = Field(ge=0)
+    target_sec: float = Field(ge=0)
     player_side: Optional[Literal["top", "bottom"]] = None
 
 
 class Markup(BaseModel):
-    architecture: Optional[Literal["bric", "bst"]] = None
+    architecture: Optional[Literal["bric", "bst", "bst-x"]] = None
     model_id: Optional[str] = None
     orientation: Literal["portrait"] = "portrait"
     video_label: Optional[str] = None
@@ -73,21 +73,12 @@ class Markup(BaseModel):
             raise ValueError("boundary must contain exactly 4 points")
         return v
 
-    @field_validator("annotations")
-    @classmethod
-    def annotation_window_valid(cls, v):
-        for i, a in enumerate(v):
-            if not (a.region_start_frame <= a.target_frame <= a.region_end_frame):
-                raise ValueError(
-                    f"annotations[{i}]: require region_start ≤ target ≤ region_end"
-                )
-        return v
 
 
 class LibraryPredictRequest(BaseModel):
     clip_stem: str
     model_id: Optional[str] = None
-    architecture: Optional[Literal["bric", "bst"]] = None
+    architecture: Optional[Literal["bric", "bst", "bst-x"]] = None
     markup: Optional[Markup] = None
 
 
@@ -160,6 +151,9 @@ def _cleanup_expired():
         if job.created_at < cutoff:
             job_store.delete(job.job_id)
             Path(job.video_path).unlink(missing_ok=True)
+            job_dir = REPO_ROOT / "runtime" / "jobs" / job.job_id
+            if job_dir.exists():
+                shutil.rmtree(job_dir, ignore_errors=True)
             removed += 1
     if removed:
         log.info("cleanup: removed %d expired job(s)", removed)
@@ -237,25 +231,24 @@ def _process_video(job_id: str, video_path: str, model_name: str):
                 # Translate live shape → the same {strokes, rally_summary}
                 # envelope the FE already renders.
                 annos = ((markup or {}).get("annotations")) or []
-                starts = [int(a.get("region_start_frame", 0)) for a in annos
-                          if a.get("region_start_frame") is not None]
-                ends = [int(a.get("region_end_frame", 0)) for a in annos
-                        if a.get("region_end_frame") is not None]
+                targets = [float(a.get("target_sec") or 0.0) for a in annos
+                            if a.get("target_sec") is not None]
                 live_rally_length = (
-                    round(max(0.0, (max(ends) - min(starts)) / 30.0), 1)
-                    if starts and ends else 0.0
+                    round(max(0.0, max(targets) - min(targets)), 1)
+                    if len(targets) >= 2 else 0.0
                 )
-                # Target frame for the headline stroke comes from the
-                # user's annotation when present; otherwise 0.
-                live_target_frame = int(annos[0].get("target_frame", 0)) if annos else 0
-                live_timestamp = round(live_target_frame / 30.0, 2) if live_target_frame else 0.0
+                # Target time for the headline stroke comes from the user's annotation
+                # when present; backend re-derives integer frames at inference time
+                # from the upload's actual fps.
+                live_target_sec = float(annos[0].get("target_sec") or 0.0) if annos else 0.0
+                live_timestamp = round(live_target_sec, 2) if live_target_sec else 0.0
                 result = {
                     "strokes": [{
                         "timestamp_sec": live_timestamp,
                         "stroke_type":   live["predicted_class"],
                         "confidence":    live["top_k"][0]["confidence"] if live["top_k"] else 0.0,
                         "stroke_index":  0,
-                        "target_frame":  live_target_frame,
+                        "target_sec":  live_target_sec,
                         "player_side":   annos[0].get("player_side") if annos else None,
                         "predicted_class": live["predicted_class"],
                         "confidence_pct": live["confidence_pct"],
@@ -276,6 +269,32 @@ def _process_video(job_id: str, video_path: str, model_name: str):
             except Exception as e:
                 log.exception("job %s: live BST errored for stem=%s; falling back to smart stub: %s",
                               job_id, job.clip_stem, e)
+
+        arch = (markup or {}).get("architecture")
+        if result is None and arch == "bric" and job is not None and job.source == "upload":
+            try:
+                from .bric_inference import classify as bric_classify
+
+                job_dir = REPO_ROOT / "runtime" / "jobs" / job_id
+                job_dir.mkdir(parents=True, exist_ok=True)
+                
+                result = bric_classify(Path(video_path), markup, job_dir=job_dir)
+                result["live_inference"] = True
+                
+                manifest = {
+                    "job_id": job_id,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "video_filename": Path(video_path).name,
+                    "architecture": arch,
+                    "markup_input": markup,
+                    "result": result,
+                }
+                (job_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str))
+                log.info("job %s: live BRIC forward pass succeeded", job_id)
+            except ImportError as e:
+                log.info("job %s: bric_inference module unavailable (%s); falling back to stub", job_id, e)
+            except Exception as e:
+                log.exception("job %s: BRIC dispatch failed (%s); falling back to stub", job_id, e)
 
         if result is None:
             result = run_inference(video_path, model_name, markup=markup)
@@ -517,8 +536,24 @@ async def delete_job(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     Path(job.video_path).unlink(missing_ok=True)
+    job_dir = REPO_ROOT / "runtime" / "jobs" / job_id
+    if job_dir.exists():
+        shutil.rmtree(job_dir, ignore_errors=True)
     log.info("job %s: deleted by request", job_id)
     return {"job_id": job_id, "deleted": True}
+
+
+@app.get("/api/jobs/{job_id}/strokes/{stroke_idx}/frame/{which}")
+async def get_stroke_frame(job_id: str, stroke_idx: int, which: str):
+    if which not in {"first", "target", "last"}:
+        raise HTTPException(status_code=400, detail="which must be 'first', 'target', or 'last'")
+    job_dir = REPO_ROOT / "runtime" / "jobs" / job_id
+    if not job_dir.exists():  
+        raise HTTPException(status_code=404, detail="job not found")
+    matches = list(job_dir.glob(f"stroke_{stroke_idx:02d}_*_{which}.jpg"))
+    if not matches:
+        raise HTTPException(status_code=404, detail=f"frame not found for stroke {stroke_idx}")
+    return FileResponse(matches[0], media_type="image/jpeg")
 
 
 @app.get("/api/models")

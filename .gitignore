@@ -23,6 +23,8 @@ mlflow.db
 #local
 .worktrees/
 .env
+# Untracked local GPU-dev override for the dev compose (see docker-compose.yml header).
+docker-compose.override.yml
 .venv
 venv/
 # Local mirror of the engelbart raw-extract output (rsync'd per-clip *_raw_*.npy files).

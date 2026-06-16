@@ -23,12 +23,14 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-# Install CPU-only PyTorch before the rest of requirements.txt.
-# Without this, pip pulls the default CUDA-enabled torch (~2GB of nvidia packages)
-# which is useless on a machine with no GPU. The CPU wheel is ~300MB instead.
-# When requirements.txt runs, torch is already satisfied so pip skips it.
+# Install PyTorch before the rest of requirements.txt so the later install sees
+# it already satisfied and skips it. TORCH_INDEX picks the wheel: default `cpu`
+# keeps dev images small (~300MB instead of ~2GB of nvidia packages) and lets a
+# fresh clone build everywhere. Prod passes `cu128` (see docker-compose.prod.yml)
+# because TrackNet needs CUDA torch on the demo box for live inference.
+ARG TORCH_INDEX=cpu
 RUN python -m pip install --upgrade pip && \
-    pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
+    pip install torch torchvision --index-url https://download.pytorch.org/whl/${TORCH_INDEX} && \
     pip install -r requirements.txt
 
 COPY . .
