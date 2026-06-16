@@ -1,0 +1,175 @@
+[taxonomy] bst_25: 25 classes, has_sides=True, has_unknown=True
+[taxonomy] classes: ['Top_net_shot', 'Top_return_net', 'Top_smash', 'Top_lob', 'Top_clear', 'Top_drive', 'Top_drop', 'Top_push', 'Top_rush', 'Top_cross_court_net_shot', 'Top_short_service', 'Top_long_service', 'Bottom_net_shot', 'Bottom_return_net', 'Bottom_smash', 'Bottom_lob', 'Bottom_clear', 'Bottom_drive', 'Bottom_drop', 'Bottom_push', 'Bottom_rush', 'Bottom_cross_court_net_shot', 'Bottom_short_service', 'Bottom_long_service', 'unknown']
+
+=== Serial 1 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25) ===
+Test (num_strokes: 3486) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25  F1-score
+avg                                                Avg                    0.82
+min                                                Min                    0.64
+0                          Top_net_shot                                   0.90
+1                          Top_return_net                                 0.77
+2                          Top_smash                                      0.89
+3                          Top_lob                                        0.84
+4                          Top_clear                                      0.97
+5                          Top_drive                                      0.65
+6                          Top_drop                                       0.83
+7                          Top_push                                       0.71
+8                          Top_rush                                       0.85
+9                          Top_cross_court_net_shot                       0.67
+10                         Top_short_service                              0.93
+11                         Top_long_service                               0.77
+12                         Bottom_net_shot                                0.88
+13                         Bottom_return_net                              0.82
+14                         Bottom_smash                                   0.88
+15                         Bottom_lob                                     0.83
+16                         Bottom_clear                                   0.96
+17                         Bottom_drive                                   0.64
+18                         Bottom_drop                                    0.86
+19                         Bottom_push                                    0.65
+20                         Bottom_rush                                    0.71
+21                         Bottom_cross_court_net_shot                    0.77
+22                         Bottom_short_service                           0.98
+23                         Bottom_long_service                            0.92
+24                         unknown                                        0.85
+Accuracy: 0.840
+Top2 Accuracy: 0.967
+[taxonomy] bst_25: 25 classes, has_sides=True, has_unknown=True
+[taxonomy] classes: ['Top_net_shot', 'Top_return_net', 'Top_smash', 'Top_lob', 'Top_clear', 'Top_drive', 'Top_drop', 'Top_push', 'Top_rush', 'Top_cross_court_net_shot', 'Top_short_service', 'Top_long_service', 'Bottom_net_shot', 'Bottom_return_net', 'Bottom_smash', 'Bottom_lob', 'Bottom_clear', 'Bottom_drive', 'Bottom_drop', 'Bottom_push', 'Bottom_rush', 'Bottom_cross_court_net_shot', 'Bottom_short_service', 'Bottom_long_service', 'unknown']
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_2) ===
+Test (num_strokes: 3486) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_2  F1-score
+avg                                                Avg                      0.82
+min                                                Min                      0.61
+0                          Top_net_shot                                     0.89
+1                          Top_return_net                                   0.80
+2                          Top_smash                                        0.88
+3                          Top_lob                                          0.81
+4                          Top_clear                                        0.97
+5                          Top_drive                                        0.61
+6                          Top_drop                                         0.85
+7                          Top_push                                         0.68
+8                          Top_rush                                         0.77
+9                          Top_cross_court_net_shot                         0.65
+10                         Top_short_service                                0.92
+11                         Top_long_service                                 0.93
+12                         Bottom_net_shot                                  0.89
+13                         Bottom_return_net                                0.80
+14                         Bottom_smash                                     0.85
+15                         Bottom_lob                                       0.82
+16                         Bottom_clear                                     0.98
+17                         Bottom_drive                                     0.64
+18                         Bottom_drop                                      0.85
+19                         Bottom_push                                      0.63
+20                         Bottom_rush                                      0.69
+21                         Bottom_cross_court_net_shot                      0.74
+22                         Bottom_short_service                             0.97
+23                         Bottom_long_service                              0.91
+24                         unknown                                          0.85
+Accuracy: 0.834
+Top2 Accuracy: 0.964
+[taxonomy] bst_25: 25 classes, has_sides=True, has_unknown=True
+[taxonomy] classes: ['Top_net_shot', 'Top_return_net', 'Top_smash', 'Top_lob', 'Top_clear', 'Top_drive', 'Top_drop', 'Top_push', 'Top_rush', 'Top_cross_court_net_shot', 'Top_short_service', 'Top_long_service', 'Bottom_net_shot', 'Bottom_return_net', 'Bottom_smash', 'Bottom_lob', 'Bottom_clear', 'Bottom_drive', 'Bottom_drop', 'Bottom_push', 'Bottom_rush', 'Bottom_cross_court_net_shot', 'Bottom_short_service', 'Bottom_long_service', 'unknown']
+
+=== Serial 3 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_3) ===
+Test (num_strokes: 3486) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_3  F1-score
+avg                                                Avg                      0.83
+min                                                Min                      0.65
+0                          Top_net_shot                                     0.90
+1                          Top_return_net                                   0.82
+2                          Top_smash                                        0.89
+3                          Top_lob                                          0.82
+4                          Top_clear                                        0.97
+5                          Top_drive                                        0.65
+6                          Top_drop                                         0.82
+7                          Top_push                                         0.70
+8                          Top_rush                                         0.85
+9                          Top_cross_court_net_shot                         0.71
+10                         Top_short_service                                0.91
+11                         Top_long_service                                 0.86
+12                         Bottom_net_shot                                  0.88
+13                         Bottom_return_net                                0.83
+14                         Bottom_smash                                     0.88
+15                         Bottom_lob                                       0.79
+16                         Bottom_clear                                     0.98
+17                         Bottom_drive                                     0.68
+18                         Bottom_drop                                      0.86
+19                         Bottom_push                                      0.71
+20                         Bottom_rush                                      0.71
+21                         Bottom_cross_court_net_shot                      0.71
+22                         Bottom_short_service                             0.97
+23                         Bottom_long_service                              0.91
+24                         unknown                                          0.85
+Accuracy: 0.840
+Top2 Accuracy: 0.968
+[taxonomy] bst_25: 25 classes, has_sides=True, has_unknown=True
+[taxonomy] classes: ['Top_net_shot', 'Top_return_net', 'Top_smash', 'Top_lob', 'Top_clear', 'Top_drive', 'Top_drop', 'Top_push', 'Top_rush', 'Top_cross_court_net_shot', 'Top_short_service', 'Top_long_service', 'Bottom_net_shot', 'Bottom_return_net', 'Bottom_smash', 'Bottom_lob', 'Bottom_clear', 'Bottom_drive', 'Bottom_drop', 'Bottom_push', 'Bottom_rush', 'Bottom_cross_court_net_shot', 'Bottom_short_service', 'Bottom_long_service', 'unknown']
+
+=== Serial 4 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_4) ===
+Test (num_strokes: 3486) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_4  F1-score
+avg                                                Avg                      0.81
+min                                                Min                      0.59
+0                          Top_net_shot                                     0.86
+1                          Top_return_net                                   0.81
+2                          Top_smash                                        0.91
+3                          Top_lob                                          0.84
+4                          Top_clear                                        0.97
+5                          Top_drive                                        0.61
+6                          Top_drop                                         0.86
+7                          Top_push                                         0.70
+8                          Top_rush                                         0.84
+9                          Top_cross_court_net_shot                         0.59
+10                         Top_short_service                                0.92
+11                         Top_long_service                                 0.84
+12                         Bottom_net_shot                                  0.87
+13                         Bottom_return_net                                0.80
+14                         Bottom_smash                                     0.84
+15                         Bottom_lob                                       0.84
+16                         Bottom_clear                                     0.97
+17                         Bottom_drive                                     0.67
+18                         Bottom_drop                                      0.80
+19                         Bottom_push                                      0.66
+20                         Bottom_rush                                      0.69
+21                         Bottom_cross_court_net_shot                      0.61
+22                         Bottom_short_service                             0.96
+23                         Bottom_long_service                              0.90
+24                         unknown                                          0.84
+Accuracy: 0.833
+Top2 Accuracy: 0.965
+[taxonomy] bst_25: 25 classes, has_sides=True, has_unknown=True
+[taxonomy] classes: ['Top_net_shot', 'Top_return_net', 'Top_smash', 'Top_lob', 'Top_clear', 'Top_drive', 'Top_drop', 'Top_push', 'Top_rush', 'Top_cross_court_net_shot', 'Top_short_service', 'Top_long_service', 'Bottom_net_shot', 'Bottom_return_net', 'Bottom_smash', 'Bottom_lob', 'Bottom_clear', 'Bottom_drive', 'Bottom_drop', 'Bottom_push', 'Bottom_rush', 'Bottom_cross_court_net_shot', 'Bottom_short_service', 'Bottom_long_service', 'unknown']
+
+=== Serial 5 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_5) ===
+Test (num_strokes: 3486) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_5  F1-score
+avg                                                Avg                      0.83
+min                                                Min                      0.59
+0                          Top_net_shot                                     0.90
+1                          Top_return_net                                   0.80
+2                          Top_smash                                        0.90
+3                          Top_lob                                          0.83
+4                          Top_clear                                        0.97
+5                          Top_drive                                        0.59
+6                          Top_drop                                         0.85
+7                          Top_push                                         0.65
+8                          Top_rush                                         0.86
+9                          Top_cross_court_net_shot                         0.67
+10                         Top_short_service                                0.93
+11                         Top_long_service                                 0.91
+12                         Bottom_net_shot                                  0.89
+13                         Bottom_return_net                                0.83
+14                         Bottom_smash                                     0.88
+15                         Bottom_lob                                       0.83
+16                         Bottom_clear                                     0.98
+17                         Bottom_drive                                     0.62
+18                         Bottom_drop                                      0.86
+19                         Bottom_push                                      0.65
+20                         Bottom_rush                                      0.75
+21                         Bottom_cross_court_net_shot                      0.73
+22                         Bottom_short_service                             0.96
+23                         Bottom_long_service                              0.94
+24                         unknown                                          0.85
+Accuracy: 0.844
+Top2 Accuracy: 0.969

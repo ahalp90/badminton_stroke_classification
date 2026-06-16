@@ -35,7 +35,7 @@ services:
     environment:
       - CORS_ORIGINS=http://localhost:5173,http://localhost:24082
       - UPLOAD_DIR=/app/uploads
-      - BST_CLIPS_DIR=/app/runtime/clips
+      - BST_X_CLIPS_DIR=/app/runtime/clips
 
   frontend:
     image: node:20-alpine

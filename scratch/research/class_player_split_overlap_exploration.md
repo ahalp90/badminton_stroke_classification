@@ -6,7 +6,7 @@ This sits next to the train-vs-val-vs-test analysis. The idea is to test whether
 
 - Data: `notebooks/clips_master.csv`, 33,481 raw clips across 40 matches.
 - Taxonomy: `une_merge_v1_nosides` (no Top_/Bottom_ prefix), `split_v2`, `drop_unknown=True`. Drops `unknown` and folds `defensive_return_lob`, `driven_flight`, `back_court_drive`, `defensive_return_drive` into their merge targets via `UNE_MERGE_V1_MAP`.
-- After taxonomy + drop unknown: **32,203 clips** (matches the unified extract size that bst_train operates on across Phase 2).
+- After taxonomy + drop unknown: **32,203 clips** (matches the unified extract size that bst_x_train operates on across Phase 2).
 - Player resolution: `(vid, set, rally, player_side)` mapped to a player name. Convention from `pipeline/player_mapping.py`: A is the winner, B is the loser; sides swap between sets 1 and 2; set 3 has a mid-set switch at 11 points (split rally pulled per match from `set3.csv`).
 
 ## Target classes (median top-3 + bottom-4 by test F1 across the nine Phase 2 nosides runs)
@@ -30,7 +30,7 @@ The top-3 are the pose-distinctive ceiling classes; the bottom-4 are the bottlen
 
 ## Filter levels
 
-Three filter levels matter here, increasingly close to what bst_train actually sees: raw clips_master, then the ShuttleSet annotator's per-shot quality flag, then the pose-extraction discard.
+Three filter levels matter here, increasingly close to what bst_x_train actually sees: raw clips_master, then the ShuttleSet annotator's per-shot quality flag, then the pose-extraction discard.
 
 - **(a) Raw**: 32,203 clips.
 
@@ -44,7 +44,7 @@ Three filter levels matter here, increasingly close to what bst_train actually s
 
   Effect on overlap: gross figures change by less than 0.01 pp at four decimal places. Basically irrelevant to the following analysis.
 
-- **(c) bst_train discard (videos_len=0)**: clips that MMPose failed on every frame of, dropped at npy-collation time. **17 clips of 32,203 (0.05%) have videos_len = 0**: 9 train, 0 val, 8 test. Smaller than the project memory's ndet=1 floor estimate of ~0.5% (which was at the per-frame level, not per-clip). Effect on overlap is essentially nil: Jaccard is identical to raw, clip-weighted shifts by at most 0.0001.
+- **(c) bst_x_train discard (videos_len=0)**: clips that MMPose failed on every frame of, dropped at npy-collation time. **17 clips of 32,203 (0.05%) have videos_len = 0**: 9 train, 0 val, 8 test. Smaller than the project memory's ndet=1 floor estimate of ~0.5% (which was at the per-frame level, not per-clip). Effect on overlap is essentially nil: Jaccard is identical to raw, clip-weighted shifts by at most 0.0001.
 
 ## Overlap definitions
 
@@ -208,8 +208,8 @@ python scratch/research/scripts/player_overlap_analysis.py
 
 Inputs read:
 - `notebooks/clips_master.csv` (33,481 raw clips)
-- `src/bst_refactor/ShuttleSet/set/match.csv` (winner / loser / downcourt per match)
-- `src/bst_refactor/ShuttleSet/set/<vid>/set{1,2,3}.csv` (per-shot rally + flaw flags)
+- `src/bst_x/ShuttleSet/set/match.csv` (winner / loser / downcourt per match)
+- `src/bst_x/ShuttleSet/set/<vid>/set{1,2,3}.csv` (per-shot rally + flaw flags)
 - `scratch/research/discard_flags_split_v2_dropunk_nosides.csv` (filter c)
 
 Outputs written:

@@ -1,0 +1,40 @@
+
+=== Serial 1 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25) ===
+Test (num_strokes: 3486) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...            
+F1-score                                           0.822 0.575
+Accuracy: 0.841
+Top2 Accuracy: 0.958
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2) ===
+Test (num_strokes: 3486) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...            
+F1-score                                           0.830 0.586
+Accuracy: 0.842
+Top2 Accuracy: 0.963
+
+=== Serial 3 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_3) ===
+Test (num_strokes: 3486) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...            
+F1-score                                           0.822 0.621
+Accuracy: 0.841
+Top2 Accuracy: 0.964
+
+=== Serial 4 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_4) ===
+Test (num_strokes: 3486) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...            
+F1-score                                           0.819 0.542
+Accuracy: 0.839
+Top2 Accuracy: 0.956
+
+=== Serial 5 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_5) ===
+Test (num_strokes: 3486) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...            
+F1-score                                           0.818 0.565
+Accuracy: 0.836
+Top2 Accuracy: 0.963

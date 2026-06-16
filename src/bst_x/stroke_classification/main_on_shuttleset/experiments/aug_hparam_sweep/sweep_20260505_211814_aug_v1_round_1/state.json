@@ -1,0 +1,943 @@
+{
+  "session_name": "aug_v1_round_1",
+  "session_dir": "/home/ahalperi/badminton_stroke_classifier/src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/aug_hparam_sweep/sweep_20260505_211814_aug_v1_round_1",
+  "started_at": "2026-05-05T21:30:08",
+  "current_best_run": "run_20260505_154907",
+  "current_best_mean": {
+    "macro_f1": 0.74469975233078,
+    "min_f1": 0.4778433918952942,
+    "accuracy": 0.7635411708710138,
+    "top2_accuracy": 0.9394098048548309
+  },
+  "current_best_per_class": {
+    "net_shot": 0.8894744753837586,
+    "return_net": 0.8077717781066894,
+    "smash": 0.5798394441604614,
+    "wrist_smash": 0.47863765954971316,
+    "lob": 0.7834660172462463,
+    "clear": 0.9537389755249024,
+    "drive": 0.6321170687675476,
+    "drop": 0.6561779856681824,
+    "passive_drop": 0.6715412497520447,
+    "push": 0.6434996247291564,
+    "rush": 0.774875283241272,
+    "cross_court_net_shot": 0.6059781074523926,
+    "short_service": 0.9772181749343872,
+    "long_service": 0.9714610815048218
+  },
+  "wipe_drop_best_run": "run_20260503_172922",
+  "wipe_drop_best_mean": {
+    "macro_f1": 0.7481236934661866,
+    "min_f1": 0.4741413235664368,
+    "accuracy": 0.7653498334126606,
+    "top2_accuracy": 0.9353165159447882
+  },
+  "cells": {
+    "p_flip_25": {
+      "status": "complete",
+      "config_index": 0,
+      "run_id": "run_20260505_213008_504674",
+      "log_path": "/home/ahalperi/badminton_stroke_classifier/src/bst_refactor/stroke_classification/main_on_shuttleset/test_logs/test_20260505_213008_504674.log",
+      "augmentation": {
+        "p_flip": 0.25,
+        "p_jitter": 0.3,
+        "cap_y": 0.05,
+        "cap_x": 0.1,
+        "eps": 0.15
+      },
+      "verdict": "TIE",
+      "killed_reason": null,
+      "killed_at_serial": null,
+      "skipped_reason": null,
+      "serials_done": 5,
+      "serials": [
+        {
+          "serial_no": 1,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_213008_504674/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_213008_504674/tb/serial_1",
+          "metrics": {
+            "macro_f1": 0.7450346350669861,
+            "min_f1": 0.4718162417411804,
+            "accuracy": 0.7655878153260353,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8901023864746094,
+              "return_net": 0.8147268891334534,
+              "smash": 0.6514084935188293,
+              "wrist_smash": 0.4718162417411804,
+              "lob": 0.7693548202514648,
+              "clear": 0.9493333101272583,
+              "drive": 0.6122449040412903,
+              "drop": 0.6753813028335571,
+              "passive_drop": 0.6994219422340393,
+              "push": 0.6171875,
+              "rush": 0.7692307829856873,
+              "cross_court_net_shot": 0.6200873255729675,
+              "short_service": 0.9759036302566528,
+              "long_service": 0.9142857789993286
+            },
+            "top2_accuracy": 0.9407425035697287
+          },
+          "recorded_at": "2026-05-05T21:55:39"
+        },
+        {
+          "serial_no": 2,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_213008_504674/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_213008_504674/tb/serial_2",
+          "metrics": {
+            "macro_f1": 0.7346391081809998,
+            "min_f1": 0.5097345113754272,
+            "accuracy": 0.7555925749643028,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8986301422119141,
+              "return_net": 0.8019440770149231,
+              "smash": 0.5665961503982544,
+              "wrist_smash": 0.5097345113754272,
+              "lob": 0.7698350548744202,
+              "clear": 0.9482071995735168,
+              "drive": 0.6036960482597351,
+              "drop": 0.6409736275672913,
+              "passive_drop": 0.6523076891899109,
+              "push": 0.5784447193145752,
+              "rush": 0.7460317015647888,
+              "cross_court_net_shot": 0.6255143880844116,
+              "short_service": 0.9841269850730896,
+              "long_service": 0.9589040875434875
+            },
+            "top2_accuracy": 0.9405045216563541
+          },
+          "recorded_at": "2026-05-05T22:21:13"
+        },
+        {
+          "serial_no": 3,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_213008_504674/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_213008_504674/tb/serial_3",
+          "metrics": {
+            "macro_f1": 0.7426925897598267,
+            "min_f1": 0.47852760553359985,
+            "accuracy": 0.7615421227986673,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8893470764160156,
+              "return_net": 0.7915106415748596,
+              "smash": 0.6570915579795837,
+              "wrist_smash": 0.47852760553359985,
+              "lob": 0.7725806832313538,
+              "clear": 0.9551451206207275,
+              "drive": 0.638888955116272,
+              "drop": 0.6652977466583252,
+              "passive_drop": 0.6566264629364014,
+              "push": 0.5868102312088013,
+              "rush": 0.7377049326896667,
+              "cross_court_net_shot": 0.6217228770256042,
+              "short_service": 0.9800000190734863,
+              "long_service": 0.9664430022239685
+            },
+            "top2_accuracy": 0.9390766301761067
+          },
+          "recorded_at": "2026-05-05T22:46:29"
+        },
+        {
+          "serial_no": 4,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_213008_504674/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_213008_504674/tb/serial_4",
+          "metrics": {
+            "macro_f1": 0.7359124422073364,
+            "min_f1": 0.4674796760082245,
+            "accuracy": 0.7567824845311756,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8858879804611206,
+              "return_net": 0.7769423723220825,
+              "smash": 0.6423611044883728,
+              "wrist_smash": 0.4674796760082245,
+              "lob": 0.7775999903678894,
+              "clear": 0.9546666145324707,
+              "drive": 0.6266924738883972,
+              "drop": 0.653679609298706,
+              "passive_drop": 0.6842105388641357,
+              "push": 0.5883978009223938,
+              "rush": 0.7666666507720947,
+              "cross_court_net_shot": 0.5185185074806213,
+              "short_service": 0.9800796508789062,
+              "long_service": 0.9795918464660645
+            },
+            "top2_accuracy": 0.9336030461684912
+          },
+          "recorded_at": "2026-05-05T23:11:07"
+        },
+        {
+          "serial_no": 5,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_213008_504674/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_213008_504674/tb/serial_5",
+          "metrics": {
+            "macro_f1": 0.7426230311393738,
+            "min_f1": 0.4641350209712982,
+            "accuracy": 0.7613041408852927,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8833333253860474,
+              "return_net": 0.8105515837669373,
+              "smash": 0.6467486619949341,
+              "wrist_smash": 0.4641350209712982,
+              "lob": 0.7650551199913025,
+              "clear": 0.9520000219345093,
+              "drive": 0.603550374507904,
+              "drop": 0.6680760979652405,
+              "passive_drop": 0.6627907156944275,
+              "push": 0.6396063566207886,
+              "rush": 0.7360000610351562,
+              "cross_court_net_shot": 0.6159999966621399,
+              "short_service": 0.9759036302566528,
+              "long_service": 0.9729729890823364
+            },
+            "top2_accuracy": 0.9376487386958591
+          },
+          "recorded_at": "2026-05-05T23:36:41"
+        }
+      ],
+      "cumulative_mean": {
+        "macro_f1": 0.7401803612709046,
+        "min_f1": 0.47833861112594606,
+        "accuracy": 0.7601618277010946,
+        "top2_accuracy": 0.938315088053308
+      },
+      "mean": {
+        "macro_f1": 0.7401803612709046,
+        "min_f1": 0.47833861112594606,
+        "accuracy": 0.7601618277010946,
+        "top2_accuracy": 0.938315088053308
+      },
+      "per_class_mean": {
+        "net_shot": 0.8894601821899414,
+        "return_net": 0.7991351127624512,
+        "smash": 0.6328411936759949,
+        "wrist_smash": 0.47833861112594606,
+        "lob": 0.7708851337432862,
+        "clear": 0.9518704533576965,
+        "drive": 0.6170145511627197,
+        "drop": 0.660681676864624,
+        "passive_drop": 0.671071469783783,
+        "push": 0.6020893216133117,
+        "rush": 0.7511268258094788,
+        "cross_court_net_shot": 0.6003686189651489,
+        "short_service": 0.9792027831077575,
+        "long_service": 0.9584395408630371
+      },
+      "best_serial": 2,
+      "top_movers": [
+        [
+          "smash",
+          0.05300174951553349
+        ],
+        [
+          "push",
+          -0.041410303115844704
+        ],
+        [
+          "rush",
+          -0.023748457431793213
+        ]
+      ],
+      "kill_ref_macro": 0.74469975233078,
+      "verdict_ref_macro": 0.74469975233078,
+      "verdict_ref_min": 0.4778433918952942,
+      "verdict_ref_per_class": {
+        "net_shot": 0.8894744753837586,
+        "return_net": 0.8077717781066894,
+        "smash": 0.5798394441604614,
+        "wrist_smash": 0.47863765954971316,
+        "lob": 0.7834660172462463,
+        "clear": 0.9537389755249024,
+        "drive": 0.6321170687675476,
+        "drop": 0.6561779856681824,
+        "passive_drop": 0.6715412497520447,
+        "push": 0.6434996247291564,
+        "rush": 0.774875283241272,
+        "cross_court_net_shot": 0.6059781074523926,
+        "short_service": 0.9772181749343872,
+        "long_service": 0.9714610815048218
+      },
+      "macro_stdev": 0.004603328173554184
+    },
+    "cap_bump": {
+      "status": "killed",
+      "config_index": 1,
+      "run_id": "run_20260505_233645_734631",
+      "log_path": "/home/ahalperi/badminton_stroke_classifier/src/bst_refactor/stroke_classification/main_on_shuttleset/test_logs/test_20260505_233645_734631.log",
+      "augmentation": {
+        "p_flip": 0.5,
+        "p_jitter": 0.3,
+        "cap_y": 0.075,
+        "cap_x": 0.15,
+        "eps": 0.15
+      },
+      "verdict": "LOSE",
+      "killed_reason": "macro tolerance: cumulative mean macro after S4 is 0.7339, ref 0.7447, deficit 1.08% exceeds tolerance 0.7%.",
+      "killed_at_serial": 4,
+      "skipped_reason": null,
+      "serials_done": 4,
+      "serials": [
+        {
+          "serial_no": 1,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_233645_734631/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_233645_734631/tb/serial_1",
+          "metrics": {
+            "macro_f1": 0.7303444743156433,
+            "min_f1": 0.4647619128227234,
+            "accuracy": 0.7529747739171823,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8764829039573669,
+              "return_net": 0.8018980026245117,
+              "smash": 0.6231883764266968,
+              "wrist_smash": 0.4647619128227234,
+              "lob": 0.7838056087493896,
+              "clear": 0.9558232426643372,
+              "drive": 0.5907173156738281,
+              "drop": 0.6409736275672913,
+              "passive_drop": 0.6285714507102966,
+              "push": 0.6147757172584534,
+              "rush": 0.7540984153747559,
+              "cross_court_net_shot": 0.5369649529457092,
+              "short_service": 0.9801586866378784,
+              "long_service": 0.9726027846336365
+            },
+            "top2_accuracy": 0.9345549738219895
+          },
+          "recorded_at": "2026-05-06T00:02:16"
+        },
+        {
+          "serial_no": 2,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_233645_734631/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_233645_734631/tb/serial_2",
+          "metrics": {
+            "macro_f1": 0.7325506806373596,
+            "min_f1": 0.4425887167453766,
+            "accuracy": 0.7501189909566873,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8609179258346558,
+              "return_net": 0.7950310707092285,
+              "smash": 0.629173994064331,
+              "wrist_smash": 0.4425887167453766,
+              "lob": 0.760098934173584,
+              "clear": 0.9531459212303162,
+              "drive": 0.6404715776443481,
+              "drop": 0.6869918704032898,
+              "passive_drop": 0.6727272272109985,
+              "push": 0.6166008114814758,
+              "rush": 0.7716535329818726,
+              "cross_court_net_shot": 0.47017544507980347,
+              "short_service": 0.9760000109672546,
+              "long_service": 0.9801324605941772
+            },
+            "top2_accuracy": 0.9307472632079962
+          },
+          "recorded_at": "2026-05-06T00:27:33"
+        },
+        {
+          "serial_no": 3,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_233645_734631/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_233645_734631/tb/serial_3",
+          "metrics": {
+            "macro_f1": 0.7348595261573792,
+            "min_f1": 0.4803149402141571,
+            "accuracy": 0.7558305568776773,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8753501772880554,
+              "return_net": 0.8229884505271912,
+              "smash": 0.6205607652664185,
+              "wrist_smash": 0.4803149402141571,
+              "lob": 0.7588531970977783,
+              "clear": 0.9399199485778809,
+              "drive": 0.6165702939033508,
+              "drop": 0.6520787477493286,
+              "passive_drop": 0.6585366129875183,
+              "push": 0.6382979154586792,
+              "rush": 0.7419354915618896,
+              "cross_court_net_shot": 0.5533596873283386,
+              "short_service": 0.9782178401947021,
+              "long_service": 0.9510489702224731
+            },
+            "top2_accuracy": 0.9386006663493575
+          },
+          "recorded_at": "2026-05-06T00:53:10"
+        },
+        {
+          "serial_no": 4,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_233645_734631/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_233645_734631/tb/serial_4",
+          "metrics": {
+            "macro_f1": 0.737908661365509,
+            "min_f1": 0.4471057951450348,
+            "accuracy": 0.7567824845311756,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8746479153633118,
+              "return_net": 0.8105515837669373,
+              "smash": 0.6234676241874695,
+              "wrist_smash": 0.4471057951450348,
+              "lob": 0.7694974541664124,
+              "clear": 0.9547871947288513,
+              "drive": 0.6412825584411621,
+              "drop": 0.6334056258201599,
+              "passive_drop": 0.6588921546936035,
+              "push": 0.6513317823410034,
+              "rush": 0.765625,
+              "cross_court_net_shot": 0.5433962345123291,
+              "short_service": 0.9841269850730896,
+              "long_service": 0.9726027846336365
+            },
+            "top2_accuracy": 0.9336030461684912
+          },
+          "recorded_at": "2026-05-06T01:18:46"
+        }
+      ],
+      "cumulative_mean": {
+        "macro_f1": 0.7339158356189728,
+        "min_f1": 0.45869284123182297,
+        "accuracy": 0.7539267015706805,
+        "top2_accuracy": 0.9343764873869587
+      },
+      "mean": {
+        "macro_f1": 0.7339158356189728,
+        "min_f1": 0.45869284123182297,
+        "accuracy": 0.7539267015706805,
+        "top2_accuracy": 0.9343764873869587
+      },
+      "per_class_mean": {
+        "net_shot": 0.8718497306108475,
+        "return_net": 0.8076172769069672,
+        "smash": 0.6240976899862289,
+        "wrist_smash": 0.45869284123182297,
+        "lob": 0.7680637985467911,
+        "clear": 0.9509190768003464,
+        "drive": 0.6222604364156723,
+        "drop": 0.6533624678850174,
+        "passive_drop": 0.6546818614006042,
+        "push": 0.630251556634903,
+        "rush": 0.7583281099796295,
+        "cross_court_net_shot": 0.5259740799665451,
+        "short_service": 0.9796258807182312,
+        "long_service": 0.9690967500209808
+      },
+      "best_serial": 3,
+      "top_movers": [
+        [
+          "cross_court_net_shot",
+          -0.08000402748584745
+        ],
+        [
+          "smash",
+          0.04425824582576754
+        ],
+        [
+          "wrist_smash",
+          -0.01994481831789019
+        ]
+      ],
+      "kill_ref_macro": 0.74469975233078,
+      "verdict_ref_macro": 0.74469975233078,
+      "verdict_ref_min": 0.4778433918952942,
+      "verdict_ref_per_class": {
+        "net_shot": 0.8894744753837586,
+        "return_net": 0.8077717781066894,
+        "smash": 0.5798394441604614,
+        "wrist_smash": 0.47863765954971316,
+        "lob": 0.7834660172462463,
+        "clear": 0.9537389755249024,
+        "drive": 0.6321170687675476,
+        "drop": 0.6561779856681824,
+        "passive_drop": 0.6715412497520447,
+        "push": 0.6434996247291564,
+        "rush": 0.774875283241272,
+        "cross_court_net_shot": 0.6059781074523926,
+        "short_service": 0.9772181749343872,
+        "long_service": 0.9714610815048218
+      },
+      "macro_stdev": 0.0032378737342698056
+    },
+    "p_jitter_40": {
+      "status": "complete",
+      "config_index": 2,
+      "run_id": "run_20260506_011851_522295",
+      "log_path": "/home/ahalperi/badminton_stroke_classifier/src/bst_refactor/stroke_classification/main_on_shuttleset/test_logs/test_20260506_011851_522295.log",
+      "augmentation": {
+        "p_flip": 0.5,
+        "p_jitter": 0.4,
+        "cap_y": 0.05,
+        "cap_x": 0.1,
+        "eps": 0.15
+      },
+      "verdict": "TIE",
+      "killed_reason": null,
+      "killed_at_serial": null,
+      "skipped_reason": null,
+      "serials_done": 5,
+      "serials": [
+        {
+          "serial_no": 1,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_011851_522295/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_011851_522295/tb/serial_1",
+          "metrics": {
+            "macro_f1": 0.7505923509597778,
+            "min_f1": 0.4760076701641083,
+            "accuracy": 0.7684435982865302,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8958770632743835,
+              "return_net": 0.8167663812637329,
+              "smash": 0.5934489369392395,
+              "wrist_smash": 0.4760076701641083,
+              "lob": 0.7813558578491211,
+              "clear": 0.960422158241272,
+              "drive": 0.6156942248344421,
+              "drop": 0.6637744307518005,
+              "passive_drop": 0.692098081111908,
+              "push": 0.6633540987968445,
+              "rush": 0.761904776096344,
+              "cross_court_net_shot": 0.6539924144744873,
+              "short_service": 0.9676113128662109,
+              "long_service": 0.965986430644989
+            },
+            "top2_accuracy": 0.9455021418372204
+          },
+          "recorded_at": "2026-05-06T01:44:18"
+        },
+        {
+          "serial_no": 2,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_011851_522295/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_011851_522295/tb/serial_2",
+          "metrics": {
+            "macro_f1": 0.7327383756637573,
+            "min_f1": 0.4728682339191437,
+            "accuracy": 0.7501189909566873,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.878581166267395,
+              "return_net": 0.7927272319793701,
+              "smash": 0.5962263941764832,
+              "wrist_smash": 0.4728682339191437,
+              "lob": 0.767013669013977,
+              "clear": 0.9531459212303162,
+              "drive": 0.5950413346290588,
+              "drop": 0.6720977425575256,
+              "passive_drop": 0.678787887096405,
+              "push": 0.5756756663322449,
+              "rush": 0.7906977534294128,
+              "cross_court_net_shot": 0.5680933594703674,
+              "short_service": 0.9656565189361572,
+              "long_service": 0.951724112033844
+            },
+            "top2_accuracy": 0.9381247025226083
+          },
+          "recorded_at": "2026-05-06T02:09:53"
+        },
+        {
+          "serial_no": 3,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_011851_522295/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_011851_522295/tb/serial_3",
+          "metrics": {
+            "macro_f1": 0.7396877408027649,
+            "min_f1": 0.5103969573974609,
+            "accuracy": 0.7594002855782961,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8678200244903564,
+              "return_net": 0.8071856498718262,
+              "smash": 0.6045627593994141,
+              "wrist_smash": 0.5103969573974609,
+              "lob": 0.7838519811630249,
+              "clear": 0.9575597047805786,
+              "drive": 0.6514522433280945,
+              "drop": 0.6421267986297607,
+              "passive_drop": 0.6459627151489258,
+              "push": 0.6422250866889954,
+              "rush": 0.7563024163246155,
+              "cross_court_net_shot": 0.52173912525177,
+              "short_service": 0.9779559373855591,
+              "long_service": 0.9864864945411682
+            },
+            "top2_accuracy": 0.9395525940028557
+          },
+          "recorded_at": "2026-05-06T02:35:24"
+        },
+        {
+          "serial_no": 4,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_011851_522295/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_011851_522295/tb/serial_4",
+          "metrics": {
+            "macro_f1": 0.7422847151756287,
+            "min_f1": 0.48712873458862305,
+            "accuracy": 0.7629700142789148,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8836565017700195,
+              "return_net": 0.8186046481132507,
+              "smash": 0.6224677562713623,
+              "wrist_smash": 0.48712873458862305,
+              "lob": 0.7764326333999634,
+              "clear": 0.9446693658828735,
+              "drive": 0.6328125,
+              "drop": 0.6757369637489319,
+              "passive_drop": 0.6646884083747864,
+              "push": 0.612191915512085,
+              "rush": 0.71074378490448,
+              "cross_court_net_shot": 0.605042040348053,
+              "short_service": 0.9782178401947021,
+              "long_service": 0.9795918464660645
+            },
+            "top2_accuracy": 0.941694431223227
+          },
+          "recorded_at": "2026-05-06T03:00:54"
+        },
+        {
+          "serial_no": 5,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_011851_522295/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_011851_522295/tb/serial_5",
+          "metrics": {
+            "macro_f1": 0.747622013092041,
+            "min_f1": 0.4648437798023224,
+            "accuracy": 0.7641599238457877,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8715789914131165,
+              "return_net": 0.8052884340286255,
+              "smash": 0.6240875124931335,
+              "wrist_smash": 0.4648437798023224,
+              "lob": 0.784704864025116,
+              "clear": 0.952254593372345,
+              "drive": 0.6339468359947205,
+              "drop": 0.6710526347160339,
+              "passive_drop": 0.7163324356079102,
+              "push": 0.6589743494987488,
+              "rush": 0.7839999198913574,
+              "cross_court_net_shot": 0.5357142686843872,
+              "short_service": 0.9840637445449829,
+              "long_service": 0.9798658490180969
+            },
+            "top2_accuracy": 0.9395525940028557
+          },
+          "recorded_at": "2026-05-06T03:26:27"
+        }
+      ],
+      "cumulative_mean": {
+        "macro_f1": 0.7425850391387939,
+        "min_f1": 0.4822490751743317,
+        "accuracy": 0.7610185625892432,
+        "top2_accuracy": 0.9408852927177535
+      },
+      "mean": {
+        "macro_f1": 0.7425850391387939,
+        "min_f1": 0.4822490751743317,
+        "accuracy": 0.7610185625892432,
+        "top2_accuracy": 0.9408852927177535
+      },
+      "per_class_mean": {
+        "net_shot": 0.8795027494430542,
+        "return_net": 0.8081144690513611,
+        "smash": 0.6081586718559265,
+        "wrist_smash": 0.4822490751743317,
+        "lob": 0.7786718010902405,
+        "clear": 0.9536103487014771,
+        "drive": 0.6257894277572632,
+        "drop": 0.6649577140808105,
+        "passive_drop": 0.679573905467987,
+        "push": 0.6304842233657837,
+        "rush": 0.7607297301292419,
+        "cross_court_net_shot": 0.576916241645813,
+        "short_service": 0.9747010707855225,
+        "long_service": 0.9727309465408325
+      },
+      "best_serial": 3,
+      "top_movers": [
+        [
+          "cross_court_net_shot",
+          -0.029061865806579545
+        ],
+        [
+          "smash",
+          0.028319227695465132
+        ],
+        [
+          "rush",
+          -0.01414555311203003
+        ]
+      ],
+      "kill_ref_macro": 0.74469975233078,
+      "verdict_ref_macro": 0.74469975233078,
+      "verdict_ref_min": 0.4778433918952942,
+      "verdict_ref_per_class": {
+        "net_shot": 0.8894744753837586,
+        "return_net": 0.8077717781066894,
+        "smash": 0.5798394441604614,
+        "wrist_smash": 0.47863765954971316,
+        "lob": 0.7834660172462463,
+        "clear": 0.9537389755249024,
+        "drive": 0.6321170687675476,
+        "drop": 0.6561779856681824,
+        "passive_drop": 0.6715412497520447,
+        "push": 0.6434996247291564,
+        "rush": 0.774875283241272,
+        "cross_court_net_shot": 0.6059781074523926,
+        "short_service": 0.9772181749343872,
+        "long_service": 0.9714610815048218
+      },
+      "macro_stdev": 0.006980857091460653
+    },
+    "p_flip_25_x_p_jitter_30": {
+      "status": "complete",
+      "config_index": 3,
+      "run_id": "run_20260506_032632_652587",
+      "log_path": "/home/ahalperi/badminton_stroke_classifier/src/bst_refactor/stroke_classification/main_on_shuttleset/test_logs/test_20260506_032632_652587.log",
+      "augmentation": {
+        "p_flip": 0.25,
+        "p_jitter": 0.3,
+        "cap_y": 0.05,
+        "cap_x": 0.1,
+        "eps": 0.15
+      },
+      "verdict": "LOSE",
+      "killed_reason": null,
+      "killed_at_serial": null,
+      "skipped_reason": null,
+      "serials_done": 5,
+      "serials": [
+        {
+          "serial_no": 1,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_032632_652587/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_032632_652587/tb/serial_1",
+          "metrics": {
+            "macro_f1": 0.7447310090065002,
+            "min_f1": 0.5230769515037537,
+            "accuracy": 0.7624940504521657,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8888888955116272,
+              "return_net": 0.8079625368118286,
+              "smash": 0.5677419304847717,
+              "wrist_smash": 0.5230769515037537,
+              "lob": 0.7764900326728821,
+              "clear": 0.9521276354789734,
+              "drive": 0.640926718711853,
+              "drop": 0.6762294769287109,
+              "passive_drop": 0.6581469774246216,
+              "push": 0.6355382204055786,
+              "rush": 0.7460317015647888,
+              "cross_court_net_shot": 0.6148147583007812,
+              "short_service": 0.9656565189361572,
+              "long_service": 0.9726027846336365
+            },
+            "top2_accuracy": 0.9390766301761067
+          },
+          "recorded_at": "2026-05-06T03:51:41"
+        },
+        {
+          "serial_no": 2,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_032632_652587/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_032632_652587/tb/serial_2",
+          "metrics": {
+            "macro_f1": 0.7373789548873901,
+            "min_f1": 0.4261603355407715,
+            "accuracy": 0.7582103760114232,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8674188852310181,
+              "return_net": 0.8246445655822754,
+              "smash": 0.6209262609481812,
+              "wrist_smash": 0.4261603355407715,
+              "lob": 0.7781403064727783,
+              "clear": 0.9535192251205444,
+              "drive": 0.6185567378997803,
+              "drop": 0.6806722283363342,
+              "passive_drop": 0.6904762387275696,
+              "push": 0.6332454085350037,
+              "rush": 0.7460317015647888,
+              "cross_court_net_shot": 0.5362319350242615,
+              "short_service": 0.9739479422569275,
+              "long_service": 0.9733332991600037
+            },
+            "top2_accuracy": 0.9362208472156116
+          },
+          "recorded_at": "2026-05-06T04:17:11"
+        },
+        {
+          "serial_no": 3,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_032632_652587/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_032632_652587/tb/serial_3",
+          "metrics": {
+            "macro_f1": 0.7399996519088745,
+            "min_f1": 0.4556451439857483,
+            "accuracy": 0.7629700142789148,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8904204368591309,
+              "return_net": 0.8122786283493042,
+              "smash": 0.6418439745903015,
+              "wrist_smash": 0.4556451439857483,
+              "lob": 0.7867528200149536,
+              "clear": 0.960212230682373,
+              "drive": 0.6079664826393127,
+              "drop": 0.6471816301345825,
+              "passive_drop": 0.6549707651138306,
+              "push": 0.6102150678634644,
+              "rush": 0.7333333492279053,
+              "cross_court_net_shot": 0.6016260385513306,
+              "short_service": 0.9779559373855591,
+              "long_service": 0.9795918464660645
+            },
+            "top2_accuracy": 0.9400285578296049
+          },
+          "recorded_at": "2026-05-06T04:42:49"
+        },
+        {
+          "serial_no": 4,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_032632_652587/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_032632_652587/tb/serial_4",
+          "metrics": {
+            "macro_f1": 0.7337374091148376,
+            "min_f1": 0.44834309816360474,
+            "accuracy": 0.7532127558305569,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.887005627155304,
+              "return_net": 0.8023255467414856,
+              "smash": 0.6279491782188416,
+              "wrist_smash": 0.44834309816360474,
+              "lob": 0.7607777118682861,
+              "clear": 0.950600802898407,
+              "drive": 0.5936842560768127,
+              "drop": 0.6492986083030701,
+              "passive_drop": 0.6626505851745605,
+              "push": 0.6165413856506348,
+              "rush": 0.7226890921592712,
+              "cross_court_net_shot": 0.5758754014968872,
+              "short_service": 0.988095223903656,
+              "long_service": 0.9864864945411682
+            },
+            "top2_accuracy": 0.9381247025226083
+          },
+          "recorded_at": "2026-05-06T05:06:29"
+        },
+        {
+          "serial_no": 5,
+          "weights_path": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_032632_652587/weights/bst_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt",
+          "tb_dir": "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260506_032632_652587/tb/serial_5",
+          "metrics": {
+            "macro_f1": 0.7387299537658691,
+            "min_f1": 0.43113774061203003,
+            "accuracy": 0.7572584483579248,
+            "num_strokes": 4202,
+            "per_class_f1": {
+              "net_shot": 0.8879668116569519,
+              "return_net": 0.8038507699966431,
+              "smash": 0.6086956262588501,
+              "wrist_smash": 0.43113774061203003,
+              "lob": 0.7680798172950745,
+              "clear": 0.9575597047805786,
+              "drive": 0.6144578456878662,
+              "drop": 0.6570841670036316,
+              "passive_drop": 0.6783625483512878,
+              "push": 0.6283524632453918,
+              "rush": 0.787401556968689,
+              "cross_court_net_shot": 0.5759999752044678,
+              "short_service": 0.9702970385551453,
+              "long_service": 0.9729729890823364
+            },
+            "top2_accuracy": 0.938838648262732
+          },
+          "recorded_at": "2026-05-06T05:32:04"
+        }
+      ],
+      "cumulative_mean": {
+        "macro_f1": 0.7389153957366943,
+        "min_f1": 0.45687265396118165,
+        "accuracy": 0.758829128986197,
+        "top2_accuracy": 0.9384578772013328
+      },
+      "mean": {
+        "macro_f1": 0.7389153957366943,
+        "min_f1": 0.45687265396118165,
+        "accuracy": 0.758829128986197,
+        "top2_accuracy": 0.9384578772013328
+      },
+      "per_class_mean": {
+        "net_shot": 0.8843401312828064,
+        "return_net": 0.8102124094963074,
+        "smash": 0.6134313941001892,
+        "wrist_smash": 0.45687265396118165,
+        "lob": 0.774048137664795,
+        "clear": 0.9548039197921753,
+        "drive": 0.615118408203125,
+        "drop": 0.6620932221412659,
+        "passive_drop": 0.668921422958374,
+        "push": 0.6247785091400146,
+        "rush": 0.7470974802970887,
+        "cross_court_net_shot": 0.5809096217155456,
+        "short_service": 0.975190532207489,
+        "long_service": 0.9769974827766419
+      },
+      "best_serial": 1,
+      "top_movers": [
+        [
+          "smash",
+          0.033591949939727805
+        ],
+        [
+          "rush",
+          -0.027777802944183305
+        ],
+        [
+          "cross_court_net_shot",
+          -0.025068485736846946
+        ]
+      ],
+      "kill_ref_macro": 0.74469975233078,
+      "verdict_ref_macro": 0.74469975233078,
+      "verdict_ref_min": 0.4778433918952942,
+      "verdict_ref_per_class": {
+        "net_shot": 0.8894744753837586,
+        "return_net": 0.8077717781066894,
+        "smash": 0.5798394441604614,
+        "wrist_smash": 0.47863765954971316,
+        "lob": 0.7834660172462463,
+        "clear": 0.9537389755249024,
+        "drive": 0.6321170687675476,
+        "drop": 0.6561779856681824,
+        "passive_drop": 0.6715412497520447,
+        "push": 0.6434996247291564,
+        "rush": 0.774875283241272,
+        "cross_court_net_shot": 0.6059781074523926,
+        "short_service": 0.9772181749343872,
+        "long_service": 0.9714610815048218
+      },
+      "macro_stdev": 0.0040063560068637925
+    },
+    "p_flip_25_x_cap_bump": {
+      "status": "skipped",
+      "config_index": 4,
+      "run_id": null,
+      "log_path": null,
+      "augmentation": null,
+      "verdict": null,
+      "killed_reason": null,
+      "killed_at_serial": null,
+      "skipped_reason": "requires not satisfied: p_flip_25 != LOSE and cap_bump == WIN",
+      "serials_done": 0,
+      "serials": [],
+      "cumulative_mean": null,
+      "mean": null,
+      "per_class_mean": null,
+      "best_serial": null,
+      "top_movers": null,
+      "kill_ref_macro": null,
+      "verdict_ref_macro": null,
+      "verdict_ref_min": null,
+      "verdict_ref_per_class": null,
+      "macro_stdev": null
+    }
+  }
+}

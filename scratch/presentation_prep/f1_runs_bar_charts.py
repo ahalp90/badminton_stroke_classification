@@ -25,7 +25,7 @@ import yaml
 
 BASE = Path(
     "/home/ariel/Documents/COSC594/badminton_stroke_classification/"
-    "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments"
+    "src/bst_x/stroke_classification/main_on_shuttleset/experiments"
 )
 OUT_DIR = Path(
     "/home/ariel/Documents/COSC594/badminton_stroke_classification/scratch/presentation_prep"

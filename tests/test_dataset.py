@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 from torch.utils.data import DataLoader
 
-from src.bst_refactor.stroke_classification.preparing_data.shuttleset_dataset import (
+from src.bst_x.stroke_classification.preparing_data.shuttleset_dataset import (
     Dataset_npy_collated,
 )
 

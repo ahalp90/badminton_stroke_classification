@@ -3,7 +3,7 @@
 Four open questions, thought through against the live pipeline and the actual per-epoch curves of the running `shuttleset_18` cell, plus a few papers. Each section states what the code does, the numbers, what the literature adds, and a recommendation. These are proposals for discussion, not landed decisions, and nothing here is written into `bst_x_overview.md`.
 
 Grounding:
-- Pipeline mechanics from `bst_train.py`, `shuttleset_dataset.py`, `loss/adaptive_focal.py`, `augmentation_framework.md`.
+- Pipeline mechanics from `bst_x_train.py`, `shuttleset_dataset.py`, `loss/adaptive_focal.py`, `augmentation_framework.md`.
 - Per-epoch arcs (train F1, val F1, alpha, macro) parsed from `run_20260530_161525_131279` (the `shuttleset_18` cell, 5 serials, full 80-epoch TB logs). 14-class numbers from `run_20260501_164658`.
 - Papers: Wang & Aitchison 2025 (AdamW WD scaling), Steiner et al 2022 (how to train your ViT), Touvron et al 2022 (three things about ViTs), plus Kang et al 2020, Lin et al 2017, Chen et al 2018 (GradNorm).
 
@@ -15,7 +15,7 @@ Note on taxonomy: the `shuttleset_18` cell is the raw, unmerged ShuttleSet taxon
 
 **Yes, confirmed. Fresh draws every batch, every epoch.** No action.
 
-Augs run in the train loop after the batch hits device (`bst_train.py:228-231`); both `CoupledFlip` and `ConstrainedJitter` draw a fresh `torch.rand(n, device=device)` per call. No per-sample seed, no `worker_init_fn` (num_workers=0), no `set_epoch`. A clip gets a different flip/jitter each time it's drawn across the 80 epochs, which is what you want.
+Augs run in the train loop after the batch hits device (`bst_x_train.py:228-231`); both `CoupledFlip` and `ConstrainedJitter` draw a fresh `torch.rand(n, device=device)` per call. No per-sample seed, no `worker_init_fn` (num_workers=0), no `set_epoch`. A clip gets a different flip/jitter each time it's drawn across the 80 epochs, which is what you want.
 
 Minor: no fixed aug seed means the aug stream isn't bit-reproducible run to run. With 5 serials that's a feature (it feeds the serial spread), so leave it.
 
@@ -26,7 +26,7 @@ Minor: no fixed aug seed means the aug stream isn't bit-reproducible run to run.
 ### What the code does now
 
 ```python
-optimizer = optim.AdamW(model.parameters(), lr=hyp.lr)   # bst_train.py:519
+optimizer = optim.AdamW(model.parameters(), lr=hyp.lr)   # bst_x_train.py:519
 ```
 
 `weight_decay` is unset, so it sits at PyTorch's default **0.01**, applied to every parameter (LayerNorm gains, biases, embeddings included), not a `Hyp` field, never swept.
@@ -213,7 +213,7 @@ Risks, all real:
 
 ### Built 2026-05-31: as implemented
 
-Built in `loss/adaptive_focal.py` (`apply_val_gate`) and wired through `bst_train.py` (a `use_val_improvability_gate` flag + a visible `val_improvability_gate` config dict, `--val-improvability-gate` CLI, off by default, requires adaptive_focal; `collation_runner` forwards the flag). The scripts, tables and figures that motivated it are in `scratch/architecture_notes/alpha_arc_analysis/`. Off by default and not yet run. What the design discussion changed from the sketch above:
+Built in `loss/adaptive_focal.py` (`apply_val_gate`) and wired through `bst_x_train.py` (a `use_val_improvability_gate` flag + a visible `val_improvability_gate` config dict, `--val-improvability-gate` CLI, off by default, requires adaptive_focal; `collation_runner` forwards the flag). The scripts, tables and figures that motivated it are in `scratch/architecture_notes/alpha_arc_analysis/`. Off by default and not yet run. What the design discussion changed from the sketch above:
 
 - **The signal is val improvement read as best-so-far, not a slope, and not the train-val gap.** cross_court_net_shot climbs ~0.001/epoch against ±0.02-0.05 per-epoch noise, so a slope estimate needs ~30-40 epochs to clear significance and would wrongly decay it; tracking whether the smoothed val F1 set a new best (by `improvement_margin`) within `patience_epochs` is the noise-robust version, and its failure mode is conservative (a noise-high only delays a decay). The train-val gap was considered and rejected as the primary signal: a positive gap is also just train leading val, so it conflates "overfit and stalled" with "overfit but val still climbing" and would punish a class still gaining. Train F1 alone can't carry it either, since it keeps rising on the plateaued classes via overfitting (driven_flight gains +0.24 train across the back half against 0.00 val).
 - **Patience is pinned by the slowest real climber.** cross_court clears the margin only every ~15-20 epochs, so patience must sit above that or the class gets decayed between its legitimate new highs. Defaults: smoothing 0.9, margin 0.015, patience 15, min-before-gating 10, revert step 0.2 (full revert over 5 epochs), freeze at 0.75 of the run.

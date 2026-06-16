@@ -249,7 +249,7 @@ bric-train = [
     { name = "torcheval" },
     { name = "transformers" },
 ]
-bst-runtime = [
+bst-x-runtime = [
     { name = "matplotlib" },
     { name = "mlflow" },
     { name = "positional-encodings", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -275,37 +275,37 @@ requires-dist = [
     { name = "ipython", marker = "extra == 'dev'" },
     { name = "lap", marker = "extra == 'bric-runtime'", specifier = ">=0.5.12" },
     { name = "matplotlib", marker = "extra == 'bric-train'" },
-    { name = "matplotlib", marker = "extra == 'bst-runtime'" },
-    { name = "mlflow", marker = "extra == 'bst-runtime'" },
+    { name = "matplotlib", marker = "extra == 'bst-x-runtime'" },
+    { name = "mlflow", marker = "extra == 'bst-x-runtime'" },
     { name = "numpy" },
     { name = "opencv-python" },
     { name = "pandas" },
     { name = "parse" },
     { name = "pillow" },
-    { name = "positional-encodings", marker = "extra == 'bst-runtime'" },
+    { name = "positional-encodings", marker = "extra == 'bst-x-runtime'" },
     { name = "pycocotools" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "python-multipart" },
     { name = "pyyaml" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "scikit-learn", marker = "extra == 'bric-train'" },
-    { name = "scikit-learn", marker = "extra == 'bst-runtime'" },
+    { name = "scikit-learn", marker = "extra == 'bst-x-runtime'" },
     { name = "scipy" },
-    { name = "tensorboard", marker = "extra == 'bst-runtime'" },
+    { name = "tensorboard", marker = "extra == 'bst-x-runtime'" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.5" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.5", index = "https://download.pytorch.org/whl/cu128" },
     { name = "torcheval", marker = "extra == 'bric-train'" },
-    { name = "torcheval", marker = "extra == 'bst-runtime'" },
-    { name = "torchinfo", marker = "extra == 'bst-runtime'" },
+    { name = "torcheval", marker = "extra == 'bst-x-runtime'" },
+    { name = "torchinfo", marker = "extra == 'bst-x-runtime'" },
     { name = "torchvision", marker = "sys_platform != 'linux'" },
     { name = "torchvision", marker = "sys_platform == 'linux'", index = "https://download.pytorch.org/whl/cu128" },
     { name = "tqdm" },
     { name = "transformers", marker = "extra == 'bric-train'" },
-    { name = "transformers", marker = "extra == 'bst-runtime'" },
+    { name = "transformers", marker = "extra == 'bst-x-runtime'" },
     { name = "ultralytics", marker = "extra == 'bric-runtime'", specifier = ">=8.3" },
     { name = "uvicorn" },
 ]
-provides-extras = ["bric-runtime", "bric-train", "bric", "bst-runtime", "dev"]
+provides-extras = ["bric-runtime", "bric-train", "bric", "bst-x-runtime", "dev"]
 
 [[package]]
 name = "blinker"

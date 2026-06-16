@@ -11,7 +11,7 @@ per-stroke predictions dump:
 3. ``train_network`` return contract — now ``(model, val_at_best)`` with the
    per-class val F1 snapshot at the best-macro epoch.
 
-CPU-only; no /scratch. The npz schema smoke for the bst_infer --fe post-hoc
+CPU-only; no /scratch. The npz schema smoke for the bst_x_infer --fe post-hoc
 path lives in tests/test_inference_smoke.py.
 
 Run from repo root::
@@ -29,9 +29,9 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-import main_on_shuttleset.bst_train as bt
+import main_on_shuttleset.bst_x_train as bt
 from pipeline.config import Taxonomy
-from main_on_shuttleset.bst_common import build_bst_network
+from main_on_shuttleset.bst_x_common import build_bst_x_network
 from preparing_data.shuttleset_dataset import Dataset_npy_collated
 
 
@@ -145,7 +145,7 @@ NPZ_FIELDS = {
 
 def test_dump_predictions_writes_all_splits_with_schema(tmp_path):
     torch.manual_seed(0)
-    net, n_bones = build_bst_network(
+    net, n_bones = build_bst_x_network(
         'BST_CG_AP', n_joints=17, pose_style='JnB_bone', in_channels=2,
         n_class=TAX3.n_classes, seq_len=100, device='cpu',
     )
@@ -183,7 +183,7 @@ def test_dump_predictions_test_rows_align_with_labels(tmp_path):
     """shuffle=False dump keeps y_true in the on-disk labels order (row-aligned
     with clip_stems), so a downstream row->stem join is valid."""
     torch.manual_seed(0)
-    net, n_bones = build_bst_network(
+    net, n_bones = build_bst_x_network(
         'BST_CG_AP', n_joints=17, pose_style='JnB_bone', in_channels=2,
         n_class=TAX3.n_classes, seq_len=100, device='cpu',
     )
@@ -212,7 +212,7 @@ def test_dump_predictions_clip_stems_survive_zero_length_drop(tmp_path):
     from the npz, keeping every later row's stem aligned with its prediction.
     """
     torch.manual_seed(0)
-    net, n_bones = build_bst_network(
+    net, n_bones = build_bst_x_network(
         'BST_CG_AP', n_joints=17, pose_style='JnB_bone', in_channels=2,
         n_class=TAX3.n_classes, seq_len=100, device='cpu',
     )
@@ -251,7 +251,7 @@ def test_dump_predictions_clip_stems_track_train_partial_reorder(tmp_path):
     future data-scaling ablation, not just the default train_partial=1.0 run.
     """
     torch.manual_seed(0)
-    net, n_bones = build_bst_network(
+    net, n_bones = build_bst_x_network(
         'BST_CG_AP', n_joints=17, pose_style='JnB_bone', in_channels=2,
         n_class=TAX3.n_classes, seq_len=100, device='cpu',
     )
@@ -297,7 +297,7 @@ def test_train_network_returns_model_and_val_at_best(tmp_path, monkeypatch):
         augmentation={'p_flip': 0.0, 'p_jitter': 0.0, 'cap_y': 0.05, 'cap_x': 0.10, 'eps': 0.15},
     ))
     torch.manual_seed(0)
-    net, n_bones = build_bst_network(
+    net, n_bones = build_bst_x_network(
         'BST_CG_AP', n_joints=17, pose_style='JnB_bone', in_channels=2,
         n_class=TAX3.n_classes, seq_len=100, device='cpu',
     )

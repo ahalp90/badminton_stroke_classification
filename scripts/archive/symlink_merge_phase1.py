@@ -8,14 +8,14 @@ Builds a flat dir where:
   symlinks the same three files from the committed extract dir.
 
 The result feeds ``prepare_train_on_shuttleset``'s collation step. After
-collation, ``bst_train`` reads the merged dataset under the
+collation, ``bst_x_train`` reads the merged dataset under the
 ``ablation_id``-tagged collated dir name.
 
 Run from the repo root.
 
 Examples:
 
-    # Defaults: BST_MMPOSE_NPY_DIR for the committed dir; sibling dirs for the rest.
+    # Defaults: BST_X_MMPOSE_NPY_DIR for the committed dir; sibling dirs for the rest.
     python scripts/symlink_merge_phase1.py
 
     # Explicit paths if env-var resolution is awkward.
@@ -133,10 +133,10 @@ def main() -> None:
 def _resolve_committed_dir(arg_committed: Path | None) -> Path:
     if arg_committed is not None:
         return arg_committed
-    env = os.environ.get("BST_MMPOSE_NPY_DIR", "").strip()
+    env = os.environ.get("BST_X_MMPOSE_NPY_DIR", "").strip()
     if not env:
         raise SystemExit(
-            "BST_MMPOSE_NPY_DIR not set; pass --committed-dir explicitly or "
+            "BST_X_MMPOSE_NPY_DIR not set; pass --committed-dir explicitly or "
             "load .env via pipeline.data_access first."
         )
     return Path(env)

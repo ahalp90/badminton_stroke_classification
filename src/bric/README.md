@@ -36,7 +36,7 @@ the cross-arch primitive for the live-upload inference path.
 
 ## Import rules
 
-- `bric.*` modules **never** `import bst_refactor.*`.
+- `bric.*` modules **never** `import bst_x.*`.
 - They import generic utilities (taxonomy, court, video_io, temporal)
   from `shared.*`.
 - They import their own perception layer from `bric.perception.*`.

@@ -1,4 +1,4 @@
-"""Stroke-type taxonomy, mirrored from bst_refactor.pipeline.config.
+"""Stroke-type taxonomy, mirrored from bst_x.pipeline.config.
 
 Canonical for BRIC. Keep values in sync with BST manually for v1; a drift
 test is in the v2 backlog.

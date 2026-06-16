@@ -79,7 +79,7 @@ Other install patterns:
 |----------|---------|
 | BRIC training | `uv sync --extra bric --extra dev` |
 | BRIC inference | `uv sync --extra bric-runtime` |
-| Unified API server (BRIC + BST handlers) | `uv sync --extra bric-runtime --extra bst-runtime` |
+| Unified API server (BRIC + BST-X handlers) | `uv sync --extra bric-runtime --extra bst-x-runtime` |
 | Dev tooling only (lint / tests) | `uv sync --extra dev` |
 
 ### Adjusting the CUDA wheel version

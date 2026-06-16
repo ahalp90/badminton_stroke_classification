@@ -18,7 +18,7 @@ const LOG_EVENTS = [
   { at: 16, msg: 'Player detection: bounding boxes extracted' },
   { at: 24, msg: 'TrackNetV3: shuttlecock trajectory computed' },
   { at: 32, msg: 'MMPose: skeleton keypoint sequences extracted' },
-  { at: 52, msg: 'Model A (BST): inference started' },
+  { at: 52, msg: 'Model A (BST-X): inference started' },
   { at: 76, msg: 'Model A: inference complete' },
   { at: 82, msg: 'Writing results' },
   { at: 100, msg: '✓ Analysis complete' },
@@ -69,10 +69,10 @@ function buildMarkupPayload(task) {
     }));
 
   // Pick the first enabled model from Configure as the explicit choice;
-  // architecture defaults to 'bst'.
+  // architecture defaults to 'bst-x'.
   const enabledModel = (task?.models || []).find(mm => task?.enabled?.[mm.id]) || null;
   return {
-    architecture: enabledModel?.architecture ?? 'bst',
+    architecture: enabledModel?.architecture ?? 'bst-x',
     model_id: enabledModel?.id ?? null,
     orientation: m.orientation || 'portrait',
     video_label: video?.filename || video?.match || null,
@@ -208,7 +208,7 @@ export function ProgressScreen({ task, onComplete }) {
           setPct(20);
           const body = {
             clip_stem: task?.markup?.video?.id || task?.markup?.video?.youtubeId,
-            architecture: markupPayload?.architecture || 'bst',
+            architecture: markupPayload?.architecture || 'bst-x',
             model_id: markupPayload?.model_id || null,
             markup: markupPayload,
           };

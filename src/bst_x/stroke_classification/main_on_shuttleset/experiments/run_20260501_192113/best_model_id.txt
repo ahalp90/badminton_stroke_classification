@@ -1,0 +1,105 @@
+Best model of run_20260501_192113/ - #1
+  #1: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt
+
+Follow-up to the first CDB-F1 run (run_20260501_164658), gamma
+flipped from 1 to 0; alpha shape unchanged. Ran on bourbaki alongside
+engelbart's tau=0.5 follow-up run_20260501_192519. Combo A
+(une_merge_v1_nosides + split_v2 + dropunk), label_smoothing=0.0,
+class_weights=None, adaptive_focal={tau:1, gamma:0, momentum:0.9,
+warm_up_epochs:5, f1_floor:0}. Wanted to check if gamma=1 was
+costing the easy classes (services, drive, drop, passive_drop) by
+squeezing their confident-correct samples on top of the low alpha
+they already had.
+
+Hparams:
+  taxonomy=une_merge_v1_nosides, split_column=split_v2,
+  drop_unknown=True, n_epochs=80, warm_up_step=100,
+  early_stop_n_epochs=40, scheduler num_cycles=0.5, lr=5e-4,
+  batch_size=128, use_aux_schedule=True, aux_fade_end_epoch=15,
+  label_smoothing=0.0,
+  class_weights=None,
+  adaptive_focal={tau:1.0, gamma:0.0, momentum:0.9,
+                  warm_up_epochs:5, f1_floor:0.0}.
+  ablation_id=None
+  (resolves to une_merge_v1_nosides_split_v2_dropunk).
+
+Result: macro didn't move and ws dropped 2.8%, so gamma=1 was
+carrying the bottleneck lift in the first run; without it, ws drifts
+back toward the class-weighted band. Smash and drive picked up
+~2.5% each as ws stopped hogging their recall. Push dropped 2.6%
+alongside ws.
+
+  S1 top ws 0.494 (top of run, only seed clearing 0.49). Just edges
+  past the first run's S2 0.486 but on a worse macro / acc seed
+  (S1 macro 0.743 vs first run S2 0.753; S1 acc 0.758 vs first run
+  S2 0.769). Class-weighted S2 (0.518) still holds the project ws
+  ceiling.
+
+Per-serial (num_strokes=4202, 14 classes, 5 seeds):
+  - Serial 1: top min 0.494, top top-2 0.936, macro 0.743, acc 0.758.
+    Clean ws-top, flagged.
+  - Serial 2: macro 0.733 (run-low), min 0.441, acc 0.753, top-2 0.936.
+  - Serial 3: macro 0.745 (run-top), min 0.416, acc 0.764 (run-top),
+    smash 0.661 (run-top).
+  - Serial 4: macro 0.738, min 0.403 (run-low ws), acc 0.757, top-2 0.935.
+  - Serial 5: macro 0.742, min 0.417, acc 0.760, passive_drop 0.701
+    (run-top), long_service 0.986 (run-top).
+
+Mean across 5: macro 0.7401, min 0.4342, acc 0.7586, top-2 0.9354.
+
+Vs the first CDB-F1 run mean
+(0.7432 / 0.4621 / 0.7617 / 0.9351):
+  macro -0.3, min -2.8, acc -0.3, top-2 +0.0.
+
+Vs class-weighted run_20260501_110525 mean
+(0.7478 / 0.4221 / 0.7695 / 0.9360):
+  macro -0.8, min +1.2, acc -1.1, top-2 -0.1.
+
+Vs LS=0.15 run_20260501_073430 mean
+(0.7471 / 0.4168 / 0.7686 / 0.9378):
+  macro -0.7, min +1.7, acc -1.0, top-2 -0.2.
+
+Per-class shifts vs the first run: smash +2.5, drive +2.5,
+passive_drop +1.2, net_shot / return_net / services +0.6 each,
+lob +0.4, cross_court +0.3, drop -0.3, clear -0.5, rush -1.9,
+push -2.6, wrist_smash -2.8.
+
+Wrist_smash range across 5 seeds: 0.402-0.494 (range 0.092). First
+run was 0.413-0.486 (range 0.073); spread loosens slightly and the
+band shifts down 2.8%. Bimodal-seed problem stays fixed.
+
+With engelbart's tau=0.5 follow-up (run_20260501_192519), both runs
+point the same way: the first run's tau=1 + gamma=1 combo was
+carrying the wrist_smash gain. Soften either knob and you swap the
+gain for easy-class recovery; macro doesn't move. Next is pair-cap
+CDB on smash (~10 LOC) to address the pair-confusion directly
+rather than retuning the alpha mechanism.
+
+TensorBoard run folders (in tb/):
+  S1: serial_1  (flagged best, top ws / top top-2)
+  S2: serial_2  (run-low macro, mid ws)
+  S3: serial_3  (run-top macro, run-top acc, run-top smash)
+  S4: serial_4  (run-low ws 0.403)
+  S5: serial_5  (run-top passive_drop, run-top long_service)
+
+=== Serial 1 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides  F1-score
+avg                                                Avg                                  0.74
+min                                                Min                                  0.49
+0                                 net_shot                                              0.89
+1                                 return_net                                            0.80
+2                                 smash                                                 0.60
+3                                 wrist_smash                                           0.49
+4                                 lob                                                   0.78
+5                                 clear                                                 0.93
+6                                 drive                                                 0.60
+7                                 drop                                                  0.66
+8                                 passive_drop                                          0.65
+9                                 push                                                  0.66
+10                                rush                                                  0.73
+11                                cross_court_net_shot                                  0.64
+12                                short_service                                         0.98
+13                                long_service                                          0.99
+Accuracy: 0.758
+Top2 Accuracy: 0.936

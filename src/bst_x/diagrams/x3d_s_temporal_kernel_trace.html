@@ -1,0 +1,248 @@
+
+<h2 class="sr-only">Interactive diagram showing how temporal convolution kernels connect input frames to output positions through X3D-S network layers</h2>
+<style>
+.tw{font-family:var(--font-sans);padding:4px 0}
+.tw canvas{display:block;width:100%}
+.tw-hint{font-size:11px;color:var(--color-text-tertiary);margin:0 0 8px;text-align:center}
+.tw-legend{display:flex;gap:14px;justify-content:center;margin:8px 0 0;font-size:11px;color:var(--color-text-secondary);flex-wrap:wrap}
+.tw-legend span{display:flex;align-items:center;gap:4px}
+.tw-swatch{width:10px;height:10px;border-radius:2px;display:inline-block}
+.tw-info{margin:10px 0 0;padding:10px 12px;border-radius:var(--border-radius-md);background:var(--color-background-secondary);font-size:12px;line-height:1.7;color:var(--color-text-secondary)}
+.tw-info strong{color:var(--color-text-primary);font-weight:500}
+</style>
+<div class="tw">
+<div class="tw-hint">click any node to trace which input frames influence it</div>
+<canvas id="tc" height="580"></canvas>
+<div class="tw-legend">
+<span><span class="tw-swatch" style="background:#85B7EB"></span> active connection</span>
+<span><span class="tw-swatch" style="background:#EF9F27"></span> selected node</span>
+<span><span class="tw-swatch" style="border:1px solid var(--color-border-tertiary)"></span> inactive</span>
+</div>
+<div class="tw-info" id="tc-info">Each row is a temporal convolution layer. The stem applies a kernel of width 5 (connecting 5 adjacent temporal positions). Every subsequent layer applies a kernel of width 3. Padding preserves T=13 at every layer. Only the temporal convolutions are shown — the 1x1x1 pointwise convolutions don't affect temporal connectivity.</div>
+</div>
+<script>
+var T=13;
+var layers=[
+{name:'input',kernel:0,stage:'input'},
+{name:'stem 5x1x1',kernel:5,stage:'stem'},
+{name:'res2 block 1',kernel:3,stage:'res2'},
+{name:'res2 block 2',kernel:3,stage:'res2'},
+{name:'res2 block 3',kernel:3,stage:'res2'},
+{name:'res3 block 1',kernel:3,stage:'res3'},
+{name:'res3 block 2',kernel:3,stage:'res3'},
+{name:'res3 block 3',kernel:3,stage:'res3'},
+{name:'res3 block 4',kernel:3,stage:'res3'},
+{name:'res3 block 5',kernel:3,stage:'res3'},
+{name:'res4 (11 blks)',kernel:3,stage:'res4',multi:11},
+{name:'res5 (7 blks)',kernel:3,stage:'res5',multi:7},
+{name:'global avg pool',kernel:T,stage:'pool'}
+];
+var stageColors={input:'#888780',stem:'#AFA9EC',res2:'#85B7EB',res3:'#5DCAA5',res4:'#FAC775',res5:'#F0997B',pool:'#ED93B1'};
+var stageColorsDk={input:'#5F5E5A',stem:'#3C3489',res2:'#0C447C',res3:'#085041',res4:'#633806',res5:'#712B13',pool:'#72243E'};
+var isDk=matchMedia('(prefers-color-scheme:dark)').matches;
+var cols=isDk?stageColorsDk:stageColors;
+var cv=document.getElementById('tc');
+var ctx=cv.getContext('2d');
+var W,H,nodeR,colW,rowH,padL,padT,padR;
+var selected=null;
+var highlighted=null;
+
+function resize(){
+var rect=cv.parentElement.getBoundingClientRect();
+var dpr=window.devicePixelRatio||1;
+W=rect.width;
+H=580;
+cv.width=W*dpr;
+cv.height=H*dpr;
+cv.style.width=W+'px';
+cv.style.height=H+'px';
+ctx.setTransform(dpr,0,0,dpr,0,0);
+padL=100;padR=16;padT=24;
+colW=(W-padL-padR)/(T-1);
+nodeR=Math.min(colW*0.3,8);
+rowH=(H-padT-20)/layers.length;
+}
+
+function getAncestors(layerIdx,pos){
+if(layerIdx<=0)return new Set([pos]);
+var l=layers[layerIdx];
+var k=l.kernel;
+var totalK=k;
+if(l.multi){totalK=1+(l.multi*(k-1));}
+if(l.stage==='pool'){
+var s=new Set();
+for(var i=0;i<T;i++)s.add(i);
+return s;
+}
+var half=Math.floor(totalK/2);
+var ancestors=new Set();
+for(var d=-half;d<=half;d++){
+var src=pos+d;
+if(src>=0&&src<T){
+var sub=getAncestors(layerIdx-1,src);
+sub.forEach(function(v){ancestors.add(v)});
+}
+}
+return ancestors;
+}
+
+function getDirectParents(layerIdx,pos){
+if(layerIdx<=0)return[];
+var l=layers[layerIdx];
+var k=l.kernel;
+if(l.stage==='pool'){
+var p=[];for(var i=0;i<T;i++)p.push(i);return p;
+}
+var totalK=k;
+if(l.multi){totalK=1+(l.multi*(k-1));}
+var half=Math.floor(totalK/2);
+var parents=[];
+for(var d=-half;d<=half;d++){
+var src=pos+d;
+if(src>=0&&src<T)parents.push(src);
+}
+return parents;
+}
+
+function draw(){
+ctx.clearRect(0,0,W,H);
+var hl=null;
+var hlInputs=null;
+var hlEdges=null;
+if(selected){
+hlInputs=getAncestors(selected.layer,selected.pos);
+hlEdges=[];
+for(var li=selected.layer;li>=1;li--){
+var positions;
+if(li===selected.layer){positions=[selected.pos];}
+else{
+positions=[];
+hlEdges.forEach(function(e){if(e.toLayer===li){
+if(positions.indexOf(e.toPos)===-1)positions.push(e.toPos);
+}});
+}
+positions.forEach(function(p){
+var parents=getDirectParents(li,p);
+parents.forEach(function(pp){
+hlEdges.push({fromLayer:li,fromPos:p,toLayer:li-1,toPos:pp});
+});
+});
+}
+}
+for(var li=1;li<layers.length;li++){
+for(var p=0;p<T;p++){
+var parents=getDirectParents(li,p);
+parents.forEach(function(pp){
+var x1=padL+pp*colW;
+var y1=padT+(li-1)*rowH;
+var x2=padL+p*colW;
+var y2=padT+li*rowH;
+var isHl=false;
+if(hlEdges){
+hlEdges.forEach(function(e){
+if(e.fromLayer===li&&e.fromPos===p&&e.toPos===pp)isHl=true;
+});
+}
+ctx.beginPath();
+ctx.moveTo(x1,y1+nodeR);
+ctx.lineTo(x2,y2-nodeR);
+if(isHl){
+ctx.strokeStyle='#378ADD';ctx.lineWidth=1.5;ctx.globalAlpha=0.7;
+}else{
+ctx.strokeStyle=isDk?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)';
+ctx.lineWidth=0.5;ctx.globalAlpha=1;
+}
+ctx.stroke();
+ctx.globalAlpha=1;
+});
+}
+}
+for(var li=0;li<layers.length;li++){
+var l=layers[li];
+var y=padT+li*rowH;
+ctx.fillStyle=isDk?'rgba(255,255,255,0.5)':'rgba(0,0,0,0.45)';
+ctx.font='500 11px var(--font-sans)';
+ctx.textAlign='right';
+ctx.textBaseline='middle';
+ctx.fillText(l.name,padL-12,y);
+for(var p=0;p<T;p++){
+var x=padL+p*colW;
+var isSelected=selected&&selected.layer===li&&selected.pos===p;
+var isInput=hlInputs&&li===0&&hlInputs.has(p);
+var isOnPath=false;
+if(hlEdges&&li>0&&li<=selected.layer){
+hlEdges.forEach(function(e){
+if(e.fromLayer===li&&e.fromPos===p)isOnPath=true;
+if(e.toLayer===li&&e.toPos===p)isOnPath=true;
+});
+}
+if(li===0&&hlInputs&&hlInputs.has(p))isOnPath=true;
+ctx.beginPath();
+ctx.arc(x,y,isSelected?nodeR+2:nodeR,0,Math.PI*2);
+if(isSelected){
+ctx.fillStyle='#EF9F27';
+}else if(isOnPath||isInput){
+ctx.fillStyle='#378ADD';
+}else{
+ctx.fillStyle=selected?
+(isDk?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.08)'):
+(cols[l.stage]);
+}
+ctx.fill();
+if(!selected||(isOnPath||isSelected)){
+ctx.strokeStyle=isDk?'rgba(255,255,255,0.2)':'rgba(0,0,0,0.15)';
+ctx.lineWidth=0.5;
+ctx.stroke();
+}
+}
+}
+if(selected){
+var rf;
+var l=layers[selected.layer];
+if(l.stage==='pool'){rf=T}
+else if(l.stage==='input'){rf=1}
+else{
+var cumRf=1;
+for(var i=1;i<=selected.layer;i++){
+var k=layers[i].kernel;
+var m=layers[i].multi||1;
+cumRf+=(k-1)*m;
+}
+rf=Math.min(cumRf,T);
+}
+var info='At <strong>'+l.name+'</strong>, position '+selected.pos+': ';
+info+='receptive field = <strong>'+rf+' frames</strong>';
+if(hlInputs){
+var inp=Array.from(hlInputs).sort(function(a,b){return a-b});
+info+=' (frames '+inp[0]+'–'+inp[inp.length-1]+')';
+}
+if(rf>=T)info+=' — <strong>full clip coverage</strong>';
+document.getElementById('tc-info').innerHTML=info;
+}
+}
+
+cv.addEventListener('click',function(e){
+var rect=cv.getBoundingClientRect();
+var mx=e.clientX-rect.left;
+var my=e.clientY-rect.top;
+var best=null;
+var bestD=Infinity;
+for(var li=0;li<layers.length;li++){
+for(var p=0;p<T;p++){
+var x=padL+p*colW;
+var y=padT+li*rowH;
+var d=Math.sqrt((mx-x)*(mx-x)+(my-y)*(my-y));
+if(d<bestD&&d<20){bestD=d;best={layer:li,pos:p};}
+}
+}
+if(best){
+if(selected&&selected.layer===best.layer&&selected.pos===best.pos){selected=null;}
+else{selected=best;}
+}else{selected=null;}
+draw();
+});
+
+resize();
+draw();
+window.addEventListener('resize',function(){resize();draw()});
+</script>

@@ -1,0 +1,737 @@
+{
+  "_mock_data": true,
+  "split": "val",
+  "n_clips": 28,
+  "class_list": [
+    "net_shot",
+    "return_net",
+    "smash",
+    "wrist_smash",
+    "lob",
+    "clear",
+    "drive",
+    "drop",
+    "passive_drop",
+    "push",
+    "rush",
+    "cross_court_net_shot",
+    "short_service",
+    "long_service"
+  ],
+  "per_class": {
+    "net_shot": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.9371,
+      "recall": 0.9064,
+      "f1": 0.8924,
+      "top5_when_true": [
+        [
+          "net_shot",
+          0.91
+        ],
+        [
+          "return_net",
+          0.05
+        ],
+        [
+          "cross_court_net_shot",
+          0.02
+        ],
+        [
+          "rush",
+          0.01
+        ],
+        [
+          "passive_drop",
+          0.01
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "net_shot",
+          0.94
+        ],
+        [
+          "return_net",
+          0.02
+        ],
+        [
+          "cross_court_net_shot",
+          0.02
+        ],
+        [
+          "smash",
+          0.01
+        ],
+        [
+          "wrist_smash",
+          0.01
+        ]
+      ]
+    },
+    "return_net": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.8531,
+      "recall": 0.8255,
+      "f1": 0.8184,
+      "top5_when_true": [
+        [
+          "return_net",
+          0.83
+        ],
+        [
+          "net_shot",
+          0.07
+        ],
+        [
+          "rush",
+          0.04
+        ],
+        [
+          "smash",
+          0.02
+        ],
+        [
+          "passive_drop",
+          0.02
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "return_net",
+          0.85
+        ],
+        [
+          "net_shot",
+          0.08
+        ],
+        [
+          "rush",
+          0.04
+        ],
+        [
+          "wrist_smash",
+          0.01
+        ],
+        [
+          "push",
+          0.01
+        ]
+      ]
+    },
+    "smash": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.5313,
+      "recall": 0.5285,
+      "f1": 0.5147,
+      "top5_when_true": [
+        [
+          "smash",
+          0.53
+        ],
+        [
+          "wrist_smash",
+          0.22
+        ],
+        [
+          "drive",
+          0.09
+        ],
+        [
+          "push",
+          0.05
+        ],
+        [
+          "short_service",
+          0.05
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "smash",
+          0.53
+        ],
+        [
+          "wrist_smash",
+          0.23
+        ],
+        [
+          "drive",
+          0.1
+        ],
+        [
+          "rush",
+          0.05
+        ],
+        [
+          "long_service",
+          0.05
+        ]
+      ]
+    },
+    "wrist_smash": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.4912,
+      "recall": 0.5632,
+      "f1": 0.5186,
+      "top5_when_true": [
+        [
+          "wrist_smash",
+          0.56
+        ],
+        [
+          "smash",
+          0.23
+        ],
+        [
+          "drop",
+          0.11
+        ],
+        [
+          "return_net",
+          0.03
+        ],
+        [
+          "lob",
+          0.03
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "wrist_smash",
+          0.49
+        ],
+        [
+          "smash",
+          0.2
+        ],
+        [
+          "drop",
+          0.14
+        ],
+        [
+          "drive",
+          0.06
+        ],
+        [
+          "clear",
+          0.06
+        ]
+      ]
+    },
+    "lob": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.7971,
+      "recall": 0.8278,
+      "f1": 0.7846,
+      "top5_when_true": [
+        [
+          "lob",
+          0.83
+        ],
+        [
+          "clear",
+          0.09
+        ],
+        [
+          "drive",
+          0.03
+        ],
+        [
+          "short_service",
+          0.02
+        ],
+        [
+          "wrist_smash",
+          0.02
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "lob",
+          0.8
+        ],
+        [
+          "clear",
+          0.08
+        ],
+        [
+          "drive",
+          0.05
+        ],
+        [
+          "rush",
+          0.02
+        ],
+        [
+          "return_net",
+          0.02
+        ]
+      ]
+    },
+    "clear": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.9695,
+      "recall": 0.9421,
+      "f1": 0.9465,
+      "top5_when_true": [
+        [
+          "clear",
+          0.94
+        ],
+        [
+          "lob",
+          0.02
+        ],
+        [
+          "drive",
+          0.01
+        ],
+        [
+          "return_net",
+          0.01
+        ],
+        [
+          "cross_court_net_shot",
+          0.01
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "clear",
+          0.97
+        ],
+        [
+          "lob",
+          0.02
+        ],
+        [
+          "drive",
+          0.01
+        ],
+        [
+          "smash",
+          0.0
+        ],
+        [
+          "long_service",
+          0.0
+        ]
+      ]
+    },
+    "drive": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.6226,
+      "recall": 0.6763,
+      "f1": 0.6628,
+      "top5_when_true": [
+        [
+          "drive",
+          0.68
+        ],
+        [
+          "push",
+          0.16
+        ],
+        [
+          "smash",
+          0.06
+        ],
+        [
+          "cross_court_net_shot",
+          0.03
+        ],
+        [
+          "wrist_smash",
+          0.03
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "drive",
+          0.62
+        ],
+        [
+          "push",
+          0.15
+        ],
+        [
+          "smash",
+          0.09
+        ],
+        [
+          "long_service",
+          0.05
+        ],
+        [
+          "clear",
+          0.05
+        ]
+      ]
+    },
+    "drop": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.663,
+      "recall": 0.7268,
+      "f1": 0.6821,
+      "top5_when_true": [
+        [
+          "drop",
+          0.73
+        ],
+        [
+          "passive_drop",
+          0.1
+        ],
+        [
+          "wrist_smash",
+          0.06
+        ],
+        [
+          "long_service",
+          0.04
+        ],
+        [
+          "short_service",
+          0.04
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "drop",
+          0.66
+        ],
+        [
+          "passive_drop",
+          0.18
+        ],
+        [
+          "wrist_smash",
+          0.08
+        ],
+        [
+          "rush",
+          0.03
+        ],
+        [
+          "drive",
+          0.03
+        ]
+      ]
+    },
+    "passive_drop": {
+      "support_true": 20,
+      "support_pred": 21,
+      "precision": 0.7066,
+      "recall": 0.6617,
+      "f1": 0.6765,
+      "top5_when_true": [
+        [
+          "passive_drop",
+          0.66
+        ],
+        [
+          "drop",
+          0.18
+        ],
+        [
+          "push",
+          0.08
+        ],
+        [
+          "long_service",
+          0.03
+        ],
+        [
+          "short_service",
+          0.03
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "passive_drop",
+          0.71
+        ],
+        [
+          "drop",
+          0.13
+        ],
+        [
+          "push",
+          0.08
+        ],
+        [
+          "drive",
+          0.03
+        ],
+        [
+          "cross_court_net_shot",
+          0.03
+        ]
+      ]
+    },
+    "push": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.6277,
+      "recall": 0.6929,
+      "f1": 0.6546,
+      "top5_when_true": [
+        [
+          "push",
+          0.69
+        ],
+        [
+          "drive",
+          0.15
+        ],
+        [
+          "drop",
+          0.08
+        ],
+        [
+          "short_service",
+          0.03
+        ],
+        [
+          "wrist_smash",
+          0.03
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "push",
+          0.63
+        ],
+        [
+          "drive",
+          0.19
+        ],
+        [
+          "drop",
+          0.1
+        ],
+        [
+          "net_shot",
+          0.03
+        ],
+        [
+          "passive_drop",
+          0.03
+        ]
+      ]
+    },
+    "rush": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.7529,
+      "recall": 0.7411,
+      "f1": 0.7742,
+      "top5_when_true": [
+        [
+          "rush",
+          0.74
+        ],
+        [
+          "return_net",
+          0.11
+        ],
+        [
+          "push",
+          0.07
+        ],
+        [
+          "drop",
+          0.03
+        ],
+        [
+          "drive",
+          0.03
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "rush",
+          0.75
+        ],
+        [
+          "return_net",
+          0.11
+        ],
+        [
+          "push",
+          0.07
+        ],
+        [
+          "drive",
+          0.02
+        ],
+        [
+          "short_service",
+          0.02
+        ]
+      ]
+    },
+    "cross_court_net_shot": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.6543,
+      "recall": 0.646,
+      "f1": 0.613,
+      "top5_when_true": [
+        [
+          "cross_court_net_shot",
+          0.65
+        ],
+        [
+          "net_shot",
+          0.13
+        ],
+        [
+          "return_net",
+          0.08
+        ],
+        [
+          "drive",
+          0.05
+        ],
+        [
+          "push",
+          0.05
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "cross_court_net_shot",
+          0.65
+        ],
+        [
+          "net_shot",
+          0.19
+        ],
+        [
+          "return_net",
+          0.09
+        ],
+        [
+          "rush",
+          0.02
+        ],
+        [
+          "long_service",
+          0.02
+        ]
+      ]
+    },
+    "short_service": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.9502,
+      "recall": 0.9926,
+      "f1": 0.9801,
+      "top5_when_true": [
+        [
+          "short_service",
+          0.99
+        ],
+        [
+          "push",
+          0.0
+        ],
+        [
+          "long_service",
+          0.0
+        ],
+        [
+          "drop",
+          0.0
+        ],
+        [
+          "clear",
+          0.0
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "short_service",
+          0.95
+        ],
+        [
+          "push",
+          0.02
+        ],
+        [
+          "long_service",
+          0.01
+        ],
+        [
+          "drop",
+          0.01
+        ],
+        [
+          "drive",
+          0.01
+        ]
+      ]
+    },
+    "long_service": {
+      "support_true": 20,
+      "support_pred": 20,
+      "precision": 0.9991,
+      "recall": 0.9845,
+      "f1": 0.9517,
+      "top5_when_true": [
+        [
+          "long_service",
+          0.98
+        ],
+        [
+          "clear",
+          0.01
+        ],
+        [
+          "short_service",
+          0.0
+        ],
+        [
+          "lob",
+          0.0
+        ],
+        [
+          "passive_drop",
+          0.0
+        ]
+      ],
+      "top5_when_pred": [
+        [
+          "long_service",
+          1.0
+        ],
+        [
+          "clear",
+          0.0
+        ],
+        [
+          "short_service",
+          0.0
+        ],
+        [
+          "push",
+          0.0
+        ],
+        [
+          "drive",
+          0.0
+        ]
+      ]
+    }
+  }
+}

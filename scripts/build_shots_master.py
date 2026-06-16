@@ -13,7 +13,7 @@ Single source of truth for BRIC's per-stroke metadata. Reads from:
       * ``shared.player_mapping`` — collect_shots (A/B → Top/Bottom)
       * ``shared.taxonomy`` — STROKE_TYPES_19_ZH
 
-No imports from ``bst_refactor`` — BRIC stays self-contained. No
+No imports from ``bst_x`` — BRIC stays self-contained. No
 dependency on notebook 03's clips_master.csv either; this script
 generates BRIC's superset from the same primary sources notebook 03
 reads.
@@ -253,7 +253,7 @@ def drop_invalid_bounds(master: pd.DataFrame) -> pd.DataFrame:
     flaw_shot_records.csv but only with ``measure='modified'`` (not
     removed), so the bad data remains. The remaining ~1/3 are silent
     corruption the upstream annotators didn't catch — our bounds check
-    surfaces them. Per BRIC's no-edits-in-bst_refactor rule we apply
+    surfaces them. Per BRIC's no-edits-in-bst_x rule we apply
     the filter here, downstream of the BST mirror.
     """
     bad_start = master['shuttle_start_f'] >= master['frame_num']

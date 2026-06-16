@@ -25,7 +25,7 @@ The full list of stems for a split is whatever the per-clip browser shows on
 the left, or the keys in:
 
 ```
-src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/clip_index.json
+src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/clip_index.json
 ```
 
 ## How it's served
@@ -33,10 +33,10 @@ src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_202605
 The backend endpoint `GET /api/clips/<stem>/video` resolves in this order:
 
 1. `clips_local/<stem>.mp4` (this directory) — what you drop here.
-2. The dataset tree under `BST_CLIPS_DIR` (UNE HPC / mounted box).
+2. The dataset tree under `BST_X_CLIPS_DIR` (UNE HPC / mounted box).
 
-So you do **not** need `BST_CLIPS_DIR` set to play a local drop. Override the
-directory with the `BST_LOCAL_CLIPS_DIR` env var if you want it elsewhere.
+So you do **not** need `BST_X_CLIPS_DIR` set to play a local drop. Override the
+directory with the `BST_X_LOCAL_CLIPS_DIR` env var if you want it elsewhere.
 
 If no clip is found for a stem, the player shows a "Clip not available locally"
 message — it does not crash.
@@ -45,5 +45,5 @@ message — it does not crash.
 
 These clips play next to the clip's **real ground-truth label**. The model's
 **prediction** is shown as *pending (placeholder data)* until real per-clip
-inference (a live BST forward pass on the deploy box) is served — the committed
+inference (a live BST-X forward pass on the deploy box) is served — the committed
 prediction records are placeholders (prediction = ground truth at 100%).

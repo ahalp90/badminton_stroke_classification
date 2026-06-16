@@ -1,0 +1,110 @@
+[taxonomy] bst_12: 12 classes, has_sides=False, has_unknown=False
+[taxonomy] classes: ['net_shot', 'return_net', 'smash', 'lob', 'clear', 'drive', 'drop', 'push', 'rush', 'cross_court_net_shot', 'short_service', 'long_service']
+
+=== Serial 1 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12  F1-score
+avg                                                Avg                    0.81
+min                                                Min                    0.62
+0                                 net_shot                                0.90
+1                                 return_net                              0.81
+2                                 smash                                   0.88
+3                                 lob                                     0.78
+4                                 clear                                   0.95
+5                                 drive                                   0.62
+6                                 drop                                    0.83
+7                                 push                                    0.62
+8                                 rush                                    0.77
+9                                 cross_court_net_shot                    0.66
+10                                short_service                           0.97
+11                                long_service                            0.97
+Accuracy: 0.823
+Top2 Accuracy: 0.956
+[taxonomy] bst_12: 12 classes, has_sides=False, has_unknown=False
+[taxonomy] classes: ['net_shot', 'return_net', 'smash', 'lob', 'clear', 'drive', 'drop', 'push', 'rush', 'cross_court_net_shot', 'short_service', 'long_service']
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_2) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_2  F1-score
+avg                                                Avg                      0.80
+min                                                Min                      0.55
+0                                 net_shot                                  0.90
+1                                 return_net                                0.80
+2                                 smash                                     0.88
+3                                 lob                                       0.77
+4                                 clear                                     0.94
+5                                 drive                                     0.58
+6                                 drop                                      0.84
+7                                 push                                      0.55
+8                                 rush                                      0.71
+9                                 cross_court_net_shot                      0.64
+10                                short_service                             0.98
+11                                long_service                              0.96
+Accuracy: 0.812
+Top2 Accuracy: 0.955
+[taxonomy] bst_12: 12 classes, has_sides=False, has_unknown=False
+[taxonomy] classes: ['net_shot', 'return_net', 'smash', 'lob', 'clear', 'drive', 'drop', 'push', 'rush', 'cross_court_net_shot', 'short_service', 'long_service']
+
+=== Serial 3 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_3) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_3  F1-score
+avg                                                Avg                      0.81
+min                                                Min                      0.59
+0                                 net_shot                                  0.90
+1                                 return_net                                0.82
+2                                 smash                                     0.87
+3                                 lob                                       0.78
+4                                 clear                                     0.95
+5                                 drive                                     0.59
+6                                 drop                                      0.82
+7                                 push                                      0.65
+8                                 rush                                      0.76
+9                                 cross_court_net_shot                      0.63
+10                                short_service                             0.97
+11                                long_service                              0.97
+Accuracy: 0.821
+Top2 Accuracy: 0.955
+[taxonomy] bst_12: 12 classes, has_sides=False, has_unknown=False
+[taxonomy] classes: ['net_shot', 'return_net', 'smash', 'lob', 'clear', 'drive', 'drop', 'push', 'rush', 'cross_court_net_shot', 'short_service', 'long_service']
+
+=== Serial 4 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_4) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_4  F1-score
+avg                                                Avg                      0.81
+min                                                Min                      0.62
+0                                 net_shot                                  0.90
+1                                 return_net                                0.80
+2                                 smash                                     0.87
+3                                 lob                                       0.79
+4                                 clear                                     0.96
+5                                 drive                                     0.62
+6                                 drop                                      0.85
+7                                 push                                      0.62
+8                                 rush                                      0.73
+9                                 cross_court_net_shot                      0.65
+10                                short_service                             0.98
+11                                long_service                              0.97
+Accuracy: 0.827
+Top2 Accuracy: 0.961
+[taxonomy] bst_12: 12 classes, has_sides=False, has_unknown=False
+[taxonomy] classes: ['net_shot', 'return_net', 'smash', 'lob', 'clear', 'drive', 'drop', 'push', 'rush', 'cross_court_net_shot', 'short_service', 'long_service']
+
+=== Serial 5 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_5) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_5  F1-score
+avg                                                Avg                      0.82
+min                                                Min                      0.64
+0                                 net_shot                                  0.89
+1                                 return_net                                0.80
+2                                 smash                                     0.87
+3                                 lob                                       0.78
+4                                 clear                                     0.95
+5                                 drive                                     0.65
+6                                 drop                                      0.83
+7                                 push                                      0.65
+8                                 rush                                      0.78
+9                                 cross_court_net_shot                      0.64
+10                                short_service                             0.96
+11                                long_service                              0.98
+Accuracy: 0.822
+Top2 Accuracy: 0.956

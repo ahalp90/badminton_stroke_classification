@@ -244,4 +244,4 @@ The initial BST-comparable model's hyperparameters substantially constrain this 
 
 ### Training/inference scripts
 
-The overall structure of `bst_train.py` and `bst_infer.py` (training loop, checkpoint saving, early stopping, multi-trial evaluation) can be adapted. The `Hyp` namedtuple pattern for hyperparameter management, the AdamW + cosine annealing setup, and the label smoothing configuration all transfer. The progressive unfreezing stages (Section 7) require modifications to the training loop that BST's single-stage training does not have.
+The overall structure of `bst_x_train.py` and `bst_x_infer.py` (training loop, checkpoint saving, early stopping, multi-trial evaluation) can be adapted. The `Hyp` namedtuple pattern for hyperparameter management, the AdamW + cosine annealing setup, and the label smoothing configuration all transfer. The progressive unfreezing stages (Section 7) require modifications to the training loop that BST's single-stage training does not have.

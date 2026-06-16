@@ -1,0 +1,10 @@
+# Data pipeline — downloads videos, generates labeled clips, verifies output.
+# Python 3.11.X
+# No ML frameworks needed. TrackNetV3 (optional step 6) shares the BST venv — see README.md.
+
+yt-dlp==2026.3.17               # YouTube video download
+moviepy==2.2.1                   # Video clip extraction
+opencv-python==4.13.0.92         # Resolution scanning, video I/O
+pandas>=2.0.0,<3.0.0             # CoW default in 3.0 would break chained iloc patterns
+numpy==2.2.6                     # No OpenMMLab here, modern numpy is fine
+tqdm==4.67.3                     # Progress bars

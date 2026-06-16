@@ -366,7 +366,7 @@ GET  /api/status/{job_id}                                     (Tier 3 polling)
 
 ## Open items
 
-Data paths are resolved on the backend via env vars (`BST_X_COLLATED_DATA_ROOT` for collated tensors, the existing `BST_CLIPS_DIR` for clip videos). The frontend never sees them. Frontend contract is the JSON, not the filesystem.
+Data paths are resolved on the backend via env vars (`BST_X_COLLATED_DATA_ROOT` for collated tensors, the existing `BST_X_CLIPS_DIR` for clip videos). The frontend never sees them. Frontend contract is the JSON, not the filesystem.
 
 If you spot anything here that's ambiguous, or that conflicts with the existing frontend stubs, let me know and I'll fix it. I'd build against Tier 1 first; everything else follows the same shape.
 

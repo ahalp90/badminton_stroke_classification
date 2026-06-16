@@ -12,9 +12,9 @@ services:
     volumes:
       # Sample clips for the video endpoint. Empty until you drop clips in.
       - ./scratch/inspect_clips:/app/runtime/clips:ro
-      # Collated tensors for the real BST forward pass (src/api/bst_inference.py).
+      # Collated tensors for the real BST forward pass (src/api/bst_x_inference.py).
       # Obtained out-of-band; see HANDOVER.md. Empty dir => live inference off.
-      - ./scratch/bst_inputs:/app/bst_inputs:ro
+      - ./scratch/bst_x_inputs:/app/bst_x_inputs:ro
       # Keep uploads in a named volume rather than the bind mount. On some hosts
       # (e.g. FUSE/mergerfs mounts) the container user cannot write to a
       # bind-mounted uploads dir; the named volume sidesteps that, like prod.

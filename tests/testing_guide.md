@@ -8,7 +8,7 @@ From the project root:
 pytest
 ```
 
-This runs all tests except the HPC integration test, which auto-skips when `BST_DATA_DIR` is not set.
+This runs all tests except the HPC integration test, which auto-skips when `BST_X_DATA_DIR` is not set.
 
 ## Test files
 
@@ -23,7 +23,7 @@ This runs all tests except the HPC integration test, which auto-skips when `BST_
 - **Prerequisites:** Project dependencies
 
 ### `test_sticky_anchor.py`
-**Sticky_anchor heuristic invariant tests.** Seven pinning tests for the per-slot Voronoi + EMA tracker (`src/bst_refactor/stroke_classification/preparing_data/heuristics/sticky_anchor.py`). Synthetic-only — uses an identity-homography court at 1280x720 so picking and EMA-reset behaviour can be verified deterministically. The X3D-S wrist-crop layer will consume the same per-slot pose stream, so these invariants are pinned before that work lands.
+**Sticky_anchor heuristic invariant tests.** Seven pinning tests for the per-slot Voronoi + EMA tracker (`src/bst_x/stroke_classification/preparing_data/heuristics/sticky_anchor.py`). Synthetic-only — uses an identity-homography court at 1280x720 so picking and EMA-reset behaviour can be verified deterministically. The X3D-S wrist-crop layer will consume the same per-slot pose stream, so these invariants are pinned before that work lands.
 
 - **Prerequisites:** Project dependencies
 
@@ -42,34 +42,34 @@ This runs all tests except the HPC integration test, which auto-skips when `BST_
 
 1. Load real npy files via `Dataset_npy_collated`
 2. Batch via `DataLoader`
-3. Flatten pose tensor (mirrors `bst_train.py:101`)
+3. Flatten pose tensor (mirrors `bst_x_train.py:101`)
 4. Run `BST_0` forward pass
 5. Verify output shape is `(batch_size, n_classes)`
 
 - **Prerequisites:** Preprocessed npy dataset (output of `prepare_train_on_shuttleset.py`)
 
-To run, point `BST_DATA_DIR` at a collated `npy_[3d_][seq{N}_]{split}_{collation_id}` directory (should contain `train/`, `val/`, `test/` subdirectories). Prefix tags (`3d_`, `seq{N}_`) appear only for non-default configs. Split is folded into the name; `collation_id` is the generation tag, so re-collations of the same taxonomy + split coexist:
+To run, point `BST_X_DATA_DIR` at a collated `npy_[3d_][seq{N}_]{split}_{collation_id}` directory (should contain `train/`, `val/`, `test/` subdirectories). Prefix tags (`3d_`, `seq{N}_`) appear only for non-default configs. Split is folded into the name; `collation_id` is the generation tag, so re-collations of the same taxonomy + split coexist:
 
 ```bash
-BST_DATA_DIR=/scratch/.../npy_v2_taxon_pinned_w_preds \
+BST_X_DATA_DIR=/scratch/.../npy_v2_taxon_pinned_w_preds \
     pytest tests/test_integration.py -v
 ```
 
 Historical note: pre-2026-04-21 collated dirs used a longer prefix (`dataset_npy_collated_between_2_hits_with_max_limits_seq_100_..._{ablation_id}`). V3 and V4 on engelbart still live under the old name; everything going forward uses the shorter `npy_...` form.
 
-Without `BST_DATA_DIR` set, this test auto-skips.
+Without `BST_X_DATA_DIR` set, this test auto-skips.
 
 **Note:** This test validates against `BST_0`, the baseline and parent class for BST-origin architectures. It covers the shared data pipeline (pose, shuttle, position npy files) but will need to evolve as Arch 1 and Arch 2 mature — Arch 1 will additionally ingest 3D CNN latent representations, and Arch 2 will have its own 3D CNN latents, TrackNet npy data, and potentially other input streams.
 
 ## CI
 
-GitHub Actions runs `pytest` on every push and PR (`.github/workflows/ci.yml`). The integration test auto-skips in CI since `BST_DATA_DIR` is not set.
+GitHub Actions runs `pytest` on every push and PR (`.github/workflows/ci.yml`). The integration test auto-skips in CI since `BST_X_DATA_DIR` is not set.
 
 ## conftest.py
 
-The root `conftest.py` adds two entries to `sys.path` so that imports used inside `bst_refactor` work from the test directory:
+The root `conftest.py` adds two entries to `sys.path` so that imports used inside `bst_x` work from the test directory:
 
-- `src/bst_refactor` — allows `from pipeline.config import ...`, `from run_tracker import ...`
-- `src/bst_refactor/stroke_classification` — allows `from preparing_data.shuttleset_dataset import ...`, `from main_on_shuttleset.bst_common import ...`, `from model.tempose import ...`
+- `src/bst_x` — allows `from pipeline.config import ...`, `from run_tracker import ...`
+- `src/bst_x/stroke_classification` — allows `from preparing_data.shuttleset_dataset import ...`, `from main_on_shuttleset.bst_x_common import ...`, `from model.tempose import ...`
 
-The same pair is the documented PYTHONPATH for non-test invocation post-step-P (`PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification python -m main_on_shuttleset.bst_train`), so tests and production share one resolution layout.
+The same pair is the documented PYTHONPATH for non-test invocation post-step-P (`PYTHONPATH=src/bst_x:src/bst_x/stroke_classification python -m main_on_shuttleset.bst_x_train`), so tests and production share one resolution layout.

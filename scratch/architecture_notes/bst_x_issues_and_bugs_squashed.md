@@ -102,7 +102,7 @@ Chang's original BST work must have avoided this because he hand-curated his cli
 
 **Bug.** Exactly as it sounds. Not exciting, but quite annoying.
 
-**Fix.** `parents[3]` to `parents[2]`. Later folded into `bst_infer --fe`.
+**Fix.** `parents[3]` to `parents[2]`. Later folded into `bst_x_infer --fe`.
 
 **More.** Commit `5693ce4`.
 

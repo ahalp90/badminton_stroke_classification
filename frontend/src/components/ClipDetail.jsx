@@ -34,7 +34,7 @@ export function ClipDetail({ detail }) {
                 Clip not available locally.<br/>
                 Drop <span style={{ fontFamily: MONO, color: t.text }}>{detail.clip_stem}.mp4</span> into{' '}
                 <span style={{ fontFamily: MONO, color: t.text }}>clips_local/</span> to play it here
-                {' '}— or set <span style={{ fontFamily: MONO }}>BST_CLIPS_DIR</span> on a host that has the dataset.
+                {' '}— or set <span style={{ fontFamily: MONO }}>BST_X_CLIPS_DIR</span> on a host that has the dataset.
             </div>
             ) : (
             <video

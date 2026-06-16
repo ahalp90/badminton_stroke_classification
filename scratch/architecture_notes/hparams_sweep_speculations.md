@@ -254,7 +254,7 @@ multimodal input combination, not the underlying transformer or TCN
 sizing. (Verified by full-paper read on 2026-04-30; paper PDF at
 `https://arxiv.org/abs/2502.21085`.)
 
-So everything in `bst_train.py:62-77` and `model/bst.py:140-141`
+So everything in `bst_x_train.py:62-77` and `model/bst.py:140-141`
 that is not `taxonomy`, `seq_len`, `pose_style`, the CG/AP module
 flags, the LR-schedule retune (Q4) and the aux schedule is on
 its paper-default, never tuned here.
@@ -297,7 +297,7 @@ the shift augmentation.
   literature.
 
 **One inheritance discrepancy to note: BST uses `depth_tem=2,
-depth_inter=1`** (per `bst_common.build_bst_network` defaults) but
+depth_inter=1`** (per `bst_x_common.build_bst_x_network` defaults) but
 TemPose's empirical winner from Table 4 is `(LT=2, LN=2)` at
 90.7%. The `(LT=2, LN=1)` cell scored 90.0%, so BST is
 inheriting a configuration ~0.7% below the TemPose optimum,
@@ -560,7 +560,7 @@ do a small joint cell with weight_decay (4 cells, 3 serials each,
 
 **Status correction (2026-05-04).** The original framing of this
 section read the live aug as coupled across streams. That's wrong.
-Code trace at `bst_train.py:198-205`: `random_shift_fn` is called
+Code trace at `bst_x_train.py:198-205`: `random_shift_fn` is called
 on `human_pose` only (joints slice of it when bones are active,
 since bones are translation-invariant), and `shuttle` and `pos` are
 passed straight through. The shift is per-sample (`(n, d)` shape at
@@ -685,7 +685,7 @@ If you do run it, two cells worth testing:
 **What these are.** `depth_tem` is the number of stacked
 TransformerEncoder layers in the **temporal** transformer that
 processes each player-stream independently along the time axis
-(`bst.BST.__init__`, `bst_common.build_bst_network` line 52-53,
+(`bst.BST.__init__`, `bst_x_common.build_bst_x_network` line 52-53,
 `model/bst.py:177`). Each layer is a self-attention + FF block. With
 depth_tem=2, the temporal transformer has two stacked encoder
 layers; with depth_tem=3, three; etc. Same idea as encoder depth in
@@ -697,7 +697,7 @@ two-player-plus-shuttle representation as one sequence
 (`model/bst.py:186`). With depth_inter=1, the interactional
 transformer is a single encoder layer; the heavy lifting is in the
 temporal transformer and the cross-transformer. Both depths are
-hardcoded in `bst_common.build_bst_network` defaults rather than
+hardcoded in `bst_x_common.build_bst_x_network` defaults rather than
 exposed via `Hyp`.
 
 **What changing them does.** Adding depth gives the model more
@@ -1107,6 +1107,6 @@ unrecoverable mid-length off-screen gaps).
   `https://github.com/philipperemy/keras-tcn`; Bai et al 2018
   `arxiv:1803.01271`
 - Phase-2 zeroing analysis (real numbers used in the frame-zeroing
-  section): `src/bst_refactor/validation_scripts/zeroed_frames_analysis_outputs/analysis_merged25_bstbaseline_20260429_1906.txt`
+  section): `src/bst_x/validation_scripts/zeroed_frames_analysis_outputs/analysis_merged25_bstbaseline_20260429_1906.txt`
 - Phase-2 raw mmpose ndet baseline:
-  `src/bst_refactor/validation_scripts/raw_ndet_stats_outputs/baseline_2026-04-29.md`
+  `src/bst_x/validation_scripts/raw_ndet_stats_outputs/baseline_2026-04-29.md`

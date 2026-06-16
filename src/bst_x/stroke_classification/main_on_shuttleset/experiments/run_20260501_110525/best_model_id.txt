@@ -1,0 +1,131 @@
+Best model of run_20260501_110525/ - #2
+  #2: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
+
+Phase 2 class-weighting smoke test (combo A: une_merge_v1_nosides +
+split_v2 + dropunk, label_smoothing=0.15,
+class_weights={wrist_smash: 2.0, smash: 2.0}) on the unified
+sticky_anchor mmpose clean dir. Pair-balanced manual reweighting on
+the wrist_smash <-> smash confusion pair, queued behind the LS arc
+to test whether static loss-side reweighting can move the
+wrist_smash floor past what LS=0.15 already lifted it to. Direct
+apples-to-apples vs LS=0.15 cell run_20260501_073430 (same hparams,
+class_weights added) and vs LS=0.1 baseline run_20260430_170325.
+
+Hparams:
+  taxonomy=une_merge_v1_nosides, split_column=split_v2,
+  drop_unknown=True, n_epochs=80, warm_up_step=100,
+  early_stop_n_epochs=40, scheduler num_cycles=0.5, lr=5e-4,
+  batch_size=128, use_aux_schedule=True, aux_fade_end_epoch=15,
+  label_smoothing=0.15,
+  class_weights={wrist_smash: 2.0, smash: 2.0} (pair-balanced;
+  weights renormalised to mean=1.0 inside loss build at
+  bst_train.py:301-).
+  ablation_id=None
+  (resolves to une_merge_v1_nosides_split_v2_dropunk).
+
+Result: new project-wide ceiling on wrist_smash F1.
+  S2 wrist_smash 0.518: highest per-serial wrist_smash across
+  all 25 nosides serials run to date. Prior best was 0.46 (LS=0.1
+  S5); first time any nosides serial clears 0.50.
+
+  Two further ceiling-breakers in S4 of this same run:
+  - macro 0.756 (prior best LS=0.15 S3 = 0.753, +0.3 pp)
+  - accuracy 0.777 (prior best LS=0.15 S3 = 0.773, +0.4 pp)
+  - drive 0.66 (prior best LS=0.0 S4 = 0.64, +2 pp)
+  S4 not flagged as the run best (S2's wrist_smash result is
+  the metric this run was probing) but its weights are also
+  worth holding if disk allows.
+
+  Other bottom-5 classes (smash, drop, passive_drop, push,
+  cross_court_net_shot) within 1 pp of prior bests, no notable
+  movement.
+
+Metric split (num_strokes=4202, 14 classes):
+  - Serial 2: top min F1 (0.518, wrist_smash), macro 0.751,
+    acc 0.766, top-2 0.936. Flagged.
+  - Serial 4: top macro 0.756, top acc 0.777, drive 0.66
+    (also new project-wide highs), min 0.441, top-2 0.936.
+  - Serial 5: macro 0.754, min 0.378, acc 0.774, top top-2 0.940.
+  - Serial 1: macro 0.744, min 0.375, acc 0.770, top-2 0.937.
+  - Serial 3: macro 0.735, min 0.399, acc 0.762, top-2 0.931.
+
+Mean across 5: macro 0.748, min 0.422, acc 0.770, top-2 0.936.
+Smash mean 0.653 (range 0.630-0.668).
+
+Vs LS=0.15 cell run_20260501_073430 mean
+(0.747 / 0.417 / 0.769 / 0.938; smash mean 0.648):
+  macro +0.001, min +0.005, acc +0.001, top-2 -0.002,
+  smash +0.005.
+
+Vs LS=0.1 baseline run_20260430_170325 mean
+(0.742 / 0.375 / 0.767 / 0.938):
+  macro +0.006, min +0.047, acc +0.003, top-2 -0.002.
+
+The mean read: pair-balanced reweighting added essentially zero
+past LS=0.15 on the central tendency (+0.5 pp wrist_smash,
+within seed variance). Smash mean held (+0.5 pp), so the
+pair-balanced design didn't induce asymmetric collapse.
+
+The ceiling read: wrist_smash range widened from LS=0.15's
+0.066 (0.382-0.448) to 0.143 (0.378-0.518) in this run. The
+upper end of that band is the new project-wide high; three
+seeds (S1, S3, S5) sit in the LS=0.1-baseline range around
+0.37-0.40, one (S2) found a wrist_smash basin worth 0.52 that
+no prior nosides serial accessed. Bimodal seed distribution,
+not a flat ceiling.
+
+S2 cost check: wrist_smash 0.518 (10.0 pp above the within-run
+mean of 0.422). Cost concentrated on smash (S2 0.630 vs run mean
+0.653, -2.3 pp) and drive (S2 0.585 vs run mean 0.620, -3.5 pp).
+S2 macro 0.751 still 2nd best of the run, so capacity wasn't
+lost, just redistributed toward wrist_smash.
+Cross_court_net_shot S2 0.701 is also notable (+3.4 pp vs run
+mean of 0.667; near the project ceiling of 0.71).
+
+Per-class movement S3 (LS=0.15 best) -> S2 (class-weighted best):
+  Up: wrist_smash +6.8, cross_court_net_shot +0.8.
+  Down: clear -0.3, drive -3.5, push -1.8, return_net -1.5,
+        smash -2.7, services within 1 pp.
+  Most other classes within 1 pp.
+
+Smoke test reads as: static loss reweighting on this pair didn't
+move the central tendency past LS=0.15, but it did introduce a
+new wrist_smash ceiling on one seed. Loss-side axis isn't
+exhausted: there's clearly an accessible wrist_smash basin
+worth ~0.52 that some hparam combination unlocks. The challenge
+shifts from "lift the ceiling" to "get more seeds to find the
+better basin". Adaptive class weighting (CDB-F1) is now a
+stronger candidate than before, since its theoretical
+justification (escalate gradient on persistently-low-F1 classes
+to push bad seeds toward better basins) maps onto the bimodal
+distribution this run produced. Full writeup in
+bst_x_overview.md.
+
+TensorBoard run folders (in tb/):
+  S1: serial_1
+  S2: serial_2  (flagged best, top wrist_smash, NEW PROJECT CEILING)
+  S3: serial_3  (weakest macro)
+  S4: serial_4  (top macro / acc / drive, also new project ceilings)
+  S5: serial_5  (top top-2)
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2  F1-score
+avg                                                Avg                                    0.75
+min                                                Min                                    0.52
+0                                 net_shot                                                0.90
+1                                 return_net                                              0.80
+2                                 smash                                                   0.63
+3                                 wrist_smash                                             0.52
+4                                 lob                                                     0.78
+5                                 clear                                                   0.95
+6                                 drive                                                   0.58
+7                                 drop                                                    0.66
+8                                 passive_drop                                            0.66
+9                                 push                                                    0.58
+10                                rush                                                    0.78
+11                                cross_court_net_shot                                    0.70
+12                                short_service                                           0.98
+13                                long_service                                            0.99
+Accuracy: 0.766
+Top2 Accuracy: 0.936

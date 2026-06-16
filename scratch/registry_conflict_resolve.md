@@ -102,7 +102,7 @@ pass. Skip that: bst_x's manifests carry val per serial under
 
 So serving reads val off the manifest like test, and the `val_metrics.json` path
 plus `compute_val_metrics.py` get deleted rather than fed. The app adds a val
-column next to test. Back-fill script is `src/bst_refactor/backfill_val_metrics.py`,
+column next to test. Back-fill script is `src/bst_x/backfill_val_metrics.py`,
 run per cell; verified exact, recomputing test off the npz reproduces the
 manifest's recorded numbers to the last digit.
 

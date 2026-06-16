@@ -1,4 +1,4 @@
-# Plan: drop the unknown ghost output channel in BST
+# Plan: drop the unknown ghost output channel in BST-X
 
 This doc covers six things, in order:
 
@@ -17,7 +17,7 @@ This doc covers six things, in order:
 
 ### The bug
 
-`build_bst_network` (called from `bst_train.Task.get_network_architecture`) takes `n_class` from `taxonomy.n_classes` — the size of the full taxonomy class list. The full class list always includes `'unknown'` for every taxonomy in `pipeline/config.py`.
+`build_bst_x_network` (called from `bst_x_train.Task.get_network_architecture`) takes `n_class` from `taxonomy.n_classes` — the size of the full taxonomy class list. The full class list always includes `'unknown'` for every taxonomy in `pipeline/config.py`.
 
 `hyp.drop_unknown=True` instructs the writer (`prepare_train_on_shuttleset.collate_npy`) to drop rows where `raw_type_en == 'unknown'`. It does not change the model's output dimension.
 
@@ -62,12 +62,12 @@ Drove the architecture decision off the `hyp.drop_unknown` boolean. Concretely:
   - `active_class_list(drop_unknown: bool, side='Both') -> list[str]`: `class_list(side)` with `'unknown'` removed when `drop_unknown=True` and the taxonomy has unknown.
   - `n_active_classes(drop_unknown: bool, side='Both') -> int`: `len(active_class_list(...))`.
   - `full_to_active_remap(drop_unknown: bool, side='Both') -> list[int]`: per-index map from full-taxonomy idx to active idx, with `-1` at the dropped slot.
-- Added a free function in `bst_common.py`:
+- Added a free function in `bst_x_common.py`:
   - `remap_and_validate_labels(taxonomy, drop_unknown, labels_per_split) -> dict[str, np.ndarray]`. Asserts a strict drop-policy guard, then compresses labels into the active index space.
-- Threaded `drop_unknown` through `bst_train.Task.__init__`. `Task` stores `n_active_classes` and `active_class_list` derived from `taxonomy + drop_unknown` once at construction. `Task.prepare_dataloaders` triggers the helper to remap each split's `dataset.labels` in place. `Task.get_network_architecture` and `Task.test` consume the active fields.
-- Loud `[arch]` printout at run start in `bst_train.__main__`.
+- Threaded `drop_unknown` through `bst_x_train.Task.__init__`. `Task` stores `n_active_classes` and `active_class_list` derived from `taxonomy + drop_unknown` once at construction. `Task.prepare_dataloaders` triggers the helper to remap each split's `dataset.labels` in place. `Task.get_network_architecture` and `Task.test` consume the active fields.
+- Loud `[arch]` printout at run start in `bst_x_train.__main__`.
 - Manifest enrichment: `extra.arch = {'n_classes_full', 'n_active_classes', 'has_unknown', 'unknown_first', 'drop_unknown', 'active_class_list'}`.
-- Parallel fix in `bst_infer.py`: new `drop_unknown` parameter on `get_network_architecture`; decoder uses `active_class_list` instead of full `class_list()`.
+- Parallel fix in `bst_x_infer.py`: new `drop_unknown` parameter on `get_network_architecture`; decoder uses `active_class_list` instead of full `class_list()`.
 - Structural note added to `scratch/architecture_notes/bst_x_overview.md`.
 
 ### The drop-policy guard (the part that misbehaved)
@@ -199,20 +199,20 @@ The "merged_25 doesn't fit my fix" issue disappears because no architectural ass
 ### What stays from the first fix
 
 - `Taxonomy.has_unknown` property.
-- `bst_train.Task` deriving an `n_active_classes` and `active_class_list` and exposing them to downstream methods (`get_network_architecture`, `seek_network_weights`, `test`).
+- `bst_x_train.Task` deriving an `n_active_classes` and `active_class_list` and exposing them to downstream methods (`get_network_architecture`, `seek_network_weights`, `test`).
 - Loud `[arch]` printout (rephrased: derived from data, not flag).
 - Manifest `extra.arch` block.
-- bst_infer parallel fix (now even simpler).
+- bst_x_infer parallel fix (now even simpler).
 - `bst_x_overview.md` structural note (with adjusted wording).
 - Update of comments on the `present` mask in `validate()` and `Task.test` (that mask was load-bearing for hiding the ghost from F1; post-fix it stays as a generic guard against any zero-support active class).
 
 ### What changes from the first fix
 
 - `Taxonomy.active_class_list(drop_unknown)`, `n_active_classes(drop_unknown)`, `full_to_active_remap(drop_unknown)` get a new signature: `(present_indices: set[int], side='Both')` instead of `(drop_unknown: bool, side='Both')`. They become data-driven helpers, not flag-driven. `n_active_classes` collapses into `len(active_class_list(...))`; we drop it as a separate method.
-- `bst_common.remap_and_validate_labels(taxonomy, drop_unknown, labels_per_split)` is replaced with `bst_common.derive_active_classes_from_labels(taxonomy, labels_per_split)`. The new helper computes `present_indices` from the labels itself, builds active list + remap + remapped labels in one call, and returns all three. The drop-policy guard is removed; only the always-true sanity checks remain (every loaded label must hit a non-sentinel remap entry; remapped labels must land in `[0, n_active)`).
+- `bst_x_common.remap_and_validate_labels(taxonomy, drop_unknown, labels_per_split)` is replaced with `bst_x_common.derive_active_classes_from_labels(taxonomy, labels_per_split)`. The new helper computes `present_indices` from the labels itself, builds active list + remap + remapped labels in one call, and returns all three. The drop-policy guard is removed; only the always-true sanity checks remain (every loaded label must hit a non-sentinel remap entry; remapped labels must land in `[0, n_active)`).
 - `Task.__init__` no longer takes `drop_unknown`. `Task` doesn't precompute `n_active_classes` / `active_class_list` (we don't know them until labels load). Both fields are populated in `Task.prepare_dataloaders` after the dataloader returns.
-- `bst_train.__main__`: do an upfront preflight load of `labels.npy` to populate the manifest's `extra.arch` block before `track_run`, then re-derive inside `Task.prepare_dataloaders` per serial.
-- `bst_infer.get_network_architecture` no longer takes `drop_unknown`. Caller passes `n_active_classes` and `active_class_list` directly (typically from a saved manifest's `extra.arch`). Defaults preserve pre-fix behaviour (full taxonomy head) when caller passes neither, so old weights still work.
+- `bst_x_train.__main__`: do an upfront preflight load of `labels.npy` to populate the manifest's `extra.arch` block before `track_run`, then re-derive inside `Task.prepare_dataloaders` per serial.
+- `bst_x_infer.get_network_architecture` no longer takes `drop_unknown`. Caller passes `n_active_classes` and `active_class_list` directly (typically from a saved manifest's `extra.arch`). Defaults preserve pre-fix behaviour (full taxonomy head) when caller passes neither, so old weights still work.
 - Tests: section 3 (drop-policy guard tests) is deleted; replaced with "architecture matches the data" tests. Section 5 (real-data probes) merges merged_25 back in.
 
 ### Concrete code changes
@@ -279,7 +279,7 @@ def full_to_active_remap(
 
 Removed: `n_active_classes(drop_unknown)` (now `len(active_class_list(present_indices))`).
 
-#### `main_on_shuttleset/bst_common.py`
+#### `main_on_shuttleset/bst_x_common.py`
 
 Replace `remap_and_validate_labels` (the first-fix helper, which carried the strict drop-policy guard) with `derive_active_classes_from_labels`. Imports unchanged.
 
@@ -343,7 +343,7 @@ def derive_active_classes_from_labels(
     return active, remap_list, out
 ```
 
-#### `main_on_shuttleset/bst_train.py`
+#### `main_on_shuttleset/bst_x_train.py`
 
 Re-add `import numpy as np` at the top (the preflight needs it).
 
@@ -422,7 +422,7 @@ class Task:
 
 `Task.get_network_architecture`, `Task.seek_network_weights`, `Task.test`: signatures unchanged; bodies still consume `self.n_active_classes` / `self.active_class_list` exactly as in the first fix. The `present` mask comments stay as updated by the first fix (generic zero-support guard, no longer the unknown-ghost special case).
 
-`bst_train.__main__`: drop the up-front `[arch]` print (we don't know n_active yet); add a preflight load of labels for the manifest. Drop `drop_unknown` from `Task(...)`. The serial loop's `task.prepare_dataloaders` now does its own `[arch]` print per serial.
+`bst_x_train.__main__`: drop the up-front `[arch]` print (we don't know n_active yet); add a preflight load of labels for the manifest. Drop `drop_unknown` from `Task(...)`. The serial loop's `task.prepare_dataloaders` now does its own `[arch]` print per serial.
 
 ```python
 if __name__ == '__main__':
@@ -541,7 +541,7 @@ if __name__ == '__main__':
     print(f'Run manifest:    {run_dir / "manifest.yaml"}')
 ```
 
-#### `main_on_shuttleset/bst_infer.py`
+#### `main_on_shuttleset/bst_x_infer.py`
 
 Drop the `drop_unknown` parameter. Caller passes `n_active_classes` + `active_class_list` directly (typically from a saved manifest's `extra.arch`). Default to full taxonomy when caller passes neither, so old (pre-fix) weights still work without supplying anything.
 
@@ -575,7 +575,7 @@ def get_network_architecture(
         active_class_list = taxonomy.class_list()
     self.n_active_classes = n_active_classes
     self.active_class_list = active_class_list or taxonomy.class_list()
-    self.net, _n_bones = build_bst_network(
+    self.net, _n_bones = build_bst_x_network(
         model_name,
         n_joints=self.n_joints,
         pose_style=self.pose_style,
@@ -617,7 +617,7 @@ Major rewrites in three sections:
 
 The structural note added by the first fix gets reworded:
 
-> **Unknown ghost channel removed (2026-05-01)**. BST output dim now matches the empirically present classes in `labels.npy`, derived at run start via `bst_common.derive_active_classes_from_labels`. Pre-fix runs (LS sweep cells `run_20260430_170325`, `run_20260430_213933`, `run_20260501_073430`, plus the class-weighted run that finished on engelbart on 2026-05-01) carried a 15-channel head with the unknown slot as a ghost output channel. Post-fix, dropunk runs on `une_merge_v1`, `une_merge_v1_nosides`, and `raw_35` collapse to 14- / 14- / 34-class heads (their MERGE_MAP doesn't redirect anything to unknown, so the slot is empty after the writer's row filter and gets dropped). Post-fix, dropunk runs on `merged_25` retain the 25-class head because `MERGE_MAP['driven_flight']='unknown'` populates that slot — there's no ghost there to drop. Manifest `extra.arch` block records `n_classes_full`, `n_active_classes`, `has_unknown`, `unknown_first`, `active_class_list`, surfacing future taxonomy + dir combinations without code changes elsewhere. Comparisons against pre-fix runs carry a one-line caveat for v1 / nosides / raw_35 (architectural era boundary); merged_25 dropunk runs are directly comparable post-fix vs pre-fix because the head dim is unchanged there.
+> **Unknown ghost channel removed (2026-05-01)**. BST-X output dim now matches the empirically present classes in `labels.npy`, derived at run start via `bst_x_common.derive_active_classes_from_labels`. Pre-fix runs (LS sweep cells `run_20260430_170325`, `run_20260430_213933`, `run_20260501_073430`, plus the class-weighted run that finished on engelbart on 2026-05-01) carried a 15-channel head with the unknown slot as a ghost output channel. Post-fix, dropunk runs on `une_merge_v1`, `une_merge_v1_nosides`, and `raw_35` collapse to 14- / 14- / 34-class heads (their MERGE_MAP doesn't redirect anything to unknown, so the slot is empty after the writer's row filter and gets dropped). Post-fix, dropunk runs on `merged_25` retain the 25-class head because `MERGE_MAP['driven_flight']='unknown'` populates that slot — there's no ghost there to drop. Manifest `extra.arch` block records `n_classes_full`, `n_active_classes`, `has_unknown`, `unknown_first`, `active_class_list`, surfacing future taxonomy + dir combinations without code changes elsewhere. Comparisons against pre-fix runs carry a one-line caveat for v1 / nosides / raw_35 (architectural era boundary); merged_25 dropunk runs are directly comparable post-fix vs pre-fix because the head dim is unchanged there.
 
 ### Files NOT touched in this fix (same as the first fix)
 
@@ -688,11 +688,11 @@ Mergeable with adjustments. Two HIGH-severity issues §3 does NOT handle, and fo
 
 **MED-1 — resume scenario doesn't cross-check**. With `resume_from='run_YYYYMMDD'`, §3 re-runs the preflight against `collated_root` and overwrites `extra['arch']` into `track_run`. If the dir contents shifted since the original run (recollation, ablation_id symlinked elsewhere), the new derivation could disagree with the original manifest's `n_active_classes`. The shape mismatch surfaces inside `load_state_dict`, but well after the `[arch:preflight]` print confidently announced a derivation. A `if resume_from: assert manifest['extra']['arch']['n_active_classes'] == n_active_preflight` would close it.
 
-**MED-2 — loud printout disappears under `nohup`/redirects**. The `[arch:preflight]` print runs at line ~470 of stdout, before the `Tee` is built. Under `python -m main_on_shuttleset.bst_train > log 2>&1 &`, it lands on stdout only and is easy to miss. The user explicitly said "no silent failures". Cheap fix: emit the preflight inside the `with open(log_path, 'w') as log_f:` block so the tee'd log captures it; manifest already persists the same data.
+**MED-2 — loud printout disappears under `nohup`/redirects**. The `[arch:preflight]` print runs at line ~470 of stdout, before the `Tee` is built. Under `python -m main_on_shuttleset.bst_x_train > log 2>&1 &`, it lands on stdout only and is easy to miss. The user explicitly said "no silent failures". Cheap fix: emit the preflight inside the `with open(log_path, 'w') as log_f:` block so the tee'd log captures it; manifest already persists the same data.
 
-**MED-3 — `class_weights` validation message misleading**. `bst_train.py:325-333` validates keys against `class_ls` (= `self.active_class_list` post-fix). For a setting like `class_weights={'unknown': 2.0}` against a dropunk dir where unknown is empirically absent, the existing `ValueError(f"...not in taxonomy...")` message says "not in taxonomy" when in fact unknown *is* in the taxonomy, just absent from this run's active list. Behaviour is correct (loud rather than silent) but the message wording is imprecise.
+**MED-3 — `class_weights` validation message misleading**. `bst_x_train.py:325-333` validates keys against `class_ls` (= `self.active_class_list` post-fix). For a setting like `class_weights={'unknown': 2.0}` against a dropunk dir where unknown is empirically absent, the existing `ValueError(f"...not in taxonomy...")` message says "not in taxonomy" when in fact unknown *is* in the taxonomy, just absent from this run's active list. Behaviour is correct (loud rather than silent) but the message wording is imprecise.
 
-**MED-4 — `bst_infer` caller burden**. The §3 default (`taxonomy.n_classes` and full `class_list()` when caller passes neither `n_active_classes` nor `active_class_list`) preserves pre-fix behaviour but is a footgun for post-fix weights. A Gradio frontend or third-party caller that doesn't know about the change silently gets a full-tax head and either fails at `load_state_dict` or, worse, decodes predictions through the wrong class list. Better to raise unless caller explicitly opts in.
+**MED-4 — `bst_x_infer` caller burden**. The §3 default (`taxonomy.n_classes` and full `class_list()` when caller passes neither `n_active_classes` nor `active_class_list`) preserves pre-fix behaviour but is a footgun for post-fix weights. A Gradio frontend or third-party caller that doesn't know about the change silently gets a full-tax head and either fails at `load_state_dict` or, worse, decodes predictions through the wrong class list. Better to raise unless caller explicitly opts in.
 
 **LOW issues**: numpy import easy to miss when applying the patch; out-of-range guard wording; preflight derivation duplicated in `__main__` and inside `Task` (must agree, but HIGH-1 breaks that invariant); `Tee` not wired before preflight print.
 
@@ -743,7 +743,7 @@ Closes MED-1. When `resume_from` is set, after the live derivation runs, compare
 **R4 — printout captured by the tee'd log**.
 Closes MED-2. Move the `[arch]` print to inside the `with redirect_stdout(tee):` block of the first serial so the run's log file captures it. Manifest still persists the same data for tooling. Together these mean the active class list is in two persistent places (manifest, log) and one transient place (terminal stdout); user can never miss it.
 
-**R5 — bst_infer default raises, not falls back silently**.
+**R5 — bst_x_infer default raises, not falls back silently**.
 Closes MED-4. If neither `n_active_classes` nor `active_class_list` is supplied, raise with a message pointing the caller at `manifest.yaml`'s `extra.arch` block. For pre-fix weights, caller can pass `n_active_classes=taxonomy.n_classes, active_class_list=taxonomy.class_list()` explicitly to opt into legacy behaviour. No silent path that produces a wrong-shaped head or wrong decoder.
 
 **R6 — optional `expected_active_classes` belt-and-braces lever**.
@@ -763,7 +763,7 @@ Most of §3's patches stand as written; the diffs below show only the deltas vs 
 
 Same as §3. No further changes.
 
-#### `bst_common.py`
+#### `bst_x_common.py`
 
 `derive_active_classes_from_labels` signature changes to take a single train-labels array and an optional dict of validation-only label arrays for the subset assertion:
 
@@ -832,7 +832,7 @@ def derive_active_classes_from_labels(
     return active, remap_list, out
 ```
 
-#### `bst_train.py`
+#### `bst_x_train.py`
 
 `Task._derive_active_classes_from_loaded_labels` calls the new helper with train labels + val/test as the validation arrays:
 
@@ -943,7 +943,7 @@ if __name__ == '__main__':
     print(f'Run manifest:    {run_dir / "manifest.yaml"}')
 ```
 
-`_validate_and_record_arch` is a new free function (kept in `bst_train.py` since it touches the manifest file directly):
+`_validate_and_record_arch` is a new free function (kept in `bst_x_train.py` since it touches the manifest file directly):
 
 ```python
 def _validate_and_record_arch(
@@ -1018,7 +1018,7 @@ def _validate_and_record_arch(
 
 (R4 implemented via `redirect_stdout(tee)`.)
 
-`Hyp` namedtuple gains an `expected_active_classes` field defaulting to `None` (R6). The active hyp block in `bst_train.py` stays as-is unless the user opts in.
+`Hyp` namedtuple gains an `expected_active_classes` field defaulting to `None` (R6). The active hyp block in `bst_x_train.py` stays as-is unless the user opts in.
 
 `train_network` `class_weights` validation gets the message-clarification tweak (R7):
 
@@ -1040,7 +1040,7 @@ if cls_name not in class_ls:
 
 (`taxonomy` needs to be threaded into `train_network` for this; already accessible via `task.taxonomy` at the call site.)
 
-#### `bst_infer.py`
+#### `bst_x_infer.py`
 
 R5: tighten the default to raise.
 
@@ -1077,7 +1077,7 @@ def get_network_architecture(
         )
     self.n_active_classes = n_active_classes
     self.active_class_list = active_class_list
-    self.net, _n_bones = build_bst_network(
+    self.net, _n_bones = build_bst_x_network(
         model_name,
         n_joints=self.n_joints,
         pose_style=self.pose_style,
@@ -1088,7 +1088,7 @@ def get_network_architecture(
     )
 ```
 
-The `__main__` example block in bst_infer.py is updated to load `extra.arch` from the manifest before calling `get_network_architecture`, and to use `task.active_class_list` for decoding.
+The `__main__` example block in bst_x_infer.py is updated to load `extra.arch` from the manifest before calling `get_network_architecture`, and to use `task.active_class_list` for decoding.
 
 #### `tests/test_active_classes.py`
 
@@ -1102,7 +1102,7 @@ Real-data probes (Section 5) updated: pass train_labels and val/test as `validat
 
 #### `bst_x_overview.md`
 
-Same blurb as §3, with one extra clause noting the train-only derivation: "BST output dim now matches the empirically present classes in `labels.npy` train split, with val/test asserted as subsets, derived at first serial via `bst_common.derive_active_classes_from_labels`."
+Same blurb as §3, with one extra clause noting the train-only derivation: "BST-X output dim now matches the empirically present classes in `labels.npy` train split, with val/test asserted as subsets, derived at first serial via `bst_x_common.derive_active_classes_from_labels`."
 
 ### 5.3 Files NOT touched
 
@@ -1116,7 +1116,7 @@ Same as §3, plus: `preparing_data/prepare_train_on_shuttleset.py` and any colla
 | handles class present only in val/test | no (silent ghost) | yes (hard error, clear message) |
 | catches resume drift | no (load_state_dict surfaces it late) | yes (manifest cross-check) |
 | visibility under `nohup` | weak (preflight before tee) | strong (post-prepare print is tee'd; manifest persistent) |
-| bst_infer caller burden | silent default footgun | hard error if neither arg supplied |
+| bst_x_infer caller burden | silent default footgun | hard error if neither arg supplied |
 | explicit "I want N-class" lever | dropped | optional via `expected_active_classes` |
 | code complexity vs §3 | n/a | +1 free function, +1 Hyp field |
 | test count | similar | +3 cases (subset-assert, resume, expected_active) |
@@ -1126,10 +1126,10 @@ Same as §3, plus: `preparing_data/prepare_train_on_shuttleset.py` and any colla
 ### 5.5 What stays from the first fix and §3
 
 - `Taxonomy.has_unknown`, `active_class_list(present_indices)`, `full_to_active_remap(present_indices)` — unchanged from §3.
-- `bst_common.derive_active_classes_from_labels` — refined signature (train + validation arrays).
+- `bst_x_common.derive_active_classes_from_labels` — refined signature (train + validation arrays).
 - `Task` deriving and exposing `n_active_classes` / `active_class_list` for downstream methods.
 - Manifest `extra.arch` block (now written post-first-serial, not preflight).
-- bst_infer parallel fix (now stricter — caller must provide arch info).
+- bst_x_infer parallel fix (now stricter — caller must provide arch info).
 - bst_x_overview.md structural note.
 - The CPU-only test suite + 3 real-data probes (v1, nosides, merged_25 all pass).
 
@@ -1153,7 +1153,7 @@ After §5 was approved in shape, a second-pass review identified ~35 lines of pr
 
 ### 6.1 What changed from §5
 
-**Strip 1 — bst_infer required kwargs (no fallback)**.
+**Strip 1 — bst_x_infer required kwargs (no fallback)**.
 §5 had `n_active_classes: int | None = None` with a default-fallback path producing a long error message about pre-fix weights. Stripped to required kwargs:
 
 ```python
@@ -1172,7 +1172,7 @@ def get_network_architecture(
     self.taxonomy = taxonomy
     self.n_active_classes = n_active_classes
     self.active_class_list = active_class_list
-    self.net, _n_bones = build_bst_network(
+    self.net, _n_bones = build_bst_x_network(
         model_name,
         n_joints=self.n_joints,
         pose_style=self.pose_style,
@@ -1228,7 +1228,7 @@ task.get_network_architecture(
 
 Two extra lines. The script's intent (smoke pre-fix forwards) is preserved; it just declares the architecture explicitly now.
 
-`src/api/inference.py` is a stub that doesn't actually call `bst_infer` yet (just a placeholder docstring). Leave alone; the team will fill it in later and read the manifest themselves.
+`src/api/inference.py` is a stub that doesn't actually call `bst_x_infer` yet (just a placeholder docstring). Leave alone; the team will fill it in later and read the manifest themselves.
 
 ### 6.3 Per-file change summary
 
@@ -1236,10 +1236,10 @@ For implementation reference. Refer to §5 for the full code patches; §6 only a
 
 | File | Change |
 |---|---|
-| `src/bst_refactor/pipeline/config.py` | Add `Taxonomy.has_unknown` (property), `active_class_list(present_indices, side)`, `full_to_active_remap(present_indices, side)`. Drop `n_active_classes` as a separate method. Per §5.2; no further changes from §6. |
-| `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py` | Add `derive_active_classes_from_labels(taxonomy, train_labels, validation_label_arrays)`. Replaces first-fix's `remap_and_validate_labels`. Per §5.2. |
-| `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py` | Drop `drop_unknown` from `Task.__init__`; add `_derive_active_classes_from_loaded_labels`; drop the preflight from `__main__`; add the §5 `_validate_and_record_arch` free function (with R3 cross-check, R6 expected_active_classes lever, R4 tee'd printout); §6 Strip 2 one-line warning at resume; §6 Strip 3 one-tier `class_weights` message. Add `expected_active_classes` field to Hyp. Re-add `import yaml` if not already present (needed for resumed manifest read). |
-| `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_infer.py` | Strip 1 — required kwargs `n_active_classes` and `active_class_list`, no fallback. Update `__main__` example to read both from manifest. |
+| `src/bst_x/pipeline/config.py` | Add `Taxonomy.has_unknown` (property), `active_class_list(present_indices, side)`, `full_to_active_remap(present_indices, side)`. Drop `n_active_classes` as a separate method. Per §5.2; no further changes from §6. |
+| `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py` | Add `derive_active_classes_from_labels(taxonomy, train_labels, validation_label_arrays)`. Replaces first-fix's `remap_and_validate_labels`. Per §5.2. |
+| `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py` | Drop `drop_unknown` from `Task.__init__`; add `_derive_active_classes_from_loaded_labels`; drop the preflight from `__main__`; add the §5 `_validate_and_record_arch` free function (with R3 cross-check, R6 expected_active_classes lever, R4 tee'd printout); §6 Strip 2 one-line warning at resume; §6 Strip 3 one-tier `class_weights` message. Add `expected_active_classes` field to Hyp. Re-add `import yaml` if not already present (needed for resumed manifest read). |
+| `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_infer.py` | Strip 1 — required kwargs `n_active_classes` and `active_class_list`, no fallback. Update `__main__` example to read both from manifest. |
 | `scratch/post_tidy_smoke/smoke_infer_bit_exact.py` | Add explicit `n_active_classes=taxonomy.n_classes, active_class_list=taxonomy.class_list()` at the existing `get_network_architecture` call site (line 112). |
 | `tests/test_active_classes.py` | Reframe per §5.2: helper signature change; subset-assert tests; resume cross-check tests; expected_active_classes tests. Section 3 (drop-policy guards) deleted. Real-data probes pass for v1, nosides, merged_25 dropunk. |
 | `scratch/architecture_notes/bst_x_overview.md` | Update the structural note from the first fix to reflect the empirical-derivation semantics, including the train-only invariant. |
@@ -1253,7 +1253,7 @@ For implementation reference. Refer to §5 for the full code patches; §6 only a
 - Any existing weight file.
 - Any existing manifest.
 - `run_tracker.py`.
-- `src/api/inference.py` (stub, no live call to bst_infer yet).
+- `src/api/inference.py` (stub, no live call to bst_x_infer yet).
 
 ### 6.5 Final tradeoff vs §5
 
@@ -1263,7 +1263,7 @@ For implementation reference. Refer to §5 for the full code patches; §6 only a
 | Resume of pre-fix weight | fails at `load_state_dict`, after a verbose upfront warning | fails at `load_state_dict`, after a one-line upfront warning |
 | Resume of post-fix weight | cross-checked against manifest | cross-checked against manifest (unchanged) |
 | `class_weights` typo against missing class | two-tier message | one-tier message with both class-count values |
-| bst_infer `__main__` example | runs without arch kwargs (full-tax fallback) | requires arch kwargs (read from manifest or pre-fix-style explicit) |
+| bst_x_infer `__main__` example | runs without arch kwargs (full-tax fallback) | requires arch kwargs (read from manifest or pre-fix-style explicit) |
 | `smoke_infer_bit_exact.py` | runs unchanged (relies on fallback) | needs two-line update declaring full-tax arch explicitly |
 | LOC vs §5 | baseline | ~25 fewer lines, ~3 fewer conceptual branches |
 
@@ -1295,7 +1295,7 @@ The framework covers six sections matching §6's per-file changes:
 4. **BST_CG_AP forward+backward smoke** — at the active head dim across all four taxonomies × `{all_classes, no_unknown}`. Verifies head shape, finite loss, gradient flow. CPU-only.
 5. **`class_weights` renormalisation under active classes** — pair-balanced renorm sanity (mean=1.0, named classes lifted); uniform fallback; Strip 3 one-tier error message contains both active-list size and full-taxonomy size.
 6. **Real-labels probe** — for the three current dropunk dirs (v1, nosides, merged_25). Auto-skips if dir not visible from host. Asserts expected `n_active_classes` per dir (14, 14, 25 respectively).
-7. **bst_infer contract** — `get_network_architecture` raises `TypeError` when called without `n_active_classes` / `active_class_list`. Confirms Strip 1 is in effect.
+7. **bst_x_infer contract** — `get_network_architecture` raises `TypeError` when called without `n_active_classes` / `active_class_list`. Confirms Strip 1 is in effect.
 
 ### 7.1 Full test file content
 
@@ -1317,12 +1317,12 @@ import yaml
 from torch import nn
 
 from pipeline.config import TAXONOMIES, Taxonomy
-from main_on_shuttleset.bst_common import (
-    build_bst_network,
+from main_on_shuttleset.bst_x_common import (
+    build_bst_x_network,
     derive_active_classes_from_labels,
 )
-from main_on_shuttleset.bst_train import _validate_and_record_arch
-from main_on_shuttleset.bst_infer import Task as InferTask
+from main_on_shuttleset.bst_x_train import _validate_and_record_arch
+from main_on_shuttleset.bst_x_infer import Task as InferTask
 
 
 REAL_TAXONOMY_NAMES = ['merged_25', 'une_merge_v1', 'une_merge_v1_nosides', 'raw_35']
@@ -1699,7 +1699,7 @@ def test_bst_forward_backward_under_active_classes(tax_name, present_kind):
     n_joints = 17
     in_channels = 2
 
-    net, n_bones = build_bst_network(
+    net, n_bones = build_bst_x_network(
         model_name='BST_CG_AP',
         n_joints=n_joints, pose_style=pose_style, in_channels=in_channels,
         n_class=n_active, seq_len=seq_len, device='cpu',
@@ -1828,11 +1828,11 @@ def test_real_labels_npy_remap_into_active_range(dir_path):
 
 
 # ---------------------------------------------------------------------------
-# Section 7: bst_infer Strip 1 contract
+# Section 7: bst_x_infer Strip 1 contract
 # ---------------------------------------------------------------------------
 
 def test_bst_infer_get_network_architecture_requires_arch_kwargs():
-    """Strip 1: bst_infer's get_network_architecture must require both
+    """Strip 1: bst_x_infer's get_network_architecture must require both
     n_active_classes and active_class_list. No silent fallback."""
     task = InferTask(n_joints=17)
     task.pose_style = 'JnB_bone'
@@ -1847,7 +1847,7 @@ def test_bst_infer_get_network_architecture_requires_arch_kwargs():
 
 - **Total test count**: ~50 active tests + 3 real-data probes (auto-skipped when `/scratch/...` not visible).
 - **Expected runtime**: <10s for active tests on CPU. The smoke tests (Section 4) are 8 parametrise combos x ~1s each = ~8s of the total. Other sections are sub-second.
-- **Imports**: `from main_on_shuttleset.bst_train import _validate_and_record_arch` and `from main_on_shuttleset.bst_infer import Task as InferTask` are the new ones. Both should work via the existing repo-root `conftest.py` sys.path setup. If `bst_train` import fires unexpected side effects (it shouldn't, but check), wrap that import in a try/except and skip the relevant tests with a clear message rather than failing collection.
+- **Imports**: `from main_on_shuttleset.bst_x_train import _validate_and_record_arch` and `from main_on_shuttleset.bst_x_infer import Task as InferTask` are the new ones. Both should work via the existing repo-root `conftest.py` sys.path setup. If `bst_x_train` import fires unexpected side effects (it shouldn't, but check), wrap that import in a try/except and skip the relevant tests with a clear message rather than failing collection.
 - **Resume cross-check note**: the test fixtures use a `_FakeTask` and `_FakeHyp` rather than the real classes to keep the tests focused on `_validate_and_record_arch`'s logic. If the real `Task` constructor adds required arguments later, the fakes don't need updating.
 - **Real-data probe test count**: locally these all skip (not on engelbart). On engelbart they should all pass. If any fail, that's a real signal — the `EXPECTED_N_ACTIVE_PER_DIR` values are the doc's prediction; deviation means the data has shifted or my analysis is wrong.
 - **Test for `_validate_and_record_arch`'s manifest-write path**: uses `tmp_path` so it's fully isolated. The `_seed_manifest` helper writes a minimal valid manifest; the test then re-reads after the function runs. This is the closest-to-integration test in the suite.
@@ -1857,7 +1857,7 @@ def test_bst_infer_get_network_architecture_requires_arch_kwargs():
 
 The implementer may discover:
 
-- An import-time side effect from `bst_train` that breaks Section 3 imports (mitigation: lazy-import inside the test; or move `_validate_and_record_arch` into a module that's safe to import at test time).
+- An import-time side effect from `bst_x_train` that breaks Section 3 imports (mitigation: lazy-import inside the test; or move `_validate_and_record_arch` into a module that's safe to import at test time).
 - An interaction between `train_partial < 1.0` and the live derivation that the synthetic-labels tests don't reach (a real-data test against a partial-training cell would surface it; if not in scope, document the assumption).
 - A taxonomy whose `class_list()` order isn't what `sorted(present_indices)` produces (shouldn't happen given current taxonomies, but if a future taxonomy has a non-trivial reordering, the relative-order assertion in Section 1 catches it before any deeper tests run).
 - A `_validate_and_record_arch` signature drift if implementation makes the `tee` argument optional or moves the manifest write into `track_serial`.
@@ -1872,7 +1872,7 @@ Captured after the §6 plan landed and was end-to-end smoke-tested on engelbart.
 
 ### 8.1 Implementation deltas vs §6
 
-- **Auto-backup of resumed manifest**. §6 left the resume manifest mutation (driven by `_validate_and_record_arch` rewriting `extra.arch` in place on serial 1) as a known side effect, with the Strip 2 one-line warning as the only signal. Live use surfaced that the warning's interception window is small (a few seconds between print and write) and easy to miss under nohup. `bst_train.py` `__main__` now copies `manifest.yaml` to `manifest.yaml.<timestamp>.bak` next to the live file before any work begins whenever `resume_from` is set. Backups accrete one per resume invocation; `git status` flags them as untracked for cleanup. Behaviour change is additive only: serial 1 still rewrites the manifest; the original is just always recoverable.
+- **Auto-backup of resumed manifest**. §6 left the resume manifest mutation (driven by `_validate_and_record_arch` rewriting `extra.arch` in place on serial 1) as a known side effect, with the Strip 2 one-line warning as the only signal. Live use surfaced that the warning's interception window is small (a few seconds between print and write) and easy to miss under nohup. `bst_x_train.py` `__main__` now copies `manifest.yaml` to `manifest.yaml.<timestamp>.bak` next to the live file before any work begins whenever `resume_from` is set. Backups accrete one per resume invocation; `git status` flags them as untracked for cleanup. Behaviour change is additive only: serial 1 still rewrites the manifest; the original is just always recoverable.
 - **`EXPECTED_N_ACTIVE_PER_DIR` for `une_merge_v1` corrected from 14 to 28**. The `une_merge_v1` taxonomy keeps Top_/Bottom_ side prefixes, so its dropunk head is 14 base × 2 sides = 28 (the empty unknown slot drops 1, leaving 28). Only the `nosides` variant collapses sides to 14. `tests/test_active_classes.py` Section 6's expected mapping had the wrong value for v1; corrected on engelbart's first real-data probe pass.
 - **Local venv tensorboard install**. `phase_2_refactor` venv on the laptop didn't have `tensorboard`, `torcheval`, or `transformers` (the BST stack was complete elsewhere). Installed them so the test suite's `_validate_and_record_arch` import path runs locally without the try/except guard the §7 framework draft proposed; engelbart's `venv-bst` already had them all. Test suite is now plain: 75 tests collected, no fallback skips for missing modules.
 
@@ -1910,7 +1910,7 @@ Confirmed clean for two anticipated future cases. Both are covered by existing t
 
 When reverting the smoke harness back to a real run config:
 
-- `bst_train.py:69` `early_stop_n_epochs` 2 → 40 (or whatever the next cell needs).
-- `bst_train.py` serial loop `range(1, 3)` → `range(1, 6)`.
+- `bst_x_train.py:69` `early_stop_n_epochs` 2 → 40 (or whatever the next cell needs).
+- `bst_x_train.py` serial loop `range(1, 3)` → `range(1, 6)`.
 - For run 2 specifically: revert `taxonomy='merged_25'` → the next cell's active taxonomy, `split_column='split_bst_baseline'` → the matching split, `class_weights` → the cell's intended dict.
 - All three are tagged `# SMOKE` in source for grep'ability.

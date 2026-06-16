@@ -1,0 +1,140 @@
+[taxonomy] shuttleset_18: 18 classes, has_sides=False, has_unknown=False
+[taxonomy] classes: ['net_shot', 'return_net', 'smash', 'wrist_smash', 'lob', 'defensive_return_lob', 'clear', 'drive', 'driven_flight', 'back_court_drive', 'drop', 'passive_drop', 'push', 'rush', 'defensive_return_drive', 'cross_court_net_shot', 'short_service', 'long_service']
+
+=== Serial 1 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18  F1-score
+avg                                                Avg                           0.66
+min                                                Min                           0.00
+0                               net_shot                                         0.86
+1                               return_net                                       0.83
+2                               smash                                            0.63
+3                               wrist_smash                                      0.46
+4                               lob                                              0.78
+5                               defensive_return_lob                             0.49
+6                               clear                                            0.95
+7                               drive                                            0.59
+8                               driven_flight                                    0.00
+9                               back_court_drive                                 0.64
+10                              drop                                             0.65
+11                              passive_drop                                     0.71
+12                              push                                             0.66
+13                              rush                                             0.72
+14                              defensive_return_drive                           0.40
+15                              cross_court_net_shot                             0.52
+16                              short_service                                    0.98
+17                              long_service                                     0.97
+Accuracy: 0.753
+Top2 Accuracy: 0.929
+[taxonomy] shuttleset_18: 18 classes, has_sides=False, has_unknown=False
+[taxonomy] classes: ['net_shot', 'return_net', 'smash', 'wrist_smash', 'lob', 'defensive_return_lob', 'clear', 'drive', 'driven_flight', 'back_court_drive', 'drop', 'passive_drop', 'push', 'rush', 'defensive_return_drive', 'cross_court_net_shot', 'short_service', 'long_service']
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_2) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_2  F1-score
+avg                                                Avg                             0.66
+min                                                Min                             0.00
+0                               net_shot                                           0.90
+1                               return_net                                         0.82
+2                               smash                                              0.64
+3                               wrist_smash                                        0.45
+4                               lob                                                0.80
+5                               defensive_return_lob                               0.45
+6                               clear                                              0.95
+7                               drive                                              0.50
+8                               driven_flight                                      0.00
+9                               back_court_drive                                   0.66
+10                              drop                                               0.66
+11                              passive_drop                                       0.65
+12                              push                                               0.62
+13                              rush                                               0.77
+14                              defensive_return_drive                             0.38
+15                              cross_court_net_shot                               0.68
+16                              short_service                                      0.97
+17                              long_service                                       0.95
+Accuracy: 0.765
+Top2 Accuracy: 0.936
+[taxonomy] shuttleset_18: 18 classes, has_sides=False, has_unknown=False
+[taxonomy] classes: ['net_shot', 'return_net', 'smash', 'wrist_smash', 'lob', 'defensive_return_lob', 'clear', 'drive', 'driven_flight', 'back_court_drive', 'drop', 'passive_drop', 'push', 'rush', 'defensive_return_drive', 'cross_court_net_shot', 'short_service', 'long_service']
+
+=== Serial 3 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_3) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_3  F1-score
+avg                                                Avg                             0.65
+min                                                Min                             0.00
+0                               net_shot                                           0.90
+1                               return_net                                         0.81
+2                               smash                                              0.62
+3                               wrist_smash                                        0.44
+4                               lob                                                0.78
+5                               defensive_return_lob                               0.40
+6                               clear                                              0.94
+7                               drive                                              0.57
+8                               driven_flight                                      0.00
+9                               back_court_drive                                   0.65
+10                              drop                                               0.67
+11                              passive_drop                                       0.69
+12                              push                                               0.64
+13                              rush                                               0.71
+14                              defensive_return_drive                             0.33
+15                              cross_court_net_shot                               0.65
+16                              short_service                                      0.96
+17                              long_service                                       0.97
+Accuracy: 0.756
+Top2 Accuracy: 0.933
+[taxonomy] shuttleset_18: 18 classes, has_sides=False, has_unknown=False
+[taxonomy] classes: ['net_shot', 'return_net', 'smash', 'wrist_smash', 'lob', 'defensive_return_lob', 'clear', 'drive', 'driven_flight', 'back_court_drive', 'drop', 'passive_drop', 'push', 'rush', 'defensive_return_drive', 'cross_court_net_shot', 'short_service', 'long_service']
+
+=== Serial 4 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_4) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_4  F1-score
+avg                                                Avg                             0.65
+min                                                Min                             0.00
+0                               net_shot                                           0.89
+1                               return_net                                         0.80
+2                               smash                                              0.63
+3                               wrist_smash                                        0.43
+4                               lob                                                0.79
+5                               defensive_return_lob                               0.51
+6                               clear                                              0.94
+7                               drive                                              0.57
+8                               driven_flight                                      0.00
+9                               back_court_drive                                   0.63
+10                              drop                                               0.68
+11                              passive_drop                                       0.72
+12                              push                                               0.58
+13                              rush                                               0.70
+14                              defensive_return_drive                             0.34
+15                              cross_court_net_shot                               0.56
+16                              short_service                                      0.98
+17                              long_service                                       0.97
+Accuracy: 0.752
+Top2 Accuracy: 0.935
+[taxonomy] shuttleset_18: 18 classes, has_sides=False, has_unknown=False
+[taxonomy] classes: ['net_shot', 'return_net', 'smash', 'wrist_smash', 'lob', 'defensive_return_lob', 'clear', 'drive', 'driven_flight', 'back_court_drive', 'drop', 'passive_drop', 'push', 'rush', 'defensive_return_drive', 'cross_court_net_shot', 'short_service', 'long_service']
+
+=== Serial 5 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_5) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_5  F1-score
+avg                                                Avg                             0.67
+min                                                Min                             0.00
+0                               net_shot                                           0.90
+1                               return_net                                         0.82
+2                               smash                                              0.64
+3                               wrist_smash                                        0.47
+4                               lob                                                0.79
+5                               defensive_return_lob                               0.51
+6                               clear                                              0.94
+7                               drive                                              0.61
+8                               driven_flight                                      0.00
+9                               back_court_drive                                   0.68
+10                              drop                                               0.66
+11                              passive_drop                                       0.68
+12                              push                                               0.63
+13                              rush                                               0.74
+14                              defensive_return_drive                             0.43
+15                              cross_court_net_shot                               0.68
+16                              short_service                                      0.96
+17                              long_service                                       0.95
+Accuracy: 0.765
+Top2 Accuracy: 0.939

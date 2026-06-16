@@ -10,11 +10,11 @@ From `ls -lah /scratch/comp320a/`:
 
 ```
 ahalperi/                                       personal scratch space (node-v20 install for yt-dlp JS runtime)
-ShuttleSet/                                     raw clips + shuttle outputs (entrypoint for BST_CLIPS_DIR + BST_SHUTTLE_NPY_DIR)
+ShuttleSet/                                     raw clips + shuttle outputs (entrypoint for BST_X_CLIPS_DIR + BST_X_SHUTTLE_NPY_DIR)
 ShuttleSet_data_merged_25/                      collations on BST original 25-class taxonomy
 ShuttleSet_data_une_merge_v1/                   collations on 14-class with-sides taxonomy
 ShuttleSet_data_une_merge_v1_nosides/           collations on 14-class no-sides taxonomy (current best)
-ShuttleSet_keypoints_clean_sticky_anchor/       apply_heuristic outputs (BST_MMPOSE_NPY_DIR)
+ShuttleSet_keypoints_clean_sticky_anchor/       apply_heuristic outputs (BST_X_MMPOSE_NPY_DIR)
 ShuttleSet_keypoints_raw/                       raw_extract.py outputs (Phase-2 unified extract)
 ShuttleSet_keypoints_raw_provenance/            stems-list files from shard runs (verification artifact, not for re-rsync)
 sticky_anchor_inspection/                       inspection artifacts
@@ -30,7 +30,7 @@ Layout: `<split>/<Side>_<class>/<stem>.mp4`
 
 Example: `/scratch/comp320a/ShuttleSet/clips/test/Bottom_smash/35_1_10_17.mp4`.
 
-`BST_CLIPS_DIR` points at the `clips/` root. The FE serving layer joins it with `clip_index.json`'s `video_path` field to stream individual mp4s.
+`BST_X_CLIPS_DIR` points at the `clips/` root. The FE serving layer joins it with `clip_index.json`'s `video_path` field to stream individual mp4s.
 
 ## Collation dirs
 
@@ -77,7 +77,7 @@ Per-clip pose data, taxonomy- and split-agnostic. Lives outside the per-taxonomy
 
 `ShuttleSet_keypoints_raw/` (9.3 MB metadata, contents in TBs): 5 `_raw_*.npy` files per stem, N_max=16. 32,203 stems total. Phase-2 unified extract finished 2026-04-29 (30,487 freshly extracted + 1,716 Phase-1 backfill, bit-identical on engelbart and bourbaki). `ndet=0` 0%, `ndet=1` 0.53% (irreducible per-frame failure floor), modal `ndet=10`.
 
-`ShuttleSet_keypoints_clean_sticky_anchor/` (8.5 MB metadata, contents in GBs): 3 files per stem (`_pos.npy`, `_joints.npy`, `_failed.npy`) from `apply_heuristic.py`. This is what `BST_MMPOSE_NPY_DIR` points at and what collation reads as input.
+`ShuttleSet_keypoints_clean_sticky_anchor/` (8.5 MB metadata, contents in GBs): 3 files per stem (`_pos.npy`, `_joints.npy`, `_failed.npy`) from `apply_heuristic.py`. This is what `BST_X_MMPOSE_NPY_DIR` points at and what collation reads as input.
 
 `ShuttleSet_keypoints_raw_provenance/`: stems-list shard files. Keep out of the canonical raw dir during verification queries and rsyncs.
 
@@ -86,13 +86,13 @@ Per-clip pose data, taxonomy- and split-agnostic. Lives outside the per-taxonomy
 `~/badminton_stroke_classifier/.env` (NFS-shared via /home across nodes; read at import time by `pipeline.data_access`):
 
 ```
-BST_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips
-BST_SHUTTLE_NPY_DIR=/scratch/comp320a/ShuttleSet/shuttle_npy_flat
-BST_MMPOSE_NPY_DIR=/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor
-BST_CLIPS_CSV=/home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+BST_X_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips
+BST_X_SHUTTLE_NPY_DIR=/scratch/comp320a/ShuttleSet/shuttle_npy_flat
+BST_X_MMPOSE_NPY_DIR=/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor
+BST_X_CLIPS_CSV=/home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
 # Optional: override the TrackNetV3 shuttle CSV directory. If unset, the
 # collator falls back to the repo-rooted SHUTTLE_CSV_DIR from pipeline/config.
-BST_SHUTTLE_CSV_DIR=/scratch/comp320a/ShuttleSet/shuttle_csv
+BST_X_SHUTTLE_CSV_DIR=/scratch/comp320a/ShuttleSet/shuttle_csv
 ```
 
 New env var for the FE serving contract (introduced in `frontend_integration_guide.md`):

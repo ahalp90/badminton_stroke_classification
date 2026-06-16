@@ -83,11 +83,11 @@ untouched.
   True`), wired into `input_data` so the smoke test exercises
   the new path on all 5 BST variants.
 
-### `main_on_shuttleset/bst_train.py` and `bst_infer.py`
+### `main_on_shuttleset/bst_x_train.py` and `bst_x_infer.py`
 
 - Four `for (human_pose, pos, shuttle), video_len, labels in
-  loader:` unpacks in `bst_train.py` (train_one_epoch / validate
-  / test / test_topk) and one in `bst_infer.py` updated to the
+  loader:` unpacks in `bst_x_train.py` (train_one_epoch / validate
+  / test / test_topk) and one in `bst_x_infer.py` updated to the
   4-tuple form.
 - `shuttle_missing.to(device)` added in each loop body alongside
   the other tensors.

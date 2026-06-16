@@ -25,7 +25,7 @@ expected gain on test macro 0-2 pp, possibly less.
 ### 1. `d_model` 100 → 192
 - Surgical: change the default at `BST.__init__`.
 - Better practice: lift `d_model` into the `Hyp` namedtuple
-  (`bst_train.py:66-74`) and pass through, so the value is
+  (`bst_x_train.py:66-74`) and pass through, so the value is
   sweep-controllable and shows up in the train log. ~5 lines of
   plumbing.
 
@@ -79,7 +79,7 @@ attention modules in `tempose.py`.
 
 ## Manifest record
 
-`manifest.yaml.extra.arch` (`bst_train.py:860-866`) doesn't
+`manifest.yaml.extra.arch` (`bst_x_train.py:860-866`) doesn't
 currently record d_model, d_head, n_head, or head_hidden. Three
 options:
 - **Surgical**: write a line in `best_model_id.txt` and the

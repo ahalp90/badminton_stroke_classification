@@ -1,6 +1,6 @@
-# BST Architecture-1 Training Runs
+# BST-X Architecture-1 Training Runs
 
-All 64 recorded training runs of the BST-based Architecture-1 model on ShuttleSet, built directly from the per-run `manifest.yaml` files under `src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/`. Generated 2026-06-02.
+All 64 recorded training runs of the BST-X (Architecture-1) model on ShuttleSet, built directly from the per-run `manifest.yaml` files under `src/bst_x/stroke_classification/main_on_shuttleset/experiments/`. Generated 2026-06-02.
 
 **Metrics from held-out test set.** Shows `best-serial / mean-across-serials`, to 4 dp. The best serial comes from the manifest's `best_serials` field where it's filled in (#1–31 and #49–64); otherwise, matched to the only `weights/` .pt retained.
 

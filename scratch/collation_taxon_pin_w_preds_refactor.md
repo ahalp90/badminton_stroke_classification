@@ -15,7 +15,7 @@ Generation tag for all new collations and runs in this pass: `taxon_pinned_w_pre
   - A: Taxonomy refactor in `pipeline/config.py`
   - B: Re-extract pipeline (unknown-only stems + raw + clean dirs)
   - C: Collation patch (`unknown_root_dir` + `clip_stems.npy` sidecar)
-  - D: Train + infer surface (Hyp tuple, asserts, predictions npz dump, per-class val F1, TB scalars, manifest `config.classes`, `bst_infer --fe`)
+  - D: Train + infer surface (Hyp tuple, asserts, predictions npz dump, per-class val F1, TB scalars, manifest `config.classes`, `bst_x_infer --fe`)
   - J: FE handler reconciliation in `src/api/registry.py` + `src/api/inference.py`
   - E: Runner script (`collation_runner.py`)
   - F: Tests
@@ -29,7 +29,7 @@ Generation tag for all new collations and runs in this pass: `taxon_pinned_w_pre
 
 ## Status
 
-**Current (2026-05-30):** Steps A-C committed on `feat/taxon-pinned-w-preds` (`4c1c3c9`, pushed) + six collations built/verified. Steps **D, J, E, G(partial)** are now coded and CPU-tested but **uncommitted** in the working tree (full chronology in the log tail). The train + infer surface is rewritten (Hyp `collation_id`/`ablation_id` split, `_assert_label_coverage` replacing the runtime adapter, `config.classes` manifest field, per-stroke npz dump, per-class val F1 capture, `bst_infer --fe`, retired `eval_dump_predictions`), the FE registry/inference resolvers are patched, and `collation_runner.py` + the 6-cell `config.yaml` exist. Full suite: 365 passed / 5 skipped / 2 pre-existing docker failures in the cicd venv. **Next: commit this lot, then run the 6 cells via the runner on bourbaki**, prune non-best npz, and land the run-ID-dependent docs + the J4 FE PR note. Cold-start pickup in `scratch/NEXT_SESSION.md`.
+**Current (2026-05-30):** Steps A-C committed on `feat/taxon-pinned-w-preds` (`4c1c3c9`, pushed) + six collations built/verified. Steps **D, J, E, G(partial)** are now coded and CPU-tested but **uncommitted** in the working tree (full chronology in the log tail). The train + infer surface is rewritten (Hyp `collation_id`/`ablation_id` split, `_assert_label_coverage` replacing the runtime adapter, `config.classes` manifest field, per-stroke npz dump, per-class val F1 capture, `bst_x_infer --fe`, retired `eval_dump_predictions`), the FE registry/inference resolvers are patched, and `collation_runner.py` + the 6-cell `config.yaml` exist. Full suite: 365 passed / 5 skipped / 2 pre-existing docker failures in the cicd venv. **Next: commit this lot, then run the 6 cells via the runner on bourbaki**, prune non-best npz, and land the run-ID-dependent docs + the J4 FE PR note. Cold-start pickup in `scratch/NEXT_SESSION.md`.
 
 The pre-flight impact assessment against the Architecture 2 train path is still in Open Items; nothing in Steps A-J surfaced a conflict. The FE backend reconciliation (Step J) landed behind back-compat fallbacks (the shipped mock entry still resolves), and is for the FE team to review per J4.
 
@@ -41,17 +41,17 @@ If the repo has drifted since this doc was written, run these checks first. Each
 
 ```bash
 # 1. Confirm the MERGE_MAP bug is still present (i.e. nobody has fixed it under us).
-grep -n "driven_flight" src/bst_refactor/pipeline/config.py
+grep -n "driven_flight" src/bst_x/pipeline/config.py
 # Expected: line ~68 maps 'driven_flight' -> 'unknown' under MERGE_MAP.
 # Also line ~76 maps 'driven_flight' -> 'drive' under UNE_MERGE_V1_MAP (the good one).
 
-# 2. Confirm derive_active_classes_from_labels is still in bst_common.py and called from bst_train.
-grep -n "derive_active_classes_from_labels" src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py
-grep -n "derive_active_classes_from_labels\|_derive_active_classes_from_loaded_labels" src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py
-# Expected: definition at bst_common.py around line 80; caller in bst_train.py around line 761.
+# 2. Confirm derive_active_classes_from_labels is still in bst_x_common.py and called from bst_x_train.
+grep -n "derive_active_classes_from_labels" src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py
+grep -n "derive_active_classes_from_labels\|_derive_active_classes_from_loaded_labels" src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py
+# Expected: definition at bst_x_common.py around line 80; caller in bst_x_train.py around line 761.
 
 # 3. Confirm _validate_and_record_arch is still where the doc thinks it is.
-grep -n "_validate_and_record_arch" src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py
+grep -n "_validate_and_record_arch" src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py
 # Expected: definition around line 913, callers around 1228.
 
 # 4. Confirm build_extract_stems.py hasn't already grown an --only-unknown flag.
@@ -59,7 +59,7 @@ grep -n "only.unknown\|raw_type_en" scripts/build_extract_stems.py
 # Expected: --keep-unknown flag exists; no --only-unknown yet.
 
 # 5. Confirm collate_npy is still where the doc thinks it is, with the drop_unknown filter at the docd line.
-grep -n "def collate_npy\|drop_unknown" src/bst_refactor/stroke_classification/preparing_data/prepare_train_on_shuttleset.py
+grep -n "def collate_npy\|drop_unknown" src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py
 # Expected: collate_npy def around line 714; drop_unknown filter inside, around line 767-768.
 
 # 6. Confirm the 1,278 unknown clip count from clips_master.csv.
@@ -77,9 +77,9 @@ ssh engelbart 'ls -la /scratch/comp320a/ | grep -E "(_unknown|taxon_pinned)"'
 # Expected: no existing entries with these names. If found, investigate before
 # running B2/B3 to avoid clobbering whatever is there.
 
-# 8. Confirm bst_train.py:803 still constructs weight filename from taxonomy.name
+# 8. Confirm bst_x_train.py:803 still constructs weight filename from taxonomy.name
 #    (this is one of the spots the path-source-from-manifest patch in D7 needs to touch).
-grep -n "taxonomy_info = f._.self.taxonomy.name" src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py
+grep -n "taxonomy_info = f._.self.taxonomy.name" src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py
 # Expected: line ~803.
 
 # 9. Confirm the scratch smoke tests' state (they use class_list() which goes away).
@@ -94,7 +94,7 @@ grep -n "active_class_list\|extra.*arch\|config.*classes" src/api/registry.py
 # someone landed Patch 2 ahead of us; audit Step J before re-doing.
 
 # 11. Confirm the predictions JSON output dir is still in the placeholder state.
-find src/bst_refactor/stroke_classification/main_on_shuttleset/experiments \
+find src/bst_x/stroke_classification/main_on_shuttleset/experiments \
     -name 'test.json' -o -name 'val.json' 2>/dev/null | head -5
 # Expected: val.json + test.json at run_20260505_154907/predictions/ with
 # _mock_data: false, _real_stems: true, y_pred a placeholder the live BST
@@ -126,7 +126,7 @@ The writeup needs BST-paper-comparable 25-class numbers from the current best pi
 
 ### Opportunity: rip the taxonomy bandaids while everything's rebuilding anyway
 
-The runtime active-class adapter (`derive_active_classes_from_labels` in `bst_common.py`), the `Taxonomy.unknown_first` flag, and the labels.npy-in-full-taxonomy-index-space convention have been quietly piling up since the early pre-Phase-2 days. They're monkey-patches the train loop has been routing around for months. The forced re-extract + recollation + retrain across multiple taxonomies above is the cleanest moment to deal with the lot:
+The runtime active-class adapter (`derive_active_classes_from_labels` in `bst_x_common.py`), the `Taxonomy.unknown_first` flag, and the labels.npy-in-full-taxonomy-index-space convention have been quietly piling up since the early pre-Phase-2 days. They're monkey-patches the train loop has been routing around for months. The forced re-extract + recollation + retrain across multiple taxonomies above is the cleanest moment to deal with the lot:
 
 1. labels.npy moves to active class space directly. No runtime remap.
 2. `derive_active_classes_from_labels` deletes. Two asserts at train start replace it.
@@ -162,7 +162,7 @@ Driven-flight clips themselves were never filtered out at extract time (`build_e
 - **Back-compat**: `TAXONOMY_ALIASES` table maps legacy names to new objects. Old `/scratch/.../ShuttleSet_data_<old_name>/` dirs stay untouched. Manifest-recorded taxonomy string drives on-disk path construction; alias table drives the Taxonomy-object lookup.
 - **Back-compat phase-out**: noted inline next to the alias table that the intention is to remove entries one-by-one over the coming months as historical runs retire. Manual deletion of paired `ShuttleSet_data_<old>/` dirs goes with each alias removal.
 - **`raw_35` removal**: deleted from `pipeline/config.py` with an inline comment explaining how to reinstate it for paper-Table-F parity.
-- **`.pt` -> `.npz`**: predictions stored as npz. Old `eval_dump_predictions.py` retired; its capability folds into `bst_infer.py` behind a `--fe` flag. `--fe-output-dir` is an optional override (default writes under the run dir; set it so demo dumps land outside the repo).
+- **`.pt` -> `.npz`**: predictions stored as npz. Old `eval_dump_predictions.py` retired; its capability folds into `bst_x_infer.py` behind a `--fe` flag. `--fe-output-dir` is an optional override (default writes under the run dir; set it so demo dumps land outside the repo).
 - **Manifest `config.classes` field**: BST manifests gain a `config.classes: [list]` field carrying the resolved class list from `taxonomy.classes`. Mirrors BRIC's existing manifest schema. Provides a self-describing source of truth that the FE registry handler reads without needing to import any taxonomy module. Legacy BST manifests (pre-refactor) keep their `extra.arch.active_class_list` block; the resolver in `registry.py` falls back to it.
 - **Predictions JSON field rename**: the per-clip predictions JSON output by the future post-hoc converter uses `class_list` (matching the api_contract registry-entry field), not `active_class_list`. `registry.py` accepts either field name for back-compat with the existing mock JSONs during the transition.
 - **`src/api/registry.py` patch lands alongside the refactor**: small resolver in the handler reads `class_list` from `manifest.config.classes` (canonical), falling back to `manifest.extra.arch.active_class_list` (legacy BST). Same change incidentally fixes the latent BRIC-handler bug where `registry.py` was only looking in BST's bandaid block.
@@ -438,7 +438,7 @@ cd /home/ahalperi/badminton_stroke_classifier
 #### B2. `raw_extract.py` (no code change)
 
 ```bash
-PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
     /home/ahalperi/.venvs/venv-bst/bin/python -m preparing_data.raw_extract \
     --clip-stems-file /scratch/comp320a/ShuttleSet_keypoints_raw_unknown/stems_unknown.txt \
     --save-dir /scratch/comp320a/ShuttleSet_keypoints_raw_unknown \
@@ -450,7 +450,7 @@ Wall time: ~1,278 / 32,203 of the original Phase-2 budget. Roughly 1.5 hours on 
 #### B3. `apply_heuristic.py` (no code change; collision guards already in place)
 
 ```bash
-PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
     /home/ahalperi/.venvs/venv-bst/bin/python -m preparing_data.apply_heuristic \
     --raw-dir /scratch/comp320a/ShuttleSet_keypoints_raw_unknown \
     --output-dir /scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor_unknown \
@@ -552,9 +552,9 @@ Back-compat for legacy collated dirs that don't carry `clip_stems.npy`: graceful
 
 ### Step D. Train + infer surface
 
-#### D1. `bst_train.py` Hyp tuple
+#### D1. `bst_x_train.py` Hyp tuple
 
-Current Hyp tuple field set (from `bst_train.py:67-76`, pinned here so a cold-context reader doesn't need to look it up):
+Current Hyp tuple field set (from `bst_x_train.py:67-76`, pinned here so a cold-context reader doesn't need to look it up):
 
 ```
 n_epochs, batch_size, lr, warm_up_step,
@@ -585,11 +585,11 @@ def _print_taxonomy_block(taxonomy: Taxonomy, tee):
 
 Mirrors BRIC's manifest schema. The resolved class list (from `taxonomy.classes`) is captured in the recorded `config` block so the FE registry handler (and any other consumer) can read the class list directly from the manifest without needing to import the taxonomy module.
 
-In `bst_train.py`, around the `compute_data_provenance` call site (~line 1154-1158), the easiest insertion is to enrich the `extra` block before passing it to `track_run`. But cleaner: have the manifest writer in `run_tracker.py` include the resolved classes. Two equivalent paths:
+In `bst_x_train.py`, around the `compute_data_provenance` call site (~line 1154-1158), the easiest insertion is to enrich the `extra` block before passing it to `track_run`. But cleaner: have the manifest writer in `run_tracker.py` include the resolved classes. Two equivalent paths:
 
 **Option A (preferred): write into `config`, mirroring BRIC**
 
-In `bst_train.py`, before `track_run(config=hyp, ...)`, build a dict variant of the Hyp that includes `classes`:
+In `bst_x_train.py`, before `track_run(config=hyp, ...)`, build a dict variant of the Hyp that includes `classes`:
 
 ```python
 config_payload = dict(hyp._asdict())
@@ -644,7 +644,7 @@ def _assert_label_coverage(self) -> None:
 
 `Task._derive_active_classes_from_loaded_labels` is deleted. `self.n_active_classes` and `self.active_class_list` simplify to `self.taxonomy.n_classes` and `list(self.taxonomy.classes)`.
 
-#### D3. `bst_common.py` changes
+#### D3. `bst_x_common.py` changes
 
 - Remove `derive_active_classes_from_labels` and its imports.
 - Add `dump_topk_predictions` helper (the one we mapped earlier).
@@ -686,7 +686,7 @@ def dump_topk_predictions(
     }
 ```
 
-#### D4. End-of-serial predictions dump in `bst_train.py`
+#### D4. End-of-serial predictions dump in `bst_x_train.py`
 
 After `task.test(...)`, before `track_serial(...)`:
 
@@ -773,9 +773,9 @@ for i, c in enumerate(class_ls):
 
 #### D7. Path construction updates (two callsites, not one)
 
-Two places in `bst_train.py` use `taxonomy.name` to build on-disk paths. Both need the same patch: source the recorded string from `hyp.taxonomy`, not from the resolved Taxonomy object.
+Two places in `bst_x_train.py` use `taxonomy.name` to build on-disk paths. Both need the same patch: source the recorded string from `hyp.taxonomy`, not from the resolved Taxonomy object.
 
-**Callsite 1: `bst_train.py:1168-1172`** (collated dir lookup):
+**Callsite 1: `bst_x_train.py:1168-1172`** (collated dir lookup):
 
 ```python
 # Current:
@@ -794,7 +794,7 @@ collated_root = (
 )
 ```
 
-**Callsite 2: `bst_train.py:803`** (weight filename construction, inside `Task.seek_network_weights`):
+**Callsite 2: `bst_x_train.py:803`** (weight filename construction, inside `Task.seek_network_weights`):
 
 ```python
 # Current:
@@ -812,7 +812,7 @@ For new runs `hyp.taxonomy == taxonomy.name` so both expressions evaluate to the
 
 #### D8. CLI extension for the runner
 
-Add to `bst_train.py` argparse:
+Add to `bst_x_train.py` argparse:
 
 ```python
 parser.add_argument('--taxonomy',     default=None)
@@ -835,7 +835,7 @@ if overrides:
 
 No `--drop-unknown` flag (controlled by taxonomy choice).
 
-#### D9. `bst_infer.py` --fe mode
+#### D9. `bst_x_infer.py` --fe mode
 
 New mode for the FE/batch dump use case. Two new flags with the mutual-implication guard:
 
@@ -849,11 +849,11 @@ if args.fe_output_dir is not None and not args.fe:
     parser.error('--fe-output-dir requires --fe (no implicit dump mode)')
 ```
 
-Output path: `<run-dir>/inference_runs/<timestamp>/<split>_serial_<n>.npz`, or `<fe_output_dir>/<run_id>/inference_runs/<timestamp>/...` with the override, plus an `inference_manifest.yaml`. Schema identical to what `bst_train.py` emits (9 keys incl. `clip_stems`). Reuses `dump_topk_predictions` from `bst_common.py`.
+Output path: `<run-dir>/inference_runs/<timestamp>/<split>_serial_<n>.npz`, or `<fe_output_dir>/<run_id>/inference_runs/<timestamp>/...` with the override, plus an `inference_manifest.yaml`. Schema identical to what `bst_x_train.py` emits (9 keys incl. `clip_stems`). Reuses `dump_topk_predictions` from `bst_x_common.py`.
 
 #### D10. Retire `scratch/presentation_prep/eval_dump_predictions.py`
 
-Move its capability into `bst_infer.py --fe`. Delete the old script with a one-line scratch note pointing at `bst_infer.py` as the replacement. `confusion_matrix.py` (the other consumer in `presentation_prep/`) needs updating to read npz instead of `.pt` (one-line change: `np.load(...)` instead of `torch.load(...)`).
+Move its capability into `bst_x_infer.py --fe`. Delete the old script with a one-line scratch note pointing at `bst_x_infer.py` as the replacement. `confusion_matrix.py` (the other consumer in `presentation_prep/`) needs updating to read npz instead of `.pt` (one-line change: `np.load(...)` instead of `torch.load(...)`).
 
 ### Step J. FE handler reconciliation (`src/api/registry.py` + `src/api/inference.py`)
 
@@ -940,7 +940,7 @@ Parked at `~/Desktop/bst_messaging_suggestions.md`. AI-flavoured first draft; re
 - What the patch does: small resolver in `src/api/registry.py` + `src/api/inference.py` that prefers `manifest.config.classes` and falls back to `manifest.extra.arch.active_class_list`. Same back-compat for the predictions-JSON `active_class_list -> class_list` rename.
 - Side benefit: BRIC entries register correctly for the first time (the current handler only looks in BST's bandaid block).
 - Test surface: the existing mock entry keeps working via fallback; new BST + BRIC entries work via canonical path.
-- Forward concern (not in this PR): `src/api/bst_inference.py` hardcodes the 14-class list. Fine for the current best; will need parameterising or per-model cloning when new taxonomies register. FE-team workstream call.
+- Forward concern (not in this PR): `src/api/bst_x_inference.py` hardcodes the 14-class list. Fine for the current best; will need parameterising or per-model cloning when new taxonomies register. FE-team workstream call.
 
 #### J5. `collation_id` / `ablation_id` manifest fields
 
@@ -957,10 +957,10 @@ The `_resolve_class_list` fallback in J1 is a separate concern. It stays for now
 
 ### Step E. Runner script
 
-New file: `src/bst_refactor/stroke_classification/main_on_shuttleset/collation_runner.py`. Thin loop over a session config, one cell per (taxonomy, split, collation_id, n_serials), plus an optional training `ablation_id` per cell. No kill rules, no verdict logic. State persisted to `state.json` for resume.
+New file: `src/bst_x/stroke_classification/main_on_shuttleset/collation_runner.py`. Thin loop over a session config, one cell per (taxonomy, split, collation_id, n_serials), plus an optional training `ablation_id` per cell. No kill rules, no verdict logic. State persisted to `state.json` for resume.
 
 ```python
-"""Drive bst_train.py through a list of (taxonomy, split, knobs) cells.
+"""Drive bst_x_train.py through a list of (taxonomy, split, knobs) cells.
 
 No kill rules, no verdicts. Fresh run_id per cell, N serials per cell from
 the cell config (default 5, headline cells set 10).
@@ -987,7 +987,7 @@ def invoke_bst_train(*, serial_no: int, run_id: str, log_path: Path, cell: dict)
     env = os.environ.copy()
     env['PYTHONPATH'] = ':'.join([str(src_root), str(stroke_root)])
     cmd = [
-        sys.executable, '-m', 'main_on_shuttleset.bst_train',
+        sys.executable, '-m', 'main_on_shuttleset.bst_x_train',
         '--serial-no',   str(serial_no),
         '--run-id',      run_id,
         '--log-path',    str(log_path),
@@ -1030,7 +1030,7 @@ def main():
                 log_path=log_path, cell=cell,
             )
             if rc != 0:
-                print(f'[{name}] bst_train failed with code {rc} on S{nxt}; aborting cell.')
+                print(f'[{name}] bst_x_train failed with code {rc} on S{nxt}; aborting cell.')
                 sys.exit(rc)
             cstate['serials_done'] = nxt
             state_path.write_text(json.dumps(state, indent=2))
@@ -1090,10 +1090,10 @@ cells:
 
 `bst_25` keepunk cells need the `--unknown-clip-npy-dir` flag piped through `invoke_bst_train`. Two ways:
 
-1. Add an optional `cell['unknown_clip_npy_dir']` field, forwarded to bst_train as the flag.
-2. Have bst_train auto-set the sibling dir whenever the active taxonomy has unknown in its class list.
+1. Add an optional `cell['unknown_clip_npy_dir']` field, forwarded to bst_x_train as the flag.
+2. Have bst_x_train auto-set the sibling dir whenever the active taxonomy has unknown in its class list.
 
-Option 2 is cleaner since the sibling dir path is a project constant (`/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor_unknown`); add it as a module-level default in `bst_train` that the with-unknown taxonomies pick up automatically.
+Option 2 is cleaner since the sibling dir path is a project constant (`/scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor_unknown`); add it as a module-level default in `bst_x_train` that the with-unknown taxonomies pick up automatically.
 
 Wait, the sibling dir applies at collation time, not at train time. So this is irrelevant for the runner. The collator already has `--unknown-clip-npy-dir`; the runner doesn't need it. Collation happens upstream of the runner.
 
@@ -1125,7 +1125,7 @@ Also: `_derive_class_label` returning `'unknown'` for the unknown raw_type stays
 
 #### F3. `tests/test_integration.py`, `tests/test_hparam_sweep.py`
 
-Likely affected by the Hyp tuple changes (dropping `expected_active_classes`, `drop_unknown`). Audit and update field references. Hparam sweep tests probably need taxonomy / split / collation_id flag updates if they assert on the bst_train CLI invocation shape.
+Likely affected by the Hyp tuple changes (dropping `expected_active_classes`, `drop_unknown`). Audit and update field references. Hparam sweep tests probably need taxonomy / split / collation_id flag updates if they assert on the bst_x_train CLI invocation shape.
 
 #### F4. `tests/test_dataset.py`
 
@@ -1137,7 +1137,7 @@ Add `clip_stems.npy` to the fake-collated-dir fixture so the new Dataset_npy_col
 - `scratch/architecture_notes/bst_x_overview.md` - active baseline pointer changes (old run_20260505_154907 stays valid via alias; new headline numbers will come from the cells in Step E).
 - `scratch/frontend_integration_handoff.md` - `class_list` in the registry comes from `taxonomy.classes`, not from manifest.extra.arch; unknown index is always -1 when present.
 - `docs/models_registry.yaml` - update existing entries to point at the new taxonomy names (or leave on old names + rely on alias lookup, depending on consumer migration timing).
-- Path-format doc strings (`npy_[3d_][seq{N}_]{split}_{collation_id}`): tidied 2026-05-30 in `data_pipeline_to_model_train.md`, `bst_infer.py` (example comment), `tests/test_integration.py`, `tests/testing_guide.md`. Still pending, deferred to where they're naturally touched: `run_tracker.md:80`'s `effective_ablation_id` example (becomes `collation_id` when the bst_common manifest writer is renamed in Step D), the `data_pipeline_to_model_train.md` Hyp-default table entry (Step D Hyp), and prose naming the removed `derive_ablation_id` in `src/shared/taxonomy.py:22` (BRIC-side, left per the insulation rule) + `validation_scripts/README.md:163` (lands with the `verify_bst_train_target.py` rewrite in Step D).
+- Path-format doc strings (`npy_[3d_][seq{N}_]{split}_{collation_id}`): tidied 2026-05-30 in `data_pipeline_to_model_train.md`, `bst_x_infer.py` (example comment), `tests/test_integration.py`, `tests/testing_guide.md`. Still pending, deferred to where they're naturally touched: `run_tracker.md:80`'s `effective_ablation_id` example (becomes `collation_id` when the bst_x_common manifest writer is renamed in Step D), the `data_pipeline_to_model_train.md` Hyp-default table entry (Step D Hyp), and prose naming the removed `derive_ablation_id` in `src/shared/taxonomy.py:22` (BRIC-side, left per the insulation rule) + `validation_scripts/README.md:163` (lands with the `verify_bst_train_target.py` rewrite in Step D).
 
 ### Step H. Execution order
 
@@ -1145,7 +1145,7 @@ Add `clip_stems.npy` to the fake-collated-dir fixture so the new Dataset_npy_col
 2. Land Step B1 (build_extract_stems --only-unknown). Run B2 + B3 on engelbart. Rsync to bourbaki (B4).
 3. Land Step C1 + C2 + C3 (collator + dataset). Run pytest.
 4. Land Step D1-D8 (train + infer surface, including assertions, predictions dump, val per-class capture, manifest config.classes write per D1.5). Run pytest.
-5. Land Step D9 (bst_infer --fe). Land Step D10 (retire eval_dump_predictions).
+5. Land Step D9 (bst_x_infer --fe). Land Step D10 (retire eval_dump_predictions).
 6. Land Step J (`src/api/registry.py` resolver patch + `src/api/inference.py` field back-compat). Hand to FE team with the PR-explanation in J4 for review.
 7. Land Step E (runner script + session config).
 8. Run all eight cells via the runner. Manually prune non-best serials' predictions npz after the runner finishes (per-cell, retain `predictions/<split>_serial_<best>.npz` only).
@@ -1163,7 +1163,7 @@ The `TAXONOMY_ALIASES` table in config.py is the explicit inventory of legacy na
 - Taxonomy lookup: `'une_merge_v1_nosides'` -> alias -> `TAXONOMY_UNE_V1_14`. Class list identical (the alias points at the structurally-equivalent taxonomy).
 - On-disk dir: `ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop/` (untouched on /scratch). The path-construction patch in D7 uses `hyp.taxonomy` (the recorded string) for dir lookup.
 - Weights: load against `n_classes = 14`, matching the current 14-output head.
-- Manifest `extra.arch` block on the old manifest: tolerated. The new `bst_train.py` doesn't write or read that block; it ignores any existing one on resume.
+- Manifest `extra.arch` block on the old manifest: tolerated. The new `bst_x_train.py` doesn't write or read that block; it ignores any existing one on resume.
 
 Pre-refactor `merged_25` runs:
 - Aliased to `bst_25`, but semantically loose because the old runs used the buggy `MERGE_MAP['driven_flight'] = 'unknown'`, so old labels.npy has driven_flight rows at index 0 (unknown) while the new bst_25 has them at the `drive` indices.
@@ -1196,23 +1196,23 @@ Important: the `class_list` returned by `registry.py` for a given model entry co
 
 ### Source files changed
 
-- `src/bst_refactor/pipeline/config.py` (substantial rewrite of taxonomy block)
-- `src/bst_refactor/pipeline/data_access.py` (taxonomy name references; `_derive_class_label` keeps working unchanged)
-- `src/bst_refactor/pipeline/build_dataset.py` (default taxonomy reference; remove `MERGE_MAP` re-export if unused after the dust settles)
-- `src/bst_refactor/pipeline/clip_generator.py` (taxonomy default reference)
-- `src/bst_refactor/pipeline/verify.py` (taxonomy default reference)
-- `src/bst_refactor/stroke_classification/preparing_data/prepare_train_on_shuttleset.py` (`collate_npy` rewrite, CLI changes)
-- `src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py` (Dataset_npy_collated loads clip_stems; adjust_to_partial_train_set mirrors clip_stems)
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py` (Hyp tuple, train_network return value, dump_predictions, asserts, _validate_and_record_arch deletion, CLI flags)
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_infer.py` (--fe + --fe-output-dir, batch dump path)
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_common.py` (delete derive_active_classes_from_labels, add dump_topk_predictions)
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/collation_runner.py` (new)
+- `src/bst_x/pipeline/config.py` (substantial rewrite of taxonomy block)
+- `src/bst_x/pipeline/data_access.py` (taxonomy name references; `_derive_class_label` keeps working unchanged)
+- `src/bst_x/pipeline/build_dataset.py` (default taxonomy reference; remove `MERGE_MAP` re-export if unused after the dust settles)
+- `src/bst_x/pipeline/clip_generator.py` (taxonomy default reference)
+- `src/bst_x/pipeline/verify.py` (taxonomy default reference)
+- `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py` (`collate_npy` rewrite, CLI changes)
+- `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py` (Dataset_npy_collated loads clip_stems; adjust_to_partial_train_set mirrors clip_stems)
+- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py` (Hyp tuple, train_network return value, dump_predictions, asserts, _validate_and_record_arch deletion, CLI flags)
+- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_infer.py` (--fe + --fe-output-dir, batch dump path)
+- `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_common.py` (delete derive_active_classes_from_labels, add dump_topk_predictions)
+- `src/bst_x/stroke_classification/main_on_shuttleset/collation_runner.py` (new)
 - `scripts/build_extract_stems.py` (`--only-unknown` flag)
 - `scratch/presentation_prep/eval_dump_predictions.py` (deleted)
 - `scratch/presentation_prep/confusion_matrix.py` (npz reader instead of .pt)
 - `src/api/registry.py` (`_resolve_class_list` helper + JSON field rename with back-compat; ~30 lines per Step J)
 - `src/api/inference.py` (predictions-JSON field back-compat at `_load_test_preds`, one line + comment per Step J3)
-- `src/bst_refactor/run_tracker.py` *or* `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py` (one line landing `config.classes` into the manifest payload per Step D1.5; recommended in bst_train at the `track_run` call site)
+- `src/bst_x/run_tracker.py` *or* `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py` (one line landing `config.classes` into the manifest payload per Step D1.5; recommended in bst_x_train at the `track_run` call site)
 - `scratch/post_tidy_smoke/smoke_infer_bit_exact.py` (currently uses `taxonomy.class_list()` and `n_active_classes` kwarg at lines ~117-118; both go away under the rip). Two options: (a) delete the smoke script since the legacy-fallback path it tests is being removed; (b) update it to use `taxonomy.classes` and pass `n_class=taxonomy.n_classes` to the network builder. (a) is cleaner unless the smoke is actively used in CI.
 - `scratch/post_tidy_smoke/smoke_prepare_2d_bit_exact.py` (verify no taxonomy.name / class_list dependencies; touch only if grep finds them).
 
@@ -1256,12 +1256,12 @@ Split is folded into the basename (`npy_{split}_{collation_id}`, see the 2026-05
 
 These files were checked during planning and don't touch the bandaid surfaces, so they need no changes under this refactor. Listed for the cold-context reader so the audit doesn't need re-running:
 
-- `src/bst_refactor/validation_scripts/*.py` (no MERGE_MAP / Taxonomy / active_class references; perclass diagnostics use raw labels.npy values which become directly meaningful under the rip)
-- `src/bst_refactor/run_tracker.py` (manifest writer; agnostic to the arch block contents, just stores whatever extras the caller passes)
-- `src/bst_refactor/aim_backfill.py` (aim mirror; doesn't depend on `extra.arch`)
-- `src/bst_refactor/pipeline/clip_index.py` (path indexer; no taxonomy dependency)
-- `src/bst_refactor/stroke_classification/main_on_shuttleset/hparam_sweep.py` (kill/verdict logic operates on metrics; needs minor audit for CLI flag shape compatibility — see Step F3 — but the core loop is unaffected)
-- `src/bst_refactor/stroke_classification/loss/adaptive_focal.py` (consumes `n_classes` + `class_names` which `bst_train` continues to pass; no change needed)
+- `src/bst_x/validation_scripts/*.py` (no MERGE_MAP / Taxonomy / active_class references; perclass diagnostics use raw labels.npy values which become directly meaningful under the rip)
+- `src/bst_x/run_tracker.py` (manifest writer; agnostic to the arch block contents, just stores whatever extras the caller passes)
+- `src/bst_x/aim_backfill.py` (aim mirror; doesn't depend on `extra.arch`)
+- `src/bst_x/pipeline/clip_index.py` (path indexer; no taxonomy dependency)
+- `src/bst_x/stroke_classification/main_on_shuttleset/hparam_sweep.py` (kill/verdict logic operates on metrics; needs minor audit for CLI flag shape compatibility — see Step F3 — but the core loop is unaffected)
+- `src/bst_x/stroke_classification/loss/adaptive_focal.py` (consumes `n_classes` + `class_names` which `bst_x_train` continues to pass; no change needed)
 
 ## Drift-detection rules
 

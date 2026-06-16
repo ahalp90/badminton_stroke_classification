@@ -1,0 +1,85 @@
+Best model of run_20260501_073430/ - #3
+  #3: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3.pt
+
+Phase 2 LS=0.15 run on combo A (une_merge_v1_nosides + split_v2 +
+dropunk) over the unified sticky_anchor mmpose clean dir. Direct
+comparisons against LS=0.1 baseline run_20260430_170325 and LS=0.0
+run run_20260430_213933 (same combo, all other hparams identical);
+checks whether moving label_smoothing up from 0.1 to 0.15 lifts the
+wrist_smash floor on the collapsed-classes taxonomy after LS=0.0
+failed to.
+
+Hparams:
+  taxonomy=une_merge_v1_nosides, split_column=split_v2,
+  drop_unknown=True, n_epochs=80, warm_up_step=100,
+  early_stop_n_epochs=40, scheduler num_cycles=0.5, lr=5e-4,
+  batch_size=128, use_aux_schedule=True, aux_fade_end_epoch=15,
+  label_smoothing=0.15.
+  ablation_id=None
+  (resolves to une_merge_v1_nosides_split_v2_dropunk).
+
+Metric split (num_strokes=4202, 14 classes):
+  - Serial 3: top macro F1 (0.753), top min F1 (0.448, wrist_smash),
+    top accuracy (0.773), top-2 0.940. Flagged.
+  - Serial 2: macro 0.748, min 0.435, acc 0.768, top-2 0.939.
+  - Serial 1: macro 0.747, min 0.408, acc 0.767, top-2 0.939.
+  - Serial 5: macro 0.744, min 0.411, acc 0.769, top-2 0.939.
+  - Serial 4: macro 0.744, min 0.382, acc 0.766, top-2 0.932.
+
+Mean across 5: macro 0.747, min 0.417, acc 0.769, top-2 0.938.
+
+Vs LS=0.1 baseline run_20260430_170325 mean
+(0.742 / 0.375 / 0.767 / 0.938):
+  macro +0.005, min +0.042, acc +0.002, top-2 ~0.
+
+Vs LS=0.0 run_20260430_213933 mean
+(0.743 / 0.359 / 0.768 / 0.939):
+  macro +0.004, min +0.058, acc +0.001, top-2 ~0.
+
+Wrist_smash floor lifts. Per-serial wrist_smash F1 spans
+0.382-0.448 (range 0.066) at LS=0.15 vs 0.300-0.459 (range 0.159)
+at LS=0.1 and 0.336-0.404 (range 0.069) at LS=0.0. The LS=0.15
+distribution sits entirely at or above the LS=0.1 mean of 0.375;
+the 0.30 floor that LS=0.1 carried is gone. Best-of-run wrist_smash
+0.448 (LS=0.15 S3) vs 0.459 (LS=0.1 S5) vs 0.404 (LS=0.0 S2): top
+serial slightly under LS=0.1's outlier, but the mean and the floor
+both move up clearly.
+
+Per-class movement S4 (LS=0.1 best) -> S3 (LS=0.15 best):
+  Up: wrist_smash +4.5, passive_drop +4.9, drive +3.5, drop +1.9.
+  Down: clear -1.6, rush -1.5, push -1.4, services -0.4 / -0.6,
+        net_shot / return_net / smash within 0.5 pp of baseline.
+
+Mid-tier (drive, drop, passive_drop) lifts alongside the rare class;
+head metrics soften within noise. First run where the wrist_smash
+floor moves in the right direction. Next candidate: LS=0.2 to map
+whether the lift continues or tops out before exiting the LS axis.
+
+TensorBoard run folders (in tb/):
+  S1: serial_1
+  S2: serial_2
+  S3: serial_3  (flagged best, top macro / min / acc)
+  S4: serial_4  (weakest min)
+  S5: serial_5
+
+=== Serial 3 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3  F1-score
+avg                                                Avg                                    0.75
+min                                                Min                                    0.45
+0                                 net_shot                                                0.90
+1                                 return_net                                              0.82
+2                                 smash                                                   0.66
+3                                 wrist_smash                                             0.45
+4                                 lob                                                     0.78
+5                                 clear                                                   0.95
+6                                 drive                                                   0.62
+7                                 drop                                                    0.68
+8                                 passive_drop                                            0.66
+9                                 push                                                    0.59
+10                                rush                                                    0.76
+11                                cross_court_net_shot                                    0.70
+12                                short_service                                           0.98
+13                                long_service                                            0.99
+Accuracy: 0.773
+Top2 Accuracy: 0.940

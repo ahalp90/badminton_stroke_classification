@@ -2,7 +2,7 @@
 
 Status as of 2026-04-21: Phase 1 + Phase 2 complete. V3 committed at 3a98149; V4 ran on engelbart 2026-04-20, best S2 macro 0.743 / min 0.432 / acc 0.766. Pre-commit gate passed (dry-run, verify_shuttle_sync, shuttle_csvs_to_npy diff, V4 re-collate diff all bit-identical; Step 2 single-clip pose writer smoke good; validate_zeroed_frames CSV-driven run sane; test_dataset.py green locally). Next user-driven steps: re-extract busted smash MMPoses against the flat writer, then V5 (`rm -r` the nested originals). Phase 3 (flatten the .mp4 clips dir) still deferred.
 
-Post-Phase-2 cosmetic: collated dir naming shortened to `npy_[3d_][seq{N}_]{ablation_id}`. Prefix tags (`3d_`, `seq{N}_`) appear only for non-default configs (2D + seq_len=100 strips both). Drops the `dataset_npy_collated_between_2_hits_with_max_limits_seq_100_...` prefix that duplicated info already in manifest.yaml. Existing V3/V4 dirs on engelbart keep their old names; the rename applies only to new runs. References updated across `prepare_train_on_shuttleset.py`, `bst_train.py`, `bst_infer.py`, `shuttleset_dataset.py.__main__`, `test_integration.py`, `data_pipeline_to_model_train.md`, `testing_guide.md`.
+Post-Phase-2 cosmetic: collated dir naming shortened to `npy_[3d_][seq{N}_]{ablation_id}`. Prefix tags (`3d_`, `seq{N}_`) appear only for non-default configs (2D + seq_len=100 strips both). Drops the `dataset_npy_collated_between_2_hits_with_max_limits_seq_100_...` prefix that duplicated info already in manifest.yaml. Existing V3/V4 dirs on engelbart keep their old names; the rename applies only to new runs. References updated across `prepare_train_on_shuttleset.py`, `bst_x_train.py`, `bst_x_infer.py`, `shuttleset_dataset.py.__main__`, `test_integration.py`, `data_pipeline_to_model_train.md`, `testing_guide.md`.
 
 Also landed: `--pose-styles` CLI arg on Step 3, default `JnB_bone` (the only style any committed run has used). Non-requested pose representations skip both compute and save. Cuts pose-tensor disk from ~928MB to ~232MB per ablation (~75%).
 
@@ -33,30 +33,30 @@ Every file that reads or writes the per-clip npy or shuttle_npy layout, with lin
 
 | File | Lines | What it writes | Refactor needed |
 |---|---|---|---|
-| `src/bst_refactor/stroke_classification/preparing_data/prepare_train_on_shuttleset.py` | 495-504 (`mk_same_dir_structure`), 538-606 (`prepare_2d_dataset_npy_from_raw_video`), 609-665 (`prepare_3d_dataset_npy_from_raw_video`) | `_pos.npy`, `_joints.npy`, `_failed.npy` per clip into `{save_root}/{set_split_dir.name}/{ball_type_dir.name}/{clip_stem}_*.npy` | Yes — Phase 2.1. Drop the `{split}/{class}/` parents and write to `{save_root}/{clip_stem}_*.npy`. Delete `mk_same_dir_structure`. |
-| `src/bst_refactor/pipeline/shuttle_extractor.py` | 246-312 (`shuttle_csvs_to_npy`), specifically 272-274 mirrors clip path, 308 per-file mkdir | `{SHUTTLE_OUTPUT_DIR}/{split}/{class}/{clip_stem}.npy` from flat shuttle_csv inputs | Yes — Phase 2.2. Write to `{SHUTTLE_OUTPUT_DIR}/{clip_stem}.npy`; drop the `rel.with_suffix('.npy')` mirror and the per-file mkdir. |
-| `src/bst_refactor/pipeline/clip_generator.py` | 127-189 (`_write_clips_for_video`), 151-156 mkdirs class folders | `.mp4` clips into `{CLIPS_OUTPUT_DIR}/{split}/{Top,Bottom}_{class}/{clip_stem}.mp4` | Out of scope — clips dir stays nested for now (Phase 3). |
+| `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py` | 495-504 (`mk_same_dir_structure`), 538-606 (`prepare_2d_dataset_npy_from_raw_video`), 609-665 (`prepare_3d_dataset_npy_from_raw_video`) | `_pos.npy`, `_joints.npy`, `_failed.npy` per clip into `{save_root}/{set_split_dir.name}/{ball_type_dir.name}/{clip_stem}_*.npy` | Yes — Phase 2.1. Drop the `{split}/{class}/` parents and write to `{save_root}/{clip_stem}_*.npy`. Delete `mk_same_dir_structure`. |
+| `src/bst_x/pipeline/shuttle_extractor.py` | 246-312 (`shuttle_csvs_to_npy`), specifically 272-274 mirrors clip path, 308 per-file mkdir | `{SHUTTLE_OUTPUT_DIR}/{split}/{class}/{clip_stem}.npy` from flat shuttle_csv inputs | Yes — Phase 2.2. Write to `{SHUTTLE_OUTPUT_DIR}/{clip_stem}.npy`; drop the `rel.with_suffix('.npy')` mirror and the per-file mkdir. |
+| `src/bst_x/pipeline/clip_generator.py` | 127-189 (`_write_clips_for_video`), 151-156 mkdirs class folders | `.mp4` clips into `{CLIPS_OUTPUT_DIR}/{split}/{Top,Bottom}_{class}/{clip_stem}.mp4` | Out of scope — clips dir stays nested for now (Phase 3). |
 
 ### Producers — already flat
 
 | File | Lines | What it writes |
 |---|---|---|
-| `src/bst_refactor/pipeline/shuttle_extractor.py` | 58-156 (`extract_shuttle_trajectory`, `extract_all_shuttles`) | TrackNetV3 CSVs to flat `{shuttle_csv_dir}/{clip_stem}_ball.csv`. No change. |
+| `src/bst_x/pipeline/shuttle_extractor.py` | 58-156 (`extract_shuttle_trajectory`, `extract_all_shuttles`) | TrackNetV3 CSVs to flat `{shuttle_csv_dir}/{clip_stem}_ball.csv`. No change. |
 
 ### Consumers — already CSV-driven (done in Phase 1)
 
 | File | Lines | Role |
 |---|---|---|
-| `src/bst_refactor/stroke_classification/preparing_data/prepare_train_on_shuttleset.py` | 704-921 (`collate_npy`) | Reads clips_master.csv, filters by `split_column`, derives label via taxonomy, resolves `{root_dir}/{clip_stem}_*.npy` directly. Handles missing flat files with warn-and-skip. |
+| `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py` | 704-921 (`collate_npy`) | Reads clips_master.csv, filters by `split_column`, derives label via taxonomy, resolves `{root_dir}/{clip_stem}_*.npy` directly. Handles missing flat files with warn-and-skip. |
 
 ### Consumers — still walk the nested tree
 
 | File | Lines | What it reads | Refactor needed |
 |---|---|---|---|
-| `src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py` | 142-224 (`Dataset_npy`) | Walks `{root_dir}/{set_name}/{class}/*_pos.npy` lazily. | Phase 2.6 — deprecate with a `DeprecationWarning`. Only caller is the `compare_pred_gt_on_specific_type` debug helper in `bst_train.py`. |
-| `src/bst_refactor/validation_scripts/validate_zeroed_frames.py` | 140-162 (`_load_shuttle_vis`), 165-266 (`scan_clips`), 1226-1246 (main auto-discovery) | `{shuttle_npy_dir}/{split}/{folder_name}/{clip_name}.npy` and `{dataset_npy_dir}/{split}/{class_dir}/*_failed.npy` | Phase 2.3 — switch to CSV-driven iteration keyed on clips_master.csv. Derive stroke_type + player via taxonomy merge_map (same pattern as `fail_rate_per_class.py`). |
-| `src/bst_refactor/pipeline/verify.py` | 200-246 (`verify_shuttle_sync`) | Compares `mp4.relative_to(clips_dir).with_suffix('.npy')` paths to `npy.relative_to(shuttle_dir)` paths | Phase 2.4 — compare by `clip_path.stem` instead (clips stay nested, shuttle goes flat). |
-| `src/bst_refactor/pipeline/verify.py` | 90-125 (`verify_class_merge`), 128-159 (`verify_splits_present`), 162-181 (`warn_orphan_files`), 248-275 (`print_dataset_summary`) | Walk the clips dir (stays nested). | No change. |
+| `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py` | 142-224 (`Dataset_npy`) | Walks `{root_dir}/{set_name}/{class}/*_pos.npy` lazily. | Phase 2.6 — deprecate with a `DeprecationWarning`. Only caller is the `compare_pred_gt_on_specific_type` debug helper in `bst_x_train.py`. |
+| `src/bst_x/validation_scripts/validate_zeroed_frames.py` | 140-162 (`_load_shuttle_vis`), 165-266 (`scan_clips`), 1226-1246 (main auto-discovery) | `{shuttle_npy_dir}/{split}/{folder_name}/{clip_name}.npy` and `{dataset_npy_dir}/{split}/{class_dir}/*_failed.npy` | Phase 2.3 — switch to CSV-driven iteration keyed on clips_master.csv. Derive stroke_type + player via taxonomy merge_map (same pattern as `fail_rate_per_class.py`). |
+| `src/bst_x/pipeline/verify.py` | 200-246 (`verify_shuttle_sync`) | Compares `mp4.relative_to(clips_dir).with_suffix('.npy')` paths to `npy.relative_to(shuttle_dir)` paths | Phase 2.4 — compare by `clip_path.stem` instead (clips stay nested, shuttle goes flat). |
+| `src/bst_x/pipeline/verify.py` | 90-125 (`verify_class_merge`), 128-159 (`verify_splits_present`), 162-181 (`warn_orphan_files`), 248-275 (`print_dataset_summary`) | Walk the clips dir (stays nested). | No change. |
 
 ### Consumers — collated stacked arrays (layer is semantic, not organizational)
 
@@ -64,11 +64,11 @@ These read `{root_dir}/{train,val,test}/{J_only.npy, JnB_bone.npy, pos.npy, shut
 
 | File | Lines | Role |
 |---|---|---|
-| `src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py` | 227-326 (`Dataset_npy_collated`) + variants | Loads stacked arrays per split. No change. |
-| `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_train.py` | Hyp (139-156), `Task.prepare_dataloaders`, collated-dir resolution | Already threaded through clips_csv / split_column / drop_unknown / ablation_id. No change. |
-| `src/bst_refactor/stroke_classification/main_on_shuttleset/bst_infer.py` | 26, 75-87, 121-127 | Inference. No change required for flatten; could be threaded for ablation provenance as follow-up. |
-| `src/bst_refactor/stroke_classification/main_on_shuttleset/tmp/test_fwd.py` | 7-14 | Smoke-test script, hardcoded path at old collated dir. Phase 2.5 — repoint. `n_class=25` on line 7 also needs bumping to 29 if pointing at a une_merge_v1 ablation. |
-| `src/bst_refactor/stroke_classification/main_on_shuttleset/tmp/test_train_step.py` | 9-15 | Same pattern. Phase 2.5. |
+| `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py` | 227-326 (`Dataset_npy_collated`) + variants | Loads stacked arrays per split. No change. |
+| `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_train.py` | Hyp (139-156), `Task.prepare_dataloaders`, collated-dir resolution | Already threaded through clips_csv / split_column / drop_unknown / ablation_id. No change. |
+| `src/bst_x/stroke_classification/main_on_shuttleset/bst_x_infer.py` | 26, 75-87, 121-127 | Inference. No change required for flatten; could be threaded for ablation provenance as follow-up. |
+| `src/bst_x/stroke_classification/main_on_shuttleset/tmp/test_fwd.py` | 7-14 | Smoke-test script, hardcoded path at old collated dir. Phase 2.5 — repoint. `n_class=25` on line 7 also needs bumping to 29 if pointing at a une_merge_v1 ablation. |
+| `src/bst_x/stroke_classification/main_on_shuttleset/tmp/test_train_step.py` | 9-15 | Same pattern. Phase 2.5. |
 | `tests/test_integration.py` | 8-88 | Uses `BST_DATA_DIR` env var pointing at a collated dir root. No layout change; user points it at any collated dir. |
 | `tests/test_dataset.py` | 1-end | Synthetic npy; no external data. |
 
@@ -78,10 +78,10 @@ Each needs a 1-line update to describe flat shuttle_npy output and a forward poi
 
 | File | Lines | Notes |
 |---|---|---|
-| `src/bst_refactor/pipeline/README.md` | 106-149 (shuttle_npy setup + output), 219-222 (output structure tree), 312-314 (loader example) | Primary user-facing description. |
-| `src/bst_refactor/data_pipeline_to_model_train.md` | 98 (shuttle_extractor cell), 112-117 (pipeline output tree), 260-262 (Dataset_npy entry), 445-450 (call-chain diagram) | High-level pipeline writeup. |
-| `src/bst_refactor/stroke_classification/preparing_data/mmpose_changes.md` | 151-159 (per-clip output table) | Notes the flat output layout. |
-| `src/bst_refactor/stroke_classification/preparing_data/keypoints_schema.md` | 77-81 | Per-clip failure retention. Comment on layout stays minimal. |
+| `src/bst_x/pipeline/README.md` | 106-149 (shuttle_npy setup + output), 219-222 (output structure tree), 312-314 (loader example) | Primary user-facing description. |
+| `src/bst_x/data_pipeline_to_model_train.md` | 98 (shuttle_extractor cell), 112-117 (pipeline output tree), 260-262 (Dataset_npy entry), 445-450 (call-chain diagram) | High-level pipeline writeup. |
+| `src/bst_x/stroke_classification/preparing_data/mmpose_changes.md` | 151-159 (per-clip output table) | Notes the flat output layout. |
+| `src/bst_x/stroke_classification/preparing_data/keypoints_schema.md` | 77-81 | Per-clip failure retention. Comment on layout stays minimal. |
 | `tests/testing_guide.md` | 40-44 (BST_DATA_DIR example) | Collated dir name now ablation-tagged; update example path. |
 | `notebooks/03_build_clips_master.ipynb` | (entire notebook) | Already documents the master-CSV approach. |
 
@@ -97,9 +97,9 @@ Each needs a 1-line update to describe flat shuttle_npy output and a forward poi
 
 | File | Change | Commit |
 |---|---|---|
-| `src/bst_refactor/validation_scripts/fail_rate_per_class.py` | CSV-driven per-class MMPose fail-rate diagnostic. Provided the Top_smash 24.33% / Top_wrist_smash 16.40% fail-rate data behind the V3 min-F1 finding. | 3a98149 |
-| `src/bst_refactor/run_overview.py` | Scalar-only filter on metric auto-discovery so `per_class_f1` dicts don't produce junk aggregation columns. | 3a98149 |
-| `bst_train.py` | Empty-class mask in `validate()` and `Task.test()`, per-class F1 top-5/bot-5 on "Picked!" val epochs, `per_class_f1` dict in `track_serial` manifest output, `show_details=True` at test. | 3a98149 |
+| `src/bst_x/validation_scripts/fail_rate_per_class.py` | CSV-driven per-class MMPose fail-rate diagnostic. Provided the Top_smash 24.33% / Top_wrist_smash 16.40% fail-rate data behind the V3 min-F1 finding. | 3a98149 |
+| `src/bst_x/run_overview.py` | Scalar-only filter on metric auto-discovery so `per_class_f1` dicts don't produce junk aggregation columns. | 3a98149 |
+| `bst_x_train.py` | Empty-class mask in `validate()` and `Task.test()`, per-class F1 top-5/bot-5 on "Picked!" val epochs, `per_class_f1` dict in `track_serial` manifest output, `show_details=True` at test. | 3a98149 |
 
 ## Phase 1 — minimum viable for V1-V4 (complete)
 
@@ -110,7 +110,7 @@ Landed in commits up to 3a98149. Every gate passed:
 - V3 (une_merge_v1 + split_bst_baseline + drop_unknown): ran 2026-04-20; best S3 macro 0.772, min 0.381, acc 0.791. Five serials on engelbart, manifest + best_model_id.txt + tactical unignore committed.
 - V4 (une_merge_v1 + split_v2 + drop_unknown): collation landed (22,743 / 5,250 / 4,210), training in flight on engelbart.
 
-`collate_npy()` is CSV-driven; `bst_train.py` Hyp pins `clips_csv / split_column / drop_unknown / ablation_id`; manifest writes `data_provenance` with CSV sha256 and `effective_ablation_id`. Per-ablation collated dir naming (`{ablation_id}` suffix) prevents collision.
+`collate_npy()` is CSV-driven; `bst_x_train.py` Hyp pins `clips_csv / split_column / drop_unknown / ablation_id`; manifest writes `data_provenance` with CSV sha256 and `effective_ablation_id`. Per-ablation collated dir naming (`{ablation_id}` suffix) prevents collision.
 
 ## Phase 2 — full end-state cleanup (complete 2026-04-21)
 
@@ -287,7 +287,7 @@ Add a 1-line comment noting these are smoke-test scripts and the path is not inv
 
 #### 2.6 `Dataset_npy` deprecation — `shuttleset_dataset.py:142-224`
 
-Only caller is `bst_train.py`'s `compare_pred_gt_on_specific_type` debug helper. Add a `DeprecationWarning` at `__init__` and a short docstring noting it expects the legacy nested layout and will not work against the flat dir without a CSV-driven rewrite. Do not delete (still wired into the debug helper).
+Only caller is `bst_x_train.py`'s `compare_pred_gt_on_specific_type` debug helper. Add a `DeprecationWarning` at `__init__` and a short docstring noting it expects the legacy nested layout and will not work against the flat dir without a CSV-driven rewrite. Do not delete (still wired into the debug helper).
 
 #### 2.7 Documentation refresh
 
@@ -363,7 +363,7 @@ Rollback: `git revert`. Flat dirs and master CSV are inputs that don't move. Pha
 ```
 [done] Phase 0: master CSV, copy script, verify script, V1/V2 patches
 [done] Phase 1.1: collate_npy refactor (CSV-driven)
-[done] Phase 1.2: bst_train.py knobs (clips_csv, split_column, drop_unknown, ablation_id)
+[done] Phase 1.2: bst_x_train.py knobs (clips_csv, split_column, drop_unknown, ablation_id)
 [done] Phase 1.3: per-ablation collated dir naming
 [done] V1: baseline collation reproduces histograms
 [done] V2: smoke-train baseline matches benchmark

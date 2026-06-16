@@ -8,8 +8,8 @@ from collections import defaultdict
 from pathlib import Path
 
 REPO = Path("E:/bsc-tier1")
-CLIP_INDEX = REPO / "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/clip_index.json"
-PREDS = REPO / "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/predictions"
+CLIP_INDEX = REPO / "src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/clip_index.json"
+PREDS = REPO / "src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/predictions"
 LOCAL_ROOT = REPO / "scratch/inspect_clips"
 
 SIDE_RE = re.compile(r"^(Top|Bottom)_")

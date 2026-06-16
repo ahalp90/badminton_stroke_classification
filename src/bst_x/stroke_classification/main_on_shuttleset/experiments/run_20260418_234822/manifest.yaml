@@ -1,0 +1,81 @@
+run_id: run_20260418_234822
+started_at: '2026-04-18T23:48:22'
+git_sha: 59f223913050f31b752482b0ca9cf14f98d173c0
+git_dirty: true
+host: engelbart.une.edu.au
+config:
+  n_epochs: 80
+  batch_size: 128
+  lr: 0.0005
+  warm_up_step: 100
+  taxonomy: merged_25
+  seq_len: 100
+  early_stop_n_epochs: 40
+  pose_style: JnB_bone
+  use_3d_pose: false
+  train_partial: 1.0
+  use_aux_schedule: true
+  aux_fade_end_epoch: 0
+serials:
+- serial_no: 1
+  weights_path: experiments/run_20260418_234822/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25.pt
+  tb_dir: experiments/run_20260418_234822/tb/serial_1
+  metrics:
+    macro_f1: 0.8219468593597412
+    min_f1: 0.574999988079071
+    accuracy: 0.8410786001147447
+    num_strokes: 3486
+    top2_accuracy: 0.9584050487664946
+  recorded_at: '2026-04-19T00:15:34'
+- serial_no: 2
+  weights_path: experiments/run_20260418_234822/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2.pt
+  tb_dir: experiments/run_20260418_234822/tb/serial_2
+  metrics:
+    macro_f1: 0.8300224542617798
+    min_f1: 0.5859872698783875
+    accuracy: 0.8419391853126793
+    num_strokes: 3486
+    top2_accuracy: 0.9632816982214573
+  recorded_at: '2026-04-19T00:39:00'
+- serial_no: 3
+  weights_path: experiments/run_20260418_234822/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_3.pt
+  tb_dir: experiments/run_20260418_234822/tb/serial_3
+  metrics:
+    macro_f1: 0.8216224908828735
+    min_f1: 0.6206896305084229
+    accuracy: 0.8413654618473896
+    num_strokes: 3486
+    top2_accuracy: 0.9644291451520367
+  recorded_at: '2026-04-19T01:01:25'
+- serial_no: 4
+  weights_path: experiments/run_20260418_234822/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_4.pt
+  tb_dir: experiments/run_20260418_234822/tb/serial_4
+  metrics:
+    macro_f1: 0.8190513849258423
+    min_f1: 0.5421686172485352
+    accuracy: 0.8390705679862306
+    num_strokes: 3486
+    top2_accuracy: 0.9555364314400459
+  recorded_at: '2026-04-19T01:24:51'
+- serial_no: 5
+  weights_path: experiments/run_20260418_234822/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_5.pt
+  tb_dir: experiments/run_20260418_234822/tb/serial_5
+  metrics:
+    macro_f1: 0.8179494738578796
+    min_f1: 0.5648148059844971
+    accuracy: 0.8356282271944923
+    num_strokes: 3486
+    top2_accuracy: 0.9629948364888123
+  recorded_at: '2026-04-19T01:47:58'
+log_path: test_logs/test_20260418_234822.log
+best_serials:
+- 2
+notes: |
+  Run B of the CG/AP ablation (null arm): aux_factor pinned at 0.0 from
+  epoch 1 (use_aux_schedule=true, aux_fade_end_epoch=0). Pairs with
+  18_15 (annealed) and 18_17 Run A (always on). Mean macro F1 0.822,
+  lowest of the three.
+
+  Best seed: S2 (macro F1 0.830, accuracy 0.842, top2 0.963). S3 has
+  top min F1 (0.621) but mid-pack macro F1; not flagged (same convention
+  as 18_17).

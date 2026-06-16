@@ -1,0 +1,86 @@
+run_id: run_20260418_151139
+started_at: '2026-04-18T15:11:46'
+git_sha: null
+git_dirty: null
+host: engelbart.une.edu.au
+log_path: test_logs/test_20260418_151139.log
+config:
+  n_epochs: 80
+  warm_up_step: 100
+  early_stop_n_epochs: 40
+  batch_size: 128
+  lr: 0.0005
+  scheduler_num_cycles: 0.5
+  taxonomy: merged_25
+  seq_len: 100
+  pose_style: JnB_bone
+  use_3d_pose: false
+  train_partial: 1.0
+  use_aux_schedule: true
+  aux_fade_end_epoch: 15
+serials:
+- serial_no: 1
+  weights_path: experiments/run_20260418_151139/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25.pt
+  tb_dir: experiments/run_20260418_151139/tb/serial_1
+  metrics:
+    macro_f1: 0.834
+    min_f1: 0.591
+    accuracy: 0.846
+    top2_accuracy: 0.963
+    num_strokes: 3486
+  recorded_at: null
+- serial_no: 2
+  weights_path: experiments/run_20260418_151139/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2.pt
+  tb_dir: experiments/run_20260418_151139/tb/serial_2
+  metrics:
+    macro_f1: 0.831
+    min_f1: 0.6
+    accuracy: 0.85
+    top2_accuracy: 0.968
+    num_strokes: 3486
+  recorded_at: null
+- serial_no: 3
+  weights_path: experiments/run_20260418_151139/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_3.pt
+  tb_dir: experiments/run_20260418_151139/tb/serial_3
+  metrics:
+    macro_f1: 0.818
+    min_f1: 0.599
+    accuracy: 0.838
+    top2_accuracy: 0.964
+    num_strokes: 3486
+  recorded_at: null
+- serial_no: 4
+  weights_path: experiments/run_20260418_151139/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_4.pt
+  tb_dir: experiments/run_20260418_151139/tb/serial_4
+  metrics:
+    macro_f1: 0.831
+    min_f1: 0.619
+    accuracy: 0.844
+    top2_accuracy: 0.963
+    num_strokes: 3486
+  recorded_at: null
+- serial_no: 5
+  weights_path: experiments/run_20260418_151139/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_5.pt
+  tb_dir: experiments/run_20260418_151139/tb/serial_5
+  metrics:
+    macro_f1: 0.83
+    min_f1: 0.589
+    accuracy: 0.843
+    top2_accuracy: 0.963
+    num_strokes: 3486
+  recorded_at: null
+best_serials:
+- 2
+notes: |
+  Aggressive CG/AP annealing (compressed warm-start-then-finetune):
+  cosine downtune from factor 1.0 at epoch 1 to 0.0 by epoch 15, then
+  ~65 epochs of pure backbone. First run at 5 serials (was 3).
+
+  Top mean macro F1 (0.829) of the three CG/AP schedules. The accuracy
+  lift over the always-on arm (18_17) suggests CG/AP cap performance on
+  well-sampled classes once the backbone has settled; a per-class F1
+  breakdown would confirm.
+
+  Best seed: S2 (accuracy 0.850, macro F1 0.831). S1 edges it on macro F1
+  (0.834) but trails on accuracy (0.846); within noise, not flagged.
+legacy: true

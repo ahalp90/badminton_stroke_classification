@@ -1,0 +1,87 @@
+Best model of run_20260504_152529/ - #2
+  #2: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
+
+Jitter-off ablation. Single change vs the wipe_drop best
+(run_20260503_172922): RandomTranslation_batch(prob=0.0) at
+bst_train.py:375. Hparams otherwise identical. A/B on whether the
+inherited bbox-centric jitter (joints shifted in their bbox-centre
+frame, deforming the body around its own centre rather than
+simulating a player at a different court position) was net-negative
+or noise.
+
+The train loop has no breadcrumb for the jitter switch; the prob=0.0
+is the only signal in code, and was reverted post-run. Flag
+explicitly when comparing across runs.
+
+Hparams:
+  taxonomy=une_merge_v1_nosides, split_column=split_v2,
+  drop_unknown=True, n_epochs=80, warm_up_step=100,
+  early_stop_n_epochs=40, scheduler num_cycles=0.5, lr=5e-4,
+  batch_size=128, use_aux_schedule=True, aux_fade_end_epoch=15,
+  label_smoothing=0.0,
+  class_weights=None,
+  adaptive_focal={tau:1.0, gamma:1.0, momentum:0.9,
+                  warm_up_epochs:5, f1_floor:0.0}.
+  ablation_id=wipe_drop  <- shuttle-unzeroing collation, same as the
+                            comparison run.
+  RandomTranslation_batch(prob=0.0)  <- jitter off, ablation knob.
+
+Per-serial (num_strokes=4202, 14 classes, 5 seeds):
+  - Serial 1: macro 0.7474 (top), min 0.4408, acc 0.7639 (top),
+    top-2 0.9403 (top). Pair-sum 1.188.
+  - Serial 2: macro 0.7398, min 0.4848 (top), acc 0.7584,
+    top-2 0.9348. Smash 0.584, ws 0.485, pair-sum 1.225 (top).
+    Flagged best.
+  - Serial 3: macro 0.7447, min 0.4722, acc 0.7601, top-2 0.9398.
+    Pair-sum 1.217.
+  - Serial 4: macro 0.7369, min 0.3911, acc 0.7570, top-2 0.9343.
+  - Serial 5: macro 0.7317, min 0.3617, acc 0.7535, top-2 0.9334.
+
+Mean across 5: macro 0.7401, min 0.4301, acc 0.7586, top-2 0.9365.
+
+Vs wipe_drop best (run_20260503_172922) mean
+(0.7481 / 0.4742 / 0.7653 / 0.9353):
+  macro -0.8, min -4.4, acc -0.7, top-2 +0.1.
+
+Vs first CDB-F1 baseline (run_20260501_164658) mean
+(0.7432 / 0.4621 / 0.7617 / 0.9351):
+  macro -0.3, min -3.2, acc -0.3, top-2 +0.1.
+  Min F1 ends up below the CDB-F1 baseline, not just below wipe_drop;
+  the broken-but-helpful jitter was doing real regularisation work.
+
+Per-class shifts vs wipe_drop best, 5-serial mean (% absolute):
+  smash +0.5, drive +0.5, return_net -0.1, clear -0.1, long_service
+  -0.2, lob -0.4, net_shot -0.5, drop -0.5, push -0.7, rush -0.7,
+  cross_court_net_shot -1.1, short_service -1.5, passive_drop -2.1,
+  wrist_smash -4.4.
+
+Variance hit: with jitter on, all 5 serials sat in [0.45, 0.50] for
+min F1; with it off, S4/S5 floor at 0.39 / 0.36.
+
+RandomTranslation_batch defaults restored at bst_train.py:375;
+corrected pos+shuttle jitter from augmentation_framework.md is the
+eventual replacement.
+
+Full writeup: bst_x_overview.md (jitter-off ablation section).
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2  F1-score
+avg                                                Avg                                    0.74
+min                                                Min                                    0.48
+0                                 net_shot                                                0.89
+1                                 return_net                                              0.81
+2                                 smash                                                   0.58
+3                                 wrist_smash                                             0.48
+4                                 lob                                                     0.78
+5                                 clear                                                   0.94
+6                                 drive                                                   0.61
+7                                 drop                                                    0.64
+8                                 passive_drop                                            0.69
+9                                 push                                                    0.58
+10                                rush                                                    0.75
+11                                cross_court_net_shot                                    0.64
+12                                short_service                                           0.97
+13                                long_service                                            0.98
+Accuracy: 0.758
+Top2 Accuracy: 0.935

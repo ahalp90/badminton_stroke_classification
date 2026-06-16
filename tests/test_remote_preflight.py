@@ -6,9 +6,9 @@ collations, the ones that would otherwise crash or quietly misbehave on serial 1
 of a cell:
 
 1. Each of the 6 cells resolves to a collation dir that EXISTS on disk with the
-   files bst_train reads (catches a reader/writer basename mismatch -> the
+   files bst_x_train reads (catches a reader/writer basename mismatch -> the
    FileNotFoundError on serial 1).
-2. Each cell's labels pass the same coverage contract bst_train asserts at train
+2. Each cell's labels pass the same coverage contract bst_x_train asserts at train
    start (train covers every class; val/test carry no class absent from train;
    labels in [0, n_classes)) -- catches a collation/label-space mismatch.
 3. The 6 cells resolve to 6 DISTINCT dirs (the two bst_24 cells, split_v2 vs
@@ -19,11 +19,11 @@ of a cell:
    batch starts) has the full 9-key schema and is internally row-aligned.
 
 No torch, no GPU, no model load -- pure data checks, so it runs fast in any venv
-on bourbaki (venv-bst is fine). Run with the collation root visible:
+on bourbaki (venv-bst-x is fine). Run with the collation root visible:
 
     BST_X_COLLATED_DATA_ROOT=/scratch/comp320a \
-        PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
-        /home/ahalperi/.venvs/venv-bst/bin/python -m pytest tests/test_remote_preflight.py -v
+        PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
+        /home/ahalperi/.venvs/venv-bst-x/bin/python -m pytest tests/test_remote_preflight.py -v
 
 (or rely on .env carrying BST_X_COLLATED_DATA_ROOT). Without the root set, the
 /scratch-dependent tests skip, so this is a no-op on the laptop except the
@@ -46,7 +46,7 @@ from pipeline.data_access import env_path_or_none, load_repo_dotenv
 
 
 COLLATION_ID = 'taxon_pinned_w_preds'
-POSE_STYLE = 'JnB_bone'  # what bst_train reads for these cells
+POSE_STYLE = 'JnB_bone'  # what bst_x_train reads for these cells
 
 # The 6 cells, mirroring scratch/runners/taxon_pinned_w_preds/config.yaml.
 CELLS: list[tuple[str, str]] = [
@@ -59,7 +59,7 @@ CELLS: list[tuple[str, str]] = [
 ]
 
 SPLITS = ('train', 'val', 'test')
-# Files bst_train's Dataset_npy_collated loads for a JnB_bone cell.
+# Files bst_x_train's Dataset_npy_collated loads for a JnB_bone cell.
 REQUIRED_NPY = (f'{POSE_STYLE}.npy', 'pos.npy', 'shuttle.npy',
                 'videos_len.npy', 'labels.npy', 'clip_stems.npy')
 
@@ -70,12 +70,12 @@ NPZ_FIELDS = {
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXPERIMENTS_DIR = (
-    REPO_ROOT / 'src/bst_refactor/stroke_classification/main_on_shuttleset/experiments'
+    REPO_ROOT / 'src/bst_x/stroke_classification/main_on_shuttleset/experiments'
 )
 
 
 def _cell_dir(root: Path, taxonomy: str, split_column: str) -> Path:
-    """Resolve a cell's collation dir the same way bst_train does."""
+    """Resolve a cell's collation dir the same way bst_x_train does."""
     basename = derive_npy_collated_dir_basename(
         use_3d_pose=False, seq_len=100,
         split_column=split_column, collation_id=COLLATION_ID,
@@ -97,7 +97,7 @@ _CELL_IDS = [f'{tax}+{split.removeprefix("split_")}' for tax, split in CELLS]
 
 
 # ---------------------------------------------------------------------------
-# 1. Collation dirs exist where bst_train will look, with the files it reads
+# 1. Collation dirs exist where bst_x_train will look, with the files it reads
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize('taxonomy,split_column', CELLS, ids=_CELL_IDS)
@@ -105,7 +105,7 @@ def test_cell_collation_dir_and_files_exist(taxonomy, split_column):
     root = _require_root()
     cell_dir = _cell_dir(root, taxonomy, split_column)
     assert cell_dir.is_dir(), (
-        f'collation dir missing: {cell_dir}\n  bst_train would hit this as a '
+        f'collation dir missing: {cell_dir}\n  bst_x_train would hit this as a '
         f'FileNotFoundError on serial 1. Check the collation basename matches '
         f'derive_npy_collated_dir_basename (split folded in), or re-collate.'
     )
@@ -117,7 +117,7 @@ def test_cell_collation_dir_and_files_exist(taxonomy, split_column):
 
 
 # ---------------------------------------------------------------------------
-# 2. Labels pass the bst_train coverage contract, on the real arrays
+# 2. Labels pass the bst_x_train coverage contract, on the real arrays
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize('taxonomy,split_column', CELLS, ids=_CELL_IDS)
@@ -210,7 +210,7 @@ def _find_prediction_npzs() -> list[Path]:
 
 def test_prediction_npzs_have_full_schema():
     """Validates any npz produced by a real serial (train-time dump or
-    bst_infer --fe). Skips when none exist yet -- run after serial 1 lands or a
+    bst_x_infer --fe). Skips when none exist yet -- run after serial 1 lands or a
     1-serial smoke, then re-run this module.
     """
     npzs = _find_prediction_npzs()

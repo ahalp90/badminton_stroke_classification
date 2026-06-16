@@ -1,0 +1,80 @@
+Best model of run_20260503_192718/ - #4
+  #4: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4.pt
+
+Shuttle-mask run, branch shuttle/mask-wiring. Carries the
+shuttle-unzeroing-on-keypoint-fail change plus the variant 2a
+shuttle_missing channel: TrackNet Visibility=0 saved as
+shuttle_missing.npy and fused into the shuttle stream post-TCN
+via mask_proj (Linear(1, 4)) + shuttle_fuse (Linear(d_model + 4,
+d_model)). Hparams otherwise identical to the shuttle-unzeroing
+run (run_20260503_172922).
+
+The train loop has no breadcrumb for the data + model change;
+ablation_id is the only signal that the shuttle-mask collation +
+weights were loaded. Flag explicitly when comparing across runs.
+
+Hparams:
+  taxonomy=une_merge_v1_nosides, split_column=split_v2,
+  drop_unknown=True, n_epochs=80, warm_up_step=100,
+  early_stop_n_epochs=40, scheduler num_cycles=0.5, lr=5e-4,
+  batch_size=128, use_aux_schedule=True, aux_fade_end_epoch=15,
+  label_smoothing=0.0,
+  class_weights=None,
+  adaptive_focal={tau:1.0, gamma:1.0, momentum:0.9,
+                  warm_up_epochs:5, f1_floor:0.0}.
+  ablation_id=mask_wiring  <- only signal of the data + model change.
+
+Per-serial (num_strokes=4202, 14 classes, 5 seeds):
+  - Serial 1: macro 0.7491 (top), min 0.4400, acc 0.7687 (top),
+    top-2 0.9369. Top head metrics, weak ws.
+  - Serial 2: macro 0.7388, min 0.4661, acc 0.7573, top-2 0.9353.
+  - Serial 3: macro 0.7477, min 0.4154 (run-low ws), acc 0.7668,
+    top-2 0.9357.
+  - Serial 4: macro 0.7456, min 0.4899 (top ws), acc 0.7646,
+    top-2 0.9391 (top). Smash 0.595, ws 0.490, pair-sum 1.085
+    (run-high). Flagged best.
+  - Serial 5: macro 0.7390, min 0.4724, acc 0.7577, top-2 0.9355.
+
+Mean across 5: macro 0.7440, min 0.4568, acc 0.7630, top-2 0.9365.
+
+Vs shuttle-unzeroing run (run_20260503_172922) mean
+(0.7481 / 0.4742 / 0.7653 / 0.9353):
+  macro -0.4, min -1.7, acc -0.2, top-2 +0.1.
+
+Per-class shifts vs shuttle-unzeroing run, 5-serial mean (% absolute):
+  clear +0.6, push +0.2, smash +0.1, drive +0.1, long_service +0.1,
+  net_shot ~0, short_service -0.1, drop -0.1, cross_court_net_shot
+  -0.1, return_net -0.3, lob -0.4, passive_drop -1.4,
+  wrist_smash -1.7, rush -2.7.
+
+Pattern: explicit mask channel did not add signal on top of just
+unzeroing the shuttle. Smash held flat, ws gave back 1.7% on
+average. Likely two compounding causes: the model was already
+inferring missing-shuttle from shuttle xy + temporal context (so
+the mask is mostly redundant), and the new shuttle_fuse layer
+absorbs some learning budget for a near-identity solution on the
+original 100 dims. Shuttle-unzeroing is the keeper.
+
+Full writeup: bst_x_overview.md (shuttle-mask section).
+
+=== Serial 4 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4  F1-score
+avg                                                Avg                                    0.75
+min                                                Min                                    0.49
+0                                 net_shot                                                0.89
+1                                 return_net                                              0.80
+2                                 smash                                                   0.60
+3                                 wrist_smash                                             0.49
+4                                 lob                                                     0.78
+5                                 clear                                                   0.95
+6                                 drive                                                   0.60
+7                                 drop                                                    0.66
+8                                 passive_drop                                            0.68
+9                                 push                                                    0.68
+10                                rush                                                    0.67
+11                                cross_court_net_shot                                    0.67
+12                                short_service                                           0.98
+13                                long_service                                            0.99
+Accuracy: 0.765
+Top2 Accuracy: 0.939

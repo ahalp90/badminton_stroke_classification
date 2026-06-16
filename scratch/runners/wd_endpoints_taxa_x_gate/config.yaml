@@ -3,7 +3,7 @@
 # taxonomy/splits (une itself is already swept, see below).
 # SET 2 (gate on) crosses the same two endpoints with the val-improvability gate
 # -- the focal_alpha_revert_overallocated arm -- on three priority taxonomies.
-# norm/bias/embeddings stay out of decay throughout (now the bst_train default,
+# norm/bias/embeddings stay out of decay throughout (now the bst_x_train default,
 # so it rides every cell); 1e-2 is the in-sweep baseline value, 4e-1 the min-F1
 # endpoint that cleared 0.5 for wrist_smash on une. collation_id is shared;
 # split_column folds into the on-disk dir name to keep the two bst_24 cells apart.
@@ -18,9 +18,9 @@
 # 16 cells x 5 serials = 80 runs, ~33 h single-node at ~25 min/serial. state.json
 # resumes a killed runner without re-running finished serials. To split across
 # both nodes, copy this dir and trim each side's cells (or run a worktree per the
-# parallel-sweep runbook); leave bst_train.py frozen while any batch runs.
+# parallel-sweep runbook); leave bst_x_train.py frozen while any batch runs.
 # Launch (repo root; on bourbaki/engelbart use venv-bst + set BST_X_COLLATED_DATA_ROOT):
-#   PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification \
+#   PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
 #     python -m main_on_shuttleset.collation_runner scratch/runners/wd_endpoints_taxa_x_gate
 session_name: wd_endpoints_taxa_x_gate_2026_06
 cells:

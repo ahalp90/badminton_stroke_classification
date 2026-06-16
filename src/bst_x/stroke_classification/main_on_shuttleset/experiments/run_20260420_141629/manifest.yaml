@@ -1,0 +1,92 @@
+run_id: run_20260420_141629
+started_at: '2026-04-20T14:16:29'
+git_sha: 6e6bf30cfc951d0e7c811dbbbdea0c414d776dd9
+git_dirty: true
+host: engelbart.une.edu.au
+config:
+  n_epochs: 80
+  batch_size: 128
+  lr: 0.0005
+  warm_up_step: 100
+  taxonomy: une_merge_v1
+  seq_len: 100
+  early_stop_n_epochs: 40
+  pose_style: JnB_bone
+  use_3d_pose: false
+  train_partial: 1.0
+  use_aux_schedule: true
+  aux_fade_end_epoch: 15
+  clips_csv: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+  split_column: split_bst_baseline
+  drop_unknown: true
+  ablation_id: null
+serials:
+- serial_no: 1
+  weights_path: experiments/run_20260420_141629/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1.pt
+  tb_dir: experiments/run_20260420_141629/tb/serial_1
+  metrics:
+    macro_f1: 0.7687538266181946
+    min_f1: 0.34594598412513733
+    accuracy: 0.7895052473763119
+    num_strokes: 3335
+    top2_accuracy: 0.9448275862068966
+  recorded_at: '2026-04-20T14:40:29'
+- serial_no: 2
+  weights_path: experiments/run_20260420_141629/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_2.pt
+  tb_dir: experiments/run_20260420_141629/tb/serial_2
+  metrics:
+    macro_f1: 0.7601358294487
+    min_f1: 0.4141414165496826
+    accuracy: 0.7814092953523238
+    num_strokes: 3335
+    top2_accuracy: 0.9397301349325338
+  recorded_at: '2026-04-20T15:01:15'
+- serial_no: 3
+  weights_path: experiments/run_20260420_141629/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_3.pt
+  tb_dir: experiments/run_20260420_141629/tb/serial_3
+  metrics:
+    macro_f1: 0.7715140581130981
+    min_f1: 0.3809524178504944
+    accuracy: 0.7907046476761619
+    num_strokes: 3335
+    top2_accuracy: 0.945127436281859
+  recorded_at: '2026-04-20T15:27:34'
+- serial_no: 4
+  weights_path: experiments/run_20260420_141629/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_4.pt
+  tb_dir: experiments/run_20260420_141629/tb/serial_4
+  metrics:
+    macro_f1: 0.762265682220459
+    min_f1: 0.302325576543808
+    accuracy: 0.7871064467766117
+    num_strokes: 3335
+    top2_accuracy: 0.9367316341829085
+  recorded_at: '2026-04-20T15:53:32'
+- serial_no: 5
+  weights_path: experiments/run_20260420_141629/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_5.pt
+  tb_dir: experiments/run_20260420_141629/tb/serial_5
+  metrics:
+    macro_f1: 0.7694279551506042
+    min_f1: 0.301075279712677
+    accuracy: 0.7877061469265367
+    num_strokes: 3335
+    top2_accuracy: 0.9388305847076461
+  recorded_at: '2026-04-20T16:19:49'
+log_path: test_logs/test_20260420_141629.log
+best_serials:
+- 3
+notes: |
+  V3: une_merge_v1 + bst split + drop_unknown. First une_merge_v1 run
+  and first CSV-driven flat-pipeline run. Training schedule mirrors
+  run_20260418_151139; data config is the new part (taxonomy +
+  drop_unknown). Best S3 (macro 0.772, min 0.381, acc 0.791). Mean
+  macro 0.766 (-0.06 vs merged_25 baseline), min 0.349 (-0.25), acc
+  0.787 (-0.06). Min drop is the rare-class cost of uncollapse +
+  drop_unknown (long_service, wrist_smash, passive_drop now distinct).
+  Test-log display was pre show_details=True patch; log patched
+  in-place to masked values.
+extra:
+  data_provenance:
+    clips_csv_path: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+    clips_csv_sha256: b510070204cfd7152c2b573b9970fa36e07b1816e1345e6f1b99ad85ce3c6f42
+    effective_ablation_id: une_merge_v1_split_bst_baseline_dropunk
+    npy_collated_dir: dataset_npy_collated_between_2_hits_with_max_limits_seq_100_une_merge_v1_split_bst_baseline_dropunk

@@ -1,0 +1,127 @@
+Best model of run_20260501_164658/ - #2
+  #2: bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
+
+First CDB-F1 run: combo A (une_merge_v1_nosides + split_v2 +
+dropunk), label_smoothing=0.0, class_weights=None, adaptive_focal=
+{tau:1, gamma:1, momentum:0.9, warm_up_epochs:5, f1_floor:0}, on
+the unified sticky_anchor mmpose clean dir. Swaps static class
+weighting for per-class alpha driven by an EMA-smoothed running
+train F1, composed with focal's (1 - p_t)^gamma per-sample
+modulator.
+
+Direct comparisons available against LS=0.15 run_20260501_073430
+(same hparams, class_weights replaced with adaptive_focal, LS
+forced to 0) and class-weighted run_20260501_110525 (same baseline
+plus class_weights = {ws:2.0, smash:2.0}, LS=0.15).
+
+Hparams:
+  taxonomy=une_merge_v1_nosides, split_column=split_v2,
+  drop_unknown=True, n_epochs=80, warm_up_step=100,
+  early_stop_n_epochs=40, scheduler num_cycles=0.5, lr=5e-4,
+  batch_size=128, use_aux_schedule=True, aux_fade_end_epoch=15,
+  label_smoothing=0.0,
+  class_weights=None,
+  adaptive_focal={tau:1.0, gamma:1.0, momentum:0.9,
+                  warm_up_epochs:5, f1_floor:0.0}.
+  ablation_id=None
+  (resolves to une_merge_v1_nosides_split_v2_dropunk).
+
+Result: floor lift on wrist_smash (largest single-run mean shift on
+the loss-side so far), at the cost of smash.
+  S2 wrist_smash 0.486: top of run, but below class-weighted S2's
+  project ceiling 0.518. Mean wrist_smash 0.4621 (+4.0 on
+  class-weighted mean 0.4221, +4.5 on LS=0.15 mean 0.4168, +8.7 on
+  LS=0.1 baseline mean 0.3751).
+
+  The adaptive shape picked up push as a second bottleneck
+  automatically: push mean 0.6486 (+6.7 on class-weighted mean
+  0.5820, the largest per-class lift in this run). The static
+  class_weights config only weighted ws and smash; alpha caught
+  push because its train F1 stayed low.
+
+Per-serial (num_strokes=4202, 14 classes, 5 seeds):
+  - Serial 2: top min 0.486, top macro 0.753, top acc 0.769,
+    top top-2 0.940. Clean 4/4 best, flagged.
+  - Serial 1: macro 0.743, min 0.471, acc 0.765, top-2 0.938.
+  - Serial 3: macro 0.743, min 0.471, acc 0.756, top-2 0.933.
+  - Serial 4: macro 0.744, min 0.413, acc 0.763, top-2 0.935
+    (run-low wrist_smash; run-high cross_court_net_shot 0.669).
+  - Serial 5: macro 0.733, min 0.469, acc 0.755, top-2 0.929
+    (run-low drive 0.523, push 0.578: weak seed for several
+    bottleneck-adjacent classes).
+
+Mean across 5: macro 0.7432, min 0.4621, acc 0.7617, top-2 0.9351.
+
+Vs class-weighted run_20260501_110525 mean
+(0.7478 / 0.4221 / 0.7695 / 0.9360):
+  macro -0.5, min +4.0, acc -0.8, top-2 -0.1.
+
+Vs LS=0.15 run_20260501_073430 mean
+(0.7471 / 0.4168 / 0.7686 / 0.9378):
+  macro -0.4, min +4.5, acc -0.7, top-2 -0.3.
+
+Vs LS=0.1 baseline run_20260430_170325 mean
+(0.7419 / 0.3751 / 0.7673 / 0.9378):
+  macro +0.1, min +8.7, acc -0.6, top-2 -0.3.
+
+Per-class shifts vs class-weighted: wrist_smash +4.0, push +6.7,
+clear +0.3, return_net +0.3, smash -5.5, rush -2.7, passive_drop
+-1.4, drive -1.4, long_service -1.4, cross_court_net_shot -1.2,
+drop -1.1, lob -1.0, net_shot -1.0, short_service -0.9.
+
+Wrist_smash range across 5 seeds: 0.413-0.486 (range 0.073). Vs
+class-weighted's 0.378-0.518 (range 0.140), the seed-to-seed spread
+on ws tightens by ~50%. The bimodal-seed failure mode the
+class-weighted run had (one outlier seed at 0.518, four others at
+0.378-0.405) is gone: every seed now lands in the 0.41-0.49 basin.
+
+S2 cost check: wrist_smash 0.486 (10.0 above the within-run
+ws mean of 0.462). Smash on S2 0.602 sits 0.5 above run mean
+of 0.597, so the bonus on ws didn't come from extra smash cost on
+this seed; it just rode the alpha shape into a better ws basin.
+S2 macro 0.753 is the only seed clearing 0.75 in this run, so the
+capacity is genuinely better, not redistributed from elsewhere.
+
+Read: floor lift +4 on wrist_smash and +6.7 on push is the largest
+multi-class bottleneck shift any single loss-side run has produced.
+Seed variance also tightens. The cost concentrates on smash (-5.5):
+pair-confusion structure that scalar-per-class CDB can't model.
+Smaller costs on rush / drive / drop / passive_drop / services may
+be from the gamma=1 layer squeezing already-low-alpha confident
+samples (gradient ratio ~1000:1 across classes vs ~16:1 from alpha
+alone). Two follow-up runs (gamma=0 run_20260501_192113 and tau=0.5
+run_20260501_192519) tested both knobs separately: both lose ws and
+smash recovers, so the floor lift was load-shared between the
+aggressive alpha shape and the gamma=1 modulator. Project ceiling
+not broken: class-weighted S2's 0.518 still holds. Mean ceiling
+moved instead. Next: pair-cap CDB on smash to address the
+pair-confusion residual directly.
+
+TensorBoard run folders (in tb/):
+  S1: serial_1
+  S2: serial_2  (flagged best, top wrist_smash, top macro / acc / top-2)
+  S3: serial_3  (low macro, mid ws)
+  S4: serial_4  (run-low ws 0.413, run-high cross_court 0.669)
+  S5: serial_5  (run-low macro / drive / push)
+
+=== Serial 2 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2) ===
+Test (num_strokes: 4202) =>
+    BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2  F1-score
+avg                                                Avg                                    0.75
+min                                                Min                                    0.49
+0                                 net_shot                                                0.89
+1                                 return_net                                              0.82
+2                                 smash                                                   0.60
+3                                 wrist_smash                                             0.49
+4                                 lob                                                     0.78
+5                                 clear                                                   0.95
+6                                 drive                                                   0.65
+7                                 drop                                                    0.68
+8                                 passive_drop                                            0.66
+9                                 push                                                    0.67
+10                                rush                                                    0.78
+11                                cross_court_net_shot                                    0.63
+12                                short_service                                           0.98
+13                                long_service                                            0.97
+Accuracy: 0.769
+Top2 Accuracy: 0.940

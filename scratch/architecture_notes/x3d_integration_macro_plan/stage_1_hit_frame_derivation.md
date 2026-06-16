@@ -29,7 +29,7 @@ and read end-to-end. Background context (read the TLDR sections only, not full d
 - scratch/architecture_notes/augmentation_framework.md "How hit-frame metadata
   would get derived" section (around line 836)
 The plan is locked in scope. Implementation has not started. Existing entry point:
-src/bst_refactor/validation_scripts/hit_frame_lookup.py (Method A scaffold).
+src/bst_x/validation_scripts/hit_frame_lookup.py (Method A scaffold).
 Deliverables list is in the doc; deliverable count is four scripts, twelve sidecar
 npy files, one diagnostic CSV, one validation-sample md, one Stage 1 report md.
 
@@ -47,11 +47,11 @@ The deliverable is data + diagnostics, not training. Implementation happens in a
 ## What's already settled
 
 - Clip windowing rule is `between_2_hits_with_max_limits` with the 100-frame cap. Stem format is `{vid}_{set}_{rally}_{ball_round}`. Source: `pipeline/clip_generator.py:_compute_clip_bounds`.
-- Method A scaffold exists at `src/bst_refactor/validation_scripts/hit_frame_lookup.py:25`. It returns a `dict[stem -> hit_idx_disk]` derived from `ShuttleSet/set/*.csv` plus `video_metadata.csv`. CPU-only, runs in seconds. Not yet writing sidecars.
-- Collation pads everything to seq_len=100 via `make_seq_len_same` at `src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py:43`. Two cases: `videos_len > 100` strides the disk clip; `videos_len <= 100` zero-pads on the right. Striding shifts the hit index; padding does not.
+- Method A scaffold exists at `src/bst_x/validation_scripts/hit_frame_lookup.py:25`. It returns a `dict[stem -> hit_idx_disk]` derived from `ShuttleSet/set/*.csv` plus `video_metadata.csv`. CPU-only, runs in seconds. Not yet writing sidecars.
+- Collation pads everything to seq_len=100 via `make_seq_len_same` at `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py:43`. Two cases: `videos_len > 100` strides the disk clip; `videos_len <= 100` zero-pads on the right. Striding shifts the hit index; padding does not.
 - Shuttle stream: `shuttle.npy` per split is `(n_clips, 100, 2)` xy in court-normalised coordinates. The TrackNetV3-inpaint version is what `wipe_drop` collation pulls in; gaps are the inpaint output's own residual misses, not raw zeros.
 - Collated trees live under `npy_wipe_drop/{train,val,test}/` per `bst_x_overview.md` X3D-S anchor section. Sidecars from Stage 1 land in the same dirs.
-- Source clips on engelbart at `BST_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips/{split}/{Top|Bottom}_{stroke}/{stem}.mp4`. Source `clips_master.csv` at `notebooks/clips_master.csv` carries `clip_stem`, `raw_type_en`, `player_side`, `split_v2`, plus `aroundhead` / `backhand` flags.
+- Source clips on engelbart at `BST_X_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips/{split}/{Top|Bottom}_{stroke}/{stem}.mp4`. Source `clips_master.csv` at `notebooks/clips_master.csv` carries `clip_stem`, `raw_type_en`, `player_side`, `split_v2`, plus `aroundhead` / `backhand` flags.
 
 ## Method A: deterministic CSV correlation (already scaffolded)
 
@@ -195,7 +195,7 @@ Two scripts. The diagnostic runs first across the whole tree; the random-sample 
 
 ### Diagnostic script (CSV-driven, automated)
 
-`src/bst_refactor/validation_scripts/hit_frame_ab_diagnostic.py`. Reads `hit_frame_diagnostic.csv`. Outputs to `scratch/architecture_notes/x3d_integration_macro_plan/stage_1_outputs/`:
+`src/bst_x/validation_scripts/hit_frame_ab_diagnostic.py`. Reads `hit_frame_diagnostic.csv`. Outputs to `scratch/architecture_notes/x3d_integration_macro_plan/stage_1_outputs/`:
 
 - `disagreement_overall.png` — histogram of `abs_disagreement_frames` across all clips with both methods; bucket size 1 frame, x-range 0-30 then a single bin for "30+".
 - `disagreement_by_split.png` — same histogram split into 3 panels (train / val / test).
@@ -208,7 +208,7 @@ The same script also dumps the n_reversals distribution and the videos_len distr
 
 ### Random-sample validation pass (human-in-the-loop, time-poor)
 
-`src/bst_refactor/validation_scripts/hit_frame_validation_sample.py`. Stratified pick:
+`src/bst_x/validation_scripts/hit_frame_validation_sample.py`. Stratified pick:
 
 - 12 of the 14 active classes get 2 clips: 1 Top + 1 Bottom. (12 × 2 = 24.)
 - Smash and wrist_smash each get 4 clips: 2 Top + 2 Bottom. (2 × 4 = 8.)
@@ -254,10 +254,10 @@ Stage 1 lands when:
 
 ## Deliverables
 
-- `src/bst_refactor/validation_scripts/hit_frame_method_b.py` (new) — the Method B detector (smoothing + Peak + Direction + candidate disambiguation), pure-numpy, no torch.
-- `src/bst_refactor/validation_scripts/hit_frame_derive.py` (new) — orchestrator: reads collated tree, runs Method A + Method B, writes the four npy sidecars and the diagnostic CSV.
-- `src/bst_refactor/validation_scripts/hit_frame_ab_diagnostic.py` (new) — reads the diagnostic CSV, writes histograms + summary CSV + summary md.
-- `src/bst_refactor/validation_scripts/hit_frame_validation_sample.py` (new) — picks the 32-clip sample, writes the rsync-prompt + per-clip-table .md.
+- `src/bst_x/validation_scripts/hit_frame_method_b.py` (new) — the Method B detector (smoothing + Peak + Direction + candidate disambiguation), pure-numpy, no torch.
+- `src/bst_x/validation_scripts/hit_frame_derive.py` (new) — orchestrator: reads collated tree, runs Method A + Method B, writes the four npy sidecars and the diagnostic CSV.
+- `src/bst_x/validation_scripts/hit_frame_ab_diagnostic.py` (new) — reads the diagnostic CSV, writes histograms + summary CSV + summary md.
+- `src/bst_x/validation_scripts/hit_frame_validation_sample.py` (new) — picks the 32-clip sample, writes the rsync-prompt + per-clip-table .md.
 - `tests/test_hit_frame_method_b.py` (new) — unit tests for the seven test cases listed above, against hand-checked ground-truth clips embedded as small npy fixtures.
 - Sidecar npy files per split (4 × 3 = 12 files).
 - Diagnostic outputs under `scratch/architecture_notes/x3d_integration_macro_plan/stage_1_outputs/`.
@@ -279,8 +279,8 @@ These are the items the plan deliberately leaves to the implementer rather than 
 
 - Macro plan: `x3d_integration_macro_plan.md` §Stage 1.
 - Method A + B framing: `augmentation_framework.md` "How hit-frame metadata would get derived" section (around line 836).
-- Method A scaffold: `src/bst_refactor/validation_scripts/hit_frame_lookup.py`.
-- Collation pad/stride logic: `src/bst_refactor/stroke_classification/preparing_data/shuttleset_dataset.py:43` (`make_seq_len_same`).
+- Method A scaffold: `src/bst_x/validation_scripts/hit_frame_lookup.py`.
+- Collation pad/stride logic: `src/bst_x/stroke_classification/preparing_data/shuttleset_dataset.py:43` (`make_seq_len_same`).
 - Clips master: `notebooks/clips_master.csv`.
 - HPC paths: `~/.claude/projects/.../memory/reference_hpc.md`.
 - Hsu et al. paper: `~/Documents/COSC594/enhancing_badminton_game_analysis_an_approach_to_shot_refinement.pdf`.

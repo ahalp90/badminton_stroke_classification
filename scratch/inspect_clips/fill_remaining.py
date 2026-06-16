@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 
 REPO = Path("E:/bsc-tier1")
-CLIP_INDEX = REPO / "src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/clip_index.json"
+CLIP_INDEX = REPO / "src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260505_154907/clip_index.json"
 LOCAL_ROOT = REPO / "scratch/inspect_clips"
 
 

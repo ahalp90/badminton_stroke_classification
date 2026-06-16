@@ -19,12 +19,12 @@ Writes one stem per line to --output, ready for raw_extract.py's
 Usage (from bourbaki, against the shared /home repo clone):
 
     # Standard extract (drops unknown + busted)
-    /home/ahalperi/.venvs/venv-bst/bin/python \\
+    /home/ahalperi/.venvs/venv-bst-x/bin/python \\
         scripts/build_extract_stems.py \\
         --output /scratch/comp320a/ShuttleSet_keypoints_raw/stems_to_extract.txt
 
     # Sibling extract for the 1,278 unknown clips
-    /home/ahalperi/.venvs/venv-bst/bin/python \\
+    /home/ahalperi/.venvs/venv-bst-x/bin/python \\
         scripts/build_extract_stems.py --only-unknown --keep-busted \\
         --output /scratch/comp320a/ShuttleSet_keypoints_raw_unknown/stems_unknown.txt
 """

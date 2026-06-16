@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Fetch the deployed model weights that the registry serves. These are NOT in
-# git (see MODELS.md); they live as assets on a GitHub Release (or any HTTP
-# host). You only need them for LIVE inference on new uploads or for retraining.
+# Fetch the deployed model weights that the registry serves. The 6 BST-X
+# weights are tracked in git AND uploaded as assets on a GitHub Release; this
+# script is the canonical fetch path for fresh clones and for any new weights
+# published outside git (e.g. BRIC, which is not in-tree). The release also
+# carries 8 BRIC assets uploaded alongside (see MODELS.md). You only need
+# this script for LIVE inference on new uploads or for retraining.
 # The demo's results screens run from precomputed predictions that ARE in git,
 # so a fresh clone shows working results without running this.
 #

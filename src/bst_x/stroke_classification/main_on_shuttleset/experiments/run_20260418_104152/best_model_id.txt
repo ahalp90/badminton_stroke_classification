@@ -1,0 +1,26 @@
+Best model of run_20260418_104152/ is #3 run
+bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_3.pt
+
+First CG/AP annealing pass (gentle schedule):
+  n_epochs=120, warm_up_step=100, early_stop_n_epochs=40,
+  scheduler num_cycles=0.5, lr=5e-4, batch_size=128,
+  use_aux_schedule=True, aux_fade_end_epoch=60.
+  (Cosine fade of CG/AP from factor 1.0 at epoch 1 to 0.0 at epoch 60, pinned at 0 for the tail.)
+
+Winner on every metric: serial 3 leads macro F1, min F1, and accuracy.
+Most seeds picked best-val before factor dropped much below ~0.6, so the fade had little
+effect. Serial 3 was the only seed that picked best deep into the fade (factor ~0.1 at its
+best epoch).
+
+TensorBoard run folders (in tb/):
+  S1: serial_1
+  S2: serial_2
+  S3: serial_3  (best)
+
+=== Serial 3 (BST_CG_AP_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_3) ===
+Test (num_strokes: 3486) =>
+                                                     Avg   Min
+BST_CG_AP_JnB_bone_between_2_hits_with_max_limi...
+F1-score                                           0.830 0.626
+Accuracy: 0.846
+Top2 Accuracy: 0.964

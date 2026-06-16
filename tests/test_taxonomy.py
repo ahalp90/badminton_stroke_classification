@@ -49,7 +49,7 @@ from pipeline.config import (
     label_for_row,
     resolve_taxonomy,
 )
-from main_on_shuttleset.bst_common import build_bst_network
+from main_on_shuttleset.bst_x_common import build_bst_x_network
 
 
 REAL_TAXONOMY_OBJECTS = [
@@ -343,7 +343,7 @@ def test_bst_forward_backward_sized_by_taxonomy(tax):
     n_joints = 17
     in_channels = 2
 
-    net, n_bones = build_bst_network(
+    net, n_bones = build_bst_x_network(
         model_name='BST_CG_AP',
         n_joints=n_joints, pose_style=pose_style, in_channels=in_channels,
         n_class=tax.n_classes, seq_len=seq_len, device='cpu',
@@ -408,7 +408,7 @@ def test_class_weights_uniform_when_empty():
 # ---------------------------------------------------------------------------
 # Section 6b: collated dir basename contract (writer + reader must agree)
 # ---------------------------------------------------------------------------
-# The collator writes ShuttleSet_data_<tax>/<basename>/ and bst_train derives
+# The collator writes ShuttleSet_data_<tax>/<basename>/ and bst_x_train derives
 # the same <basename> to read it back. Split folds into the name so two cells
 # that share a taxonomy + collation_id but differ by split (the bst_24 case:
 # split_v2 vs split_bst_baseline) land in distinct dirs instead of colliding.

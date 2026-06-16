@@ -31,7 +31,7 @@ The fix is a calibration-fit script that picks the `temperature` value that best
 
 ## What just works on a host with the clips
 
-If you're on UNE HPC with `BST_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips`, the per-clip detail's `<video>` plays the real mp4 with scrubbing (`FileResponse` handles Range requests). Off HPC, the player shows the fallback message. That's correct behaviour for mocked stems that don't exist on disk, not a bug.
+If you're on UNE HPC with `BST_X_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips`, the per-clip detail's `<video>` plays the real mp4 with scrubbing (`FileResponse` handles Range requests). Off HPC, the player shows the fallback message. That's correct behaviour for mocked stems that don't exist on disk, not a bug.
 
 ## What won't work
 
@@ -51,7 +51,7 @@ UPLOAD_DIR=/tmp/bst-uploads ~/.venvs/bst-api/bin/uvicorn src.api.main:app \
 cd frontend && npm install && npm run dev
 ```
 
-Vite proxies `/api/*` to `localhost:24082`, so no CORS dance is needed. If you've stashed a handful of clips somewhere on your laptop and want them to play in the browser, prefix the uvicorn line with `BST_CLIPS_DIR=/your/path`. The layout under that path still needs to be `<split>/<Side>_<class>/<stem>.mp4`.
+Vite proxies `/api/*` to `localhost:24082`, so no CORS dance is needed. If you've stashed a handful of clips somewhere on your laptop and want them to play in the browser, prefix the uvicorn line with `BST_X_CLIPS_DIR=/your/path`. The layout under that path still needs to be `<split>/<Side>_<class>/<stem>.mp4`.
 
 ## Worth landing before flipping real predictions on
 

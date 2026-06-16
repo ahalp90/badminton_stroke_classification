@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 REPO = Path(__file__).resolve().parents[1]
-SHUTTLESET = REPO / "src/bst_refactor/ShuttleSet"
+SHUTTLESET = REPO / "src/bst_x/ShuttleSet"
 META_CSV = SHUTTLESET / "video_metadata.csv"
 SET_DIR = SHUTTLESET / "set"
 OUT = REPO / "frontend/hba-stroke-classifier/data/matches.json"

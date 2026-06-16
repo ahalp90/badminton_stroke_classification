@@ -16,7 +16,7 @@ import random
 from pathlib import Path
 
 RUN_DIR = Path(
-    "src/bst_refactor/stroke_classification/main_on_shuttleset/"
+    "src/bst_x/stroke_classification/main_on_shuttleset/"
     "experiments/run_20260505_154907"
 )
 FE_DIR = RUN_DIR / "fe_jsons"

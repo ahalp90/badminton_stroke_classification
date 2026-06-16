@@ -1,0 +1,84 @@
+--- Dataset Summary --- [generation 12/04/2026]
+
+  train: 25741 clips across 25 classes
+    Top_net_shot                              2402
+    Bottom_net_shot                           2282
+    Bottom_lob                                2083
+    Top_lob                                   1954
+    Top_smash                                 1585
+    Bottom_return_net                         1381
+    Bottom_smash                              1369
+    Top_return_net                            1257
+    Top_drop                                  1245
+    Bottom_drop                               1193
+    Bottom_push                               1030
+    Top_push                                  1005
+    Bottom_clear                               946
+    unknown                                    927
+    Top_clear                                  925
+    Bottom_short_service                       763
+    Top_short_service                          733
+    Bottom_drive                               565
+    Top_drive                                  526
+    Top_cross_court_net_shot                   503
+    Bottom_cross_court_net_shot                498
+    Top_rush                                   203
+    Bottom_rush                                155
+    Bottom_long_service                        114
+    Top_long_service                            97
+
+  val: 4241 clips across 25 classes
+    Bottom_lob                                 379
+    Top_net_shot                               357
+    Bottom_net_shot                            338
+    Top_smash                                  305
+    Top_lob                                    281
+    Top_drop                                   247
+    unknown                                    241
+    Bottom_clear                               214
+    Bottom_smash                               210
+    Bottom_return_net                          207
+    Top_clear                                  197
+    Top_return_net                             179
+    Bottom_drop                                177
+    Bottom_push                                169
+    Top_push                                   156
+    Bottom_drive                                98
+    Bottom_short_service                        90
+    Top_short_service                           84
+    Top_drive                                   81
+    Bottom_cross_court_net_shot                 61
+    Top_cross_court_net_shot                    60
+    Top_rush                                    33
+    Bottom_rush                                 31
+    Bottom_long_service                         27
+    Top_long_service                            19
+
+  test: 3499 clips across 25 classes
+    Top_lob                                    231
+    Bottom_lob                                 229
+    Top_smash                                  228
+    Bottom_smash                               224
+    Top_net_shot                               223
+    Bottom_net_shot                            222
+    Bottom_clear                               192
+    Top_clear                                  187
+    Top_return_net                             182
+    Bottom_return_net                          168
+    unknown                                    162
+    Top_drop                                   159
+    Bottom_drop                                156
+    Top_push                                   156
+    Bottom_push                                136
+    Bottom_drive                               111
+    Bottom_short_service                       101
+    Top_drive                                   90
+    Top_short_service                           87
+    Bottom_cross_court_net_shot                 61
+    Bottom_long_service                         59
+    Top_cross_court_net_shot                    43
+    Top_long_service                            43
+    Top_rush                                    34
+    Bottom_rush                                 15
+
+  Total: 33481 clips

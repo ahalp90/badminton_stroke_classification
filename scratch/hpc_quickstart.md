@@ -119,7 +119,7 @@ paths and won't work for others
 
 ## 10. BST subproject setup
 
-The BST subproject (src/bst_refactor/) requires Python 3.11.x and multiple separate venvs due to numpy version conflicts between MMPose 
+The BST subproject (src/bst_x/) requires Python 3.11.x and multiple separate venvs due to numpy version conflicts between MMPose 
 and the training stack.                                                                                                                   
 
-See src/bst_refactor/data_pipeline_to_model_train.md for full setup instructions.
+See src/bst_x/data_pipeline_to_model_train.md for full setup instructions.

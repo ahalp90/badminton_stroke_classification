@@ -1,0 +1,28 @@
+# BST model training, inference, and result analysis.
+# Python 3.11.X (matching prepare_train venv for consistency)
+# Does NOT include OpenMMLab — those are in preparing_data/requirements.txt.
+#
+# --- Manual install step (can't go in requirements.txt) ---
+# pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
+# pip install -r requirements.txt
+
+# Standard libraries
+numpy==2.2.6                     # No OpenMMLab here, modern numpy is fine
+pandas>=2.0.0,<3.0.0             # CoW default in 3.0 would break inplace/iloc patterns
+matplotlib==3.10.8               # Confusion matrix plots
+scikit-learn==1.6.1              # Confusion matrix in result_utils.py
+tqdm==4.67.3                     # Progress bars
+
+# BST model dependencies
+positional-encodings==6.0.3      # 6.0.4 requires Python >= 3.12
+torchinfo==1.8.0                 # Model summary (imported by tempose.py)
+
+# Training
+torcheval==0.0.7                 # F1 metric computation
+transformers>=4.40.0,<5          # LR scheduler; 5.x requires torch >= 2.4
+tensorboard==2.20.0              # Training logging
+
+# TrackNetV3 inference (shares this venv — see TrackNetV3/requirements.txt)
+opencv-python==4.13.0.92         # Video frame I/O in TrackNetV3 (not used by BST)
+Pillow==11.2.1                   # Frame processing in TrackNetV3 (also transitive dep of matplotlib)
+parse==1.21.1                    # Path parsing in TrackNetV3 dataset.py (not used by BST)

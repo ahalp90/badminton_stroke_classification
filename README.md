@@ -39,7 +39,7 @@ Explainable AI activation mapping overlays are currently also in development.
 
 ## Project structure
 
-- `src/bst_refactor/` — data pipeline and badminton stroke classifier; standalone subproject with its own pinned environments
+- `src/bst_x/` — data pipeline and badminton stroke classifier; standalone subproject with its own pinned environments
 - `src/bric/` — BRIC (Badminton RGB Inference Classifier): R(2+1)D-18 backbone with optional shuttle + court fusion lanes. Self-contained: network/dataset/train/infer/eval, plus its own `perception/` (YOLO+TrackNet), `preprocessing/` (cache producers), and `diagnostics/` (cache validators)
 - `src/shared/` — values and utilities BRIC consumes: stroke taxonomy, court geometry, player mapping, video I/O, frame-window helpers
 - `src/api/` — FastAPI service: model registry endpoints (Tier 1 — browse precomputed predictions), upload + inference orchestration (Tier 2 — inference path currently stubbed)
@@ -55,7 +55,7 @@ Explainable AI activation mapping overlays are currently also in development.
 
 ## Data pipeline and classifier training
 
-The classifier has its own pinned environments, separate from the root `requirements.txt`. Three venvs: data pipeline, MMPose pose extraction, BST training. They can't share dependencies; the MMPose skeleton keypoint extractor pins NumPy < 2.0, which conflicts with the rest of the project. Full setup and execution order: [`src/bst_refactor/data_pipeline_to_model_train.md`](src/bst_refactor/data_pipeline_to_model_train.md).
+The classifier has its own pinned environments, separate from the root `requirements.txt`. Three venvs: data pipeline, MMPose pose extraction, BST-X training. They can't share dependencies; the MMPose skeleton keypoint extractor pins NumPy < 2.0, which conflicts with the rest of the project. Full setup and execution order: [`src/bst_x/data_pipeline_to_model_train.md`](src/bst_x/data_pipeline_to_model_train.md).
 
 ### Local config (`.env`)
 
@@ -63,7 +63,7 @@ Data paths differ between machines (local dev vs `engelbart` vs `bourbaki`). The
 
 ```bash
 cp .env.example .env
-# edit .env to point at the four BST_*_DIR paths for your environment
+# edit .env to point at the four BST_X_*_DIR paths for your environment
 ```
 
 `.env` is gitignored. Shell exports always override the file. HPC example paths are commented at the bottom of `.env.example`.
@@ -74,14 +74,14 @@ Lists clips for a given `split` + `class` filter, paired with their shuttle and 
 
 ```bash
 # Set PYTHONPATH once for the session
-export PYTHONPATH=src/bst_refactor:src/bst_refactor/stroke_classification
+export PYTHONPATH=src/bst_x:src/bst_x/stroke_classification
 
 python -m pipeline.data_access --summary                       # counts per split/class
 python -m pipeline.data_access --split val --class Top_smash   # one row per matching clip
 python -m pipeline.data_access                                 # interactive prompts
 ```
 
-Full CLI flags and Python API: [`src/bst_refactor/pipeline/README.md`](src/bst_refactor/pipeline/README.md).
+Full CLI flags and Python API: [`src/bst_x/pipeline/README.md`](src/bst_x/pipeline/README.md).
 
 ## UNE HPC setup (engelbart, bourbaki)
 
@@ -106,7 +106,7 @@ The pipeline expects clip and pose data inside the repo tree; symlink to `/scrat
 ```bash
 mkdir -p /scratch/comp320a/ShuttleSet/{raw_video,clips,shuttle_csv,shuttle_npy}
 
-cd ~/badminton_stroke_classification/src/bst_refactor/ShuttleSet
+cd ~/badminton_stroke_classification/src/bst_x/ShuttleSet
 ln -s /scratch/comp320a/ShuttleSet/raw_video raw_video
 ln -s /scratch/comp320a/ShuttleSet/clips clips
 ln -s /scratch/comp320a/ShuttleSet/shuttle_csv shuttle_csv
@@ -117,7 +117,7 @@ Per-taxonomy MMPose output dir, same pattern:
 
 ```bash
 mkdir -p /scratch/comp320a/ShuttleSet_data_une_v1_14
-cd ~/badminton_stroke_classification/src/bst_refactor/stroke_classification/preparing_data
+cd ~/badminton_stroke_classification/src/bst_x/stroke_classification/preparing_data
 ln -s /scratch/comp320a/ShuttleSet_data_une_v1_14 ShuttleSet_data_une_v1_14
 ```
 
@@ -133,7 +133,7 @@ HPC quickstart and GPU notes: [`scratch/hpc_quickstart.md`](scratch/hpc_quicksta
 
 ## Experiment tracking
 
-Each training run writes a manifest, per-serial metrics, and TensorBoard events under `src/bst_refactor/stroke_classification/main_on_shuttleset/experiments/<run_id>/`. Optional Aim UI for browsing runs: [`src/bst_refactor/run_tracker.md`](src/bst_refactor/run_tracker.md).
+Each training run writes a manifest, per-serial metrics, and TensorBoard events under `src/bst_x/stroke_classification/main_on_shuttleset/experiments/<run_id>/`. Optional Aim UI for browsing runs: [`src/bst_x/run_tracker.md`](src/bst_x/run_tracker.md).
 
 ## API + frontend
 
