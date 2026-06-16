@@ -11,7 +11,6 @@ from functools import lru_cache
 from typing import Optional
 
 import yaml
-import torch
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
@@ -97,9 +96,9 @@ def _pred_splits(entry: dict) -> set[str]:
     precomputed predictions AND a clip_index to drive the list/detail endpoints.
 
     BST-X ships both, so its browser shows the precomputed real predictions with
-    no live forward pass and no /data tensor mount. BRIC ships real predictions
-    but no clip_index (it's a metrics-only card by design), so its browser stays
-    off rather than 404ing the clip_index-dependent endpoints."""
+    no live forward pass and no /data tensor mount. BRIC now ships a clip_index
+    too, so its browser behaves like BST-X's: the entries carry `video_path:
+    null`, so clip playback stays off unless clips are mounted."""
     clip_index = _read_json_under_run(entry["manifest_path"], *_sidecar_path(entry, "clip_index.json"))
     if not clip_index:
         return set()
@@ -189,8 +188,9 @@ def _summarise_model(entry: dict) -> dict:
     
     status_reason = None
     if status == "pending":
-        status_reason = "Live inference unavaialble: Model not implemented"
+        status_reason = "Live inference unavailable: Model not implemented"
     if architecture == "bric" and status == "available":
+        import torch
         if not torch.cuda.is_available():
             status = "unavailable"
             status_reason = "Live inference unavailable: GPU not detected"

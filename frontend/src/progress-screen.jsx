@@ -62,6 +62,7 @@ function buildMarkupPayload(task) {
   // button, but the migration path can produce half-set entries from old persisted state.
   const annotations = strokes
     .filter(a => a && a.targetSec != null)
+    .sort((a, b) => a.targetSec - b.targetSec)
     .map((a, i) => ({
       target_sec: a.targetSec,
       player_side: startingSide == null ? null : (i % 2 === 0 ? startingSide : flip(startingSide)),

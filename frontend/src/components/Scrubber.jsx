@@ -6,7 +6,7 @@ const ZOOM_LEVELS = [1, 2, 5, 10, 25, 50];
 const TRACK_HEIGHT = 38;
 
 /** Scrubber: buffered + density-binned pips + click-drag seek
-* `strokes` is the list of user-marked annotations [{id, startSec, targetSec, endSec}]; 
+* `strokes` is the list of user-marked annotations [{id, startSec, targetSec, endSec}];
 * `activeId` picks which one renders handles + the saturated blue.
 * `strokeTimes` is the unrelated dataset-level density overlay (kept). */
 export function Scrubber({
@@ -31,7 +31,7 @@ export function Scrubber({
     }
     return arr;
   })();
-  
+
   const bucketMax = buckets ? Math.max(1, ...buckets) : 1;
 
   const pct = (s) => duration > 0 ? (s / duration) * 100 : 0;
@@ -136,7 +136,7 @@ export function Scrubber({
         {(strokes || []).filter(s => s.targetSec != null).map(s => {
           const active = s.id === activeId;
           return (
-            <div  
+            <div
               key={s.id}
               title={fmtTime(s.targetSec)}
               style={{
@@ -149,14 +149,14 @@ export function Scrubber({
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 10, fontWeight: 700,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-              }}  
+              }}
             >
               ◉
             </div>
           );
       })}
       </div>
-      
+
       {/* Timeline ruler — tick marks + labels */}
       {duration > 0 && (
         <div style={{ position: 'relative', height: 18, marginTop: 22 }}>
@@ -172,7 +172,7 @@ export function Scrubber({
             const ticks = [];
             for (let sec = 0; sec <= duration; sec += interval) {
               ticks.push(sec);
-            }   
+            }
             return ticks.map(sec => (
               <div key={sec} style={{
                 position: 'absolute',

@@ -11,7 +11,7 @@ services:
   backend:
     volumes:
       # Sample clips for the video endpoint. Empty until you drop clips in.
-      - ./scratch/inspect_clips:/app/clips:ro
+      - ./scratch/inspect_clips:/app/runtime/clips:ro
       # Collated tensors for the real BST forward pass (src/api/bst_inference.py).
       # Obtained out-of-band; see HANDOVER.md. Empty dir => live inference off.
       - ./scratch/bst_inputs:/app/bst_inputs:ro

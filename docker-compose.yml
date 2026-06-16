@@ -8,6 +8,20 @@
 # any host-specific paths. Local dataset mounts and the uploads-permission fix
 # live in docker-compose.dev.yml (an opt-in overlay). Production is separate:
 # see docker-compose.prod.yml and DEPLOYMENT.md.
+#
+# Live BRIC inference needs an NVIDIA GPU. For local GPU dev, drop an untracked
+# docker-compose.override.yml next to this file (compose merges it automatically,
+# no extra -f flag) reserving the device:
+#   services:
+#     backend:
+#       deploy:
+#         resources:
+#           reservations:
+#             devices:
+#               - driver: nvidia
+#                 count: all
+#                 capabilities: [gpu]
+# Without a GPU, BRIC is gated off by the registry and the rest runs as normal.
 services:
   backend:
     build: .
@@ -22,13 +36,6 @@ services:
       - CORS_ORIGINS=http://localhost:5173,http://localhost:24082
       - UPLOAD_DIR=/app/uploads
       - BST_CLIPS_DIR=/app/runtime/clips
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
   frontend:
     image: node:20-alpine

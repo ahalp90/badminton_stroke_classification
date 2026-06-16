@@ -1,12 +1,12 @@
 /**
  * toModelCard function is a registry adapter
- * 
+ *
  * /api/registry returns architecture-agnostic model entries. Function maps each
- * into the visual model-card shape the interface uses, so adding a new model 
+ * into the visual model-card shape the interface uses, so adding a new model
  * (e.g. Architecture 2) later needs no card changes.
- * 
- * @param {} entry 
- * @returns 
+ *
+ * @param {} entry
+ * @returns
  */
 const ARCH_LABELS = { 'bst-x': 'BST-X', 'bric': 'BRIC' };
 

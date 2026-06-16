@@ -9,7 +9,10 @@
 
 services:
   backend:
-    build: .
+    build:
+      context: .
+      args:
+        TORCH_INDEX: cu128
     container_name: badminton-backend
     working_dir: /app
     volumes:

@@ -149,7 +149,15 @@ def test_registry_bric_status_and_live_predictions():
     models = {m["id"]: m for m in resp.json()["models"]}
     bric = models["bric_rgb_shuttle_tcn_outgoing_only_v1"]
     assert bric["status"] in ("available", "unavailable")
-    assert bric["live_predictions"] == {"test": False, "val": False}
+    # live_predictions only populates when the model is `available`. BRIC is
+    # GPU-gated, so on a box without a GPU it reports unavailable and every
+    # split stays False. When available, the shipped clip_index + real
+    # (non-mock) predictions/test.json open the test split; no val sidecar
+    # exists, so val stays off.
+    if bric["status"] == "available":
+        assert bric["live_predictions"] == {"test": True, "val": False}
+    else:
+        assert bric["live_predictions"] == {"test": False, "val": False}
     assert bric["test_metrics"]["macro_f1"] == 0.7305
 
 

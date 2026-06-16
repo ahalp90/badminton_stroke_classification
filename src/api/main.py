@@ -5,13 +5,13 @@ import os
 import uuid
 import shutil
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Literal, Optional
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from .config import (
@@ -283,7 +283,7 @@ def _process_video(job_id: str, video_path: str, model_name: str):
                 
                 manifest = {
                     "job_id": job_id,
-                    "created_at": datetime.utcnow().isoformat() + "Z",
+                    "created_at": datetime.now(timezone.utc).isoformat(),
                     "video_filename": Path(video_path).name,
                     "architecture": arch,
                     "markup_input": markup,
@@ -553,7 +553,6 @@ async def get_stroke_frame(job_id: str, stroke_idx: int, which: str):
     matches = list(job_dir.glob(f"stroke_{stroke_idx:02d}_*_{which}.jpg"))
     if not matches:
         raise HTTPException(status_code=404, detail=f"frame not found for stroke {stroke_idx}")
-    from fastapi.responses import FileResponse
     return FileResponse(matches[0], media_type="image/jpeg")
 
 

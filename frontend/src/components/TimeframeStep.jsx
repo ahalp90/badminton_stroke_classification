@@ -298,9 +298,11 @@ export function TimeframeStep({ video, onComplete }) {
   const allSet = active ? isAnnotationComplete(active) : false;
   const valid  = active ? isAnnotationValid(active) : false;
 
-  // Show Start = prev stroke's target, End = next stroke's target (raw, no
-  // fallback). When the active stroke is the first/last in the rally, the
-  // missing side reads "—".
+  // Display-only preview of the backend's window derivation: Start = previous
+  // stroke's target, End = next stroke's target, falling back to ±0.5 s at the
+  // rally's edges, clamped to [0, duration]. The backend's actual windows add
+  // a small extension and ±1.5 s caps (compute_clip_bounds), so this is an
+  // approximation for the summary cards, not the exact model input.
   const DEFAULT_HALF_WINDOW = 0.5;
   const sortedByTarget = (annotations || [])
     .filter(a => a.targetSec != null)
@@ -538,7 +540,7 @@ export function TimeframeStep({ video, onComplete }) {
             );
           })}
           <span style={{ marginLeft: 'auto', fontSize: 11, color: t.muted }}>
-            {playerSide ? `selected: ${playerSide}` : 'optional · leave unset to skip'}
+            {playerSide ? `selected: ${playerSide}` : 'required: sides alternate from the first stroke'}
           </span>
         </div>
 

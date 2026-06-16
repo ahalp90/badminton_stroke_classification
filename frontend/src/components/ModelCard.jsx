@@ -3,9 +3,9 @@ import { useTheme, Badge } from '../shared'
 
 /**
  * ModelCard function
- * 
- * @param {} param0 
- * @returns 
+ *
+ * @param {} param0
+ * @returns
  */
 export function ModelCard({ model, enabled, disabled, onToggle }) {
   const { t } = useTheme();

@@ -21,6 +21,10 @@ import torch
 REPO_ROOT = Path("/app") if Path("/app").exists() else Path(__file__).resolve().parents[2]
 SRC_DIR = REPO_ROOT / "src"
 TRACKNETV3_DIR = SRC_DIR / "bric" / "perception" / "_vendor" / "tracknetv3"
+# TrackNetV3's internal imports are bare (utils, dataset, model), so its dir
+# must be on sys.path. Position 0 means those generic names shadow any
+# same-named top-level module for the whole API process; nothing collides
+# today, but don't add top-level modules with these names under src/.
 for p in (SRC_DIR, TRACKNETV3_DIR):
     sp = str(p)
     if sp not in sys.path:
@@ -93,7 +97,7 @@ def _dump_window_clip(
 ) -> None:
     """Save the [start_f, end_f] rally slice as full-frame mp4."""
     frames = [rally_frames[f] for f in range(start_f, end_f + 1) if f in rally_frames]
-    if not frames:  
+    if not frames:
         return
     H, W = frames[0].shape[:2]
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
@@ -106,7 +110,7 @@ def _dump_window_clip(
 def _striker_court_position(
     striker_arrays: dict[str, np.ndarray],
     court_info: dict,
-    target_f: int,  
+    target_f: int,
     side: str,
     frame_w: float,
     frame_h: float,
@@ -138,7 +142,7 @@ def _striker_court_position(
     foot_y = float(bbox[3])
     pt = np.array([[foot_x], [foot_y]])
     pt = scale_pos_by_resolution(pt, width=frame_w, height=frame_h)
-    pt = convert_homogeneous(pt) 
+    pt = convert_homogeneous(pt)
     court_pt = project(court_info["H"], pt)
     x_n = (court_pt[0, 0] - court_info["border_L"]) / (
         court_info["border_R"] - court_info["border_L"]
@@ -170,7 +174,7 @@ def _ensure_initialised():
         shuttle_encoder = hparams.get("shuttle_encoder", "tcn")
         _class_list = config.get("classes", [])
         _shuttle_window = hparams.get("shuttle_window") or "outgoing_only"
-        
+
         net = BRICNetwork(
             taxonomy=TAXONOMIES[taxonomy_name],
             pretrained=False,
@@ -216,8 +220,8 @@ class BricInferenceUnavailable(Exception):
 
 
 def classify(
-    video_path: Path, 
-    markup: dict, 
+    video_path: Path,
+    markup: dict,
     job_dir: Path | None = None,
 ) -> dict:
     """End-to-end inference on a single uploaded rally video.
@@ -247,8 +251,11 @@ def classify(
     log.info("bric_inference: video=%s fps=%.2f frames=%d annotations=%d",
         video_path.name, fps, frame_count, len(annotations))
 
-    # Step 2: Per-stroke target frames and windows
-    targets_sec = sorted(float(a["target_sec"]) for a in annotations)
+    # Step 2: Per-stroke target frames and windows. Sort the annotations
+    # themselves, not just the targets, so annotations[idx] stays aligned
+    # with stroke_windows[idx] through steps 5-8.
+    annotations = sorted(annotations, key=lambda a: float(a["target_sec"]))
+    targets_sec = [float(a["target_sec"]) for a in annotations]
     target_frames = [round(t * fps) for t in targets_sec]
 
     stroke_windows = []
@@ -270,7 +277,7 @@ def classify(
     cap.set(cv2.CAP_PROP_POS_FRAMES, union_start)
     rally_frames: dict[int, np.ndarray] = {}
     f_idx = union_start
-    while f_idx <= union_end: 
+    while f_idx <= union_end:
         ret, frame = cap.read()
         if not ret:
             break
@@ -281,7 +288,7 @@ def classify(
         "bric_inference: decoded %d frames (rally range [%d, %d])",
         len(rally_frames), union_start, union_end,
     )
-    
+
     # Step 4: Run YOLO player detection
     per_frame_detections: dict[int, list[dict]] = {}
     for f_idx, frame in rally_frames.items():
@@ -352,7 +359,7 @@ def classify(
             )
         stroke_series = pd.Series({
             "frame_num": target_f,
-            "player_side": side, 
+            "player_side": side,
         })
         clip, used_offset = extract_stroke_rgb(
             stroke=stroke_series,
@@ -401,14 +408,14 @@ def classify(
     log.info("bric_inference: extracted %d RGB clips", len(rgb_clips))
 
     # Step 6: TrackNet shuttle tracing
-    
+
     shuttle_tensors: list[np.ndarray] = []
-    if _model.use_shuttle: 
+    if _model.use_shuttle:
 
         tracknet_save_dir = job_dir if job_dir is not None else Path(tempfile.mkdtemp())
         tracknet_save_dir.mkdir(parents=True, exist_ok=True)
 
-        tracknet_predict_video(   
+        tracknet_predict_video(
             video_file=str(video_path),
             tracknet=_tracknet,
             inpaintnet=_inpaintnet,
@@ -434,7 +441,7 @@ def classify(
 
         # Per-stroke slicing: outgoing_only → [target_f, end_f) in Python half-open form,
         # matching src/bric/dataset.py::_build_shuttle exactly.
-        
+
         for idx, (start_f, target_f, end_f) in enumerate(stroke_windows):
             if _shuttle_window == "outgoing_only":
                 a = max(0, target_f)
@@ -482,7 +489,7 @@ def classify(
     # Mirror src/bric/train.py::_forward_for_variant — build kwargs based on
     # which modalities this model uses. Adapts to RGB-only / RGB+shuttle /
     # RGB+shuttle+court variants without code changes.
-    forward_kwargs: dict = {} 
+    forward_kwargs: dict = {}
     if _model.use_shuttle:
         shuttle_torch = [torch.from_numpy(s) for s in shuttle_tensors]
         shuttle_padded = torch.nn.utils.rnn.pad_sequence(shuttle_torch, batch_first=True)
@@ -517,7 +524,7 @@ def classify(
         top_k_entries = [
             {"class": _class_list[int(i)], "confidence": round(float(probs[idx, int(i)]), 4)}
             for i in top_idx[idx]
-        ] 
+        ]
         strokes.append({
             "timestamp_sec":   round(target_sec, 2),
             "stroke_type":     pred_class,
@@ -553,4 +560,4 @@ def classify(
         len(strokes),
         [(s["predicted_class"], s["confidence_pct"]) for s in strokes],
     )
-    return result 
+    return result

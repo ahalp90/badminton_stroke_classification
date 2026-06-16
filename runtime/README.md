@@ -54,6 +54,43 @@ Third-party perception weights consumed by inference handlers
 release the project pinned. Update by replacing the subdirectory
 contents; checked-in `.gitkeep` files mark the expected layout.
 
+## Fetching the inference weights
+
+Live BRIC inference needs four weight files. All are gitignored, so a
+fresh clone has only `.gitkeep` placeholders and the BRIC card degrades
+to stub results until they are in place. The model card stays GPU-gated,
+so on a CPU-only box nothing is needed here. On the GPU/demo box, fetch
+them before `docker compose -f docker-compose.prod.yml up --build` (prod
+bakes the image with `COPY . .`, so the files must sit in the repo dir
+first; dev bind-mounts the repo, so they are picked up live).
+
+One command fetches and places all four:
+
+```
+./scripts/fetch_runtime_weights.sh
+```
+
+It needs `gh` (authenticated), `curl`, `unzip`, and `gdown` (`pip install
+gdown`) for the Google Drive step; see its `--help` for overrides. The
+sources it pulls from, if you ever need them by hand:
+
+1. **BRIC model** (`deployed/bric/<run>/best.pt`). Published in the
+   GitHub `models-v1` release.
+   ```
+   RUN_DIR=runtime/deployed/bric/20260518_013238_rgb_shuttle-tcn-outgoing_only_une_merge_v1_nosides_42
+   gh release download models-v1 --pattern 'bric_20260518_013238*' --dir "$RUN_DIR"
+   mv "$RUN_DIR"/bric_20260518_013238*.pt "$RUN_DIR/best.pt"
+   ```
+
+2. **TrackNetV3 shuttle tracker** (`checkpoints/tracknetv3/TrackNet_best.pt`
+   and `InpaintNet_best.pt`). From the upstream TrackNetV3 checkpoints
+   zip linked in `src/bric/perception/_vendor/tracknetv3/README.md`;
+   unzip so the two `.pt` files land directly in `checkpoints/tracknetv3/`.
+
+3. **YOLO11n player detector** (`checkpoints/yolo11/yolo11n.pt`). The stock
+   ultralytics YOLO11n checkpoint from their GitHub releases (ultralytics
+   also auto-downloads it on first use).
+
 ## `uploads/`
 
 Inbound video files keyed by job ID. Files persist for the lifetime of
