@@ -54,7 +54,7 @@ still runs; specific features degrade gracefully.
 
 | Data | Used for | Dev path | Prod path | In git? |
 | --- | --- | --- | --- | --- |
-| Sample inspect clips | Clip playback / library | `scratch/inspect_clips/` | n/a | partial sample tracked |
+| Sample inspect clips | Clip playback / library | `scripts/api_fixtures/` | n/a | partial sample tracked |
 | BST-X collation tensors | Live per-clip inference | `scratch/bst_x_inputs/` | `${DATA_HOST_DIR}` (`/data`) | no |
 | ShuttleSet (clips + npy) | Training / data pipeline | set `BST_X_*` in `.env` | n/a (training is off-server) | no |
 | Model registry | Model cards / selection | `docs/models_registry.yaml` | same | yes |
@@ -75,7 +75,7 @@ to serve the demo. Example HPC paths are in `.env.example`. TODO (team): confirm
 the canonical location and how a new owner gets read access.
 
 **Clips (video) — do NOT host these ourselves.** Three buckets:
-- 13 sample clips ship in the repo at `scratch/inspect_clips/` (~7.7 MB,
+- 13 sample clips ship in the repo at `scripts/api_fixtures/` (~7.7 MB,
   committed). They drive the demo per-clip player out of the box.
 - `clips_local/` is an empty drop-in: put `<clip_stem>.mp4` there to play more
   clips locally. Never committed.

@@ -145,8 +145,9 @@ def _resolve_collated_dir(
 
     Root order: ``--collated-data-root`` override, then
     ``BST_X_COLLATED_DATA_ROOT`` (e.g. /scratch/comp320a on bourbaki), then the
-    in-repo ``preparing_data/`` convention (``run_dir.parents[2]`` is the
-    bst_x dir).
+    in-repo ``preparing_data/`` convention. ``run_dir`` is shaped
+    ``experiments/bst_x/shuttleset/run_<id>/`` after the Plan 3 restructure, so
+    ``run_dir.parents[3]`` walks back up to the repo root.
     """
     recorded_dir = (
         (manifest.get('extra') or {}).get('data_provenance', {}).get('npy_collated_dir')
@@ -160,7 +161,7 @@ def _resolve_collated_dir(
     if collated_data_root is None:
         collated_data_root = (
             env_path_or_none('BST_X_COLLATED_DATA_ROOT')
-            or run_dir.parents[2] / 'preparing_data'
+            or run_dir.parents[3] / 'src' / 'bst_x' / 'preparing_data'
         )
     return collated_data_root / f"ShuttleSet_data_{config['taxonomy']}" / basename
 

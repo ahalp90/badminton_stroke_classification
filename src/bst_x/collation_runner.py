@@ -15,7 +15,7 @@ Usage (from the repo root, both package roots on PYTHONPATH)::
 
     PYTHONPATH=src/bst_x \\
         python -m collation_runner \\
-        scratch/runners/taxon_pinned_w_preds
+        experiments/bst_x/shuttleset/aug_hparam_sweep/your_sweep_name
 """
 
 from __future__ import annotations

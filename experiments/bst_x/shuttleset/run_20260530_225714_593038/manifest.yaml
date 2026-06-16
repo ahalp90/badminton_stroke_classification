@@ -406,7 +406,7 @@ notes: |-
 
   Possibly service classes were overconcentrated in 'unknown'. Unknown itself was a high performing class (~0.85 test f1).
 
-  Confusion matrices: scratch/architecture_notes/confusion_bst25_baseline_keep_unknown_S1.png (unknown kept, shows the bleed) and confusion_bst24_baseline_drop_unknown_S5.png (unknown dropped, services clean).
+  Confusion matrices: docs/architecture_notes/confusion_bst25_baseline_keep_unknown_S1.png (unknown kept, shows the bleed) and confusion_bst24_baseline_drop_unknown_S5.png (unknown dropped, services clean).
 log_path: experiments/bst_x/shuttleset/test_logs/test_20260530_225714_593038.log
 extra:
   data_provenance:

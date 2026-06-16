@@ -35,7 +35,7 @@ E. Write outputs. EMA resets to ``halfcourt_centre[s]`` on zero; updates
    ``update_gate_eps`` in-court test.
 
 Full spec with rationale: "Sticky_anchor design, finalised (2026-04-22)"
-section of ``scratch/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md``.
+section of ``docs/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md``.
 """
 from __future__ import annotations
 

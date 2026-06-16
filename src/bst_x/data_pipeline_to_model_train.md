@@ -133,7 +133,7 @@ data/shuttleset/
     {vid}_{set}_{rally}_{ball_round}.npy
 ```
 
-Split and label assignment for `shuttle_npy/` (and downstream pose npys) come from `notebooks/clips_master.csv` at collation time, not from directory structure. The clips directory stays nested for now. See `scratch/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` for the migration.
+Split and label assignment for `shuttle_npy/` (and downstream pose npys) come from `notebooks/clips_master.csv` at collation time, not from directory structure. The clips directory stays nested for now. See `docs/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` for the migration.
 
 #### Key concepts
 
@@ -350,7 +350,7 @@ For ad-hoc queries or when a Dataset wants a higher-level "give me clip + shuttl
 
 | Module | Role |
 |--------|------|
-| `tempose.py` | Building blocks reused by BST-X: `TCN` (dilated 1D temporal convolutions), `MLP`, `MLP_Head` (LayerNorm + MLP), `FeedForward` (MLP + Dropout), `MultiHeadAttention`, `TransformerLayer`, `TransformerEncoder`. The four standalone TemPose variants (`TemPose_V`/`PF`/`SF`/`TF`) were excised pre-phase-2 and live verbatim in `scratch/architecture_notes/historical_bst.md` section 1. |
+| `tempose.py` | Building blocks reused by BST-X: `TCN` (dilated 1D temporal convolutions), `MLP`, `MLP_Head` (LayerNorm + MLP), `FeedForward` (MLP + Dropout), `MultiHeadAttention`, `TransformerLayer`, `TransformerEncoder`. The four standalone TemPose variants (`TemPose_V`/`PF`/`SF`/`TF`) were excised pre-phase-2 and live verbatim in `docs/architecture_notes/historical_bst.md` section 1. |
 | `bst.py` | The BST-X model. Imports `TCN`, `FeedForward`, `MLP`, `MLP_Head`, `TransformerEncoder` from `tempose.py`. Adds `MultiHeadCrossAttention` and `CrossTransformerLayer` for player-shuttle interaction. Also defines pre-configured variant partials (`BST_0`, `BST_PPF`, `BST_CG`, `BST_AP`, `BST_CG_AP`) — these are the single source of truth for variant flag combinations, imported by the train/infer scripts. |
 
 #### BST-X architecture (forward pass)
@@ -434,19 +434,19 @@ The `__main__` block runs 5 serial trials (`range(1, 6)`) to measure seed varian
 
 #### Outputs
 
-Every invocation writes under `experiments/<run_id>/`, where `<run_id>` is `run_<timestamp>` on a fresh run or the `resume_from` folder name on a re-test. That folder is the single collection point: manifest + per-serial weights + per-serial TB dirs all live side by side.
+Every invocation writes under `experiments/bst_x/shuttleset/<run_id>/`, where `<run_id>` is `run_<timestamp>` on a fresh run or the `resume_from` folder name on a re-test. That folder is the single collection point: manifest + per-serial weights + per-serial TB dirs all live side by side.
 
-- **Manifest** (`experiments/<run_id>/manifest.yaml`): source of truth for hparams, git SHA + host, per-serial metrics (`macro_f1`, `min_f1`, `accuracy`, `top2_accuracy`, `num_strokes`), paths to each serial's weight file and TB dir, plus a `log_path:` pointer back to the matching test log. Tracked in git.
-- **Best-model notes** (`experiments/<run_id>/best_model_id.txt`): freeform notes flagging the best-performing serial(s) and the config context, written by hand after eyeballing the test log. Tracked in git alongside the manifest.
-- **Model weights** (`experiments/<run_id>/weights/bst_x_..._une_v1_14[_N].pt`): one best-validation-F1 checkpoint per serial. Gitignored by default; `src/bst_x/.gitignore` carries a per-run tactical `!` unignore for the serial(s) flagged in `best_model_id.txt`, so git history stays small while the best checkpoints are still shareable.
-- **TensorBoard logs** (`experiments/<run_id>/tb/serial_N/`): per-serial event directories grouped under one run folder. Launch with `tensorboard --logdir experiments/<run_id>/tb` to see all serials of a run in one view. Each subfolder holds **two** event files: a larger one (60-70 KB) with the per-epoch scalar curves (train/val loss, val macro/min F1, `Schedule/aux_factor`) and a tiny one (~1.6 KB) with the end-of-run HParams summary (best/2nd-best macro F1 and min F1, best val loss, their epochs, `stopped_epoch`). Gitignored.
+- **Manifest** (`experiments/bst_x/shuttleset/<run_id>/manifest.yaml`): source of truth for hparams, git SHA + host, per-serial metrics (`macro_f1`, `min_f1`, `accuracy`, `top2_accuracy`, `num_strokes`), paths to each serial's weight file and TB dir, plus a `log_path:` pointer back to the matching test log. Tracked in git.
+- **Best-model notes** (`experiments/bst_x/shuttleset/<run_id>/best_model_id.txt`): freeform notes flagging the best-performing serial(s) and the config context, written by hand after eyeballing the test log. Tracked in git alongside the manifest.
+- **Model weights** (`experiments/bst_x/shuttleset/<run_id>/weights/bst_x_..._une_v1_14[_N].pt`): one best-validation-F1 checkpoint per serial. Gitignored by default; `experiments/bst_x/shuttleset/.gitignore` carries a per-run tactical `!` unignore for the serial(s) flagged in `best_model_id.txt`, so git history stays small while the best checkpoints are still shareable.
+- **TensorBoard logs** (`experiments/bst_x/shuttleset/<run_id>/tb/serial_N/`): per-serial event directories grouped under one run folder. Launch with `tensorboard --logdir experiments/bst_x/shuttleset/<run_id>/tb` to see all serials of a run in one view. Each subfolder holds **two** event files: a larger one (60-70 KB) with the per-epoch scalar curves (train/val loss, val macro/min F1, `Schedule/aux_factor`) and a tiny one (~1.6 KB) with the end-of-run HParams summary (best/2nd-best macro F1 and min F1, best val loss, their epochs, `stopped_epoch`). Gitignored.
 - **Test logs** (`test_logs/test_<timestamp>.log`): all serials' test-set output (`=== Serial N (...) ===` headers, macro F1 table, accuracy, top-2 accuracy) auto-captured via the `Tee` class so metrics survive a dropped terminal. One file per script invocation; the run's manifest points at it via `log_path:`. Grep with `grep -E 'Accuracy|macro' test_logs/test_*.log` for a quick summary across runs, or use `run_overview.py` for a proper tabulation.
 
 #### Run tracker + aggregator
 
 Cross-run comparison and the optional Aim UI are handled by the YAML-based tracker at `src/bst_x/run_tracker.py`. `bst_x_train.py` wires it in with two function calls (`track_run` + `track_serial`), so any future training script (Arch 2 3D CNN, or any further extension) can plug in the same way. Full details in [`src/bst_x/run_tracker.md`](run_tracker.md).
 
-- **`run_overview.py`** aggregates every `experiments/<run_id>/manifest.yaml` into one table with mean / stdev / max per metric across serials:
+- **`run_overview.py`** aggregates every `experiments/bst_x/shuttleset/<run_id>/manifest.yaml` into one table with mean / stdev / max per metric across serials:
   ```bash
   cd src/bst_x
   python ../run_overview.py                              # default: experiments/
@@ -552,7 +552,7 @@ BST-X's dataset classes return a specific tuple format: `(human_pose, pos, shutt
 - **If your model expects different inputs**: write a new Dataset class. Key decisions:
   - Does your model need all 3 input streams (pose, position, shuttle)? BST-X uses all three. TemPose variants use subsets.
   - Does your model handle variable-length sequences internally (e.g. via packed sequences or attention masks), or does it need pre-padded fixed-length input? BST-X uses fixed-length padding + a `video_len` mask.
-  - Does your model operate on pre-collated batched arrays, or per-clip files? `Dataset_npy_collated` loads pre-collated arrays into RAM at init; if a future model needs lazy per-clip loading, write a new Dataset (the legacy `Dataset_npy` lazy loader was excised pre-phase-2; the verbatim source is in `scratch/architecture_notes/historical_bst.md` section 4.1).
+  - Does your model operate on pre-collated batched arrays, or per-clip files? `Dataset_npy_collated` loads pre-collated arrays into RAM at init; if a future model needs lazy per-clip loading, write a new Dataset (the legacy `Dataset_npy` lazy loader was excised pre-phase-2; the verbatim source is in `docs/architecture_notes/historical_bst.md` section 4.1).
 
 - **Label list construction**: All class labels are now English. Read `taxonomy.classes` (the authoritative ordered tuple) from any `Taxonomy` in `pipeline.config.TAXONOMIES`, or `resolve_taxonomy(name)` to follow the legacy-alias table. Labels.npy lands in `[0, taxonomy.n_classes)` directly (no runtime active/full remap). Available taxonomies: `'bst_25'`, `'bst_24'`, `'bst_12'`, `'une_v1_14'` (Architecture 1 active), `'une_v1_15'`, `'shuttleset_18'`. To add a custom taxonomy, define it in `pipeline/config.py` (see the `Taxonomy` dataclass and existing instances for the pattern).
 

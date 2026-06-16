@@ -123,7 +123,7 @@ The original `generate_frames()` opened a `cv2.VideoCapture` but never released 
 
 Comment-only update. No package versions changed. Added documentation explaining:
 - Python 3.11 / CUDA 12.1 compatibility notes
-- BST venv sharing (this module uses the same venv as `stroke_classification/`)
+- BST venv sharing (this module uses the same venv as the BST-X training venv (`src/bst_x/requirements.txt`))
 - Upgrade path for standalone installation
 
 ### `README.md`

@@ -24,7 +24,7 @@ python -m validation_scripts.raw_ndet_stats \
 ```bash
 python -m validation_scripts.raw_ndet_stats \
     --raw-dir /scratch/comp320a/ShuttleSet_keypoints_raw \
-    --stems-file scratch/architecture_notes/busted_hit_zone_clips_phase1.txt
+    --stems-file docs/architecture_notes/busted_hit_zone_clips_phase1.txt
 ```
 
 **Arguments:**

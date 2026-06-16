@@ -7,7 +7,7 @@ plumbing is wrong and no other heuristic variant (e.g. ``sticky_anchor``)
 should be trusted until it is fixed.
 
 Comparison tolerances match the plan in
-``scratch/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md``:
+``docs/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md``:
 
 - ``_failed.npy``: ``np.array_equal`` (bool must match exactly).
 - ``_pos.npy`` and ``_joints.npy``: ``np.allclose(rtol=0, atol=1e-5)``
@@ -24,7 +24,7 @@ Run from the repo root with both package roots on PYTHONPATH::
         python -m preparing_data.failsafe_bst_mmpose_zeroing_check_equivalence \\
             --raw-dir /scratch/.../dataset_npy_..._flat_raw_phase1 \\
             --committed-dir /scratch/.../dataset_npy_..._flat \\
-            --busted-stems-file scratch/architecture_notes/busted_hit_zone_clips_phase1.txt \\
+            --busted-stems-file docs/architecture_notes/busted_hit_zone_clips_phase1.txt \\
             --clips-csv notebooks/clips_master.csv \\
             --scratch-output-dir /scratch/.../dataset_npy_..._flat_failsafe_gate
 """

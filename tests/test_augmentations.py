@@ -1,7 +1,7 @@
 """Tests for the locked Task-2 augmentation set: CoupledFlip + ConstrainedJitter.
 
 Covers ten sections matching the implementation surface in
-``scratch/architecture_notes/augmentation_framework.md``:
+``docs/architecture_notes/augmentation_framework.md``:
 
 1. ``BILATERAL_JOINT_PAIRS`` integrity (COCO-17 bilateral coverage,
    no duplicates, nose excluded).

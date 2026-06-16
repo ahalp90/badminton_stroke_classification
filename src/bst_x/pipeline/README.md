@@ -159,7 +159,7 @@ python predict.py --video_file clip.mp4 --tracknet_file ckpts/TrackNet_best.pt \
 
 **Frame-level guarantees:** TrackNetV3's output CSVs always contain a contiguous Frame column `[0, 1, ..., N-1]` matching the input video length. Frames where the shuttle is undetected are written with zeroed coordinates and `Visibility=0` (never skipped), and buffer flushing ensures trailing frames are included. This means `shuttle_csvs_to_npy` can safely call `.set_index('Frame').to_numpy()` without gap-filling or reindexing.
 
-Output: `data/shuttleset/shuttle_npy/{vid}_{set}_{rally}_{ball_round}.npy` (flat). Split and label assignment are carried by `notebooks/clips_master.csv` at collation time, not by the on-disk directory layout. See `scratch/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` for the migration.
+Output: `data/shuttleset/shuttle_npy/{vid}_{set}_{rally}_{ball_round}.npy` (flat). Split and label assignment are carried by `notebooks/clips_master.csv` at collation time, not by the on-disk directory layout. See `docs/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` for the migration.
 
 Each `.npy` file has shape `(t, 3)`. To get xy-only coordinates: `shuttle[:, :2]`. To get the visibility mask: `shuttle[:, 2]`.
 
@@ -238,7 +238,7 @@ data/shuttleset/
 
 Clip filenames: `{video_id}_{set}_{rally}_{ball_round}.mp4`
 
-Split and label assignment for `shuttle_npy/` (and the downstream pose npys) come from `notebooks/clips_master.csv` at collation time. The clips directory stays nested for now; flattening it is deferred. See `scratch/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` for the migration plan.
+Split and label assignment for `shuttle_npy/` (and the downstream pose npys) come from `notebooks/clips_master.csv` at collation time. The clips directory stays nested for now; flattening it is deferred. See `docs/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` for the migration plan.
 
 ## Pre-existing Input Data
 

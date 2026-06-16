@@ -17,7 +17,7 @@ Resumption: re-running with the same session_dir picks up where it left off
 by reading per-cell ``manifest.yaml`` files (authoritative for serial counts)
 and ``state.json`` (orchestration queue). On conflict, manifest wins.
 
-Full design + decision rationale: ``scratch/architecture_notes/hparam_search_wrapper.md``.
+Full design + decision rationale: ``docs/architecture_notes/hparam_search_wrapper.md``.
 """
 
 from __future__ import annotations

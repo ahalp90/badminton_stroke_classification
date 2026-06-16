@@ -96,7 +96,7 @@ EOF
 fi
 
 # --- 4. dataset mount dirs (created empty; populate per HANDOVER.md) ---
-for d in scratch/inspect_clips scratch/bst_x_inputs runtime/uploads; do
+for d in scratch/bst_x_inputs runtime/uploads; do
   if [[ -d "$d" ]]; then
     say "$d exists."
   else

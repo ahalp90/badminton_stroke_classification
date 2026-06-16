@@ -53,14 +53,14 @@ from loss.adaptive_focal import (
 )
 
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CLIPS_CSV = REPO_ROOT / 'notebooks' / 'clips_master.csv'
 
 
 # ==========================================================================
 # Hyperparameters — edit these to change experiment configuration.
-# Active LR + aux schedule rationale: scratch/architecture_notes/bst_x_overview.md.
-# Dated retune history: scratch/architecture_notes/historical_bst.md section 3.
+# Active LR + aux schedule rationale: docs/architecture_notes/bst_x_overview.md.
+# Dated retune history: docs/architecture_notes/historical_bst.md section 3.
 # ==========================================================================
 # collation_id picks which on-disk collation generation to read (path + manifest
 # tag, e.g. 'taxon_pinned_w_preds'); it discriminates re-collations of the same
@@ -87,7 +87,7 @@ hyp = Hyp(
     # barely move (norm/bias/embeddings now excluded from decay, but 0.01 on
     # them was near-inert anyway). The sweep overrides this per cell. Optimal
     # lambda for this dataset/LR/run-length is likely 0.1-0.3; see
-    # scratch/architecture_notes/hp_and_aug_speculations_30_05_2026.md (Q2).
+    # docs/architecture_notes/hp_and_aug_speculations_30_05_2026.md (Q2).
     weight_decay=0.01,
     warm_up_step=100,
     taxonomy='une_v1_14',
@@ -122,7 +122,7 @@ hyp = Hyp(
     #           {'numer': 'smash', 'denom': 'wrist_smash', 'ratio': 0.7},
     #       ],
     #   }
-    # Full design + paper-verified equations: scratch/architecture_notes/class_f1_focal_design.md.
+    # Full design + paper-verified equations: docs/architecture_notes/class_f1_focal_design.md.
     adaptive_focal={
         # First-run sweet spot from run_20260501_164658: tau=1, gamma=1.
         # All four CDB knob variants (gamma=0, tau=0.5, pair-cap, gamma=2)
@@ -144,7 +144,7 @@ hyp = Hyp(
     # catch that). Requires adaptive_focal (it modulates that alpha). The dict
     # stays visible here even when disabled so the knobs are easy to find/tune.
     # Defaults are the ones derived in
-    # scratch/architecture_notes/alpha_arc_analysis/ (macro plateaus ~e26-31,
+    # docs/architecture_notes/alpha_arc_analysis/ (macro plateaus ~e26-31,
     # cross_court_net_shot needs a patience >= its ~15-epoch new-high interval).
     use_val_improvability_gate=False,
     val_improvability_gate={
@@ -159,7 +159,7 @@ hyp = Hyp(
     # RandomTranslation_batch. Flip is the literature-norm dataset-doubler;
     # constrained jitter is the corrected, pos+shuttle-only,
     # layered-conditional-bound formulation. Full design + verified code
-    # traces in scratch/architecture_notes/augmentation_framework.md.
+    # traces in docs/architecture_notes/augmentation_framework.md.
     augmentation={
         'p_flip':   0.5,
         'p_jitter': 0.3,
@@ -448,7 +448,7 @@ def train_network(
     # constrained pos+shuttle jitter (layered conditional bounds, joints
     # untouched). Bone recompute requires the JnB_bone pose style; other
     # styles (J_only, JnB_interp, Jn2B) need their own recompute helpers
-    # which are out of scope per scratch/architecture_notes/augmentation_framework.md.
+    # which are out of scope per docs/architecture_notes/augmentation_framework.md.
     if hyp.pose_style != 'JnB_bone':
         raise NotImplementedError(
             f'Augmentation framework currently supports pose_style=JnB_bone only; '
@@ -483,7 +483,7 @@ def train_network(
     # BST paper / TemPose default is 0.1; we sweep this knob to test
     # whether it's bottlenecking the small-support classes that lose
     # ground when the cleaner Phase-2 pose data lifts the head of the
-    # F1 distribution. See scratch/architecture_notes/hparams_sweep_speculations.md.
+    # F1 distribution. See docs/architecture_notes/hparams_sweep_speculations.md.
     #
     # class_weights: optional manual per-class loss multipliers. Used as a
     # smoke test for whether loss-side reweighting can move the bottleneck
@@ -1356,8 +1356,10 @@ if __name__ == '__main__':
             collated_data_root / f'ShuttleSet_data_{taxonomy.name}' / npy_collated_dir
         )
     else:
+        # bst_x_train.py lives at src/bst_x/; preparing_data/ is a sibling, so
+        # one .parent walks to src/bst_x/ and then into preparing_data/.
         collated_root = (
-            Path(__file__).resolve().parent.parent
+            Path(__file__).resolve().parent
             / f'preparing_data/ShuttleSet_data_{taxonomy.name}'
             / npy_collated_dir
         )

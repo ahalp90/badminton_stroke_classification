@@ -133,7 +133,6 @@ exclude = [
     "**/deprecated/",
     "src/bst_x/TrackNetV3/",
     "src/bric/perception/_vendor/",   # All vendored upstream code (currently TrackNetV3)
-    "scratch/project_history/",
 ]
 
 [tool.ruff.lint]

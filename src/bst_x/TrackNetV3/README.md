@@ -4,12 +4,12 @@ Shuttle trajectory extraction for the ShuttleSet stroke classification pipeline.
 
 ## Setup
 
-TrackNetV3 shares the BST training venv rather than maintaining a separate environment. See `stroke_classification/requirements.txt` for the full dependency list, and `requirements.txt` in this directory for standalone setup instructions if needed.
+TrackNetV3 shares the BST training venv rather than maintaining a separate environment. See `../requirements.txt` (BST-X training venv) for the full dependency list, and `requirements.txt` in this directory for standalone setup instructions if needed.
 
 ```bash
 # From the BST training venv:
 pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
-pip install -r stroke_classification/requirements.txt
+pip install -r ../requirements.txt
 ```
 
 ### Pretrained Weights

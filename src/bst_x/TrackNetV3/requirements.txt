@@ -1,7 +1,7 @@
 # TrackNetV3 inference — shuttle trajectory extraction.
 # Python 3.11.X
 #
-# This venv shares the BST training venv (stroke_classification/requirements.txt)
+# This venv shares the BST training venv (../requirements.txt (BST-X training venv))
 # rather than maintaining a separate environment. The subprocess interface
 # (pipeline/shuttle_extractor.py calls predict.py via subprocess.run) means only
 # TrackNetV3's actual imports are loaded at runtime — the BST-specific packages

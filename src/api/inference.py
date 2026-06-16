@@ -10,7 +10,7 @@ The stub draws each "prediction" from the mocked test-split predictions
 JSON shipped under the registered model's run directory. Different uploads
 get different drawn entries; each annotation in the user's markup yields
 one stroke. The behaviour is documented in
-scratch/inspect_clips/handoff_report.md §9 (Fix 2).
+scripts/api_fixtures/handoff_report.md §9 (Fix 2).
 """
 from __future__ import annotations
 

@@ -137,9 +137,8 @@ frontend/.claude/
 # Local-only large data SCP'd from Engelbart (542MB collations)
 scratch/bst_x_inputs/
 
-# Pre/post snapshots from scratch/rebrand_smoke/artefact_inventory.py — encode
-# local-superset state (untracked weights + tb file sizes), not portable.
-scratch/rebrand_smoke/baselines/
+# Private dev scribbles. Outside the tracked scratch/README.md contract.
+local_scratch/
 
 # Local-only sample clips for the Model Results per-clip player (dev/demo).
 # Drop <clip_stem>.mp4 here to play it in the UI; clip files are never committed.

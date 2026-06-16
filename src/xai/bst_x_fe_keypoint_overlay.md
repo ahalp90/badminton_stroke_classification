@@ -113,7 +113,7 @@ Before you commit to code or more documentation:
 - Read the static-overlay reference scripts properly. They're the ground truth for what a "good overlay" looks like.
 - Read `~/Documents/COSC594/frontend_integration_guide.md` for the FE-side context.
 - Read `src/api/main.py`, `src/api/inference.py`, `src/api/jobs.py` to see how the existing API is structured. Match those patterns.
-- Read `scratch/scratch_layout.md` for the existing cache directory conventions.
+- Read `.env.example` and `docs/hpc_quickstart.md` for cache + data dir conventions.
 - Read `~/.claude/CLAUDE.md` and `.claude/CLAUDE.md` for style rules.
 
 If anything is ambiguous, ask before guessing. Specific things I expect to need to discuss:

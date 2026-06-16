@@ -48,7 +48,7 @@ from pipeline.data_access import env_path_or_none, load_repo_dotenv
 COLLATION_ID = 'taxon_pinned_w_preds'
 POSE_STYLE = 'JnB_bone'  # what bst_x_train reads for these cells
 
-# The 6 cells, mirroring scratch/runners/taxon_pinned_w_preds/config.yaml.
+# The 6 cells, mirroring the taxon_pinned_w_preds sweep config (archived to ~/Documents/COSC594/repo_archive/scratch_pre_rehome/runners/).
 CELLS: list[tuple[str, str]] = [
     ('shuttleset_18', 'split_v2'),
     ('bst_24', 'split_v2'),

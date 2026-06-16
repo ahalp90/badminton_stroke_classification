@@ -180,7 +180,7 @@ notes: |
   only 0.440; S4 picked on the floor.
 
   Shuttle-unzeroing is the keeper. Branch tagged + dropped, design
-  captured in scratch/architecture_notes/.
+  captured in docs/architecture_notes/.
 
   Full writeup: bst_x_overview.md (shuttle-mask section).
 extra:

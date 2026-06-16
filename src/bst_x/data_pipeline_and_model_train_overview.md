@@ -69,4 +69,4 @@ All of this is model-agnostic: any architecture plugs into the same loaders, val
 
 - **Module-by-module reference, with CLI and tensor shapes**: `data_pipeline_to_model_train.md`
 - **Running it, step by step**: `pipeline/README.md`
-- **The design decisions and the full bug log**: `../../scratch/architecture_notes/` (`bst_x_overview.md`, `bst_x_issues_and_bugs_squashed.md`)
+- **The design decisions and the full bug log**: `../../docs/architecture_notes/` (`bst_x_overview.md`, `bst_x_issues_and_bugs_squashed.md`)

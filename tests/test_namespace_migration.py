@@ -1,19 +1,17 @@
-"""Namespace migration test suite for the BST to BST-X rebrand.
+"""Durable post-rebrand guards: registry + FE schema + Chang baseline + tree scans.
 
-T1-T12 + H1 per scratch/architecture_notes/namespace_migration_test_design.md.
-Each test either holds on today's main or self-gates on a sentinel that signals
-its rebrand step has landed (pytest.skip until then). Where the step IS the
-contract (T5: Pydantic Literal pin), the test lands in that step's commit
-rather than carrying a separate gate.
+Pruned 2026-06-16 from the original T1-T12 namespace migration suite (full
+design at docs/architecture_notes/namespace_migration_test_design.md). The
+one-shot rebrand mechanics (T1/T2/T3/T4/T5/T7/T9/T12) all landed and were
+trimmed once stable; the four families that remain catch ongoing regressions:
 
-Lands at Step 0b (this commit): T1, T2, T3 (gated on ``SWITCHOVER_LANDED``),
-T6, T7, T8, T9, T10, T12 (all standing on today's main), T11 (each stage
-self-gates). T5 lands in the Step 1 commit; T4 lands with the first Step 4
-commit.
+  T6  registry + TSV lockstep (manifest_path/weights_path resolve, naming pins)
+  T8  FE sidecar JSON schemas (clip splits, perclass stats, clip index)
+  T10 Chang baseline run untouched (weight filenames keep bst_cg_ap_ per the contract)
+  T11 staged tree scans (no regression to legacy modules / dirs / extras / env vars / venv name)
 
 CPU-only; runs in the laptop ``badminton-cicd`` venv and CI. Asserts only
-against git-tracked artefacts so a fresh CI clone is complete; the local
-untracked-weight superset is H1's job, not pytest's.
+against git-tracked artefacts so a fresh CI clone is complete.
 """
 
 from __future__ import annotations
@@ -21,18 +19,13 @@ from __future__ import annotations
 import gzip
 import importlib
 import importlib.util
-import inspect
 import json
 import os
 import re
 import subprocess
-import typing
-from functools import partial
 from pathlib import Path
 
-import pandas as pd
 import pytest
-import torch
 import yaml
 
 
@@ -75,325 +68,12 @@ def _common_module():
     return _first_importable('bst_x_common')
 
 
-def _train_module():
-    return _first_importable('bst_x_train')
-
-
-def _infer_module():
-    return _first_importable('bst_x_infer')
-
-
-def _api_inference_module():
-    return _first_importable('src.api.bst_x_inference')
-
-
-def _builder():
-    """The shared BST-X network builder."""
-    return _common_module().build_bst_x_network
-
-
 def _switchover_landed() -> bool:
     """True once Step 6b.1 has added 'BST_X' to the MODELS dict."""
     return 'BST_X' in _common_module().MODELS
 
 
 EXPERIMENTS = _experiments_dir()
-
-
-# ---------------------------------------------------------------------------
-# T1: MODELS alias integrity
-# ---------------------------------------------------------------------------
-
-@pytest.mark.skipif(not _switchover_landed(), reason='Step 6b.1 not landed: BST_X absent from MODELS')
-def test_t1_models_alias_keys_pin():
-    """Exactly the five Chang keys plus BST_X — catches a missed alias AND an
-    accidental drop of a Chang key."""
-    MODELS = _common_module().MODELS
-    assert set(MODELS) == {'BST_0', 'BST', 'BST_CG', 'BST_AP', 'BST_CG_AP', 'BST_X'}
-
-
-@pytest.mark.skipif(not _switchover_landed(), reason='Step 6b.1 not landed')
-def test_t1_models_alias_is_identity():
-    """BST_X is the alias-by-identity to BST_CG_AP, not a re-declared partial."""
-    MODELS = _common_module().MODELS
-    assert MODELS['BST_X'] is MODELS['BST_CG_AP']
-
-
-@pytest.mark.skipif(not _switchover_landed(), reason='Step 6b.1 not landed')
-@pytest.mark.parametrize('key', ['BST_0', 'BST', 'BST_CG', 'BST_AP', 'BST_CG_AP', 'BST_X'])
-def test_t1_models_dispatch_builds(key):
-    """Every MODELS key builds through the shared builder on CPU with a sane head."""
-    build = _builder()
-    net, _n_bones = build(
-        key, n_joints=17, pose_style='JnB_bone', in_channels=2,
-        n_class=14, seq_len=100, device='cpu',
-    )
-    assert isinstance(net, torch.nn.Module)
-    assert sum(p.numel() for p in net.parameters()) > 0
-
-
-@pytest.mark.skipif(not _switchover_landed(), reason='Step 6b.1 not landed')
-def test_t1_alias_forward_matches_cg_ap():
-    """Behavioural backstop: BST_X and BST_CG_AP produce bit-identical forward
-    output under a fixed seed, on the same input batch. Catches a later
-    re-declaration that drifts the alias from its target."""
-    build = _builder()
-    seq_len = 100
-
-    def fresh(name):
-        torch.manual_seed(0)
-        net, n_bones = build(
-            name, n_joints=17, pose_style='JnB_bone', in_channels=2,
-            n_class=14, seq_len=seq_len, device='cpu',
-        )
-        net.set_schedule_factors(cg_factor=1.0, ap_factor=1.0)
-        net.eval()
-        return net, n_bones
-
-    net_x, n_bones_x = fresh('BST_X')
-    net_ref, n_bones_ref = fresh('BST_CG_AP')
-
-    assert n_bones_x == n_bones_ref
-    assert sum(p.numel() for p in net_x.parameters()) == sum(p.numel() for p in net_ref.parameters())
-
-    j_plus_b = 17 + n_bones_x
-    torch.manual_seed(42)
-    human_pose = torch.randn(2, seq_len, 2, j_plus_b, 2)
-    pos = torch.randn(2, seq_len, 2, 2)
-    shuttle = torch.randn(2, seq_len, 2)
-    video_len = torch.tensor([seq_len, seq_len])
-    pose_flat = human_pose.view(*human_pose.shape[:-2], -1)
-
-    with torch.no_grad():
-        out_x = net_x(pose_flat, shuttle, pos, video_len)
-        out_ref = net_ref(pose_flat, shuttle, pos, video_len)
-    assert torch.equal(out_x, out_ref)
-
-
-# ---------------------------------------------------------------------------
-# T2: default model-name flip
-# ---------------------------------------------------------------------------
-
-@pytest.mark.skipif(not _switchover_landed(), reason='Step 6b.1 not landed')
-def test_t2_train_default_model_name_is_bst_x():
-    sig = inspect.signature(_train_module().Task.get_network_architecture)
-    assert sig.parameters['model_name'].default == 'BST_X'
-
-
-@pytest.mark.skipif(not _switchover_landed(), reason='Step 6b.1 not landed')
-def test_t2_infer_signature_defaults_are_bst_x():
-    infer = _infer_module()
-    assert inspect.signature(infer.Task.get_network_architecture).parameters['model_name'].default == 'BST_X'
-    assert inspect.signature(infer.dump_run_predictions).parameters.get('model_name') is None or \
-        inspect.signature(infer.dump_run_predictions).parameters['model_name'].default == 'BST_X'
-
-
-@pytest.mark.skipif(not _switchover_landed(), reason='Step 6b.1 not landed')
-def test_t2_train_main_call_literal_no_bst_cg_ap():
-    """The __main__ call site at bst_x_train.py:1394 isn't importable; check the
-    source. Comments mentioning BST_CG_AP survive — the regex targets
-    assignment/keyword forms only."""
-    text = Path(_train_module().__file__).read_text()
-    matches = re.findall(r"model_name\s*=\s*'BST_CG_AP'", text)
-    assert matches == [], f'Stale model_name="BST_CG_AP" call sites: {matches}'
-
-
-@pytest.mark.skipif(not _switchover_landed(), reason='Step 6b.1 not landed')
-def test_t2_infer_argparse_default_is_bst_x():
-    """argparse `default='BST_X'` appears in the --model-name add_argument window."""
-    text = Path(_infer_module().__file__).read_text()
-    matches = re.findall(r"default\s*=\s*'BST_CG_AP'", text)
-    assert matches == [], f'Stale argparse default=\'BST_CG_AP\': {matches}'
-    window = re.search(r"--model-name.*?\)\s*\n", text, flags=re.DOTALL)
-    assert window is not None, 'argparse --model-name block not found'
-    assert "default='BST_X'" in window.group(0)
-
-
-# ---------------------------------------------------------------------------
-# T3: weight save-name round trip
-# ---------------------------------------------------------------------------
-
-@pytest.mark.skipif(not _switchover_landed(), reason='Step 6b.1 not landed')
-def test_t3_save_name_round_trip(tmp_path):
-    """Builder writes ``bst_x_*.pt``; seek_network_weights reads from that exact
-    name. Proves the writer and loader agree end-to-end through the production
-    code, with zero training."""
-    import types
-    from pipeline.config import Taxonomy
-
-    tax3 = Taxonomy(
-        name='surface3', classes=('a', 'b', 'c'), merge_map=None,
-        has_sides=False, excluded_base_stroke_types=frozenset(),
-    )
-
-    build = _builder()
-    bt = _train_module()
-    torch.manual_seed(0)
-    net, _n_bones = build(
-        'BST_X', n_joints=17, pose_style='JnB_bone', in_channels=2,
-        n_class=tax3.n_classes, seq_len=100, device='cpu',
-    )
-    weight_dir = tmp_path / 'weights'
-    weight_dir.mkdir()
-
-    expected = f'bst_x_JnB_bone_{tax3.name}_2.pt'
-    torch.save(net.state_dict(), str(weight_dir / expected))
-
-    ns = types.SimpleNamespace(
-        net=net,
-        model_name='BST_X',
-        pose_style='JnB_bone',
-        taxonomy=tax3,
-        weight_dir=weight_dir,
-        device='cpu',
-    )
-    weight_existed, val_at_best = bt.Task.seek_network_weights(ns, model_info='', serial_no=2)
-    assert weight_existed is True
-    assert val_at_best is None
-    assert ns.weight_path.name == expected
-
-
-# ---------------------------------------------------------------------------
-# T5: architecture wire format (lands in the Step 1 commit; the step IS the contract)
-# ---------------------------------------------------------------------------
-
-def _architecture_literal_values(model_cls) -> set[str]:
-    """Pull the Literal values from the architecture Optional[Literal[...]]
-    annotation on a Pydantic model. Optional[X] expands to Union[X, None]; the
-    Literal sits inside the Union."""
-    hints = typing.get_type_hints(model_cls)
-    annot = hints['architecture']
-    for inner in typing.get_args(annot):
-        if typing.get_origin(inner) is typing.Literal:
-            return set(typing.get_args(inner))
-    raise RuntimeError(f'No Literal in architecture annotation: {annot!r}')
-
-
-def test_t5_markup_and_library_predict_request_share_architecture_values():
-    from src.api.main import Markup, LibraryPredictRequest
-    markup_vals = _architecture_literal_values(Markup)
-    lp_vals = _architecture_literal_values(LibraryPredictRequest)
-    assert markup_vals == lp_vals, (markup_vals, lp_vals)
-
-
-def test_t5_architecture_values_are_bric_and_bst_x_only():
-    from src.api.main import Markup
-    values = _architecture_literal_values(Markup)
-    assert 'bric' in values
-    assert 'bst-x' in values
-    assert 'bst' not in values, 'no back-compat window; "bst" dropped in Step 1'
-
-
-def test_t5_markup_validates_bst_x_and_rejects_bst():
-    from pydantic import ValidationError
-    from src.api.main import Markup
-    Markup(architecture='bst-x')  # no raise
-    Markup(architecture='bric')   # no raise
-    with pytest.raises(ValidationError):
-        Markup(architecture='bst')
-    with pytest.raises(ValidationError):
-        Markup(architecture='bogus')
-
-
-def test_t5_library_predict_endpoint_accepts_bst_x_and_422s_legacy():
-    """Wire-level smoke: the TestClient pattern from tests/test_api.py.
-    A non-422 response means request validation passed (404/503 fine — only
-    request schema is under test here)."""
-    from fastapi.testclient import TestClient
-    from src.api.main import app
-    client = TestClient(app)
-    ok_body = {'clip_stem': 'nonexistent', 'architecture': 'bst-x'}
-    resp_ok = client.post('/api/library_predict', json=ok_body)
-    assert resp_ok.status_code != 422, resp_ok.text
-    bad_body = {'clip_stem': 'nonexistent', 'architecture': 'nonsense'}
-    resp_bad = client.post('/api/library_predict', json=bad_body)
-    assert resp_bad.status_code == 422
-
-
-# ---------------------------------------------------------------------------
-# T4: env-var legacy fallback (lands with the first Step 4 commit; the matrix
-# parametrises over each module's ENV_VAR_RENAMES so each new var added to the
-# mapping picks up a four-case test row for free)
-# ---------------------------------------------------------------------------
-
-def _modules_with_renames():
-    out = []
-    for modname in ('pipeline.data_access', 'src.api.config'):
-        try:
-            mod = importlib.import_module(modname)
-        except ImportError:
-            continue
-        if getattr(mod, 'ENV_VAR_RENAMES', None) is not None:
-            out.append(mod)
-    return out
-
-
-def _rename_pairs():
-    pairs = []
-    for mod in _modules_with_renames():
-        for new, legacy in mod.ENV_VAR_RENAMES.items():
-            pairs.append((mod, new, legacy))
-    return pairs
-
-
-def _pair_id(pair):
-    mod, new, _ = pair
-    short = mod.__name__.rsplit('.', 1)[-1]
-    return f'{short}:{new}'
-
-
-_T4_PAIRS = _rename_pairs()
-_T4_IDS = [_pair_id(p) for p in _T4_PAIRS]
-
-
-@pytest.mark.skipif(not _T4_PAIRS, reason='Step 4 not started: ENV_VAR_RENAMES empty')
-@pytest.mark.parametrize('mod,new,legacy', _T4_PAIRS, ids=_T4_IDS)
-def test_t4_legacy_only_resolves_with_deprecation(mod, new, legacy, monkeypatch):
-    monkeypatch.delenv(new, raising=False)
-    monkeypatch.setenv(legacy, 'value-X')
-    with pytest.warns(DeprecationWarning):
-        assert mod._resolve_env(new) == 'value-X'
-
-
-@pytest.mark.skipif(not _T4_PAIRS, reason='Step 4 not started')
-@pytest.mark.parametrize('mod,new,legacy', _T4_PAIRS, ids=_T4_IDS)
-def test_t4_new_only_resolves_no_deprecation(mod, new, legacy, recwarn, monkeypatch):
-    monkeypatch.setenv(new, 'value-Y')
-    monkeypatch.delenv(legacy, raising=False)
-    assert mod._resolve_env(new) == 'value-Y'
-    deprecations = [w for w in recwarn.list if issubclass(w.category, DeprecationWarning)]
-    assert not deprecations, f'Unexpected DeprecationWarning: {deprecations}'
-
-
-@pytest.mark.skipif(not _T4_PAIRS, reason='Step 4 not started')
-@pytest.mark.parametrize('mod,new,legacy', _T4_PAIRS, ids=_T4_IDS)
-def test_t4_new_wins_when_both_set(mod, new, legacy, monkeypatch):
-    monkeypatch.setenv(new, 'new-val')
-    monkeypatch.setenv(legacy, 'legacy-val')
-    assert mod._resolve_env(new) == 'new-val'
-
-
-@pytest.mark.skipif(not _T4_PAIRS, reason='Step 4 not started')
-@pytest.mark.parametrize('mod,new,legacy', _T4_PAIRS, ids=_T4_IDS)
-def test_t4_neither_set_returns_default(mod, new, legacy, monkeypatch):
-    monkeypatch.delenv(new, raising=False)
-    monkeypatch.delenv(legacy, raising=False)
-    assert mod._resolve_env(new) is None
-
-
-def test_t4_api_config_module_no_longer_carries_rename_machinery():
-    """Step 9b deleted ENV_VAR_RENAMES from both api/config.py and
-    pipeline/data_access.py. The legacy-only resolution path is gone with it:
-    a process that still exports BST_LOCAL_CLIPS_DIR no longer back-doors the
-    new var. The mapping's absence is the contract being pinned here; T11
-    stage 5 follows up with a tree-wide scan for any legacy BST_* still in
-    tracked text."""
-    cfg = importlib.import_module('src.api.config')
-    assert not hasattr(cfg, 'ENV_VAR_RENAMES')
-    assert not hasattr(cfg, '_resolve_env')
-    from pipeline import data_access
-    assert not hasattr(data_access, 'ENV_VAR_RENAMES')
-    assert not hasattr(data_access, '_resolve_env')
 
 
 # ---------------------------------------------------------------------------
@@ -492,21 +172,6 @@ def test_t6_post_switchover_weights_prefixed_bst_x():
     for row in _tsv_rows():
         dest_path = row[0]
         assert Path(dest_path).name.startswith('bst_x_'), dest_path
-
-
-# ---------------------------------------------------------------------------
-# T7: live-inference weight literal
-# ---------------------------------------------------------------------------
-
-def test_t7_run_dir_and_weights_exist():
-    mod = _api_inference_module()
-    assert mod.RUN_DIR.is_dir(), f'RUN_DIR missing: {mod.RUN_DIR}'
-    assert mod.WEIGHTS_PATH.is_file(), f'WEIGHTS_PATH missing: {mod.WEIGHTS_PATH}'
-
-
-@pytest.mark.skipif(not _switchover_landed(), reason='Step 6b not landed')
-def test_t7_weights_prefixed_bst_x():
-    assert _api_inference_module().WEIGHTS_PATH.name.startswith('bst_x_')
 
 
 # ---------------------------------------------------------------------------
@@ -622,76 +287,6 @@ def test_t8_registry_anchored_dirs_have_fe_jsons():
         fe_dir = run_dir / 'fe_jsons'
         assert fe_dir.is_dir(), f'{entry["id"]}: fe_jsons/ missing'
         assert {p.name for p in fe_dir.iterdir()} == FE_FILES
-
-
-# ---------------------------------------------------------------------------
-# T9: Chang KEEP set, code identifiers
-# ---------------------------------------------------------------------------
-
-VARIANT_FLAGS = {
-    'BST_0':     {'use_ppf': False, 'use_cg': False, 'use_ap': False},
-    'BST_PPF':   {'use_ppf': True,  'use_cg': False, 'use_ap': False},
-    'BST_CG':    {'use_ppf': True,  'use_cg': True,  'use_ap': False},
-    'BST_AP':    {'use_ppf': True,  'use_cg': False, 'use_ap': True},
-    'BST_CG_AP': {'use_ppf': True,  'use_cg': True,  'use_ap': True},
-}
-
-
-def test_t9_bst_variant_partials_keep_their_flag_table():
-    bst_mod = importlib.import_module('model.bst')
-    BST = bst_mod.BST
-    for name, expected in VARIANT_FLAGS.items():
-        variant = getattr(bst_mod, name)
-        assert isinstance(variant, partial)
-        assert variant.func is BST
-        assert variant.keywords == expected
-
-
-def test_t9_models_chang_keys_identity():
-    common = _common_module()
-    bst_mod = importlib.import_module('model.bst')
-    MODELS = common.MODELS
-    # 'BST' is the most likely to be mangled by a mechanical rename — it maps to BST_PPF.
-    assert MODELS['BST'] is bst_mod.BST_PPF
-    assert MODELS['BST_0'] is bst_mod.BST_0
-    assert MODELS['BST_CG'] is bst_mod.BST_CG
-    assert MODELS['BST_AP'] is bst_mod.BST_AP
-    assert MODELS['BST_CG_AP'] is bst_mod.BST_CG_AP
-
-
-def test_t9_taxonomy_constants_pin():
-    from pipeline.config import (
-        TAXONOMY_BST_25, TAXONOMY_BST_24, TAXONOMY_BST_12, resolve_taxonomy,
-    )
-    assert TAXONOMY_BST_25.name == 'bst_25' and TAXONOMY_BST_25.n_classes == 25
-    assert TAXONOMY_BST_24.name == 'bst_24' and TAXONOMY_BST_24.n_classes == 24
-    assert TAXONOMY_BST_12.name == 'bst_12' and TAXONOMY_BST_12.n_classes == 12
-    assert resolve_taxonomy('bst_25') is TAXONOMY_BST_25
-
-
-def test_t9_splits_bst_baseline_shape():
-    from shared.dataset import SPLITS_BST_BASELINE
-    assert isinstance(SPLITS_BST_BASELINE, dict)
-    assert set(SPLITS_BST_BASELINE) == {'train', 'val', 'test'}
-    for split, vids in SPLITS_BST_BASELINE.items():
-        assert isinstance(vids, list) and vids
-
-
-def test_t9_clips_master_carries_split_columns():
-    """Header-only read for speed. split_bst_baseline is the schema-level
-    column; split_v2 sits next to it. Renaming either invalidates the master."""
-    df = pd.read_csv(REPO_ROOT / 'notebooks' / 'clips_master.csv', nrows=0)
-    cols = set(df.columns)
-    assert 'split_bst_baseline' in cols
-    assert 'split_v2' in cols
-
-
-def test_t9_chang_attribution_intact():
-    """Prose with no import surface; greppy by necessity. The attribution
-    sits in the BST file header."""
-    bst_path = importlib.import_module('model.bst').__file__
-    first_line = Path(bst_path).read_text().splitlines()[0]
-    assert 'Original BST by Jing-Yuan Chang' in first_line
 
 
 # ---------------------------------------------------------------------------
@@ -856,9 +451,9 @@ def test_t11_stage1_bst_refactor():
     # historical-archive narrative docs reference scratch/project_history/
     # bst_refactor_deprecated/ as the actual archived directory name.
     allowed = {
-        'scratch/architecture_notes/namespace_migration_test_design.md',
-        'scratch/architecture_notes/historical_bst.md',
-        'scratch/architecture_notes/pre_phase_2_tidy_plan.md',
+        'docs/architecture_notes/namespace_migration_test_design.md',
+        'docs/architecture_notes/historical_bst.md',
+        'docs/architecture_notes/pre_phase_2_tidy_plan.md',
         'tests/test_namespace_migration.py',
     }
     hits = _scan_pattern(
@@ -891,7 +486,7 @@ def test_t11_stage3_bst_inputs_dir():
     # The design doc and this test file quote the rename pattern verbatim;
     # allowlist both to avoid a self-flag.
     allowed = {
-        'scratch/architecture_notes/namespace_migration_test_design.md',
+        'docs/architecture_notes/namespace_migration_test_design.md',
         'tests/test_namespace_migration.py',
     }
     hits = _scan_pattern(
@@ -923,12 +518,12 @@ def test_t11_stage5_legacy_env_vars():
     # - Historical refactor logs / dated tidy-plan narratives reference the
     #   pre-rebrand names as they were at the time.
     allowed = {
-        'scratch/architecture_notes/namespace_migration_test_design.md',
-        'scratch/architecture_notes/pre_phase_2_tidy_plan.md',
-        'scratch/architecture_notes/completed_general_refactors/data_access_integration_plan.md',
-        'scratch/architecture_notes/completed_general_refactors/dir_flatten_refactor.md',
-        'scratch/collation_taxon_pin_w_preds_refactor_log.md',
-        'scratch/collation_taxon_pin_w_preds_refactor.md',
+        'docs/architecture_notes/namespace_migration_test_design.md',
+        'docs/architecture_notes/pre_phase_2_tidy_plan.md',
+        'docs/architecture_notes/completed_general_refactors/data_access_integration_plan.md',
+        'docs/architecture_notes/completed_general_refactors/dir_flatten_refactor.md',
+        'docs/architecture_notes/collation_taxon_pin_w_preds_refactor_log.md',
+        'docs/architecture_notes/collation_taxon_pin_w_preds_refactor.md',
         'tests/test_namespace_migration.py',
     }
     hits = _scan_pattern(
@@ -939,9 +534,12 @@ def test_t11_stage5_legacy_env_vars():
 
 
 def _stage6_in_scope(rel: str) -> bool:
-    """Scoped stage-6 corpus: doc tree, api code, manifest tsv, run manifests,
-    and the Chang baseline dir. Scratch history and the ledger legitimately
-    mention old filenames; not in scope here."""
+    """Scoped stage-6 corpus: live shipped docs, api code, manifest tsv, run
+    manifests, and the Chang baseline dir. Scratch history (now relocated
+    under docs/architecture_notes/) and the ledger legitimately mention old
+    filenames; not in scope here."""
+    if rel.startswith('docs/architecture_notes/'):
+        return False
     if rel.startswith('docs/'):
         return True
     if rel.startswith('src/api/'):
@@ -950,7 +548,7 @@ def _stage6_in_scope(rel: str) -> bool:
         return True
     if rel.startswith('experiments/bst_x/shuttleset/run_'):
         return True
-    if rel.startswith('experiments/bst_x/shuttleset/bst_cg_ap_base_'):
+    if rel.startswith('experiments/bst_x/shuttleset/foundation_chang_baseline'):
         return True
     return False
 
@@ -994,47 +592,3 @@ def test_t11_stage7_legacy_venv_name():
     assert hits == [], '\n'.join(f'{r}:{n}: {line}' for r, n, line in hits)
 
 
-# ---------------------------------------------------------------------------
-# T12: subprocess and dynamic module strings resolve
-# ---------------------------------------------------------------------------
-
-SUBPROCESS_M_PATTERN = re.compile(r"'-m',\s*'([\w\.]+)'")
-IMPORT_MODULE_PATTERN = re.compile(r"import_module\('([\w\.]+)'\)")
-
-
-def _runner_modules() -> list[tuple[str, str]]:
-    """Return [(label, source_text)] for the runner modules that ship dynamic
-    module-name strings. Uses the import helper so the test survives Step 6."""
-    out = []
-    for label, modgetter in (
-        ('collation_runner', lambda: _first_importable(
-            'collation_runner')),
-        ('hparam_sweep', lambda: _first_importable(
-            'hparam_sweep')),
-    ):
-        mod = modgetter()
-        out.append((label, Path(mod.__file__).read_text()))
-    # verify_bst_train_target may rename to verify_bst_x_train_target at Step 6.
-    for verify_candidate in ('verify_bst_x_train_target', 'verify_bst_train_target'):
-        path = REPO_ROOT / 'src' / 'bst_x' / 'validation_scripts' / f'{verify_candidate}.py'
-        if not path.exists():
-            path = REPO_ROOT / 'src' / 'bst_x' / 'validation_scripts' / f'{verify_candidate}.py'
-        if path.exists():
-            out.append(('verify_target', path.read_text()))
-            break
-    return out
-
-
-def test_t12_dynamic_module_strings_resolve():
-    """For each subprocess `-m` and import_module literal, the module spec is
-    findable. find_spec imports the parent package only, so it stays cheap."""
-    found_any = False
-    for label, src in _runner_modules():
-        spec_strings = SUBPROCESS_M_PATTERN.findall(src) + IMPORT_MODULE_PATTERN.findall(src)
-        if not spec_strings:
-            continue
-        found_any = True
-        for name in spec_strings:
-            assert importlib.util.find_spec(name) is not None, \
-                f'{label}: cannot import {name!r}'
-    assert found_any, 'No -m or import_module captures found across runners (regex rot?)'

@@ -1,7 +1,7 @@
 """Plotting helpers for classification eval.
 
 Adapted from src/bst_x/result_utils.py and
-scratch/presentation_prep/confusion_matrix.py (Ari's presentation-polish
+scripts/plots/confusion_matrix.py (Ari's presentation-polish
 version). Produces a dual-panel precision- and recall-normalised
 confusion matrix with classes ordered ascending by per-class F1 so the
 worst-performing pairs cluster at the bottom-left.

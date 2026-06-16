@@ -1,4 +1,4 @@
-Best model of bst_cg_ap_base_17_04_2026/ is #2 run
+Best model of foundation_chang_baseline/ is #2 run
 bst_cg_ap_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2.pt
 
 Original BST paper hyperparameters, unchanged:

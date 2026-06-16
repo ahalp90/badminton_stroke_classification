@@ -30,7 +30,7 @@ Inputs (read from environment):
     player_side mapping. Class filter excludes ``raw_type_en == 'unknown'``.
 
 Outputs (under ``--out-dir``, default
-``scratch/architecture_notes/x3d_integration_macro_plan/stage_2_outputs/``):
+``docs/architecture_notes/x3d_integration_macro_plan/stage_2_outputs/``):
   - ``keypoint_lr_interframe_per_clip.csv``: one row per (clip, slot).
   - ``keypoint_lr_interframe_diagnostic.md``: text + numeric summary.
   - ``keypoint_lr_interframe_perclass.csv``: per-class aggregate stats.
@@ -45,7 +45,7 @@ Single-process by design; per-clip work is light and concurrent writes
 to the same CSV would corrupt rows. Run from a node that can read the
 ``BST_X_MMPOSE_NPY_DIR`` path (engelbart for the canonical clean dir).
 
-Spec: ``scratch/architecture_notes/x3d_integration_macro_plan/stage_2_wrist_loss_assessment.md``
+Spec: ``docs/architecture_notes/x3d_integration_macro_plan/stage_2_wrist_loss_assessment.md``
 section "Inter-frame L/R consistency check".
 """
 from __future__ import annotations
@@ -363,7 +363,7 @@ def main() -> None:
         "--out-dir",
         type=Path,
         default=Path(
-            "scratch/architecture_notes/x3d_integration_macro_plan/stage_2_outputs"
+            "docs/architecture_notes/x3d_integration_macro_plan/stage_2_outputs"
         ),
         help="Output directory.",
     )

@@ -6,7 +6,7 @@ without needing the actual video files.
 
 Adapted from:
   - pipeline/clip_generator.py:_compute_clip_bounds()  (canonical)
-  - data/shuttleset/compute_clip_length_stats.py        (CSV-only version)
+  - validation_scripts/compute_clip_length_stats.py        (CSV-only version)
 
 Usage as a library::
 

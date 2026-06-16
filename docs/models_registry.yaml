@@ -1,5 +1,5 @@
 # Hand-curated registry of FE-facing models.
-# Schema and consumer contract: ../scratch/frontend_integration_handoff.md  section 1.
+# Schema and consumer contract: ./frontend_integration_handoff.md  section 1.
 # Add a new entry when a run/serial graduates to user-facing status.
 #
 # Tier 1 (current): the backend joins each entry's `manifest.yaml` (headline +

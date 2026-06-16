@@ -416,7 +416,7 @@ notes: |-
   The other 20 classes actually improve slightly with unknown kept (+0.7% as a group).
   Unknown itself was a high performing class (~0.85 test f1, recall 0.91 / precision 0.79).
 
-  Confusion matrix: scratch/architecture_notes/confusion_bst25_baseline_keep_unknown_S1.png.
+  Confusion matrix: docs/architecture_notes/confusion_bst25_baseline_keep_unknown_S1.png.
 log_path: experiments/bst_x/shuttleset/test_logs/test_20260530_210600_435552.log
 extra:
   data_provenance:

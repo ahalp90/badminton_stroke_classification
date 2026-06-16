@@ -11,7 +11,7 @@ A full 5-cell search runs in ~10 hours on engelbart. Designed for
 launch-and-walk-away.
 
 For the design rationale and decision trail, see
-`scratch/architecture_notes/hparam_search_wrapper.md`. This file is
+`docs/architecture_notes/hparam_search_wrapper.md`. This file is
 the how-to.
 
 ## The workflow
@@ -141,7 +141,7 @@ have completed, their verdicts, the cell-start refs, etc. You don't
 normally need to read this, but it's there if you want to grep across
 the search.
 
-The per-cell run dirs (`experiments/run_<timestamp>_<microseconds>/`)
+The per-cell run dirs (`experiments/bst_x/shuttleset/run_<timestamp>_<microseconds>/`)
 have the standard manifest.yaml + best_model_id.txt + TB events as
 usual. Same format as a manual run, just driven by the wrapper.
 
@@ -275,7 +275,7 @@ requires, duplicate cell name) you'll see it here.
 ## Where to find what
 
 - Design rationale, kill rule calibration, decisions log:
-  `scratch/architecture_notes/hparam_search_wrapper.md`.
+  `docs/architecture_notes/hparam_search_wrapper.md`.
 - Wrapper code: `hparam_sweep.py` (alongside this file).
 - bst_x_train CLI changes: `bst_x_train.py` (the `__main__` block at the
   bottom).
@@ -284,4 +284,4 @@ requires, duplicate cell name) you'll see it here.
   `<session_dir>/manifest.md`.
 - Orchestration state: `<session_dir>/state.json`.
 - Per-cell run output (one per cell):
-  `experiments/run_<timestamp>_<microseconds>/`.
+  `experiments/bst_x/shuttleset/run_<timestamp>_<microseconds>/`.

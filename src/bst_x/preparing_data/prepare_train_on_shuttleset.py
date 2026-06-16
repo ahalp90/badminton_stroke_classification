@@ -897,7 +897,7 @@ def collate_npy(
         # Pose-fail frames no longer wipe shuttle. Pose tells you where a
         # player is in the court; shuttle tells you where the bird is. If
         # one player collapses, the bird's coord still has meaning.
-        # Full rationale: scratch/architecture_notes/frame_zeroing.md.
+        # Full rationale: docs/architecture_notes/frame_zeroing.md.
 
         shuttle_ls.append(shuttle)
 
@@ -1063,7 +1063,7 @@ def main():
         type=Path,
         default=env_path(
             'BST_X_CLIPS_CSV',
-            Path(__file__).resolve().parents[4] / "notebooks" / "clips_master.csv",
+            Path(__file__).resolve().parents[3] / "notebooks" / "clips_master.csv",
         ),
         help="Master clips CSV with split + label per clip "
              "(default: BST_X_CLIPS_CSV or <repo>/notebooks/clips_master.csv).",

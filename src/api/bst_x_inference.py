@@ -17,7 +17,7 @@ The checkpoint and clip_index.json live in the repo tree at
 `experiments/bst_x/shuttleset/run_20260505_154907/`.
 
 The clip_index.json carries `row_index` per stem (added by
-scratch/inspect_clips/rebuild_real.py); we use that directly rather than
+scripts/api_fixtures/rebuild_real.py); we use that directly rather than
 re-deriving from clips_master.csv at runtime.
 """
 from __future__ import annotations
@@ -223,7 +223,7 @@ def predict(stem: str, split: str | None = None) -> dict:
     if "row_index" not in meta:
         raise BstXInferenceUnavailable(
             f"stem {stem!r} has no row_index in clip_index.json — "
-            "re-run scratch/inspect_clips/rebuild_real.py"
+            "re-run scripts/api_fixtures/rebuild_real.py"
         )
 
     row = int(meta["row_index"])

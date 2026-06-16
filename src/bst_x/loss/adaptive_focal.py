@@ -25,7 +25,7 @@ Train-loop responsibilities (see ``bst_x_train.train_one_epoch`` /
     4. (optional) read ``loss_fn.alpha`` for diagnostic logging.
 
 Full motivation + paper-verified equations live in
-``scratch/architecture_notes/class_f1_focal_design.md``.
+``docs/architecture_notes/class_f1_focal_design.md``.
 """
 
 import torch
@@ -254,7 +254,7 @@ class AdaptiveFocalLoss(nn.Module):
         as ReduceLROnPlateau. ``self.alpha`` is renormalised to mean 1.0, so a
         class is over-allocated exactly when its alpha sits above 1.0; the gate
         only pulls those down. Motivating per-class arcs:
-        ``scratch/architecture_notes/alpha_arc_analysis/``.
+        ``docs/architecture_notes/alpha_arc_analysis/``.
 
         :param gate_cfg: ``None`` disables the gate; a dict engages it. Keys (all
             optional, defaults shown): ``val_f1_smoothing_factor`` (0.9, EMA

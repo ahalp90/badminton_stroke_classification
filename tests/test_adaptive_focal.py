@@ -1,7 +1,7 @@
 """Tests for the class-F1-driven adaptive focal loss.
 
 Covers eight sections matching the implementation surface in
-``scratch/architecture_notes/class_f1_focal_design.md``:
+``docs/architecture_notes/class_f1_focal_design.md``:
 
 1. ``per_class_f1_from_counts`` numerical correctness.
 2. ``accumulate_class_counts`` vectorised TP/FP/FN against a hand-rolled

@@ -151,7 +151,7 @@ For each clip, `detect_players_2d()`:
 
 ### Output format per clip
 
-Files land flat under `save_root_dir`, one set per clip stem. Split and label assignment come from `notebooks/clips_master.csv` at collation time, not from the on-disk directory layout. See `scratch/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` for the flatten refactor.
+Files land flat under `save_root_dir`, one set per clip stem. Split and label assignment come from `notebooks/clips_master.csv` at collation time, not from the on-disk directory layout. See `docs/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` for the flatten refactor.
 
 | File | Shape | Contents |
 |------|-------|----------|
