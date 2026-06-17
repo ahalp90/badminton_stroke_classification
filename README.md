@@ -45,6 +45,20 @@ The smash / wrist_smash pair sets a sticky min-F1 floor: pose and shuttle don't 
 
 Ablation summary and confusion-matrix charts: [`scripts/plots/`](scripts/plots/).
 
+## Web UI
+
+<p align="center">
+  <img src="docs/images/wizard_t1/2_markup_screen.png" width="85%" alt="Upload wizard: video markup with court boundary handles for homography normalisation" />
+</p>
+
+*Upload wizard: court boundary corner markup for homography normalisation.*
+
+<p align="center">
+  <img src="docs/images/wizard_t1/model_results_per_clip_screen.png" width="85%" alt="Model results browser: per-clip predictions for BST-X une_v1_14 on the v2 test split, with actual vs predicted class and top-5 confidences" />
+</p>
+
+*Per-clip predictions browser across registered model variants.*
+
 ## Project structure
 
 - `src/bst_x/` — data pipeline and BST-X classifier; standalone subproject with its own pinned environments
@@ -143,7 +157,7 @@ HPC quickstart and GPU notes: [`docs/hpc_quickstart.md`](docs/hpc_quickstart.md)
 
 Each training run writes a manifest, per-serial metrics, and TensorBoard events under `experiments/bst_x/shuttleset/<run_id>/`. Optional Aim UI for browsing runs: [`src/bst_x/run_tracker.md`](src/bst_x/run_tracker.md).
 
-## Web app
+## Working with the Web app
 
 Bring up the full dev stack (FastAPI backend on :24082, React frontend on :5173):
 
@@ -163,16 +177,19 @@ Test suite: `pytest tests/`, plus `uv run python -m bric.smoke_test` for the BRI
 
 ## Next Steps
 
-Continuing into COSC595 with: X3D-S wrist-crop fusion for BST-X to adress the fine-grained discrimination bottleneck, an amateur-footage classifier (self-supervised pretrain on scraped YouTube footage, fine-tune on the pro set), live BST-X inference on arbitrary user uploads, and a CrossTrainer-style (Ashutosh and Grauman 2025) [arXiv:2511.13993](https://arxiv.org/abs/2511.13993) single-shot autograder proof of concept.
+Continuing into COSC595 with: 
+- X3D-S wrist-crop fusion for BST-X to address the fine-grained discrimination bottleneck, 
+- an amateur-footage classifier (self-supervised pretrain on scraped YouTube footage, fine-tune on the pro set), 
+- live BST-X inference on arbitrary user uploads, and a CrossTrainer-style [arXiv:2511.13993](https://arxiv.org/abs/2511.13993) (Ashutosh and Grauman 2025) single-shot autograder proof of concept.
 
 ## Team
 
-- Ariel Halperin (BST-X, data pipeline), 
-- Curtis Martin (backend, deployment, frontend integration), 
-- Scott Bailey (BRIC, backend), 
-- Kiri Lefebvre (frontend), 
-- Isiah Darcy (data splits, research, frontend), 
-- Ethan McDonough (initial Docker and HPC scaffolding), 
-- Jared Pitman (CI setup, deployment docs).
+- Ariel Halperin (BST-X, data pipeline)
+- Curtis Martin (backend, deployment, frontend integration)
+- Scott Bailey (BRIC, backend)
+- Kiri Lefebvre (frontend)
+- Isiah Darcy (data splits, research, frontend)
+- Ethan McDonough (initial Docker and HPC scaffolding)
+- Jared Pitman (CI setup, deployment docs)
 
 Built on top of BST (Chang 2025, [arXiv:2502.21085](https://arxiv.org/abs/2502.21085)) and the [ShuttleSet broadcast dataset (Wang et al. 2023)](https://github.com/wywyWang/CoachAI-Projects/tree/main/ShuttleSet).
