@@ -1,0 +1,374 @@
+run_id: run_20260601_153738_936523
+started_at: '2026-06-01T15:37:59'
+git_sha: 609b620be9d3e4774c6a120ef64a47473561aead
+git_dirty: true
+host: carmack.une.edu.au
+config:
+  n_epochs: 80
+  batch_size: 128
+  lr: 0.0005
+  weight_decay: 0.4
+  warm_up_step: 100
+  taxonomy: shuttleset_18
+  seq_len: 100
+  early_stop_n_epochs: 40
+  pose_style: JnB_bone
+  use_3d_pose: false
+  train_partial: 1.0
+  use_aux_schedule: true
+  aux_fade_end_epoch: 15
+  clips_csv: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+  split_column: split_v2
+  collation_id: taxon_pinned_w_preds
+  ablation_id: wd_norms_bias_embeddings_excluded_4e-1
+  label_smoothing: 0.0
+  class_weights: null
+  adaptive_focal:
+    tau: 1.0
+    gamma: 1.0
+    momentum: 0.9
+    warm_up_epochs: 5
+    f1_floor: 0.0
+  use_val_improvability_gate: false
+  val_improvability_gate:
+    val_f1_smoothing_factor: 0.9
+    improvement_margin: 0.015
+    patience_epochs: 15
+    min_epochs_before_gating: 10
+    revert_step_per_epoch: 0.2
+    stop_gating_after_fraction: 0.75
+  augmentation:
+    p_flip: 0.5
+    p_jitter: 0.3
+    cap_y: 0.05
+    cap_x: 0.1
+    eps: 0.15
+  classes:
+  - net_shot
+  - return_net
+  - smash
+  - wrist_smash
+  - lob
+  - defensive_return_lob
+  - clear
+  - drive
+  - driven_flight
+  - back_court_drive
+  - drop
+  - passive_drop
+  - push
+  - rush
+  - defensive_return_drive
+  - cross_court_net_shot
+  - short_service
+  - long_service
+serials:
+- serial_no: 1
+  weights_path: experiments/bst_x/shuttleset/run_20260601_153738_936523/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260601_153738_936523/tb/serial_1
+  metrics:
+    macro_f1: 0.6584401726722717
+    min_f1: 0.0
+    accuracy: 0.7527367920038077
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8622158765792847
+      return_net: 0.8290397524833679
+      smash: 0.6327683329582214
+      wrist_smash: 0.46400001645088196
+      lob: 0.7803958654403687
+      defensive_return_lob: 0.49484536051750183
+      clear: 0.9463807344436646
+      drive: 0.5948275327682495
+      driven_flight: 0.0
+      back_court_drive: 0.6428571343421936
+      drop: 0.6548672914505005
+      passive_drop: 0.707774817943573
+      push: 0.6578947901725769
+      rush: 0.7213115096092224
+      defensive_return_drive: 0.3963963985443115
+      cross_court_net_shot: 0.5173745155334473
+      short_service: 0.9760000109672546
+      long_service: 0.9729729890823364
+    top2_accuracy: 0.928605425987625
+  recorded_at: '2026-06-01T15:54:54'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 33
+      macro_f1: 0.6934539791610506
+      min_f1: 0.1428571343421936
+      accuracy: 0.7742857142857142
+      top2_accuracy: 0.948
+      per_class_f1:
+        net_shot: 0.8827361464500427
+        return_net: 0.845120906829834
+        smash: 0.6704545617103577
+        wrist_smash: 0.47396767139434814
+        lob: 0.8102189302444458
+        defensive_return_lob: 0.5569620132446289
+        clear: 0.9654254913330078
+        drive: 0.6601941585540771
+        driven_flight: 0.1428571343421936
+        back_court_drive: 0.5859872102737427
+        drop: 0.6734007000923157
+        passive_drop: 0.6737287640571594
+        push: 0.6358025074005127
+        rush: 0.79365074634552
+        defensive_return_drive: 0.43010756373405457
+        cross_court_net_shot: 0.7248576879501343
+        short_service: 0.9861111640930176
+        long_service: 0.9705882668495178
+- serial_no: 2
+  weights_path: experiments/bst_x/shuttleset/run_20260601_153738_936523/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_2.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260601_153738_936523/tb/serial_2
+  metrics:
+    macro_f1: 0.6601743102073669
+    min_f1: 0.0
+    accuracy: 0.7646358876725369
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.9022251963615417
+      return_net: 0.8189349174499512
+      smash: 0.6433823108673096
+      wrist_smash: 0.4482029974460602
+      lob: 0.8013582825660706
+      defensive_return_lob: 0.4536082446575165
+      clear: 0.9533954858779907
+      drive: 0.5028571486473083
+      driven_flight: 0.0
+      back_court_drive: 0.6629213094711304
+      drop: 0.661478579044342
+      passive_drop: 0.6524389982223511
+      push: 0.6208791136741638
+      rush: 0.7704918384552002
+      defensive_return_drive: 0.3793103098869324
+      cross_court_net_shot: 0.684684693813324
+      short_service: 0.9739479422569275
+      long_service: 0.9530201554298401
+    top2_accuracy: 0.9364588291289861
+  recorded_at: '2026-06-01T16:13:59'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 59
+      macro_f1: 0.6954063210222456
+      min_f1: 0.19999998807907104
+      accuracy: 0.7942857142857143
+      top2_accuracy: 0.9508571428571428
+      per_class_f1:
+        net_shot: 0.9256198406219482
+        return_net: 0.8487712740898132
+        smash: 0.676837682723999
+        wrist_smash: 0.4584980010986328
+        lob: 0.8576177954673767
+        defensive_return_lob: 0.5352112054824829
+        clear: 0.9638554453849792
+        drive: 0.617142915725708
+        driven_flight: 0.19999998807907104
+        back_court_drive: 0.6172839403152466
+        drop: 0.6803278923034668
+        passive_drop: 0.5811518430709839
+        push: 0.6337854266166687
+        rush: 0.7317073345184326
+        defensive_return_drive: 0.42990654706954956
+        cross_court_net_shot: 0.8046875
+        short_service: 0.9861592054367065
+        long_service: 0.9687499403953552
+- serial_no: 3
+  weights_path: experiments/bst_x/shuttleset/run_20260601_153738_936523/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_3.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260601_153738_936523/tb/serial_3
+  metrics:
+    macro_f1: 0.653003990650177
+    min_f1: 0.0
+    accuracy: 0.7563065207044265
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8983739614486694
+      return_net: 0.8110709190368652
+      smash: 0.6190476417541504
+      wrist_smash: 0.44489794969558716
+      lob: 0.7811633944511414
+      defensive_return_lob: 0.40449437499046326
+      clear: 0.9433962106704712
+      drive: 0.5698323845863342
+      driven_flight: 0.0
+      back_court_drive: 0.6521738767623901
+      drop: 0.6707818508148193
+      passive_drop: 0.6927374601364136
+      push: 0.6396063566207886
+      rush: 0.7118643522262573
+      defensive_return_drive: 0.3252032399177551
+      cross_court_net_shot: 0.652892529964447
+      short_service: 0.9635627865791321
+      long_service: 0.9729729890823364
+    top2_accuracy: 0.9333650642551166
+  recorded_at: '2026-06-01T16:32:49'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 46
+      macro_f1: 0.7048589520984225
+      min_f1: 0.19999998807907104
+      accuracy: 0.7931428571428571
+      top2_accuracy: 0.955047619047619
+      per_class_f1:
+        net_shot: 0.9204006195068359
+        return_net: 0.8547793626785278
+        smash: 0.6970953941345215
+        wrist_smash: 0.4606299102306366
+        lob: 0.8316597938537598
+        defensive_return_lob: 0.5588235259056091
+        clear: 0.9694554805755615
+        drive: 0.6303029656410217
+        driven_flight: 0.19999998807907104
+        back_court_drive: 0.6358382105827332
+        drop: 0.6860464811325073
+        passive_drop: 0.5783132910728455
+        push: 0.6490648984909058
+        rush: 0.7804878354072571
+        defensive_return_drive: 0.46846845746040344
+        cross_court_net_shot: 0.8264151215553284
+        short_service: 0.9844558835029602
+        long_service: 0.9552239179611206
+- serial_no: 4
+  weights_path: experiments/bst_x/shuttleset/run_20260601_153738_936523/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_4.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260601_153738_936523/tb/serial_4
+  metrics:
+    macro_f1: 0.6496479511260986
+    min_f1: 0.0
+    accuracy: 0.7515468824369348
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8908238410949707
+      return_net: 0.79756098985672
+      smash: 0.6323267817497253
+      wrist_smash: 0.4261603355407715
+      lob: 0.7910958528518677
+      defensive_return_lob: 0.5057471990585327
+      clear: 0.9435484409332275
+      drive: 0.5656566023826599
+      driven_flight: 0.0
+      back_court_drive: 0.6298342943191528
+      drop: 0.6764705777168274
+      passive_drop: 0.716253399848938
+      push: 0.5799458622932434
+      rush: 0.6964285969734192
+      defensive_return_drive: 0.3362831771373749
+      cross_court_net_shot: 0.5636363625526428
+      short_service: 0.9759036302566528
+      long_service: 0.965986430644989
+    top2_accuracy: 0.9352689195621133
+  recorded_at: '2026-06-01T16:51:52'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 49
+      macro_f1: 0.7091061588790681
+      min_f1: 0.40366971492767334
+      accuracy: 0.7914285714285715
+      top2_accuracy: 0.9514285714285714
+      per_class_f1:
+        net_shot: 0.9206680655479431
+        return_net: 0.8459383845329285
+        smash: 0.6629834175109863
+        wrist_smash: 0.4465648829936981
+        lob: 0.8520380258560181
+        defensive_return_lob: 0.5373134016990662
+        clear: 0.9607577919960022
+        drive: 0.6256983280181885
+        driven_flight: 0.4615384340286255
+        back_court_drive: 0.6145251393318176
+        drop: 0.7138462066650391
+        passive_drop: 0.6465116143226624
+        push: 0.6361445188522339
+        rush: 0.6837607026100159
+        defensive_return_drive: 0.40366971492767334
+        cross_court_net_shot: 0.760617733001709
+        short_service: 0.9913344979286194
+        long_service: 1.0
+- serial_no: 5
+  weights_path: experiments/bst_x/shuttleset/run_20260601_153738_936523/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_5.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260601_153738_936523/tb/serial_5
+  metrics:
+    macro_f1: 0.6720863580703735
+    min_f1: 0.0
+    accuracy: 0.7646358876725369
+    num_strokes: 4202
+    per_class_f1:
+      net_shot: 0.8960864543914795
+      return_net: 0.8225617408752441
+      smash: 0.6427289247512817
+      wrist_smash: 0.4650205671787262
+      lob: 0.7918149828910828
+      defensive_return_lob: 0.5060241222381592
+      clear: 0.9360544085502625
+      drive: 0.6116504073143005
+      driven_flight: 0.0
+      back_court_drive: 0.6800000667572021
+      drop: 0.6578947305679321
+      passive_drop: 0.6840579509735107
+      push: 0.6312997341156006
+      rush: 0.7394958138465881
+      defensive_return_drive: 0.4307692348957062
+      cross_court_net_shot: 0.6849315166473389
+      short_service: 0.9641433954238892
+      long_service: 0.9530201554298401
+    top2_accuracy: 0.9393146120894812
+  recorded_at: '2026-06-01T17:10:01'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 37
+      macro_f1: 0.7126072181595696
+      min_f1: 0.2666666507720947
+      accuracy: 0.7956190476190477
+      top2_accuracy: 0.9527619047619048
+      per_class_f1:
+        net_shot: 0.9286092519760132
+        return_net: 0.8619091510772705
+        smash: 0.667625904083252
+        wrist_smash: 0.4981818199157715
+        lob: 0.8295194506645203
+        defensive_return_lob: 0.5333333611488342
+        clear: 0.9567567706108093
+        drive: 0.6373626589775085
+        driven_flight: 0.2666666507720947
+        back_court_drive: 0.6021504998207092
+        drop: 0.6964856386184692
+        passive_drop: 0.6651685237884521
+        push: 0.6186046600341797
+        rush: 0.7360000610351562
+        defensive_return_drive: 0.5405404567718506
+        cross_court_net_shot: 0.8471454977989197
+        short_service: 0.9843478202819824
+        long_service: 0.95652174949646
+best_serials:
+- 5
+notes: |-
+  SET 1: wd 1e-2 vs 4e-1, both holding norms/bias/embeddings out of decay (now the default in bst_train.py), focal_alpha_revert off, across the five non-une combos. une's two endpoints came from the earlier wd sweep (#40, #47). The old Series G standard decayed all layers at wd 1e-2.
+
+  Best serial / 5-serial mean, test (macro / min), with Series G mean min for comparison:
+
+    cell            wd    best              mean           G std mean min
+    shuttleset/v2   1e-2  S5 0.663 / n/a    0.655 / n/a    n/a
+    shuttleset/v2   4e-1  S5 0.672 / n/a    0.659 / n/a    n/a
+    bst_24/v2       1e-2  S3 0.818 / 0.626  0.811 / 0.557  0.534
+    bst_24/v2       4e-1  S3 0.822 / 0.641  0.813 / 0.588  0.534
+    bst_12/v2       1e-2  S3 0.818 / 0.623  0.814 / 0.612  0.599
+    bst_12/v2       4e-1  S5 0.815 / 0.636  0.810 / 0.603  0.599
+    bst_25/baseline 1e-2  S1 0.827 / 0.625  0.816 / 0.548  0.620
+    bst_25/baseline 4e-1  S1 0.829 / 0.653  0.822 / 0.614  0.620
+    bst_24/baseline 1e-2  S1 0.834 / 0.636  0.830 / 0.624  0.568
+    bst_24/baseline 4e-1  S3 0.835 / 0.656  0.832 / 0.631  0.568
+    (shuttleset min is driven_flight, one test clip, n/a)
+
+  Macro stayed flat across all settings on every combo. All the movement was on min-F1.
+
+  Between the two endpoints, wd 4e-1 gave the higher min-F1 on bst_24 (both splits) and une, sat within noise of wd 1e-2 on bst_12, and beat wd 1e-2 on bst_25. Against the old standard, wd 4e-1 lifted mean min from 0.534 to 0.588 on bst_24/v2, 0.568 to 0.631 on bst_24/baseline, and 0.471 to 0.498 on une. On bst_12, wd 1e-2 already had the lift over the old standard and 4e-1 added nothing. On bst_25 (keep-unknown) both endpoints came in below the old standard (wd 1e-2 at 0.548, wd 4e-1 at 0.614 against 0.620), so the old standard stays best there. shuttleset_18's min-F1 is driven_flight and not meaningful.
+
+  The three combos wd 4e-1 helped are the three that started with the lowest min-F1; the two highest (bst_12, bst_25) did not move. Default optimiser setting: wd 4e-1. Best or near-best min-F1 on every combo, at most about 0.9% below the best (on bst_12), so one setting holds across taxonomies without per-taxonomy tuning.
+
+  Old standards (Series G): shuttleset run_20260530_161525_131279, bst_24/v2 run_20260530_174818_410060, bst_12 run_20260530_192738_970644, bst_25 run_20260530_210600_435552, bst_24/baseline run_20260530_225714_593038.
+log_path: experiments/bst_x/shuttleset/test_logs/test_20260601_153738_936523.log
+extra:
+  data_provenance:
+    clips_csv_path: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+    clips_csv_sha256: b510070204cfd7152c2b573b9970fa36e07b1816e1345e6f1b99ad85ce3c6f42
+    collation_id: taxon_pinned_w_preds
+    npy_collated_dir: npy_v2_taxon_pinned_w_preds

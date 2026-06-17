@@ -52,13 +52,13 @@ Downloads 40 ShuttleSet match videos from YouTube using yt-dlp. Checks that yt-d
 python -m pipeline.download_videos --workers 4
 ```
 
-Output: `ShuttleSet/raw_video/{id} {match_name}.mp4`
+Output: `data/shuttleset/raw_video/{id} {match_name}.mp4`
 
 ### Step 2: Build Resolution CSV
 
 Scans downloaded videos with OpenCV and writes `my_raw_video_resolution.csv`. Replaces the need to manually create this file.
 
-Output: `ShuttleSet/my_raw_video_resolution.csv`
+Output: `data/shuttleset/my_raw_video_resolution.csv`
 
 ### Step 3: Generate Clips
 
@@ -73,7 +73,7 @@ Three clip window options:
 - `between_2_hits` -- from previous shot's frame to next shot's frame
 - `between_2_hits_with_max_limits` -- same as above, max 1.5s before / 1.75s after shot frame (default). See `data_pipeline_to_model_train.md` Key Concepts for the full windowing table.
 
-Output: `ShuttleSet/clips/{train,val,test}/{Player}_{stroke_type}/{vid}_{set}_{rally}_{ball_round}.mp4`
+Output: `data/shuttleset/clips/{train,val,test}/{Player}_{stroke_type}/{vid}_{set}_{rally}_{ball_round}.mp4`
 
 ### Step 4: Class Merge
 
@@ -101,7 +101,7 @@ Checks that:
 
 Runs TrackNetV3 on each clip to extract shuttle trajectories, then normalises to `(t, 3)` numpy arrays: `[x_norm, y_norm, visibility]`.
 
-TrackNetV3 shares the BST training venv (`stroke_classification/requirements.txt`) rather than maintaining a separate environment. The original repo's dependencies (torch 1.10, numpy 1.22) are incompatible with Python 3.11 and CUDA 12.1; the code has been verified to work with torch 2.3.1. See `TrackNetV3/requirements.txt` for the full version rationale and standalone setup instructions.
+TrackNetV3 shares the BST training venv (`requirements.txt`) rather than maintaining a separate environment. The original repo's dependencies (torch 1.10, numpy 1.22) are incompatible with Python 3.11 and CUDA 12.1; the code has been verified to work with torch 2.3.1. See `TrackNetV3/requirements.txt` for the full version rationale and standalone setup instructions.
 
 The pipeline calls TrackNetV3 as a subprocess via `batch_predict.py`, which loads models once and iterates over all clips in-process. This avoids the ~8s model-reload overhead per clip that the old subprocess-per-clip approach had. The pipeline passes `--batch_size` (default 32; configurable via `--batch-size`) and uses the default `eval_mode='weight'` (full temporal ensemble) for maximum detection accuracy. Inference runs in FP32 to preserve detection accuracy on fast-moving shuttles (>400 km/h at 25-30fps produces faint heatmap responses where FP16 rounding could flip the 0.5 visibility threshold). Frames are pre-resized during loading using PIL BICUBIC, which is bit-identical to the Dataset's own resize and avoids redundant full-resolution array operations. VideoCapture handles are explicitly released after use, and `gc.collect()` + `torch.cuda.empty_cache()` run between clips to prevent resource exhaustion over long batch runs. TrackNetV3's imports don't affect the pipeline venv. Point `--tracknet-python` at the BST venv's Python.
 
@@ -119,14 +119,14 @@ The pipeline calls TrackNetV3 as a subprocess via `batch_predict.py`, which load
 
    Without InpaintNet weights the pipeline will warn and fall back to TrackNet-only (no gap-filling for occluded frames). Without TrackNet weights step 6 will fail.
 
-2. **Create output directories.** Step 6 writes intermediate CSVs to `ShuttleSet/shuttle_csv/` and final `.npy` files to `ShuttleSet/shuttle_npy/`. On HPC nodes these should live on scratch storage and be symlinked:
+2. **Create output directories.** Step 6 writes intermediate CSVs to `data/shuttleset/shuttle_csv/` and final `.npy` files to `data/shuttleset/shuttle_npy/`. On HPC nodes these should live on scratch storage and be symlinked:
 
    ```bash
    # Example for engelbart (adjust paths for your setup)
    mkdir -p /scratch/comp320a/ShuttleSet/shuttle_csv
    mkdir -p /scratch/comp320a/ShuttleSet/shuttle_npy
-   ln -s /scratch/comp320a/ShuttleSet/shuttle_csv ShuttleSet/shuttle_csv
-   ln -s /scratch/comp320a/ShuttleSet/shuttle_npy ShuttleSet/shuttle_npy
+   ln -s /scratch/comp320a/ShuttleSet/shuttle_csv data/shuttleset/shuttle_csv
+   ln -s /scratch/comp320a/ShuttleSet/shuttle_npy data/shuttleset/shuttle_npy
    ```
 
 #### Running
@@ -159,7 +159,7 @@ python predict.py --video_file clip.mp4 --tracknet_file ckpts/TrackNet_best.pt \
 
 **Frame-level guarantees:** TrackNetV3's output CSVs always contain a contiguous Frame column `[0, 1, ..., N-1]` matching the input video length. Frames where the shuttle is undetected are written with zeroed coordinates and `Visibility=0` (never skipped), and buffer flushing ensures trailing frames are included. This means `shuttle_csvs_to_npy` can safely call `.set_index('Frame').to_numpy()` without gap-filling or reindexing.
 
-Output: `ShuttleSet/shuttle_npy/{vid}_{set}_{rally}_{ball_round}.npy` (flat). Split and label assignment are carried by `notebooks/clips_master.csv` at collation time, not by the on-disk directory layout. See `scratch/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` for the migration.
+Output: `data/shuttleset/shuttle_npy/{vid}_{set}_{rally}_{ball_round}.npy` (flat). Split and label assignment are carried by `notebooks/clips_master.csv` at collation time, not by the on-disk directory layout. See `docs/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` for the migration.
 
 Each `.npy` file has shape `(t, 3)`. To get xy-only coordinates: `shuttle[:, :2]`. To get the visibility mask: `shuttle[:, 2]`.
 
@@ -222,7 +222,7 @@ python -m pipeline.shuttle_extractor \
 ## Output Structure
 
 ```
-ShuttleSet/
+data/shuttleset/
   raw_video/                                    # Step 1
     {id} {match_name}.mp4
   my_raw_video_resolution.csv                   # Step 2
@@ -238,7 +238,7 @@ ShuttleSet/
 
 Clip filenames: `{video_id}_{set}_{rally}_{ball_round}.mp4`
 
-Split and label assignment for `shuttle_npy/` (and the downstream pose npys) come from `notebooks/clips_master.csv` at collation time. The clips directory stays nested for now; flattening it is deferred. See `scratch/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` for the migration plan.
+Split and label assignment for `shuttle_npy/` (and the downstream pose npys) come from `notebooks/clips_master.csv` at collation time. The clips directory stays nested for now; flattening it is deferred. See `docs/architecture_notes/completed_general_refactors/dir_flatten_refactor.md` for the migration plan.
 
 ## Pre-existing Input Data
 
@@ -246,11 +246,11 @@ These files ship with the ShuttleSet dataset and are required by the pipeline. D
 
 | File | Read by | Contents |
 |---|---|---|
-| `ShuttleSet/set/match.csv` | `download_videos.py`, `clip_generator.py` | Match metadata: video IDs, YouTube URLs, player court orientation (`downcourt` flag). 44 matches. |
-| `ShuttleSet/set/{match_folder}/set[1-3].csv` | `clip_generator.py`, `player_mapping.py` | Per-set stroke annotations: stroke type (Chinese), rally/ball_round numbers, frame timestamps, player A/B labels. One folder per match, up to 3 CSVs per folder. |
-| `ShuttleSet/set/homography.csv` | `court_utils.py`, `prepare_train_on_shuttleset.py` | Homography matrices and court corner coordinates for camera-to-court projection. Computed at 1280x720 resolution. Optional for basic pipeline; required for court-normalised features. |
-| `ShuttleSet/flaw_shot_records.csv` | `pipeline/config.py` (parsed at import) | Data quality records: 4 whole-video exclusions and 25 individual shot removals. Drives `EXCLUDED_VIDEOS` and `REMOVED_SHOTS` constants. |
-| `ShuttleSet/my_raw_video_resolution.csv` | `court_utils.py`, `prepare_train_on_shuttleset.py` | Video dimensions (id, width, height). Auto-regenerated by Step 2, but the pre-existing copy is useful as a reference before videos are downloaded. |
+| `data/shuttleset/set/match.csv` | `download_videos.py`, `clip_generator.py` | Match metadata: video IDs, YouTube URLs, player court orientation (`downcourt` flag). 44 matches. |
+| `data/shuttleset/set/{match_folder}/set[1-3].csv` | `clip_generator.py`, `player_mapping.py` | Per-set stroke annotations: stroke type (Chinese), rally/ball_round numbers, frame timestamps, player A/B labels. One folder per match, up to 3 CSVs per folder. |
+| `data/shuttleset/set/homography.csv` | `court_utils.py`, `prepare_train_on_shuttleset.py` | Homography matrices and court corner coordinates for camera-to-court projection. Computed at 1280x720 resolution. Optional for basic pipeline; required for court-normalised features. |
+| `data/shuttleset/flaw_shot_records.csv` | `pipeline/config.py` (parsed at import) | Data quality records: 4 whole-video exclusions and 25 individual shot removals. Drives `EXCLUDED_VIDEOS` and `REMOVED_SHOTS` constants. |
+| `data/shuttleset/my_raw_video_resolution.csv` | `court_utils.py`, `prepare_train_on_shuttleset.py` | Video dimensions (id, width, height). Auto-regenerated by Step 2, but the pre-existing copy is useful as a reference before videos are downloaded. |
 
 The original repo's pre-refactor scripts and spreadsheets (`gen_my_dataset.py`, `get_each_class_total.py`, `class_total.xlsx`, etc.) were relocated to `scratch/project_history/shuttleset_deprecated/` by step 3 of the pre-phase-2 tidy. Nothing in the active pipeline reads from them.
 
@@ -287,7 +287,7 @@ _SPLITS_RAW = {
 
 ### Adding Exclusions
 
-Update `ShuttleSet/flaw_shot_records.csv`. The pipeline reads it at import time -- no code changes needed.
+Update `data/shuttleset/flaw_shot_records.csv`. The pipeline reads it at import time -- no code changes needed.
 
 ## Module Reference
 
@@ -313,14 +313,14 @@ python -m pipeline.download_videos --workers 4
 python -m pipeline.clip_generator --clip-window between_2_hits
 python -m pipeline.shuttle_extractor --tracknet-dir TrackNetV3 \
     --tracknet-python /path/to/bst-venv/bin/python
-python -m pipeline.verify --clips-dir ShuttleSet/clips
+python -m pipeline.verify --clips-dir data/shuttleset/clips
 ```
 
 ## For Downstream Consumers
 
 Both architectures read from the same `clips/` and `shuttle_npy/` directories. The pipeline doesn't care what you do with the output.
 
-**Next step for BST-X:** Run `stroke_classification/preparing_data/prepare_train_on_shuttleset.py` to extract poses (MMPose) and collate into batch-ready arrays. See `data_pipeline_to_model_train.md` at the project root for the full pipeline-to-training walkthrough. For the COCO 17-keypoint joint index map, bone pairs, and JnB representations, see [`keypoints_schema.md`](../stroke_classification/preparing_data/keypoints_schema.md).
+**Next step for BST-X:** Run `preparing_data/prepare_train_on_shuttleset.py` to extract poses (MMPose) and collate into batch-ready arrays. See `data_pipeline_to_model_train.md` at the project root for the full pipeline-to-training walkthrough. For the COCO 17-keypoint joint index map, bone pairs, and JnB representations, see [`keypoints_schema.md`](../preparing_data/keypoints_schema.md).
 
 ### Split + label source
 
@@ -331,7 +331,7 @@ Split (train/val/test) and class label for every clip come from `notebooks/clips
 ```python
 # Loading shuttle trajectories (flat: one file per clip, named after clip stem)
 import numpy as np
-shuttle = np.load('ShuttleSet/shuttle_npy/1_1_3_2.npy')
+shuttle = np.load('data/shuttleset/shuttle_npy/1_1_3_2.npy')
 xy = shuttle[:, :2]           # (t, 2) normalised coordinates
 visibility = shuttle[:, 2]    # (t,) detection confidence
 
@@ -374,7 +374,7 @@ class ClipVideoDataset(Dataset):
         return load_video(self._path_by_stem[stem]), label
 ```
 
-`label_for_row(taxonomy, row.raw_type_en, row.player_side)` produces the int label (or `None` to skip a filtered row), applying exclusion + merge + side in one place, matching what `collate_npy` does for the pose/shuttle npys (see `stroke_classification/preparing_data/prepare_train_on_shuttleset.py`). Pick your own video backend (cv2, decord, torchvision.io) for `load_video`.
+`label_for_row(taxonomy, row.raw_type_en, row.player_side)` produces the int label (or `None` to skip a filtered row), applying exclusion + merge + side in one place, matching what `collate_npy` does for the pose/shuttle npys (see `preparing_data/prepare_train_on_shuttleset.py`). Pick your own video backend (cv2, decord, torchvision.io) for `load_video`.
 
 This pattern means the nested clips layout is transparent: the same `ClipVideoDataset` works for any `split_column` in `clips_master.csv` without needing to flatten or reorganise `clips/`.
 

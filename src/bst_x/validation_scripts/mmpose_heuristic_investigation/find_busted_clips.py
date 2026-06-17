@@ -12,7 +12,7 @@ hit frame (matches the hit-zone definition used by
 
 Intended for Phase 1 of the MMPose heuristic investigation: produce the
 "busted" stems for the decoupled raw extract (see
-``scratch/architecture_notes/mmpose_heuristic/mmpose_phase1_extraction_plan.md``).
+``docs/architecture_notes/mmpose_heuristic/mmpose_phase1_extraction_plan.md``).
 
 Usage on engelbart (whole-clip, the original criterion):
 
@@ -23,7 +23,7 @@ Usage on engelbart (whole-clip, the original criterion):
         --split-column split_v2 \\
         --threshold 0.50 \\
         --exclude-unknown \\
-        --output /home/ahalperi/badminton_stroke_classifier/scratch/architecture_notes/busted_whole_clips_phase1.txt
+        --output /home/ahalperi/badminton_stroke_classifier/docs/architecture_notes/busted_whole_clips_phase1.txt
 
 Hit-zone criterion (matches the hit_zone_heatmap filter):
 
@@ -82,9 +82,9 @@ def main() -> int:
                              'around the hit frame) instead of whole-clip. '
                              'Requires --set-dir and --video-metadata-csv.')
     parser.add_argument('--set-dir', type=Path, default=None,
-                        help='Path to ShuttleSet/set/ (required with --hit-zone).')
+                        help='Path to data/shuttleset/set/ (required with --hit-zone).')
     parser.add_argument('--video-metadata-csv', type=Path, default=None,
-                        help='Path to ShuttleSet/video_metadata.csv '
+                        help='Path to data/shuttleset/video_metadata.csv '
                              '(required with --hit-zone).')
     parser.add_argument('--hit-window', type=int, default=10,
                         help='Frames either side of hit to include in the '

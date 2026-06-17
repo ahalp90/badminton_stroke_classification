@@ -6,7 +6,7 @@ Cross-references video durations from ffprobe against YouTube metadata
 Usage:
     python scripts/validate_videos.py \
         --video-dir /scratch/comp320a-data \
-        --match-csv src/bst_x/ShuttleSet/set/match.csv \
+        --match-csv data/shuttleset/set/match.csv \
         --cache-file youtube_durations.csv \
         --tolerance 5
 """
@@ -208,7 +208,7 @@ def main():
                         help="Directory with teammate's video files")
     parser.add_argument('--match-csv', type=Path, required=True,
                         help="Path to ShuttleSet match.csv")
-    parser.add_argument('--cache-file', type=Path, default=Path('scratch/youtube_durations.csv'),
+    parser.add_argument('--cache-file', type=Path, default=Path('data/youtube_durations.csv'),
                         help="CSV to cache YouTube duration lookups")
     parser.add_argument('--tolerance', type=float, default=5.0,
                         help="Max duration difference (seconds) to count as MATCH")

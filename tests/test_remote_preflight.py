@@ -22,7 +22,7 @@ No torch, no GPU, no model load -- pure data checks, so it runs fast in any venv
 on bourbaki (venv-bst-x is fine). Run with the collation root visible:
 
     BST_X_COLLATED_DATA_ROOT=/scratch/comp320a \
-        PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
+        PYTHONPATH=src/bst_x \
         /home/ahalperi/.venvs/venv-bst-x/bin/python -m pytest tests/test_remote_preflight.py -v
 
 (or rely on .env carrying BST_X_COLLATED_DATA_ROOT). Without the root set, the
@@ -48,7 +48,7 @@ from pipeline.data_access import env_path_or_none, load_repo_dotenv
 COLLATION_ID = 'taxon_pinned_w_preds'
 POSE_STYLE = 'JnB_bone'  # what bst_x_train reads for these cells
 
-# The 6 cells, mirroring scratch/runners/taxon_pinned_w_preds/config.yaml.
+# The 6 cells, mirroring the taxon_pinned_w_preds sweep config (archived to ~/Documents/COSC594/repo_archive/scratch_pre_rehome/runners/).
 CELLS: list[tuple[str, str]] = [
     ('shuttleset_18', 'split_v2'),
     ('bst_24', 'split_v2'),
@@ -70,7 +70,7 @@ NPZ_FIELDS = {
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXPERIMENTS_DIR = (
-    REPO_ROOT / 'src/bst_x/stroke_classification/main_on_shuttleset/experiments'
+    REPO_ROOT / 'experiments/bst_x/shuttleset'
 )
 
 

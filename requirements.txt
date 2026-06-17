@@ -7,7 +7,7 @@ matplotlib
 scikit-learn
 opencv-python         # cv2; used by perception/video_io.py and tests/test_video_io.py
 ultralytics           # YOLO11 + ByteTrack; perception/players.py + scripts/preprocess_videos.py
-positional-encodings  # Positional encoding layers used by BST-X transformer model (bst_x/stroke_classification/model/)
+positional-encodings  # Positional encoding layers used by BST-X transformer model (bst_x/model/)
 torchinfo             # Model summary utility used by tempose.py in the BST-X model module
 tensorboard           # Backs torch.utils.tensorboard.SummaryWriter (imported at module load in bst_x_train.py)
 torcheval             # multiclass_f1_score used in the bst_x_train training loop

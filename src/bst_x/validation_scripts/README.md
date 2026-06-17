@@ -24,7 +24,7 @@ python -m validation_scripts.raw_ndet_stats \
 ```bash
 python -m validation_scripts.raw_ndet_stats \
     --raw-dir /scratch/comp320a/ShuttleSet_keypoints_raw \
-    --stems-file scratch/architecture_notes/busted_hit_zone_clips_phase1.txt
+    --stems-file docs/architecture_notes/busted_hit_zone_clips_phase1.txt
 ```
 
 **Arguments:**
@@ -57,7 +57,7 @@ python src/bst_x/validation_scripts/validate_zeroed_frames.py \
     --taxonomy une_merge_v1
 ```
 
-`--clips-csv` defaults to `<repo>/notebooks/clips_master.csv`. `--dataset-npy-dir` is auto-discovered under `--data-root` (the single `*_flat/` subdir). `--set-dir` is auto-detected at `<repo>/src/bst_x/ShuttleSet/set` if a `match.csv` is present there, which also enables the flaw and hit-frame sections below.
+`--clips-csv` defaults to `<repo>/notebooks/clips_master.csv`. `--dataset-npy-dir` is auto-discovered under `--data-root` (the single `*_flat/` subdir). `--set-dir` is auto-detected at `<repo>/data/shuttleset/set` if a `match.csv` is present there, which also enables the flaw and hit-frame sections below.
 
 **Full usage** (explicit paths for flaw cross-reference, hit-frame proximity, and shuttle analysis):
 
@@ -66,7 +66,7 @@ python src/bst_x/validation_scripts/validate_zeroed_frames.py \
     --data-root /scratch/comp320a/ShuttleSet_data_merged_25 \
     --split-column split_v2 \
     --taxonomy une_merge_v1 \
-    --set-dir src/bst_x/ShuttleSet/set \
+    --set-dir data/shuttleset/set \
     --hit-window 10 \
     --shuttle-npy-dir /scratch/comp320a/ShuttleSet/shuttle_npy_flat
 ```
@@ -81,9 +81,9 @@ python src/bst_x/validation_scripts/validate_zeroed_frames.py \
 | `--split-column` | No | `split_bst_baseline` | Column in clips_csv giving train/val/test assignment. |
 | `--taxonomy` | No | `une_merge_v1` | Taxonomy name (choices from `TAXONOMIES` in `pipeline/config.py`). Used for label derivation, filenames, and display headers. |
 | `--threshold` | No | `0.5` | Fail-rate cutoff for the flagged-clips list. |
-| `--set-dir` | No | repo-relative fallback | Path to `ShuttleSet/set/`. Enables flaw cross-reference and hit-frame proximity. If omitted, checks `<repo>/src/bst_x/ShuttleSet/set` for a `match.csv` and uses it when found. |
+| `--set-dir` | No | repo-relative fallback | Path to `data/shuttleset/set/`. Enables flaw cross-reference and hit-frame proximity. If omitted, checks `<repo>/data/shuttleset/set` for a `match.csv` and uses it when found. |
 | `--hit-window` | No | `10` | Frames either side of the hit frame to check. Requires `--set-dir`. |
-| `--shuttle-npy-dir` | No | - | Path to `ShuttleSet/shuttle_npy_flat/`. Enables shuttle detection failure analysis via the TrackNet visibility column. |
+| `--shuttle-npy-dir` | No | - | Path to `data/shuttleset/shuttle_npy_flat/`. Enables shuttle detection failure analysis via the TrackNet visibility column. |
 
 **Output** (all saved to `zeroed_frames_analysis_outputs/`):
 
@@ -160,12 +160,12 @@ Three small scripts that confirm a sanity-train run is pointed at the right arte
 
 - **`verify_env_paths.py`** — loads `.env` via `pipeline.data_access.load_repo_dotenv`, prints the four `BST_X_*` vars, and confirms each resolves to an existing path. Spot-checks `BST_X_MMPOSE_NPY_DIR` for 32,203 `_failed.npy` and `_pos.npy` files (the post-Phase-2 expected count).
 - **`verify_collated_counts.py`** — pure-stdlib check that the three active collated dirs (combo A / B / C) contain the per-split clip counts expected from `clips_master.csv` filtered for `--drop-unknown`. Hardcoded combo expectations; no external CSV read needed at run time.
-- **`verify_bst_train_target.py`** — imports the live `hyp` namedtuple from `main_on_shuttleset.bst_x_train` without running its `__main__` block, derives the basename via the same `derive_npy_collated_dir_basename` helper the script uses (`npy_[3d_][seq{N}_]{split}_{collation_id}`), and confirms the resolved collated dir exists with its train/val/test sub-dirs and `.npy` files. Resolves the root the same way `bst_x_train` does (`BST_X_COLLATED_DATA_ROOT`, else `/scratch/comp320a`). The standard pre-launch check after a `hyp` edit.
+- **`verify_bst_train_target.py`** — imports the live `hyp` namedtuple from `bst_x_train` without running its `__main__` block, derives the basename via the same `derive_npy_collated_dir_basename` helper the script uses (`npy_[3d_][seq{N}_]{split}_{collation_id}`), and confirms the resolved collated dir exists with its train/val/test sub-dirs and `.npy` files. Resolves the root the same way `bst_x_train` does (`BST_X_COLLATED_DATA_ROOT`, else `/scratch/comp320a`). The standard pre-launch check after a `hyp` edit.
 
 All three run from the repo root:
 
 ```bash
-PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
+PYTHONPATH=src/bst_x \
     python src/bst_x/validation_scripts/<script>.py
 ```
 
@@ -185,7 +185,7 @@ Reusable library module (not a CLI script). Maps clip stems to the 0-based frame
 
 ```python
 from hit_frame_lookup import build_hit_frame_lookup
-lookup = build_hit_frame_lookup(Path("ShuttleSet/set"), Path("ShuttleSet/video_metadata.csv"))
+lookup = build_hit_frame_lookup(Path("data/shuttleset/set"), Path("data/shuttleset/video_metadata.csv"))
 # lookup["35_1_10_17"] == 23  means the hit is at frame index 23
 ```
 

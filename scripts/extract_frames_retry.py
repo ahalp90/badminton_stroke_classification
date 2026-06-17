@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SHUTTLESET = REPO_ROOT / "src/bst_x/ShuttleSet"
+SHUTTLESET = REPO_ROOT / "data/shuttleset"
 META_CSV = SHUTTLESET / "video_metadata.csv"
 SET_DIR = SHUTTLESET / "set"
 OUT_DIR = REPO_ROOT / "frontend/hba-stroke-classifier/data/frames"

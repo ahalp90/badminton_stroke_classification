@@ -32,7 +32,7 @@ Usage::
 
     python -m validation_scripts.perclass_shuttle_miss_vs_f1 \\
         --analysis-txt validation_scripts/zeroed_frames_analysis_outputs/analysis_unemergev1nosides_v2_20260429_1904.txt \\
-        --manifest src/bst_x/stroke_classification/main_on_shuttleset/experiments/run_20260430_XXXXXX/manifest.yaml
+        --manifest experiments/bst_x/shuttleset/run_20260430_XXXXXX/manifest.yaml
 """
 from __future__ import annotations
 

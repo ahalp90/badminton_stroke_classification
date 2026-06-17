@@ -1,0 +1,440 @@
+run_id: run_20260601_184437_030823
+started_at: '2026-06-01T18:44:57'
+git_sha: 609b620be9d3e4774c6a120ef64a47473561aead
+git_dirty: true
+host: carmack.une.edu.au
+config:
+  n_epochs: 80
+  batch_size: 128
+  lr: 0.0005
+  weight_decay: 0.4
+  warm_up_step: 100
+  taxonomy: bst_24
+  seq_len: 100
+  early_stop_n_epochs: 40
+  pose_style: JnB_bone
+  use_3d_pose: false
+  train_partial: 1.0
+  use_aux_schedule: true
+  aux_fade_end_epoch: 15
+  clips_csv: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+  split_column: split_v2
+  collation_id: taxon_pinned_w_preds
+  ablation_id: wd_norms_bias_embeddings_excluded_4e-1
+  label_smoothing: 0.0
+  class_weights: null
+  adaptive_focal:
+    tau: 1.0
+    gamma: 1.0
+    momentum: 0.9
+    warm_up_epochs: 5
+    f1_floor: 0.0
+  use_val_improvability_gate: false
+  val_improvability_gate:
+    val_f1_smoothing_factor: 0.9
+    improvement_margin: 0.015
+    patience_epochs: 15
+    min_epochs_before_gating: 10
+    revert_step_per_epoch: 0.2
+    stop_gating_after_fraction: 0.75
+  augmentation:
+    p_flip: 0.5
+    p_jitter: 0.3
+    cap_y: 0.05
+    cap_x: 0.1
+    eps: 0.15
+  classes:
+  - Top_net_shot
+  - Top_return_net
+  - Top_smash
+  - Top_lob
+  - Top_clear
+  - Top_drive
+  - Top_drop
+  - Top_push
+  - Top_rush
+  - Top_cross_court_net_shot
+  - Top_short_service
+  - Top_long_service
+  - Bottom_net_shot
+  - Bottom_return_net
+  - Bottom_smash
+  - Bottom_lob
+  - Bottom_clear
+  - Bottom_drive
+  - Bottom_drop
+  - Bottom_push
+  - Bottom_rush
+  - Bottom_cross_court_net_shot
+  - Bottom_short_service
+  - Bottom_long_service
+serials:
+- serial_no: 1
+  weights_path: experiments/bst_x/shuttleset/run_20260601_184437_030823/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260601_184437_030823/tb/serial_1
+  metrics:
+    macro_f1: 0.8109223246574402
+    min_f1: 0.5811965465545654
+    accuracy: 0.8241313660161828
+    num_strokes: 4202
+    per_class_f1:
+      Top_net_shot: 0.8913043737411499
+      Top_return_net: 0.7929515242576599
+      Top_smash: 0.8835340738296509
+      Top_lob: 0.7981366515159607
+      Top_clear: 0.9498680830001831
+      Top_drive: 0.6360152959823608
+      Top_drop: 0.8564102053642273
+      Top_push: 0.6005510091781616
+      Top_rush: 0.688524603843689
+      Top_cross_court_net_shot: 0.5811965465545654
+      Top_short_service: 0.9795917868614197
+      Top_long_service: 0.9577465057373047
+      Bottom_net_shot: 0.9006803035736084
+      Bottom_return_net: 0.8041236996650696
+      Bottom_smash: 0.8842504620552063
+      Bottom_lob: 0.7759197354316711
+      Bottom_clear: 0.957446813583374
+      Bottom_drive: 0.6689895391464233
+      Bottom_drop: 0.8184018731117249
+      Bottom_push: 0.6129032373428345
+      Bottom_rush: 0.7924528121948242
+      Bottom_cross_court_net_shot: 0.6730769276618958
+      Bottom_short_service: 0.984375
+      Bottom_long_service: 0.9736841917037964
+    top2_accuracy: 0.957163255592575
+  recorded_at: '2026-06-01T19:03:39'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 63
+      macro_f1: 0.857196514805158
+      min_f1: 0.6048387289047241
+      accuracy: 0.8662857142857143
+      top2_accuracy: 0.9754285714285714
+      per_class_f1:
+        Top_net_shot: 0.9261881113052368
+        Top_return_net: 0.8548707962036133
+        Top_smash: 0.9138686656951904
+        Top_lob: 0.8816705942153931
+        Top_clear: 0.9510086178779602
+        Top_drive: 0.6048387289047241
+        Top_drop: 0.906497597694397
+        Top_push: 0.6844919919967651
+        Top_rush: 0.7419354915618896
+        Top_cross_court_net_shot: 0.7896679043769836
+        Top_short_service: 0.9964663982391357
+        Top_long_service: 1.0
+        Bottom_net_shot: 0.9235737323760986
+        Bottom_return_net: 0.8500000238418579
+        Bottom_smash: 0.9292196035385132
+        Bottom_lob: 0.8331606388092041
+        Bottom_clear: 0.977667510509491
+        Bottom_drive: 0.6468402147293091
+        Bottom_drop: 0.8963963985443115
+        Bottom_push: 0.6167401075363159
+        Bottom_rush: 0.813559353351593
+        Bottom_cross_court_net_shot: 0.8373983502388
+        Bottom_short_service: 0.9966555237770081
+        Bottom_long_service: 1.0
+- serial_no: 2
+  weights_path: experiments/bst_x/shuttleset/run_20260601_184437_030823/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_2.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260601_184437_030823/tb/serial_2
+  metrics:
+    macro_f1: 0.8055165410041809
+    min_f1: 0.5481481552124023
+    accuracy: 0.8169919086149453
+    num_strokes: 4202
+    per_class_f1:
+      Top_net_shot: 0.8736263513565063
+      Top_return_net: 0.788418710231781
+      Top_smash: 0.8812877535820007
+      Top_lob: 0.7900466918945312
+      Top_clear: 0.9496020674705505
+      Top_drive: 0.6396760940551758
+      Top_drop: 0.8564355969429016
+      Top_push: 0.6011236310005188
+      Top_rush: 0.7647058367729187
+      Top_cross_court_net_shot: 0.5481481552124023
+      Top_short_service: 0.9754098653793335
+      Top_long_service: 0.9577465057373047
+      Bottom_net_shot: 0.8907331228256226
+      Bottom_return_net: 0.8220551013946533
+      Bottom_smash: 0.8842504620552063
+      Bottom_lob: 0.7404844760894775
+      Bottom_clear: 0.9627658724784851
+      Bottom_drive: 0.6254546046257019
+      Bottom_drop: 0.8258706331253052
+      Bottom_push: 0.6138613820075989
+      Bottom_rush: 0.7241380214691162
+      Bottom_cross_court_net_shot: 0.6545454263687134
+      Bottom_short_service: 0.9883268475532532
+      Bottom_long_service: 0.9736841917037964
+    top2_accuracy: 0.955973346025702
+  recorded_at: '2026-06-01T19:22:51'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 80
+      macro_f1: 0.8478887056310972
+      min_f1: 0.6042885184288025
+      accuracy: 0.856
+      top2_accuracy: 0.9727619047619047
+      per_class_f1:
+        Top_net_shot: 0.9103869795799255
+        Top_return_net: 0.8507157564163208
+        Top_smash: 0.9208633303642273
+        Top_lob: 0.8725146055221558
+        Top_clear: 0.9625360369682312
+        Top_drive: 0.625
+        Top_drop: 0.9167974591255188
+        Top_push: 0.6595744490623474
+        Top_rush: 0.7540983557701111
+        Top_cross_court_net_shot: 0.7298246026039124
+        Top_short_service: 0.9964663982391357
+        Top_long_service: 0.95652174949646
+        Bottom_net_shot: 0.9142236709594727
+        Bottom_return_net: 0.846815824508667
+        Bottom_smash: 0.9156193733215332
+        Bottom_lob: 0.8017334342002869
+        Bottom_clear: 0.9775561094284058
+        Bottom_drive: 0.6536964178085327
+        Bottom_drop: 0.8955916166305542
+        Bottom_push: 0.6042885184288025
+        Bottom_rush: 0.8275862336158752
+        Bottom_cross_court_net_shot: 0.7868852615356445
+        Bottom_short_service: 0.9932885766029358
+        Bottom_long_service: 0.9767441749572754
+- serial_no: 3
+  weights_path: experiments/bst_x/shuttleset/run_20260601_184437_030823/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_3.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260601_184437_030823/tb/serial_3
+  metrics:
+    macro_f1: 0.8217313289642334
+    min_f1: 0.6406250596046448
+    accuracy: 0.8315088053307949
+    num_strokes: 4202
+    per_class_f1:
+      Top_net_shot: 0.9048275947570801
+      Top_return_net: 0.8072562217712402
+      Top_smash: 0.892430305480957
+      Top_lob: 0.8024882674217224
+      Top_clear: 0.9496020674705505
+      Top_drive: 0.6488549113273621
+      Top_drop: 0.8467532396316528
+      Top_push: 0.644444465637207
+      Top_rush: 0.7567567825317383
+      Top_cross_court_net_shot: 0.6614173054695129
+      Top_short_service: 0.9919355511665344
+      Top_long_service: 0.9863013625144958
+      Bottom_net_shot: 0.886426568031311
+      Bottom_return_net: 0.7806121706962585
+      Bottom_smash: 0.8868274688720703
+      Bottom_lob: 0.785714328289032
+      Bottom_clear: 0.9544236063957214
+      Bottom_drive: 0.6777408719062805
+      Bottom_drop: 0.8184143304824829
+      Bottom_push: 0.6954314708709717
+      Bottom_rush: 0.7272726893424988
+      Bottom_cross_court_net_shot: 0.6406250596046448
+      Bottom_short_service: 0.9883268475532532
+      Bottom_long_service: 0.9866666793823242
+    top2_accuracy: 0.9607329842931938
+  recorded_at: '2026-06-01T19:41:58'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 56
+      macro_f1: 0.8508573571840922
+      min_f1: 0.5666666626930237
+      accuracy: 0.8613333333333333
+      top2_accuracy: 0.9748571428571429
+      per_class_f1:
+        Top_net_shot: 0.9303733706474304
+        Top_return_net: 0.8472505807876587
+        Top_smash: 0.907010018825531
+        Top_lob: 0.8716763257980347
+        Top_clear: 0.9602272510528564
+        Top_drive: 0.5666666626930237
+        Top_drop: 0.91839998960495
+        Top_push: 0.6485013961791992
+        Top_rush: 0.7878787517547607
+        Top_cross_court_net_shot: 0.804347813129425
+        Top_short_service: 0.9858155846595764
+        Top_long_service: 0.9090909361839294
+        Bottom_net_shot: 0.9240923523902893
+        Bottom_return_net: 0.8375450968742371
+        Bottom_smash: 0.9292196035385132
+        Bottom_lob: 0.8102893233299255
+        Bottom_clear: 0.9799999594688416
+        Bottom_drive: 0.6494464874267578
+        Bottom_drop: 0.9111617207527161
+        Bottom_push: 0.6131687760353088
+        Bottom_rush: 0.819672167301178
+        Bottom_cross_court_net_shot: 0.8387096524238586
+        Bottom_short_service: 0.9932885766029358
+        Bottom_long_service: 0.9767441749572754
+- serial_no: 4
+  weights_path: experiments/bst_x/shuttleset/run_20260601_184437_030823/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_4.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260601_184437_030823/tb/serial_4
+  metrics:
+    macro_f1: 0.817181408405304
+    min_f1: 0.6060605645179749
+    accuracy: 0.8277010947168015
+    num_strokes: 4202
+    per_class_f1:
+      Top_net_shot: 0.885200560092926
+      Top_return_net: 0.7982261776924133
+      Top_smash: 0.8828451633453369
+      Top_lob: 0.7790507078170776
+      Top_clear: 0.9608355164527893
+      Top_drive: 0.6793893575668335
+      Top_drop: 0.8731707334518433
+      Top_push: 0.6422976851463318
+      Top_rush: 0.7536231279373169
+      Top_cross_court_net_shot: 0.6060605645179749
+      Top_short_service: 0.9583333134651184
+      Top_long_service: 0.9444444179534912
+      Bottom_net_shot: 0.895977795124054
+      Bottom_return_net: 0.8170426487922668
+      Bottom_smash: 0.8880455493927002
+      Bottom_lob: 0.7766323089599609
+      Bottom_clear: 0.9462365508079529
+      Bottom_drive: 0.6518518924713135
+      Bottom_drop: 0.8175182342529297
+      Bottom_push: 0.6867167949676514
+      Bottom_rush: 0.7407407164573669
+      Bottom_cross_court_net_shot: 0.6776859164237976
+      Bottom_short_service: 0.9767441749572754
+      Bottom_long_service: 0.9736841917037964
+    top2_accuracy: 0.9588291289861971
+  recorded_at: '2026-06-01T20:01:09'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 69
+      macro_f1: 0.8510335559646288
+      min_f1: 0.6184738874435425
+      accuracy: 0.8632380952380952
+      top2_accuracy: 0.9739047619047619
+      per_class_f1:
+        Top_net_shot: 0.9276248812675476
+        Top_return_net: 0.849593460559845
+        Top_smash: 0.9039039015769958
+        Top_lob: 0.863309383392334
+        Top_clear: 0.9659090638160706
+        Top_drive: 0.6184738874435425
+        Top_drop: 0.9113150238990784
+        Top_push: 0.6580976843833923
+        Top_rush: 0.7076922655105591
+        Top_cross_court_net_shot: 0.7986111044883728
+        Top_short_service: 0.9858155846595764
+        Top_long_service: 0.9166666865348816
+        Bottom_net_shot: 0.9229098558425903
+        Bottom_return_net: 0.8525180220603943
+        Bottom_smash: 0.9270073175430298
+        Bottom_lob: 0.8252631425857544
+        Bottom_clear: 0.9751243591308594
+        Bottom_drive: 0.6399999856948853
+        Bottom_drop: 0.9038031101226807
+        Bottom_push: 0.6418219208717346
+        Bottom_rush: 0.819672167301178
+        Bottom_cross_court_net_shot: 0.8464418649673462
+        Bottom_short_service: 0.9864864945411682
+        Bottom_long_service: 0.9767441749572754
+- serial_no: 5
+  weights_path: experiments/bst_x/shuttleset/run_20260601_184437_030823/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_5.pt
+  tb_dir: experiments/bst_x/shuttleset/run_20260601_184437_030823/tb/serial_5
+  metrics:
+    macro_f1: 0.8096916079521179
+    min_f1: 0.5641025900840759
+    accuracy: 0.8248453117563065
+    num_strokes: 4202
+    per_class_f1:
+      Top_net_shot: 0.8928086757659912
+      Top_return_net: 0.8036530017852783
+      Top_smash: 0.8880157470703125
+      Top_lob: 0.8032258152961731
+      Top_clear: 0.9549071788787842
+      Top_drive: 0.6204379796981812
+      Top_drop: 0.8746803402900696
+      Top_push: 0.6304348111152649
+      Top_rush: 0.6769230961799622
+      Top_cross_court_net_shot: 0.5641025900840759
+      Top_short_service: 0.9878542423248291
+      Top_long_service: 0.9863013625144958
+      Bottom_net_shot: 0.89127516746521
+      Bottom_return_net: 0.7807486653327942
+      Bottom_smash: 0.8842504620552063
+      Bottom_lob: 0.7814114093780518
+      Bottom_clear: 0.9655172824859619
+      Bottom_drive: 0.6315789222717285
+      Bottom_drop: 0.806930661201477
+      Bottom_push: 0.6435644030570984
+      Bottom_rush: 0.7272726893424988
+      Bottom_cross_court_net_shot: 0.686274528503418
+      Bottom_short_service: 0.9767441749572754
+      Bottom_long_service: 0.9736841917037964
+    top2_accuracy: 0.9557353641123275
+  recorded_at: '2026-06-01T20:20:18'
+  extra:
+    val_at_best_macro_epoch:
+      epoch: 51
+      macro_f1: 0.852524941166242
+      min_f1: 0.5975103974342346
+      accuracy: 0.8641904761904762
+      top2_accuracy: 0.9746666666666667
+      per_class_f1:
+        Top_net_shot: 0.9253731369972229
+        Top_return_net: 0.8582995533943176
+        Top_smash: 0.9297752976417542
+        Top_lob: 0.862604558467865
+        Top_clear: 0.9572649598121643
+        Top_drive: 0.5975103974342346
+        Top_drop: 0.9196141362190247
+        Top_push: 0.6492146849632263
+        Top_rush: 0.8059701323509216
+        Top_cross_court_net_shot: 0.7876447439193726
+        Top_short_service: 0.9857142567634583
+        Top_long_service: 0.95652174949646
+        Bottom_net_shot: 0.9227513670921326
+        Bottom_return_net: 0.8415300250053406
+        Bottom_smash: 0.9213894009590149
+        Bottom_lob: 0.8305785059928894
+        Bottom_clear: 0.9774435758590698
+        Bottom_drive: 0.6335877180099487
+        Bottom_drop: 0.9045454263687134
+        Bottom_push: 0.6111111044883728
+        Bottom_rush: 0.7384615540504456
+        Bottom_cross_court_net_shot: 0.8770491480827332
+        Bottom_short_service: 0.9898989796638489
+        Bottom_long_service: 0.9767441749572754
+best_serials:
+- 3
+notes: |-
+  SET 1: wd 1e-2 vs 4e-1, both holding norms/bias/embeddings out of decay (now the default in bst_train.py), focal_alpha_revert off, across the five non-une combos. une's two endpoints came from the earlier wd sweep (#40, #47). The old Series G standard decayed all layers at wd 1e-2.
+
+  Best serial / 5-serial mean, test (macro / min), with Series G mean min for comparison:
+
+    cell            wd    best              mean           G std mean min
+    shuttleset/v2   1e-2  S5 0.663 / n/a    0.655 / n/a    n/a
+    shuttleset/v2   4e-1  S5 0.672 / n/a    0.659 / n/a    n/a
+    bst_24/v2       1e-2  S3 0.818 / 0.626  0.811 / 0.557  0.534
+    bst_24/v2       4e-1  S3 0.822 / 0.641  0.813 / 0.588  0.534
+    bst_12/v2       1e-2  S3 0.818 / 0.623  0.814 / 0.612  0.599
+    bst_12/v2       4e-1  S5 0.815 / 0.636  0.810 / 0.603  0.599
+    bst_25/baseline 1e-2  S1 0.827 / 0.625  0.816 / 0.548  0.620
+    bst_25/baseline 4e-1  S1 0.829 / 0.653  0.822 / 0.614  0.620
+    bst_24/baseline 1e-2  S1 0.834 / 0.636  0.830 / 0.624  0.568
+    bst_24/baseline 4e-1  S3 0.835 / 0.656  0.832 / 0.631  0.568
+    (shuttleset min is driven_flight, one test clip, n/a)
+
+  Macro stayed flat across all settings on every combo. All the movement was on min-F1.
+
+  Between the two endpoints, wd 4e-1 gave the higher min-F1 on bst_24 (both splits) and une, sat within noise of wd 1e-2 on bst_12, and beat wd 1e-2 on bst_25. Against the old standard, wd 4e-1 lifted mean min from 0.534 to 0.588 on bst_24/v2, 0.568 to 0.631 on bst_24/baseline, and 0.471 to 0.498 on une. On bst_12, wd 1e-2 already had the lift over the old standard and 4e-1 added nothing. On bst_25 (keep-unknown) both endpoints came in below the old standard (wd 1e-2 at 0.548, wd 4e-1 at 0.614 against 0.620), so the old standard stays best there. shuttleset_18's min-F1 is driven_flight and not meaningful.
+
+  The three combos wd 4e-1 helped are the three that started with the lowest min-F1; the two highest (bst_12, bst_25) did not move. Default optimiser setting: wd 4e-1. Best or near-best min-F1 on every combo, at most about 0.9% below the best (on bst_12), so one setting holds across taxonomies without per-taxonomy tuning.
+
+  Old standards (Series G): shuttleset run_20260530_161525_131279, bst_24/v2 run_20260530_174818_410060, bst_12 run_20260530_192738_970644, bst_25 run_20260530_210600_435552, bst_24/baseline run_20260530_225714_593038.
+log_path: experiments/bst_x/shuttleset/test_logs/test_20260601_184437_030823.log
+extra:
+  data_provenance:
+    clips_csv_path: /home/ahalperi/badminton_stroke_classifier/notebooks/clips_master.csv
+    clips_csv_sha256: b510070204cfd7152c2b573b9970fa36e07b1816e1345e6f1b99ad85ce3c6f42
+    collation_id: taxon_pinned_w_preds
+    npy_collated_dir: npy_v2_taxon_pinned_w_preds

@@ -11,7 +11,7 @@ raw_extract on bourbaki. Two filter modes via flags:
     Mutually exclusive with --keep-unknown.
 
 Reads the canonical busted list at:
-    scratch/architecture_notes/busted_hit_zone_clips_phase1.txt
+    docs/architecture_notes/busted_hit_zone_clips_phase1.txt
 
 Writes one stem per line to --output, ready for raw_extract.py's
 --clip-stems-file flag.

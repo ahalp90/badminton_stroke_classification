@@ -45,7 +45,7 @@ except ImportError:
     _AIM_AVAILABLE = False
 
 
-DEFAULT_EXPERIMENTS_DIR = Path('experiments')
+DEFAULT_EXPERIMENTS_DIR = Path(__file__).resolve().parents[2] / 'experiments' / 'bst_x' / 'shuttleset'
 
 
 def track_run(

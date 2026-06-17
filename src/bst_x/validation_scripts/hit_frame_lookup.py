@@ -6,14 +6,14 @@ without needing the actual video files.
 
 Adapted from:
   - pipeline/clip_generator.py:_compute_clip_bounds()  (canonical)
-  - ShuttleSet/compute_clip_length_stats.py             (CSV-only version)
+  - validation_scripts/compute_clip_length_stats.py        (CSV-only version)
 
 Usage as a library::
 
     from hit_frame_lookup import build_hit_frame_lookup
     lookup = build_hit_frame_lookup(
-        Path("ShuttleSet/set"),
-        Path("ShuttleSet/video_metadata.csv"),
+        Path("data/shuttleset/set"),
+        Path("data/shuttleset/video_metadata.csv"),
     )
     # lookup["35_1_10_17"] == 23  (hit is at frame index 23 in the clip)
 """
@@ -34,9 +34,9 @@ def build_hit_frame_lookup(
     FPS is read from ``video_metadata.csv`` (the same source of truth as
     the clip generator), not estimated from annotations.
 
-    :param set_dir: Path to ShuttleSet/set/ containing match.csv and
+    :param set_dir: Path to data/shuttleset/set/ containing match.csv and
                     per-match folders with set*.csv files.
-    :param video_metadata_csv: Path to ShuttleSet/video_metadata.csv with
+    :param video_metadata_csv: Path to data/shuttleset/video_metadata.csv with
                                id and fps columns.
     :return: Dict mapping clip stem (e.g. "35_1_10_17") to the frame index
              of the hit within that clip.

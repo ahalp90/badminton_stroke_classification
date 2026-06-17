@@ -42,13 +42,12 @@ import yaml
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 # parents of mmpose_heuristic_investigation/: [0]=validation_scripts,
-# [1]=bst_x, [2]=src, [3]=repo root.
-BST_X = SCRIPT_DIR.parents[1]
-REPO_ROOT = SCRIPT_DIR.parents[3]
+# [2]=bst_x, [3]=src, [4] doesn't exist; script lives 4 levels deep under repo root.
+# After the Stage 4 run-artefact move, experiments/ lives at the repo root, not under src/bst_x/.
+BST_X = SCRIPT_DIR.parents[2]
+REPO_ROOT = SCRIPT_DIR.parents[4]
 DEFAULT_CLIPS_CSV = REPO_ROOT / 'notebooks' / 'clips_master.csv'
-EXPERIMENTS_DIR = (
-    BST_X / 'stroke_classification/main_on_shuttleset/experiments'
-)
+EXPERIMENTS_DIR = REPO_ROOT / 'experiments' / 'bst_x' / 'shuttleset'
 DEFAULT_OUT_DIR = SCRIPT_DIR / 'analysis_outputs'
 
 

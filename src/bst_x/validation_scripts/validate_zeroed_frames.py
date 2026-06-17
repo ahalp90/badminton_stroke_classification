@@ -30,8 +30,8 @@ Usage:
         --taxonomy une_v1_14 \
         --split-column split_bst_baseline \
         --threshold 0.5 \
-        --set-dir /path/to/ShuttleSet/set \
-        --shuttle-npy-dir /path/to/ShuttleSet/shuttle_npy_flat
+        --set-dir /path/to/data/shuttleset/set \
+        --shuttle-npy-dir /path/to/data/shuttleset/shuttle_npy_flat
 """
 import argparse
 import io
@@ -114,7 +114,7 @@ def build_flaw_lookup(set_dir: Path) -> dict[str, bool]:
     Clips that were filtered out by the original BST authors won't appear
     in the dataset — they'll just be unused entries in this dict.
 
-    :param set_dir: Path to ShuttleSet/set/ containing match.csv and
+    :param set_dir: Path to data/shuttleset/set/ containing match.csv and
                     match folders with set*.csv files.
     :return: Dict mapping clip stem to flaw status.
     """
@@ -1263,8 +1263,8 @@ def main():
     )
     parser.add_argument(
         "--set-dir", type=Path, default=None,
-        help="Path to ShuttleSet/set/ directory (enables flaw + hit-frame "
-             "analysis). If omitted, checks <repo>/src/bst_x/ShuttleSet/set "
+        help="Path to ShuttleSet set/ directory (enables flaw + hit-frame "
+             "analysis). If omitted, checks <repo>/data/shuttleset/set "
              "for a match.csv and uses it when found.",
     )
     parser.add_argument(
@@ -1281,8 +1281,9 @@ def main():
 
     # Auto-detect --set-dir from the repo-relative location if not passed.
     # Explicit --set-dir always wins; this only fills a None.
+    # parents[3] from src/bst_x/validation_scripts/ = repo root.
     if args.set_dir is None:
-        repo_set_dir = Path(__file__).resolve().parents[1] / "ShuttleSet" / "set"
+        repo_set_dir = Path(__file__).resolve().parents[3] / "data" / "shuttleset" / "set"
         if (repo_set_dir / "match.csv").is_file():
             args.set_dir = repo_set_dir
             print(f"Auto-detected --set-dir: {args.set_dir}")

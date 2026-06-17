@@ -41,7 +41,7 @@ MIN_MODEL_INPUT_PX = int(os.getenv("MIN_MODEL_INPUT_PX", "224"))
 EXPERIMENTS_DIR = Path(
     os.getenv(
         "EXPERIMENTS_DIR",
-        "/app/src/bst_x/stroke_classification/main_on_shuttleset/experiments",
+        "/app/experiments/bst_x/shuttleset",
     )
 )
 

@@ -7,7 +7,7 @@ expected per-clip files (specifically, that ``BST_X_MMPOSE_NPY_DIR`` contains
 
 Run from the repo root::
 
-    PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \\
+    PYTHONPATH=src/bst_x \\
         python src/bst_x/validation_scripts/verify_env_paths.py
 
 Exits 0 on all-OK, 1 on any failure (missing path, count mismatch).

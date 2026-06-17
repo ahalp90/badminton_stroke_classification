@@ -11,9 +11,9 @@ the shuttle naturally lives near the camera edge (e.g. net shots).
 Usage on remote::
 
     cd badminton_stroke_classifier
-    PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \\
+    PYTHONPATH=src/bst_x \\
         python scripts/estimate_shuttle_oob_rate.py \\
-        --collated-dir src/bst_x/stroke_classification/preparing_data/ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop \\
+        --collated-dir src/bst_x/preparing_data/ShuttleSet_data_une_merge_v1_nosides/npy_wipe_drop \\
         --n-trials 50
 
 ``--n-trials`` controls how many random shifts are drawn per clip.

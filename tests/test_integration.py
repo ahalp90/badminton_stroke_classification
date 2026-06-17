@@ -49,10 +49,10 @@ import torch
 from pathlib import Path
 from torch.utils.data import DataLoader
 
-from src.bst_x.stroke_classification.preparing_data.shuttleset_dataset import (
+from src.bst_x.preparing_data.shuttleset_dataset import (
     Dataset_npy_collated,
 )
-from src.bst_x.stroke_classification.model.bst import BST_0
+from src.bst_x.model.bst import BST_0
 from src.bst_x.pipeline.config import TAXONOMIES, resolve_taxonomy  # noqa: F401
 
 BST_X_DATA_DIR = os.environ.get("BST_X_DATA_DIR")
@@ -79,7 +79,7 @@ def test_pipeline_dataloader_to_model_forward_pass():
     #
     # Step 3: Pose extraction (MMPose) and shuttle extraction (TrackNetV3) -> npy files
     #   Owner: Ariel
-    #   Script: stroke_classification/preparing_data/prepare_train_on_shuttleset.py
+    #   Script: preparing_data/prepare_train_on_shuttleset.py
     #
     # Once the above are complete, point BST_X_DATA_DIR at the
     # npy_[3d_][seq{N}_]{split}_{collation_id} directory (3d_/seq{N}_ prefixes

@@ -11,16 +11,21 @@ from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Default paths (anchored to project root, not cwd).
+# PROJECT_ROOT = src/bst_x/ (this file lives at src/bst_x/pipeline/config.py).
+# REPO_ROOT walks up two more levels to the repo top; SHUTTLESET_DIR is the
+# shared on-disk data dir at data/shuttleset/ (annotations + symlinked bulk).
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = PROJECT_ROOT.parent.parent
+SHUTTLESET_DIR = REPO_ROOT / 'data' / 'shuttleset'
 
-SET_INFO_DIR = PROJECT_ROOT / 'ShuttleSet' / 'set'
-RAW_VIDEO_DIR = PROJECT_ROOT / 'ShuttleSet' / 'raw_video'
-CLIPS_OUTPUT_DIR = PROJECT_ROOT / 'ShuttleSet' / 'clips'
-SHUTTLE_OUTPUT_DIR = PROJECT_ROOT / 'ShuttleSet' / 'shuttle_npy'
-SHUTTLE_CSV_DIR = PROJECT_ROOT / 'ShuttleSet' / 'shuttle_csv'
-FLAW_RECORDS_PATH = PROJECT_ROOT / 'ShuttleSet' / 'flaw_shot_records.csv'
-RESOLUTION_CSV_PATH = PROJECT_ROOT / 'ShuttleSet' / 'my_raw_video_resolution.csv'
+SET_INFO_DIR = SHUTTLESET_DIR / 'set'
+RAW_VIDEO_DIR = SHUTTLESET_DIR / 'raw_video'
+CLIPS_OUTPUT_DIR = SHUTTLESET_DIR / 'clips'
+SHUTTLE_OUTPUT_DIR = SHUTTLESET_DIR / 'shuttle_npy'
+SHUTTLE_CSV_DIR = SHUTTLESET_DIR / 'shuttle_csv'
+FLAW_RECORDS_PATH = SHUTTLESET_DIR / 'flaw_shot_records.csv'
+RESOLUTION_CSV_PATH = SHUTTLESET_DIR / 'my_raw_video_resolution.csv'
 
 # ---------------------------------------------------------------------------
 # English <-> Chinese stroke name mappings

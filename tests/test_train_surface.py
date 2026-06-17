@@ -29,9 +29,9 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-import main_on_shuttleset.bst_x_train as bt
+import bst_x_train as bt
 from pipeline.config import Taxonomy
-from main_on_shuttleset.bst_x_common import build_bst_x_network
+from bst_x_common import build_bst_x_network
 from preparing_data.shuttleset_dataset import Dataset_npy_collated
 
 
