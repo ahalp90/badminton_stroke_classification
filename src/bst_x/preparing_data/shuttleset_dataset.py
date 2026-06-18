@@ -1,3 +1,8 @@
+# Portions of this file are derived from BST (Badminton Stroke-type Transformer)
+# by Jing-Yuan Chang, Copyright (c) 2025 Jing-Yuan Chang, used under the MIT
+# Licence. See src/bst_x/THIRD_PARTY_NOTICES.md. This project is otherwise
+# licensed LGPL-3.0-or-later.
+
 import warnings
 
 import torch

@@ -192,4 +192,19 @@ Continuing into COSC595 with:
 - Ethan McDonough (initial Docker and HPC scaffolding)
 - Jared Pitman (CI setup, deployment docs)
 
-Built on top of BST (Chang 2025, [arXiv:2502.21085](https://arxiv.org/abs/2502.21085)) and the [ShuttleSet broadcast dataset (Wang et al. 2023)](https://github.com/wywyWang/CoachAI-Projects/tree/main/ShuttleSet).
+## Licence and attribution
+
+This project is licensed under the GNU Lesser General Public License v3.0 or later
+(LGPL-3.0-or-later); see [LICENSE](LICENSE).
+
+It builds on, and is published as a fork of, BST (Badminton Stroke-type Transformer)
+by Jing-Yuan Chang ([arXiv:2502.21085](https://arxiv.org/abs/2502.21085),
+[code](https://github.com/Va6lue/BST-Badminton-Stroke-type-Transformer)), used under
+the MIT Licence. The files derived from BST are listed, with the MIT notice, in
+[src/bst_x/THIRD_PARTY_NOTICES.md](src/bst_x/THIRD_PARTY_NOTICES.md).
+
+Stroke annotations come from the ShuttleSet dataset (Wang et al. 2023, MIT); see
+[data/ATTRIBUTION.md](data/ATTRIBUTION.md). The short sample match clips are excerpts
+of broadcast footage, included only as research fixtures; see
+[scripts/api_fixtures/README.md](scripts/api_fixtures/README.md). Vendored components
+(TrackNetV3) keep their own licences beside their code.

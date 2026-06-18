@@ -1,3 +1,24 @@
+# Third-party notices
+
+This project is licensed LGPL-3.0-or-later (see the repository-root LICENSE).
+The files below contain code derived, in whole or part, from the work named,
+and retain its licence notice as required.
+
+## BST: Badminton Stroke-type Transformer (MIT License)
+
+Source: https://github.com/Va6lue/BST-Badminton-Stroke-type-Transformer (f73dc53)
+
+Derived files:
+
+- src/bst_x/model/bst.py
+- src/bst_x/model/tempose.py
+- src/bst_x/preparing_data/shuttleset_dataset.py
+- src/bst_x/preparing_data/prepare_train_on_shuttleset.py
+- src/bst_x/result_utils.py
+- src/bst_x/bst_x_train.py   (training/evaluation loop adapted)
+- src/bst_x/bst_x_infer.py   (inference loop adapted)
+
+```
 MIT License
 
 Copyright (c) 2025 Jing-Yuan Chang
@@ -19,3 +40,4 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```

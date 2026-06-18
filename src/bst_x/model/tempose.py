@@ -1,3 +1,8 @@
+# Portions of this file are derived from BST (Badminton Stroke-type Transformer)
+# by Jing-Yuan Chang, Copyright (c) 2025 Jing-Yuan Chang, used under the MIT
+# Licence. See src/bst_x/THIRD_PARTY_NOTICES.md. This project is otherwise
+# licensed LGPL-3.0-or-later.
+
 # TemPose: a new skeleton-based transformer model designed for fine-grained motion recognition in badminton
 # (2023/08) https://ieeexplore.ieee.org/document/10208321
 # Authors: Magnus Ibh, Stella Grasshof, Dan Witzner, Pascal Madeleine
