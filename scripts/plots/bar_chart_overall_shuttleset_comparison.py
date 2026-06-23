@@ -1,7 +1,7 @@
 """Overall macro F1 / min F1 / top-2 accuracy across TemPose, BST, BST-X, BRIC.
 
 Sweep-asset style: blue / sand / pale-blue bars per entry for macro / min /
-top-2, black tick = serial mean (only on multi-seed internal runs). Per-entry
+top-2, black tick = serial mean (on multi-seed runs). Per-entry
 readouts sit directly under each cell name; shared section header below them
 names the taxonomy block. Y-axis floored at 0.40.
 
@@ -9,7 +9,7 @@ Internal bests pulled live from manifests:
   25-class: run_20260530_210600_435552 S1 (BST-25 / BST-baseline split)
   14-class: run_20260602_143618_156220 S2 (the cell used in the 14-class plot)
 BRIC: deployed registry entry rgb_shuttle (tcn) outgoing_only, seed 42.
-TemPose-TF and Chang's BST: literal values (paper / README).
+TemPose-TF and Chang's BST: best serial + serial mean (their 25-class runs).
 """
 from pathlib import Path
 import json
@@ -81,15 +81,23 @@ def load_bric(run_dir: str) -> dict:
     }
 
 
-def published(macro: float, min_f1: float, top2: float) -> dict:
-    """Literal numbers from a paper / README header — no mean line."""
+def measured(best: tuple[float, float, float],
+             mean: tuple[float, float, float]) -> dict:
+    """External multi-serial run: best-serial bar + serial-mean tick.
+
+    Each tuple is (macro_f1, min_f1, top2_accuracy); standard accuracy isn't
+    plotted. Used for Chang's BST and TemPose-TF, whose per-serial means are
+    known, so they carry a mean tick like the internal BST-X runs.
+    """
+    macro_best, min_best, top2_best = best
+    macro_mean, min_mean, top2_mean = mean
     return {
-        "macro_best": macro,
-        "min_best": min_f1,
-        "top2_best": top2,
-        "macro_mean": None,
-        "min_mean": None,
-        "top2_mean": None,
+        "macro_best": macro_best,
+        "min_best": min_best,
+        "top2_best": top2_best,
+        "macro_mean": macro_mean,
+        "min_mean": min_mean,
+        "top2_mean": top2_mean,
     }
 
 
@@ -97,8 +105,10 @@ def main():
     bric = load_bric("20260518_013238_rgb_shuttle-tcn-outgoing_only_une_merge_v1_nosides_42")
     bst_x_14 = load_bst_x_run("run_20260602_143618_156220")
     bst_x_25 = load_bst_x_run("run_20260530_210600_435552")
-    chang_bst = published(0.810, 0.576, 0.959)   # README, BST paper variable-length
-    tempose = published(0.803, 0.542, 0.957)     # TemPose-TF, BST windowing
+    # Best-serial bar + serial-mean tick, from the BST CG AP and TemPose-TF
+    # 25-class runs (BST paper taxon + windowing). Standard acc not plotted.
+    chang_bst = measured(best=(0.821, 0.611, 0.962), mean=(0.8097, 0.5762, 0.9594))  # BST CG AP, serial 2
+    tempose = measured(best=(0.814, 0.597, 0.955), mean=(0.8028, 0.5423, 0.9567))    # TemPose-TF, serial 7
 
     # 25-class first (TemPose -> BST -> BST-X chronological), then 14-class
     # (BRIC -> BST-X). Group labels are shared section headers below the bars.

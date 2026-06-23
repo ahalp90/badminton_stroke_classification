@@ -2,8 +2,8 @@
 
 Sibling to ``trajectory_chart.py`` for the 2026-05-11 supervisor presentation.
 Two panels sharing x-axis:
-  - top: 5-serial mean. Both macro F1 and min wrist_smash F1.
-  - bottom: top-serial macro + min wrist_smash, with BST single-run refs.
+  - top: 5-serial mean macro F1 and min wrist_smash F1, with BST (Chang) mean refs.
+  - bottom: top-serial macro + min wrist_smash, with BST (Chang) best-serial refs.
 
 Macro is a filled circle, min wrist_smash a white-faced square. Colour stays as
 taxonomy on both, so each run sits as a circle / square pair stacked vertically.
@@ -57,12 +57,10 @@ FOOTNOTE = (
     "rather than raise it."
 )
 
-# BST paper single-run figures from arXiv:2502.21085 Table 1 (25-class, variable-length).
-# Tuple: label, macro F1, min wrist_smash F1.
-# Fixed-width variant dropped: it's not the preferred windowing strategy, theirs or ours.
-BST_REFS = [
-    ("BST 25-class best", 0.8097, 0.5762),
-]
+# BST-CG-AP (Chang's BST, 25-class merged_25): serial mean on the mean panel,
+# best serial on the top-serial panel. Tuple: macro F1, min wrist_smash F1.
+BST_REF_MEAN = (0.8097, 0.5762)
+BST_REF_BEST = (0.821, 0.611)
 
 
 def scatter_macro(ax, x, ys, colours):
@@ -91,7 +89,7 @@ def draw_panel(ax, x, macro_vals, min_vals, colours, ylabel):
 
 
 def draw_bst_refs(ax, x_text, mean_panel: bool) -> None:
-    """Horizontal BST single-run reference lines plus paired labels.
+    """Horizontal BST-CG-AP reference lines plus paired labels.
 
     Macro label sits just above the macro line; min wrist_smash label sits just
     below the min line, so the label pair frames the BST band rather than
@@ -100,20 +98,20 @@ def draw_bst_refs(ax, x_text, mean_panel: bool) -> None:
     :param ax: target axis
     :param x_text: x-coordinate (data space) where label text starts; pick a
         value past the last data point so labels live in the right margin.
-    :param mean_panel: True on the 5-serial-mean panel; appends "[best serial
-        only]" to flag that BST is a single-run figure, not 5-serial-comparable.
+    :param mean_panel: True on the 5-serial-mean panel (draws BST's serial mean);
+        False on the top-serial panel (draws BST's best serial).
     """
-    suffix = "  [best serial only]" if mean_panel else ""
+    descriptor = "mean" if mean_panel else "best"
+    macro, min_ws = BST_REF_MEAN if mean_panel else BST_REF_BEST
     offset = 0.008  # vertical gap between line and label, in F1-axis units
-    for label, macro, min_ws in BST_REFS:
-        ax.axhline(macro,  color=COLOUR["bst_ref"], linestyle="--", linewidth=1, alpha=0.7)
-        ax.axhline(min_ws, color=COLOUR["bst_ref"], linestyle="--", linewidth=1, alpha=0.55)
-        ax.text(x_text, macro + offset,
-                f"{label} macro ({macro:.3f}){suffix}",
-                fontsize=9, va="bottom", color=COLOUR["bst_ref"])
-        ax.text(x_text, min_ws - offset,
-                f"{label} min ws ({min_ws:.3f}){suffix}",
-                fontsize=9, va="top", color=COLOUR["bst_ref"])
+    ax.axhline(macro,  color=COLOUR["bst_ref"], linestyle="--", linewidth=1, alpha=0.7)
+    ax.axhline(min_ws, color=COLOUR["bst_ref"], linestyle="--", linewidth=1, alpha=0.55)
+    ax.text(x_text, macro + offset,
+            f"BST (Chang) {descriptor} macro ({macro:.3f})",
+            fontsize=9, va="bottom", color=COLOUR["bst_ref"])
+    ax.text(x_text, min_ws - offset,
+            f"BST (Chang) {descriptor} min ws ({min_ws:.3f})",
+            fontsize=9, va="top", color=COLOUR["bst_ref"])
 
 
 def main():
@@ -155,7 +153,7 @@ def main():
                    markeredgecolor="grey", markersize=8, markeredgewidth=1.4,
                    label="min wrist_smash F1 (open square)"),
         plt.Line2D([0], [0], color=COLOUR["bst_ref"], linestyle="--", linewidth=1.2,
-                   label="BST paper single-run reference"),
+                   label="BST (Chang) reference (mean / best per panel)"),
     ]
     ax_mean.legend(handles=legend_handles, loc="lower right", fontsize=8, ncols=2)
 

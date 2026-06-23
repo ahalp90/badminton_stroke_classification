@@ -11,8 +11,8 @@ whose weights survived; serial 1 has no numeric suffix, 2-5 carry _{n}.pt). A bl
 tick marks the 5-serial mean for each metric. Best and mean figures are printed at
 30 degrees above each group. Log y, floored at 0.40, so the high cluster spreads out.
 
-Figures are read live from each run's manifest.yaml; only the published point is a
-literal (BST-CG-AP, bst_25: macro 0.8097, min 0.5762; treated as a best, no mean).
+Figures are read live from each run's manifest.yaml; only the BST-CG-AP point is
+literal (bst_25: best macro 0.821 / min 0.611, serial mean 0.8097 / 0.5762).
 """
 from pathlib import Path
 
@@ -39,7 +39,8 @@ C_MAC = "#4477AA"  # macro F1
 C_MIN = "#DDCC77"  # min F1
 MEAN_HALO = [pe.withStroke(linewidth=3.0, foreground="white")]
 
-PUBLISHED = {"mac": 0.8097, "min": 0.5762}  # BST-CG-AP, bst_25
+# BST-CG-AP, bst_25: best serial + serial mean (Chang's BST reproduction).
+PUBLISHED = {"mac_best": 0.821, "min_best": 0.611, "mac_mean": 0.8097, "min_mean": 0.5762}
 
 
 def _baseline_config_text() -> str:
@@ -102,15 +103,15 @@ def entry(run_id: str, group: str, line1: str, line2: str) -> dict:
 
 
 def published_entry(group: str, line1: str, line2: str) -> dict:
-    """The external BST-CG-AP reference: a best, no mean line."""
+    """The external BST-CG-AP reference: best-serial bars + serial-mean tick."""
     return {
         "group": group,
         "line1": line1,
         "line2": line2,
-        "mac_best": PUBLISHED["mac"],
-        "min_best": PUBLISHED["min"],
-        "mac_mean": None,
-        "min_mean": None,
+        "mac_best": PUBLISHED["mac_best"],
+        "min_best": PUBLISHED["min_best"],
+        "mac_mean": PUBLISHED["mac_mean"],
+        "min_mean": PUBLISHED["min_mean"],
         "published": True,
     }
 
@@ -175,7 +176,7 @@ def draw_figure(entries: list[dict], outpath: Path, suptitle: str, subtitle: str
 
         # 30-degree best/mean readout hovering above the taller bar.
         top = max(e["mac_best"], e["min_best"], FLOOR)
-        if e["published"]:
+        if e["mac_mean"] is None:
             txt = f"{e['mac_best']:.3f} / {e['min_best']:.3f}"
         else:
             txt = (f"best {e['mac_best']:.3f} / {e['min_best']:.3f}\n"

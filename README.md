@@ -15,21 +15,21 @@ Stage one built a stroke-type classifier across two deep learning architectures,
 
 ### Results on the original BST 25-class taxonomy
 
-TemPose-TF (Ibh et al. 2023) and BST (Chang 2025) are the two published benchmarks for badminton stroke classification on ShuttleSet. Test-split figures:
+TemPose-TF (Ibh et al. 2023) and BST (Chang 2025) are the two published benchmarks for badminton stroke classification on ShuttleSet. Test-split metrics below are 5-serial test-set means.
 
 | | macro F1 | min-class F1 | acc | top-2 |
 | --- | --- | --- | --- | --- |
 | TemPose-TF (BST windowing) | 0.803 | 0.542 | 0.823 | 0.957 |
 | BST paper, 25-class (Chang 2025) | 0.810 | 0.576 | 0.832 | 0.959 |
-| BST rebuild *with Inpaint*, 25-class (17 April) | 0.823 | 0.585 | 0.841 | 0.963 |
-| BST-X final best, 25-class (30 May) | **0.830** | **0.656** | **0.843** | **0.965** |
-| BST-X final best, 24-class (30 May) | 0.842 | 0.612 | 0.853 | 0.964 |
+| BST rebuild *with Inpaint*, 25-class (17 April) | 0.818 | 0.567 | 0.837 | 0.961 |
+| BST-X final, 25-class (30 May) | **0.824** | **0.620** | **0.841** | **0.965** |
+| BST-X final, 24-class (30 May) | 0.827 | 0.568 | 0.842 | 0.966 |
 | *Custom 14 class taxon and split (two classes uncollapsed, no top/bottom distinction, some fully held-out players)* |
-| BST-X, scheduling tuned, dropped keypoint frames recovered (30 April) | 0.747 | 0.403 | 0.770 | 0.940 |
-| BST-X, final best (02 June) | 0.753 | 0.503 | 0.773 | 0.944 |
-| BRIC, shuttle tcn outgoing only (18 May) | 0.731 | 0.409 | 0.758 | 0.889 |
+| BST-X, scheduling tuned, `sticky_anchor` frame recovery (30 April) | 0.742 | 0.375 | 0.767 | 0.938 |
+| BST-X, final (02 June) | 0.748 | 0.482 | 0.766 | 0.939 |
+| BRIC, shuttle tcn outgoing only (18 May) [single seed run] | 0.731 | 0.409 | 0.758 | 0.889 |
 
-The 24-class row is the 25-class set with the catch-all `unknown` class removed (a catch-all for mislabelled samples). The first rebuild came in above the BST paper because TrackNetV3 was rebuilt with InpaintNet where the paper ran without it. The final best on top of that adds the `sticky_anchor` pose recovery, the CDB-F1 loss, the augmentation framework, scheduling, and a weight-decay sweep.
+The 24-class row is the 25-class set with the catch-all `unknown` class removed (a catch-all for mislabelled samples). The first rebuild came in above the BST paper because TrackNetV3 was rebuilt with InpaintNet where the paper ran without it. The final model on top of that adds the `sticky_anchor` pose recovery, the CDB-F1 loss, the augmentation framework, scheduling, and a weight-decay sweep.
 
 ### Results on the project's core 14-class taxonomy
 
