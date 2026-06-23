@@ -195,7 +195,8 @@ Continuing into COSC595 with:
 ## Licence and attribution
 
 This project is licensed under the GNU Lesser General Public License v3.0 or later
-(LGPL-3.0-or-later); see [LICENSE](LICENSE).
+(LGPL-3.0-or-later); see [COPYING.LESSER](COPYING.LESSER) for the LGPLv3 terms and
+[COPYING](COPYING) for the GPLv3 base they extend.
 
 It builds on, and is published as a fork of, BST (Badminton Stroke-type Transformer)
 by Jing-Yuan Chang ([arXiv:2502.21085](https://arxiv.org/abs/2502.21085),
