@@ -10,7 +10,7 @@ if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi
 set -euo pipefail
 
 # --- config (override via env) ---
-REPO="${REPO:-Kira-Le/badminton_stroke_classification}"
+REPO="${REPO:-ahalp90/badminton_stroke_classification}"
 TAG="${TAG:-models-v1}"
 
 usage() {

@@ -70,7 +70,7 @@ this in a comment, with how to add BRIC back if live BRIC inference is wanted.
 ## Tier 1: fetch the run-time weights (next team)
 
 ```bash
-MODELS_BASE_URL=https://github.com/Kira-Le/badminton_stroke_classification/releases/download/models-v1 \
+MODELS_BASE_URL=https://github.com/ahalp90/badminton_stroke_classification/releases/download/models-v1 \
   ./scripts/fetch-models.sh
 ```
 The script reads the manifest and drops each weight back into its registry
