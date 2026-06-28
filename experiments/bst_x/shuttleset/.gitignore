@@ -10,115 +10,17 @@
 # best checkpoint per run.
 */weights/*
 
-# Auto-backups from the hparam_sweep wrapper's resume-safe manifest
-# rewrites (manifest.yaml.<timestamp>.bak per serial completion).
-# Original manifest.yaml stays tracked; backups are runtime noise.
-**/*.bak
-
 # Aim experiment tracker cache (optional UI, local only; created in cwd when
 # aim_backfill.py or `aim up` runs from src/bst_x/).
 .aim/
 
 # Best checkpoints per run (tactical unignores).
+# All historical best weights are now archived (training archive + published
+# model fork, not in-tree; see MODELS.md). Only the curated champions kept
+# in-repo are unignored below.
 
 # foundation_chang_baseline: pre-tracker baseline (paper hyperparams + TrackNetV3 WITH inpaint). S2 best.
 !foundation_chang_baseline/weights/bst_cg_ap_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2.pt
-
-# run_20260417_191851: retuned-LR baseline, 120 epochs, no CG/AP anneal. S1 best on every metric.
-!run_20260417_191851/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25.pt
-
-# run_20260418_104152: first CG/AP anneal pass, 120ep / fade end 60. S3 best on every metric.
-!run_20260418_104152/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_3.pt
-
-# run_20260418_151139: aggressive CG/AP anneal, 80ep / fade end 15. S2 best (top accuracy 0.850, macro F1 0.831).
-!run_20260418_151139/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2.pt
-
-# run_20260418_174238: Run A paired control, CG/AP on throughout, 80ep. S3 best (macro F1 0.828, min F1 0.603).
-!run_20260418_174238/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_3.pt
-
-# run_20260418_234822: Run B null arm, CG/AP always off, 80ep. S2 best (macro F1 0.830, accuracy 0.842).
-!run_20260418_234822/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2.pt
-
-# run_20260420_141629: V3 ablation, une_merge_v1 + bst baseline split + drop_unknown, 80ep. S3 best (macro 0.772, min 0.381, acc 0.791).
-!run_20260420_141629/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_3.pt
-
-# run_20260420_171101: V4 ablation, une_merge_v1 + split_v2 + drop_unknown, 80ep. S2 best (macro 0.743, min 0.432, acc 0.766).
-!run_20260420_171101/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_2.pt
-
-# run_20260425_150548: Phase 1 sticky_anchor mixed retrain, 80ep. S3 best (macro 0.755, min 0.352, acc 0.780). Gate failed on Top_wrist_smash.
-!run_20260425_150548/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_3.pt
-
-# run_20260425_185421: collapsed-classes ablation on sticky_anchor data (taxonomy une_merge_v1_nosides), 80ep. S1 best (macro 0.746, min 0.424, acc 0.765, top-2 0.940).
-!run_20260425_185421/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt
-
-# run_20260429_202144: Phase 2 sanity train, combo C (merged_25 + split_bst_baseline + dropunk) on unified sticky_anchor clean dir, 80ep. S2 best (macro 0.831, min 0.577, acc 0.849, top-2 0.968).
-!run_20260429_202144/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_merged_25_2.pt
-
-# run_20260430_110101: Phase 2 sanity train, combo B (une_merge_v1 + split_v2 + dropunk), 80ep. S4 best (top macro 0.743, top acc 0.770, top top-2 0.944, min 0.245). Mean min drops 7pp vs V4 baseline; Top_wrist_smash gets worse with cleaner pose data.
-!run_20260430_110101/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_4.pt
-
-# run_20260430_170325: Phase 2 sanity train, combo A (une_merge_v1_nosides + split_v2 + dropunk), 80ep. S4 best (top macro 0.747, acc 0.770, top-2 0.940, min 0.403). Collapse-rescue confirmed on Phase-2 data: +0.058 min vs combo B; essentially tied with Phase-1 collapsed-classes baseline.
-!run_20260430_170325/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4.pt
-
-# run_20260430_213933: Phase 2 LS sweep cell 1, combo A nosides + LS=0.0, 80ep. S2 best (top min 0.404). Hypothesis (LS=0.0 lifts wrist_smash) not supported: vs LS=0.1 baseline run_20260430_170325, head metrics flat, mean wrist_smash -1.6 pp, best-of-run wrist_smash -5.5 pp.
-!run_20260430_213933/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
-
-# run_20260501_073430: Phase 2 LS sweep cell 2, combo A nosides + LS=0.15, 80ep. S3 best (top macro 0.753, top min 0.448, top acc 0.773). Vs LS=0.1 baseline run_20260430_170325, head metrics flat (+0.005 macro mean), mean wrist_smash +4.2 pp, range tightens 0.159 -> 0.066.
-!run_20260501_073430/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3.pt
-
-# run_20260501_110525: Phase 2 class-weighting smoke test, combo A nosides + LS=0.15 + class_weights={wrist_smash:2.0, smash:2.0}, 80ep. S2 best (top min 0.518) — NEW PROJECT-WIDE CEILING on wrist_smash F1 (prior best 0.46 LS=0.1 S5; first nosides serial to clear 0.50). S4 of same run also sets new ceilings: macro 0.756, acc 0.777, drive 0.66. Mean shift vs LS=0.15 alone is flat (+0.001/+0.005/+0.001/-0.002); the lift is bimodal across seeds, not central-tendency.
-!run_20260501_110525/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
-
-# run_20260501_164658: Phase 2 CDB-F1 first cell, combo A nosides + LS=0.0 + adaptive_focal{tau=1, gamma=1, momentum=0.9, warm_up=5, f1_floor=0}, 80ep. S2 best (top min 0.486, top macro 0.753, top acc 0.769, top top-2 0.940). Mean ws +4.0 pp on class-weighted (largest single-run floor lift on the loss side so far); push +6.7 pp (adaptive picked up push as a bottleneck the static config missed). Cost: smash -5.5 pp (pair-confusion residual). Ws range tightens to 0.413-0.486 (vs class-weighted 0.378-0.518); bimodal-seed problem solved. Project ceiling not broken: S2 0.486 < class-weighted S2 0.518.
-!run_20260501_164658/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
-
-# run_20260501_192113: CDB-F1 follow-up, combo A nosides + adaptive_focal{tau=1, gamma=0, momentum=0.9, warm_up=5, f1_floor=0}, 80ep, bourbaki. Same as the first CDB-F1 run (run_20260501_164658) with gamma flipped to 0. S1 best (top min 0.494, only seed clearing 0.49; macro 0.743, acc 0.758). Vs the first run mean: macro -0.3, min -2.8, acc -0.3, top-2 +0.0. Macro didn't move and ws dropped 2.8 pp, so gamma=1 was where the bottleneck lift came from. Smash +2.5, drive +2.5 picked up.
-!run_20260501_192113/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt
-
-# run_20260501_192519: CDB-F1 follow-up, combo A nosides + adaptive_focal{tau=0.5, gamma=1, momentum=0.9, warm_up=5, f1_floor=0}, 80ep, engelbart. Same as the first CDB-F1 run (run_20260501_164658) with tau softened to 0.5. S2 best by head metrics (top macro 0.753, top acc 0.772, top-2 0.940), despite run-low ws 0.367; top-of-run ws on S5 (0.447). Vs the first run mean: macro +0.2, min -5.0, acc +0.5, top-2 +0.4. Wrist_smash gain gone; smash +2.3, drive +2.8, passive_drop +1.1, rush +1.1 picked up. With run_20260501_192113, both tau and gamma had to be that aggressive in the first run; pair-cap on smash next.
-!run_20260501_192519/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
-
-# run_20260501_230252: Pair-cap CDB-F1 run, combo A nosides + adaptive_focal{tau=1, gamma=1, momentum=0.9, warm_up=5, f1_floor=0, pair_caps=[{numer:smash, denom:wrist_smash, ratio:0.7}]}, 80ep, bourbaki. Same config as the first CDB-F1 run (run_20260501_164658) plus a pair-cap rule on smash<->ws. S4 best by head metrics (top macro 0.748, top acc 0.767, top-2 0.933, ws 0.418). Vs the first CDB-F1 run mean: macro -0.3, min -5.2, acc -0.1, top-2 -0.1. Cap didn't land: smash +1.2 pp but ws gave back 5.2 pp. Predicted band was smash +2-4 with ws holding within ~1; both halves missed. Macro flat because the trade cancelled at the head. Next: ratio sweep or Seesaw-F1.
-!run_20260501_230252/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4.pt
-
-# run_20260502_075808: Gamma=2 follow-up, combo A nosides + adaptive_focal{tau=1, gamma=2, momentum=0.9, warm_up=5, f1_floor=0}, 80ep, bourbaki. Single-knob change vs the first CDB-F1 run (run_20260501_164658): gamma 1 -> 2 (focal literature default). S3 best by ws (0.4873, run-high, on a par with the first CDB-F1 S2's 0.4863). Macro 0.7330 / acc 0.7494 bottom-half of run. Vs the first CDB-F1 run mean: macro -0.7, min -4.1, acc -0.6, top-2 -0.1. Gamma=2 didn't lift the floor; aggressive per-example modulator over-discounts moderate-confidence ws examples. Last untouched CDB knob, now tested.
-!run_20260502_075808/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3.pt
-
-# run_20260503_104300: Capacity bump Run 1, mlp_head hidden 400 -> 1200 via head_dim * mlp_d_scale swap on bst.py:199, encoder untouched. y1t1 hparams otherwise (combo A nosides + LS=0.0 + adaptive_focal{tau=1, gamma=1}), 80ep, bourbaki. S1 best by ws (0.4449). Mean macro 0.7414 / min 0.4138 / acc 0.7604 / top-2 0.9320. Vs y1t1 mean (run_20260501_164658): macro -0.2, min -4.8, acc -0.1, top-2 -0.3. Head metrics flat, ws cost 4.8 pp.
-!run_20260503_104300/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt
-
-# run_20260503_172922: Shuttle-unzeroing-on-keypoint-fail run, branch shuttle/wipe-drop, ablation_id=wipe_drop (only train-loop signal of the data change). Drops shuttle[failed,:] = 0 at prepare_train_on_shuttleset.py:866-867 (~14k frames). Hparams otherwise identical to the first CDB-F1 run (run_20260501_164658). S2 best (top macro 0.756, top acc 0.768 tied S4, min 0.494). Mean 0.7481/0.4742/0.7653/0.9353. Vs first CDB-F1 mean: macro +0.5, min +1.2, acc +0.4, top-2 flat. Smash +1.5% / ws +1.2%: first time the pair moved up together.
-!run_20260503_172922/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
-
-# run_20260503_192718: Shuttle-mask run, branch shuttle/mask-wiring, ablation_id=mask_wiring (only train-loop signal of the data + model change). Carries the shuttle-unzeroing change plus a variant 2a shuttle_missing channel fused post-TCN (mask_proj Linear(1,4) + shuttle_fuse Linear(d_model+4, d_model)). Hparams otherwise identical to the shuttle-unzeroing run (run_20260503_172922). S4 best (top min 0.490, top top-2 0.939, top ws, top pair-sum 1.085). Mean 0.7440/0.4568/0.7630/0.9365. Vs shuttle-unzeroing mean: macro -0.4, min -1.7, acc -0.2, top-2 +0.1. Mask did not lift over unzeroing alone (model already inferred missing-shuttle from xy + temporal context). Branch parked; design captured in scratch/architecture_notes/.
-!run_20260503_192718/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_4.pt
-
-# run_20260504_152529: Jitter-off ablation, RandomTranslation_batch(prob=0.0) at bst_train.py:375; otherwise identical to wipe_drop best (run_20260503_172922). S2 best (top min 0.485, top pair-sum 1.225). Mean 0.7401/0.4301/0.7586/0.9365. Vs wipe_drop: macro -0.8, min -4.4, acc -0.7, top-2 +0.1. Wrist_smash mean 0.4742 -> 0.4301; S4/S5 min F1 floor at 0.39 / 0.36. Min F1 ends up below the first CDB-F1 baseline too: the broken bbox-centric jitter was empirically regularising. Defaults restored.
-!run_20260504_152529/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_2.pt
-
-# run_20260505_111211: Augmentation framework v1, branch aug-framework-v1. Coupled centreline flip (p_flip=0.5) + pos+shuttle constrained jitter (cap_y=0.05, cap_x=0.10, eps=0.15, p_jitter=0.2). Replaces the broken joints-only RandomTranslation_batch with the corrected multi-stream coupled formulation. Hparams otherwise identical to the wipe_drop best (run_20260503_172922). S5 best (top min 0.503, smash 0.503 / ws 0.518: first project serial where smash takes over as the floor class). Mean 0.7388/0.4750/0.7591/0.9402. Vs wipe_drop: macro -0.9, min flat, acc -0.6, top-2 +0.5. Cross_court_net_shot -5.7% (largest single-class movement), smash -3.0%, push -2.1%; ws +0.4%, drive +1.6%.
-!run_20260505_111211/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt
-
-# run_20260505_154907: Aug framework v1, p_jitter 0.2 -> 0.3 (under-reg test). Hparams otherwise identical to the previous aug run (run_20260505_111211). S5 best (top min 0.515 project high, smash 0.515 / ws 0.519: smash again the floor class, pair sum 1.033). Mean 0.7447/0.4779/0.7635/0.9394. Vs prev aug run: macro +0.6, min +0.3, acc +0.4, top-2 ~flat. Vs wipe_drop best: macro -0.3, min +0.4, acc -0.2, top-2 +0.4. Aug now at parity-or-better than wipe_drop on the head metrics, ahead on floor and top-2. Rush +2.6%, drive +2.6% picked up; cross_court_net_shot -5.4% persists (not on the exposure axis; flip ablation flagged).
-!run_20260505_154907/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_5.pt
-
-# run_20260505_213008_504674: Aug-sweep cell `p_flip_25` from sweep_20260505_211814_aug_v1_round_1. Single-knob change vs prior best (run_20260505_154907): p_flip 0.5 -> 0.25. S3 best (macro 0.7426 within 0.24% of run-top S1, min 0.4785 best in close-macro band; state.json's S2 had top min 0.5097 but macro 1% below S1, outside the seed envelope). Mean 0.7402/0.4783/0.7602/0.9383. Vs prior best: macro -0.5, min ~flat, acc -0.3, top-2 -0.1. Inside seed envelope. Verdict TIE. Smash +5.3%, push -4.1%, rush -2.4%; cross_court_net_shot ~flat (not testable at this sample size — per-class seed noise on cross_court ~11% range across 5 serials).
-!run_20260505_213008_504674/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3.pt
-
-# run_20260505_233645_734631: Aug-sweep cell `cap_bump` from sweep_20260505_211814_aug_v1_round_1. Two-knob change vs prior best: cap_y 0.05 -> 0.075, cap_x 0.10 -> 0.15. Killed at S4 by macro tolerance (cumulative mean macro 0.7339 vs ref 0.7447, 1.08% deficit > 0.7%). S3 best (top min 0.4803, macro 0.7349 within 0.30% of run-top). 4-serial mean 0.7339/0.4587/0.7539/0.9344. Vs prior best: macro -1.1, min -1.9, acc -1.1, top-2 -0.5. Verdict LOSE. cross_court_net_shot -8.0% on cell mean, the cleanest causal signal of the sweep: bigger jitter magnitude bites cross_court hardest. Magnitude axis exhausted.
-!run_20260505_233645_734631/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides_3.pt
-
-# run_20260506_011851_522295: Aug-sweep cell `p_jitter_40` from sweep_20260505_211814_aug_v1_round_1. Single-knob change vs prior best: p_jitter 0.3 -> 0.4. S1 best (top macro 0.7506, top acc 0.7684, top top-2 0.9455 — all run-of-the-round highs across the sweep; min 0.4760 solid; state.json's S3 had top min 0.5104 but macro 1.09% below S1, outside the seed envelope). Mean 0.7426/0.4822/0.7610/0.9409. Vs prior best: macro -0.2, min +0.4, acc -0.3, top-2 +0.2. Inside seed envelope; mild positive lean on min. Verdict TIE. Cell-mean min F1 0.4822 a tentative project-wide cell-mean min F1 high (prior ref 0.4778) but inside the ~2% noise floor.
-!run_20260506_011851_522295/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt
-
-# run_20260506_032632_652587: Aug-sweep cell `p_flip_25_x_p_jitter_30` from sweep_20260505_211814_aug_v1_round_1. Cell config p_flip=0.25, p_jitter=0.3 — the p_jitter override matched the base, so the effective config is identical to `p_flip_25`. Two 5-serial cells with same aug, different seeds: macro spread 0.13%, min spread 2.14%, acc spread 0.14%, top-2 spread 0.02%. That seed-noise envelope is the most useful finding from the cell. S1 best (top macro 0.7447 = prior ref, top min 0.5231 ws — single-serial joint best of the round on macro x min, new project-wide single-serial min F1 high). Mean 0.7389/0.4569/0.7588/0.9385. Vs prior best: macro -0.6, min -2.1, acc -0.7, top-2 -0.1. Verdict LOSE — but the same-config replicate p_flip_25 came in at TIE, so this cell's LOSE is the unlucky tail of a noise-sized cell-to-cell swing.
-!run_20260506_032632_652587/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_merge_v1_nosides.pt
-
-# run_20260530_161525_131279: shuttleset_18, v2 split (the finest cut, 18 classes). Best S1. Taxon-pinned prediction cell.
-!run_20260530_161525_131279/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18.pt
-
-# run_20260530_174818_410060: bst_24, v2 split, unknown dropped (our v2 split). Best S3. Taxon-pinned prediction cell.
-!run_20260530_174818_410060/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_3.pt
 
 # run_20260530_192738_970644: bst_12, v2 split (the 12 base BST strokes, side-agnostic). Best S4. Taxon-pinned prediction cell.
 !run_20260530_192738_970644/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_4.pt
@@ -132,98 +34,8 @@
 # run_20260531_005535_005154: une_v1_14, v2 split (bst_12 + wrist_smash + passive_drop). Best S3. Taxon-pinned prediction cell.
 !run_20260531_005535_005154/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_3.pt
 
-# focal_alpha_revert_overallocated ablation across six taxonomy/split cells (adaptive_focal
-# alpha reverted to unsaturate the smash classes). Barely earns its keep: only +0.016 mean
-# min-F1 on its une_v1_14 target, mild pull-down on best macro/min elsewhere. Best serial per cell.
-
-# run_20260531_163906_107348: shuttleset_18, v2 split. Best S4 (test macro/min 0.667/0.000).
-!run_20260531_163906_107348/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_4.pt
-
-# run_20260531_193021_308927: bst_24, v2 split. Best S2 (test macro/min 0.811/0.564).
-!run_20260531_193021_308927/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_2.pt
-
-# run_20260531_211838_567072: bst_12, v2 split. Best S4 (test macro/min 0.814/0.601).
-!run_20260531_211838_567072/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_4.pt
-
-# run_20260531_225619_826430: bst_25, baseline split (unknown kept). Best S3 (test macro/min 0.826/0.652).
-!run_20260531_225619_826430/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_3.pt
-
-# run_20260601_005010_962006: bst_24, baseline split (unknown dropped). Best S1 (test macro/min 0.834/0.565).
-!run_20260601_005010_962006/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24.pt
-
-# run_20260601_023543_278210: une_v1_14, v2 split. Best S1 (test macro/min 0.750/0.445).
-!run_20260601_023543_278210/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14.pt
-
-# AdamW weight-decay sweep on une_v1_14 / v2 split, norms, bias and embeddings held out of
-# decay throughout, wd stepped 1e-2 -> 4e-1. Macro near-inert; min-F1 climbs with wd. wd 4e-1
-# best, min 0.525, first une_v1_14 serial to clear 0.5 on wrist_smash. Best serial per cell.
-
-# run_20260531_201350_026614: wd 1e-2 (no-decay-norm/bias/emb baseline). Best S1 (test macro/min 0.752/0.501).
-!run_20260531_201350_026614/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14.pt
-
-# run_20260531_214009_170864: wd 5e-2. Best S4 (test macro/min 0.745/0.487).
-!run_20260531_214009_170864/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_4.pt
-
-# run_20260531_231403_971803: wd 1e-1. Best S3 (test macro/min 0.733/0.492).
-!run_20260531_231403_971803/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_3.pt
-
-# run_20260601_003918_078077: wd 2e-1. Best S2 (test macro/min 0.749/0.483).
-!run_20260601_003918_078077/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_2.pt
-
-# run_20260601_021234_940276: wd 4e-1. Best S5 (test macro/min 0.748/0.525); min clears 0.5 on wrist_smash.
-!run_20260601_021234_940276/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_5.pt
-
-# Series J SET 1: wd endpoints (1e-2, 4e-1), gate off, norms/bias/embeddings held out of decay,
-# across the five non-une taxon/splits. wd 4e-1 lifts the floor where it started lowest (bst_24
-# both splits, +5 to +6% mean min); adopted as the default optimiser setting. Best serial per cell.
-
-# run_20260601_141054_760522: shuttleset_18, v2 split, wd 1e-2, gate off. Best S5 (test macro/min 0.663/0.000).
-!run_20260601_141054_760522/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_5.pt
-
 # run_20260601_153738_936523: shuttleset_18, v2 split, wd 4e-1, gate off. Best S5 (test macro/min 0.672/0.000).
 !run_20260601_153738_936523/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_5.pt
 
-# run_20260601_171005_492538: bst_24, v2 split, wd 1e-2, gate off. Best S3 (test macro/min 0.818/0.626).
-!run_20260601_171005_492538/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_3.pt
-
 # run_20260601_184437_030823: bst_24, v2 split, wd 4e-1, gate off. Best S3 (test macro/min 0.822/0.641). New bst_24/v2 best; FE serve candidate.
 !run_20260601_184437_030823/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_3.pt
-
-# run_20260601_202022_522780: bst_12, v2 split, wd 1e-2, gate off. Best S3 (test macro/min 0.818/0.623). bst_12 keeper.
-!run_20260601_202022_522780/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_3.pt
-
-# run_20260601_215358_806530: bst_12, v2 split, wd 4e-1, gate off. Best S5 (test macro/min 0.815/0.636).
-!run_20260601_215358_806530/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_12_5.pt
-
-# run_20260601_232557_387981: bst_25, baseline split, wd 1e-2, gate off. Best S1 (test macro/min 0.827/0.625).
-!run_20260601_232557_387981/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25.pt
-
-# run_20260602_011036_539898: bst_25, baseline split, wd 4e-1, gate off. Best S1 (test macro/min 0.829/0.653).
-!run_20260602_011036_539898/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25.pt
-
-# run_20260602_025726_461760: bst_24, baseline split, wd 1e-2, gate off. Best S1 (test macro/min 0.834/0.636).
-!run_20260602_025726_461760/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24.pt
-
-# run_20260602_044754_361908: bst_24, baseline split, wd 4e-1, gate off. Best S3 (test macro/min 0.835/0.656). New bst_24/baseline best (mean macro + all min).
-!run_20260602_044754_361908/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_24_3.pt
-
-# Series J SET 2: same wd endpoints crossed with focal_alpha_revert (gate on), on three taxa.
-# Never the best config; alpha-revert retired. Kept for the record. Best serial per cell.
-
-# run_20260602_063203_601676: shuttleset_18, v2 split, wd 1e-2, gate on (focal_alpha_revert). Best S2 (test macro/min 0.652/0.000).
-!run_20260602_063203_601676/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18_2.pt
-
-# run_20260602_075831_129574: shuttleset_18, v2 split, wd 4e-1, gate on (focal_alpha_revert). Best S1 (test macro/min 0.658/0.000).
-!run_20260602_075831_129574/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_shuttleset_18.pt
-
-# run_20260602_092522_446222: bst_25, baseline split, wd 1e-2, gate on (focal_alpha_revert). Best S5 (test macro/min 0.826/0.609).
-!run_20260602_092522_446222/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_5.pt
-
-# run_20260602_111410_233326: bst_25, baseline split, wd 4e-1, gate on (focal_alpha_revert). Best S2 (test macro/min 0.829/0.630).
-!run_20260602_111410_233326/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_bst_25_2.pt
-
-# run_20260602_130421_390854: une_v1_14, v2 split, wd 1e-2, gate on (focal_alpha_revert). Best S3 (test macro/min 0.755/0.482).
-!run_20260602_130421_390854/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_3.pt
-
-# run_20260602_143618_156220: une_v1_14, v2 split, wd 4e-1, gate on (focal_alpha_revert). Best S2 (test macro/min 0.753/0.503); 4 serials.
-!run_20260602_143618_156220/weights/bst_x_JnB_bone_between_2_hits_with_max_limits_seq_100_une_v1_14_2.pt
