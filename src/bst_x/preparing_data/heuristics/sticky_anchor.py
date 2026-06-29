@@ -328,9 +328,7 @@ def apply(raw: RawClip, ctx: ClipContext, **hyperparams) -> HeuristicOutput:
     Keeps the registry-contract ``apply(raw, ctx, **kw)`` signature; the
     ``StickyAnchorParams`` instance is constructed at this boundary.
     """
-    # Lazy import: prepare_train_on_shuttleset pulls in mmpose at module
-    # load. Deferring keeps tests/test_sticky_anchor.py runnable without
-    # the mmpose stack.
+    # Lazy import: prepare_train_on_shuttleset pulls in mmpose at module load.
     from preparing_data.prepare_train_on_shuttleset import (  # noqa: PLC0415
         normalize_joints,
     )

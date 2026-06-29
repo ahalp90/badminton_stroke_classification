@@ -11,9 +11,6 @@ import numpy as np
 from pathlib import Path
 
 
-# ---------------------------------------------------------------------------
-# Display helper
-# ---------------------------------------------------------------------------
 def pad_class_labels(labels: list[str]) -> list[str]:
     """Pad class label strings to uniform width for aligned display (e.g. F1 table).
 
@@ -122,13 +119,11 @@ class Dataset_npy_collated(Dataset):
         pose_style='J_only',
         train_partial=1.0
     ):
-        '''
-        Parameters
-        - `set_name`: 'train', 'val', 'test'
-        - `pose_style`: 'J_only', 'JnB_interp', 'JnB_bone', 'Jn2B'
-        
-        Notice: There is no random translation here.
-        '''
+        """Load pre-collated arrays for one split.
+
+        :param set_name: 'train', 'val', or 'test'.
+        :param pose_style: 'J_only', 'JnB_interp', 'JnB_bone', or 'Jn2B'.
+        """
         super().__init__()
         
         assert set_name in ['train', 'val', 'test'], 'Invalid set_name.'
@@ -142,10 +137,9 @@ class Dataset_npy_collated(Dataset):
         self.videos_len = np.load(str(branch/'videos_len.npy'))
         self.labels: np.ndarray = np.load(str(branch/'labels.npy'))
 
-        # Row-aligned clip stems sidecar (Step C of the taxon_pinned_w_preds
-        # refactor). Legacy collations don't carry the file -- graceful None
-        # fallback so old collated dirs still load. New consumers (e.g. the
-        # post-hoc FE-JSON converter) should check for None before joining.
+        # Row-aligned clip stems sidecar. Legacy collations don't carry the file,
+        # so fall back to None and warn; new consumers (e.g. the post-hoc FE-JSON
+        # converter) must check for None before joining on it.
         clip_stems_path = branch/'clip_stems.npy'
         if clip_stems_path.exists():
             self.clip_stems: np.ndarray | None = np.load(
@@ -159,25 +153,17 @@ class Dataset_npy_collated(Dataset):
             )
             self.clip_stems = None
 
-        # ---------------------------------------------------------------
-        # DIVERGENCE FROM ORIGINAL BST: Drop zero-length clips.
-        #
-        # Clips where MMPose failed on EVERY frame end up with
-        # videos_len=0 after collation. The transformer's padding mask
-        # becomes all-False, causing softmax(all -inf) = NaN, which
-        # poisons the entire training run from the first epoch.
-        #
-        # The original BST author hand-curated his clip set and published
-        # pre-extracted .npy files (see BST-original README), so he
-        # likely never encountered zero-frame clips. Our automated
-        # pipeline processes all clips including degenerate ones.
-        #
-        # TODO: Investigate whether the original BST dataset_npy files
-        # (Google Drive links in BST-original/README.md) contain any
-        # zero-length clips. If they do, this is a latent bug in the
-        # original; if not, our clip extraction or pose detection is
-        # producing clips that his pipeline never generated.
-        # ---------------------------------------------------------------
+        # DIVERGENCE FROM ORIGINAL BST: drop zero-length clips. Clips where MMPose
+        # failed on every frame end up with videos_len=0 after collation. The
+        # transformer's padding mask then becomes all-False, softmax(all -inf)=NaN,
+        # and that poisons the run from epoch 1. The original author hand-curated
+        # his clip set and published pre-extracted .npy files, so he likely never
+        # hit zero-frame clips; our automated pipeline processes every clip,
+        # including degenerate ones.
+        # TODO: check whether the original BST dataset_npy files contain any
+        # zero-length clips (Google Drive links in BST-original/README.md). If
+        # they do, it's a latent bug upstream; if not, our extraction is producing
+        # clips his pipeline never generated.
         valid = self.videos_len > 0
         n_dropped = int(np.sum(~valid))
         if n_dropped > 0:
@@ -194,13 +180,8 @@ class Dataset_npy_collated(Dataset):
         if set_name == 'train' and train_partial < 1:
             self.adjust_to_partial_train_set(train_partial)
 
-        # J_only: (n, t, m, J, d)
-        # JnB: (n, t, m, J+B, d)
-        # Jn2B: (n, t, m, J+2B, d)
-        # pos: (n, t, m, xy)
-        # shuttle: (n, t, xy)
-        # videos_len: (n)
-        # labels: (n)
+        # human_pose: (n, t, m, J[+B], d); pos: (n, t, m, xy); shuttle: (n, t, xy)
+        # videos_len: (n); labels: (n)
 
     def adjust_to_partial_train_set(self, train_partial):
         new_human_pose = []
@@ -250,7 +231,6 @@ def prepare_npy_collated_loaders(
     num_workers=(0, 0, 0),
     train_partial=1.0
 ):
-    '''Notice that this one RandomTranslation is not used.'''
     train_set = Dataset_npy_collated(root_dir, 'train', pose_style, train_partial)
     val_set = Dataset_npy_collated(root_dir, 'val', pose_style)
     test_set = Dataset_npy_collated(root_dir, 'test', pose_style)

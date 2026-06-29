@@ -43,13 +43,13 @@ from pipeline.data_access import env_path_or_none, load_repo_dotenv
 from bst_x_common import build_bst_x_network, dump_topk_predictions
 
 
-@torch.no_grad()  # no gradient tracking needed for inference — saves memory
+@torch.no_grad()
 def infer(
     model: nn.Module,
     loader,
     device
 ):
-    model.eval()  # disable dropout, set batchnorm to eval mode
+    model.eval()
     pred_ls = []
 
     for (human_pose, pos, shuttle), video_len, labels in loader:
@@ -61,12 +61,10 @@ def infer(
         human_pose = human_pose.view(*human_pose.shape[:-2], -1)
         logits = model(human_pose, shuttle, pos, video_len)
 
-        # argmax gives predicted class index; .cpu() moves result back from GPU
         pred = torch.argmax(logits, dim=1).cpu()
 
         pred_ls.append(pred)
 
-    # torch.cat joins list of batch predictions into one tensor
     return torch.cat(pred_ls)
 
 

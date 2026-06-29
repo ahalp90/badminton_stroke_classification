@@ -32,9 +32,6 @@ def _default_csv_dir(clips_dir: Path) -> Path:
     return clips_dir.parent / 'shuttle_csv'
 
 
-# ---------------------------------------------------------------------------
-# Normalization (from prepare_train_on_shuttleset.py:150-159)
-# ---------------------------------------------------------------------------
 def normalize_shuttlecock(arr: np.ndarray, v_width: float, v_height: float) -> np.ndarray:
     """Normalize shuttle coordinates by video resolution.
 

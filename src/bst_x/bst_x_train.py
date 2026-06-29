@@ -8,18 +8,13 @@
 # Run from the repo root with both package roots on PYTHONPATH:
 #   PYTHONPATH=src/bst_x \
 #       python -m bst_x_train
-#
-# PyTorch training loop overview (differs significantly from TF/Keras):
-#   TF:      model.compile(optimizer, loss) -> model.fit(data)  (one line trains everything)
-#   PyTorch: you write the loop yourself — iterate batches, compute loss, call backward(), step()
-#   This is more verbose but gives full control over every training step.
 
 import numpy as np
 import torch
-from torch import Tensor, nn, optim  # nn = layers/models, optim = optimizers (like tf.keras.optimizers)
+from torch import Tensor, nn, optim
 import torch.nn.functional as F      # F = stateless functions (one_hot, softmax, etc.)
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter  # TensorBoard logging (same viewer as TF)
+from torch.utils.tensorboard import SummaryWriter  # TensorBoard logging
 from torcheval.metrics.functional import multiclass_f1_score
 
 from transformers import get_cosine_schedule_with_warmup  # from HuggingFace, not a custom module
@@ -237,7 +232,7 @@ def train_one_epoch(
         jitter_n_total)``. Counts are length-``n_classes`` int64 tensors on
         ``device``; jitter accumulators are plain ints over the epoch's clips.
     """
-    model.train()  # enable dropout + batchnorm training mode (TF: training=True)
+    model.train()  # enable dropout + batchnorm training mode
     total_loss = 0.0
     tp = torch.zeros(n_classes, dtype=torch.long, device=device)
     fp = torch.zeros(n_classes, dtype=torch.long, device=device)
@@ -247,8 +242,8 @@ def train_one_epoch(
     jitter_n_total = 0
 
     for (human_pose, pos, shuttle), video_len, labels in loader:
-        # .to(device) = move tensors to GPU/CPU. TF does this automatically;
-        # PyTorch requires explicit placement for every tensor.
+        # .to(device) = move tensors to GPU/CPU; PyTorch needs explicit
+        # placement for every tensor.
         human_pose: Tensor = human_pose.to(device)
         shuttle: Tensor = shuttle.to(device)
         pos: Tensor = pos.to(device)
@@ -273,10 +268,10 @@ def train_one_epoch(
         logits = model(human_pose, shuttle, pos, video_len)
         loss: Tensor = loss_fn(logits, labels)
 
-        # PyTorch manual gradient step (TF does this inside model.fit()):
-        optimizer.zero_grad()  # clear gradients from previous batch
-        loss.backward()        # backpropagation: compute gradients (like tape.gradient())
-        optimizer.step()       # apply gradients to weights (like optimizer.apply_gradients())
+        # Manual gradient step: zero grads, backprop, update weights.
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
         scheduler.step()       # update learning rate according to cosine schedule
 
         total_loss += loss.item()  # .item() extracts Python float from single-element tensor
@@ -304,7 +299,7 @@ def validate(
     device,
     n_classes: int,
 ):
-    model.eval()  # disable dropout + set batchnorm to eval mode (TF: training=False)
+    model.eval()  # disable dropout + set batchnorm to eval mode
     total_loss = 0.0
     # Accumulate confusion matrix components across batches for per-class F1
     cum_tp = torch.zeros(n_classes)
@@ -753,7 +748,7 @@ def train_network(
         if curr_macro > best_macro:
             second_macro, second_macro_epoch = best_macro, best_macro_epoch
             best_macro, best_macro_epoch = curr_macro, epoch
-            # state_dict() = snapshot of all model weights as a dict (like model.get_weights() in TF)
+            # state_dict() = snapshot of all model weights as a dict
             # deepcopy because state_dict returns references that would change as training continues
             best_state = deepcopy(model.state_dict())
             # Snapshot the per-class val F1 at this same best-macro epoch so the
@@ -799,8 +794,8 @@ def train_network(
     # Save best checkpoint and restore it into the model. Done before TB
     # hparam logging so a logging failure doesn't lose the trained weights.
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(best_state, str(save_path))  # like model.save_weights() in TF
-    model.load_state_dict(best_state)       # like model.load_weights() in TF
+    torch.save(best_state, str(save_path))
+    model.load_state_dict(best_state)
 
     # HParams summary: one row per run, sortable in TB's HParams tab.
     # stopped_epoch - best_macro_epoch == early_stop_n_epochs confirms clean early-stop.

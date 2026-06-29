@@ -139,7 +139,6 @@ def verify_splits_present(
     :param clip_paths: Pre-scanned list of .mp4 paths.
     :return: True if all splits exist and contain clips.
     """
-    # Group clip counts by split
     split_counts: dict[str, int] = {}
     for mp4 in clip_paths:
         try:

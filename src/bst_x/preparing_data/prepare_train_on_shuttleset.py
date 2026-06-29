@@ -60,7 +60,7 @@ if TYPE_CHECKING:  # type-only: keeps mmpose out of the runtime import (see modu
 
 
 def get_H(homography_info: pd.Series):
-    """Get from the pd object."""
+    """Parse the (3, 3) homography matrix from a homography.csv row."""
     h_str: str = homography_info["homography_matrix"]
     H = h_str.strip().replace("[", "").replace("]", "").replace(",", "").split()
     H = np.array(list(map(float, H))).reshape((3, 3))
@@ -68,7 +68,7 @@ def get_H(homography_info: pd.Series):
 
 
 def get_corner_camera(homography_info: pd.Series):
-    """Get from the pd object."""
+    """Read the court's 4 camera-space corners from a homography.csv row, shaped (2, 4)."""
     corner_camera = homography_info.loc["upleft_x":"downright_y"]
     corner_camera = corner_camera.to_numpy(dtype=float).reshape((2, 4))
     return corner_camera
@@ -100,7 +100,7 @@ def project(H: np.ndarray, P_prime: np.ndarray):
     Output: (2, N)
     """
     P = H @ P_prime
-    P = P[:2, :] / P[-1, :]  # /= w
+    P = P[:2, :] / P[-1, :]
     return P
 
 
@@ -173,12 +173,8 @@ def normalize_joints(
 
     Output: (m, J, 2), m=2.
 
-    Signature defaults preserved verbatim from BST upstream for canonical
-    accuracy. The CLI invocation in ``main()`` below overrides
-    ``center_align`` to True (matches BST upstream's own CLI default;
-    committed ShuttleSet extracts were produced with this override).
-    ``v_height=None`` is canonical at both layers: the signature default
-    and the CLI call agree, so no flip happens there.
+    Signature defaults are BST-upstream; ``main()`` overrides
+    ``center_align=True`` (what the committed extracts used).
     """
     # If v_height == None and center_align == False,
     # this normalization method is same as that used in TemPose.
@@ -293,7 +289,7 @@ def detect_players_2d(
         # in_court: (m), pos_normalized: (m, xy), xy=2
         in_court_pid = np.nonzero(in_court)[0]
 
-        # Need exactly 2 players on court. Same retention policy as above.
+        # Need exactly 2 players on court.
         if len(in_court_pid) != 2:
             failed_ls.append(True)
             players_positions.append(np.zeros((2, 2), dtype=float))
@@ -354,8 +350,7 @@ def detect_players_3d(
     gen_2d = inferencer_2d(str(video_path), show=False)
     # WARNING: intentionally instantiated per-call, NOT per-loop-iteration in the caller.
     # The original author found that passing inferencer_3d as a parameter (the way
-    # inferencer_2d is passed) triggers an MMPose bug. The commented-out parameter
-    # on line ~300 and the commented-out caller on line ~588 are evidence of this.
+    # inferencer_2d is passed) triggers an MMPose bug.
     # This DOES reload model weights from disk for every clip, which is slow.
     # If MMPose fixes the bug upstream, hoist this into prepare_3d_dataset_npy_from_raw_video
     # and pass it in like inferencer_2d to avoid the repeated load.
@@ -840,11 +835,9 @@ def collate_npy(
     # Load shuttle CSVs from the canonical pipeline CSV dir (data/shuttleset/shuttle_csv/),
     # align temporal dimensions, and apply failed-frame masking.
     #
-    # Shuttle data is read here rather than in the pose step because:
-    #   - Shuttle CSVs are taxonomy- and split-agnostic physical measurements;
-    #     they don't belong under taxonomy-specific directories.
-    #   - Decoupling lets the ~1.5-3 day GPU pose job run without needing CSVs
-    #     present, and lets collation be re-run cheaply when the taxonomy changes.
+    # Shuttle is read here, not in the pose step: the CSVs are taxonomy/split-
+    # agnostic, so decoupling lets the ~1.5-3 day GPU pose job run without them
+    # and collation re-run cheaply per taxonomy.
     #
     # Temporal alignment: MMPose and TrackNetV3 use different video backends that
     # can disagree by 1-2 frames on the tail of the same .mp4. Truncating to the

@@ -34,9 +34,6 @@ VALID_CLIP_WINDOWS = frozenset(
 )
 
 
-# ---------------------------------------------------------------------------
-# Temporal boundary computation (adapted from gen_my_dataset.py:78-106)
-# ---------------------------------------------------------------------------
 def compute_temporal_bounds(folder_path: Path, shots_df: pd.DataFrame) -> pd.DataFrame:
     """Add start_f and end_f columns to shots_df based on adjacent shots.
 
@@ -79,11 +76,10 @@ def compute_temporal_bounds(folder_path: Path, shots_df: pd.DataFrame) -> pd.Dat
     return pd.concat(parts).reset_index(drop=True)
 
 
-# ---------------------------------------------------------------------------
-# Frame-to-time conversion (from ShuttleSet/utils.py:35-56)
-# ---------------------------------------------------------------------------
 def _frame_to_time(frame_number: int, fps: float) -> str:
     """Convert a frame number to HH:MM:SS.ssssss time string for MoviePy.
+
+    Adapted from ShuttleSet/utils.py.
 
     :param frame_number: Frame index in the video.
     :param fps: Video frames per second.
@@ -96,9 +92,6 @@ def _frame_to_time(frame_number: int, fps: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{seconds:09.6f}"
 
 
-# ---------------------------------------------------------------------------
-# Clip boundary computation per clip window
-# ---------------------------------------------------------------------------
 def _compute_clip_bounds(row, clip_window: str, fps: float) -> tuple[int, int]:
     """Compute start and end frame for one clip based on the clip window.
 
@@ -130,9 +123,6 @@ def _compute_clip_bounds(row, clip_window: str, fps: float) -> tuple[int, int]:
     return start_f, end_f
 
 
-# ---------------------------------------------------------------------------
-# Single-video clip writer
-# ---------------------------------------------------------------------------
 def _write_clips_for_video(
     raw_video_dir: Path,
     out_folder: Path,
@@ -198,9 +188,6 @@ def _write_clips_for_video(
     return clips_written
 
 
-# ---------------------------------------------------------------------------
-# Removed-shot filtering
-# ---------------------------------------------------------------------------
 def _filter_removed_shots(
     shots_df: pd.DataFrame,
     vid: int,
@@ -230,9 +217,6 @@ def _filter_removed_shots(
     return shots_df[~row_keys.isin(to_remove)]
 
 
-# ---------------------------------------------------------------------------
-# Main pipeline functions
-# ---------------------------------------------------------------------------
 def generate_all_clips(
     raw_video_dir: Path = RAW_VIDEO_DIR,
     set_info_dir: Path = SET_INFO_DIR,
@@ -282,7 +266,7 @@ def generate_all_clips(
             if shots_df.empty:
                 continue
 
-            # Filter out individually removed shots (vectorized)
+            # Filter out individually removed shots
             before = len(shots_df)
             shots_df = _filter_removed_shots(shots_df, vid, removed_shots)
             removed_count = before - len(shots_df)
@@ -341,7 +325,6 @@ def apply_class_merge(
                     if src.exists():
                         move_ops.append((src, dst))
 
-    # Execute each move in a flat loop
     moved = 0
     for src, dst in move_ops:
         dst.mkdir(parents=True, exist_ok=True)
@@ -356,9 +339,6 @@ def apply_class_merge(
     print(f'Class merge complete: {moved} clips moved.')
 
 
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Generate labeled ShuttleSet stroke clips from raw match videos.',
