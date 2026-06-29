@@ -78,9 +78,6 @@ def download_video(
             return downloaded[0].name
         return None
 
-    except FileNotFoundError:
-        print('ERROR: yt-dlp not found. Install with: pip install yt-dlp')
-        return None
     except subprocess.TimeoutExpired:
         print(f'  TIMEOUT video {video_id}: download exceeded 30 minutes')
         return None

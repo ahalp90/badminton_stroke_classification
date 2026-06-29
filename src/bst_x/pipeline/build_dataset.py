@@ -22,7 +22,7 @@ from pathlib import Path
 
 from pipeline.config import (
     RAW_VIDEO_DIR, CLIPS_OUTPUT_DIR, RESOLUTION_CSV_PATH,
-    SPLITS, EXCLUDED_VIDEOS, REMOVED_SHOTS, CLIP_WINDOW,  # noqa: F401
+    SPLITS, EXCLUDED_VIDEOS, REMOVED_SHOTS, CLIP_WINDOW,
     TAXONOMIES, Taxonomy, resolve_taxonomy,
 )
 
@@ -229,6 +229,7 @@ def run_pipeline(
             verify_no_excluded(clip_paths),
             verify_no_removed_shots(clip_paths),
         ]
+        # Clip size non-zero checked after full extract, allowing the batch to finish first.
         if not skip_merge:
             checks.append(verify_merge(taxonomy=taxonomy))
         warn_orphan_files(CLIPS_OUTPUT_DIR, clip_paths)

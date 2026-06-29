@@ -488,6 +488,18 @@ def _menu(prompt: str, options: list[str]) -> str:
         print(f'  Enter a number between 1 and {len(options)}.')
 
 
+def _print_paths_tsv(records: list[ClipRecord]) -> None:
+    """Print clip records as tab-separated rows: split, class, stem, clip, shuttle, mmpose."""
+    for r in records:
+        clip_str = str(r.clip) if r.clip else 'MISSING_CLIP'
+        shuttle_str = str(r.shuttle_npy) if r.shuttle_npy else 'MISSING'
+        mmpose_str = str(r.mmpose_joints) if r.mmpose_joints else 'NO_MMPOSE'
+        print(
+            f'{r.split}\t{r.taxonomy_class}\t{r.clip_stem}\t'
+            f'{clip_str}\t{shuttle_str}\t{mmpose_str}'
+        )
+
+
 def interactive(
     paths: DataPaths,
     split_column: str = DEFAULT_SPLIT_COLUMN,
@@ -542,14 +554,7 @@ def interactive(
             split_column=split_column,
             taxonomy_name=taxonomy_name,
         )
-        for r in records:
-            clip_str = str(r.clip) if r.clip else 'MISSING_CLIP'
-            shuttle_str = str(r.shuttle_npy) if r.shuttle_npy else 'MISSING'
-            mmpose_str = str(r.mmpose_joints) if r.mmpose_joints else 'NO_MMPOSE'
-            print(
-                f'{r.split}\t{r.taxonomy_class}\t{r.clip_stem}\t'
-                f'{clip_str}\t{shuttle_str}\t{mmpose_str}'
-            )
+        _print_paths_tsv(records)
 
 
 def _build_cli() -> argparse.ArgumentParser:
@@ -652,14 +657,7 @@ def main(argv: list[str] | None = None) -> None:
             split_column=args.split_column,
             taxonomy_name=args.taxonomy,
         )
-        for r in records:
-            clip_str = str(r.clip) if r.clip else 'MISSING_CLIP'
-            shuttle_str = str(r.shuttle_npy) if r.shuttle_npy else 'MISSING'
-            mmpose_str = str(r.mmpose_joints) if r.mmpose_joints else 'NO_MMPOSE'
-            print(
-                f'{r.split}\t{r.taxonomy_class}\t{r.clip_stem}\t'
-                f'{clip_str}\t{shuttle_str}\t{mmpose_str}'
-            )
+        _print_paths_tsv(records)
 
 
 if __name__ == '__main__':

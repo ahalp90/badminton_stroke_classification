@@ -44,6 +44,20 @@ def get_bone_pairs(skeleton_format='coco'):
     return pairs
 
 
+def _pad_tail_to(
+    target_len: int,
+    joints: np.ndarray,
+    pos: np.ndarray,
+    shuttle: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Zero-pad the time axis (axis 0) of each array up to ``target_len``."""
+    pad_len = target_len - len(pos)
+    joints = np.pad(joints, ((0, pad_len), *([(0, 0)] * 3)))
+    pos = np.pad(pos, ((0, pad_len), *([(0, 0)] * 2)))
+    shuttle = np.pad(shuttle, ((0, pad_len), (0, 0)))
+    return joints, pos, shuttle
+
+
 def make_seq_len_same(
     target_len: int,
     joints: np.ndarray,
@@ -52,30 +66,23 @@ def make_seq_len_same(
 ):
     video_len = len(pos)
 
-    if video_len > target_len:
-        need_padding = (video_len % target_len) > (target_len // 2)
-        stride = video_len // target_len + int(need_padding)
+    # Already at or under target: arrays are normalized, so pad rather than interpolate.
+    if video_len <= target_len:
+        joints, pos, shuttle = _pad_tail_to(target_len, joints, pos, shuttle)
+        return joints, pos, shuttle, video_len
 
-        joints = joints[::stride][:target_len]
-        pos = pos[::stride][:target_len]
-        shuttle = shuttle[::stride][:target_len]
+    # Longer than target: stride-subsample. Pad the remainder when the leftover
+    # frames exceed half a stride (otherwise they'd be silently dropped).
+    need_padding = (video_len % target_len) > (target_len // 2)
+    stride = video_len // target_len + int(need_padding)
 
-        new_video_len = len(pos)
+    joints = joints[::stride][:target_len]
+    pos = pos[::stride][:target_len]
+    shuttle = shuttle[::stride][:target_len]
+    new_video_len = len(pos)
 
-        if need_padding:
-            pad_len = target_len - new_video_len
-            joints = np.pad(joints, ((0, pad_len), *([(0, 0)]*3)))
-            pos = np.pad(pos, ((0, pad_len), *([(0, 0)]*2)))
-            shuttle = np.pad(shuttle, ((0, pad_len), (0, 0)))
-
-    else:
-        # Since they have been normalized, we don't interpolate them.
-        new_video_len = video_len
-
-        pad_len = target_len - new_video_len
-        joints = np.pad(joints, ((0, pad_len), *([(0, 0)]*3)))
-        pos = np.pad(pos, ((0, pad_len), *([(0, 0)]*2)))
-        shuttle = np.pad(shuttle, ((0, pad_len), (0, 0)))
+    if need_padding:
+        joints, pos, shuttle = _pad_tail_to(target_len, joints, pos, shuttle)
 
     return joints, pos, shuttle, new_video_len
 

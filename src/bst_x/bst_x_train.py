@@ -196,8 +196,10 @@ def aux_schedule_factor(epoch: int, fade_end_epoch: int) -> float:
     :param fade_end_epoch: epoch at which factor first reaches 0.0; stays 0 after.
     :return: scalar in [0, 1].
     """
-    if fade_end_epoch <= 1 or epoch >= fade_end_epoch:
-        return 0.0 if epoch >= fade_end_epoch else 1.0
+    if epoch >= fade_end_epoch:
+        return 0.0
+    if fade_end_epoch <= 1:
+        return 1.0
     progress = (epoch - 1) / (fade_end_epoch - 1)
     return 0.5 * (1.0 + math.cos(math.pi * progress))
 
@@ -804,13 +806,13 @@ def train_network(
     # stopped_epoch - best_macro_epoch == early_stop_n_epochs confirms clean early-stop.
     # Coerce non-scalar values (dicts, None, etc.) to strings; TB's add_hparams
     # only accepts int / float / str / bool / Tensor.
-    def _to_hparam_value(value):
-        if isinstance(value, (int, float, str, bool)) or torch.is_tensor(value):
-            return value
-        return str(value)
+    hparam_dict = {}
+    for key, value in hyp._asdict().items():
+        is_tb_scalar = isinstance(value, (int, float, str, bool)) or torch.is_tensor(value)
+        hparam_dict[key] = value if is_tb_scalar else str(value)
 
     writer.add_hparams(
-        hparam_dict={k: _to_hparam_value(v) for k, v in hyp._asdict().items()},
+        hparam_dict=hparam_dict,
         metric_dict={
             'best/macro_f1':        best_macro,
             'best/macro_f1_epoch':  best_macro_epoch,

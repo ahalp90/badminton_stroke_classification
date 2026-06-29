@@ -18,7 +18,7 @@ from pathlib import Path
 from pipeline.config import (
     SET_INFO_DIR, RAW_VIDEO_DIR, CLIPS_OUTPUT_DIR,
     SPLITS, STROKE_TYPES_19, STROKE_TYPES_19_ZH,
-    REMOVED_SHOTS, CLIP_WINDOW, PLAYERS,  # noqa: F401
+    REMOVED_SHOTS, CLIP_WINDOW, PLAYERS,
     UNPREFIXED_TYPES, Taxonomy, resolve_taxonomy,
 )
 
@@ -27,6 +27,11 @@ from pipeline.player_mapping import collect_shots
 # Default taxonomy when callers don't pass one. Matches the project's
 # working baseline; override via the function arg for one-off runs.
 _DEFAULT_TAXONOMY = resolve_taxonomy('une_v1_14')
+
+# Single source for the runtime guard and the CLI --clip-window choices.
+VALID_CLIP_WINDOWS = frozenset(
+    {'middle_in_a_sec', 'between_2_hits', 'between_2_hits_with_max_limits'}
+)
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +154,7 @@ def _write_clips_for_video(
     :param players: Tuple of player names ('Top', 'Bottom').
     :return: Number of clips written.
     """
-    if clip_window not in ('middle_in_a_sec', 'between_2_hits', 'between_2_hits_with_max_limits'):
+    if clip_window not in VALID_CLIP_WINDOWS:
         raise ValueError(f"Unknown clip window: {clip_window!r}")
 
     for typ in stroke_types:
@@ -359,8 +364,7 @@ if __name__ == '__main__':
         description='Generate labeled ShuttleSet stroke clips from raw match videos.',
     )
     parser.add_argument('--clip-window', default=CLIP_WINDOW,
-                        choices=['middle_in_a_sec', 'between_2_hits',
-                                 'between_2_hits_with_max_limits'],
+                        choices=VALID_CLIP_WINDOWS,
                         help='Temporal clipping window')
     parser.add_argument('--no-merge', action='store_true',
                         help='Skip class merging (keep all 19 types)')

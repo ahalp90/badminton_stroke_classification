@@ -36,9 +36,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .base import ClipContext, HeuristicOutput, RawClip
-
-J = 17
+from .base import ClipContext, HeuristicOutput, J, RawClip
 
 
 def apply(raw: RawClip, ctx: ClipContext, **_hyperparams) -> HeuristicOutput:

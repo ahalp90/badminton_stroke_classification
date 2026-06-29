@@ -45,7 +45,7 @@ import numpy as np
 
 from pipeline.court_utils import normalize_position, to_court_coordinate
 
-from .base import ClipContext, HeuristicOutput, RawClip
+from .base import ClipContext, HeuristicOutput, J, RawClip
 
 
 @dataclass(frozen=True)
@@ -66,7 +66,6 @@ class StickyAnchorParams:
     update_gate_eps: float = 0.01
 
 
-J = 17
 SLOT_TOP = 0
 SLOT_BOTTOM = 1
 SLOT_ORDER = (SLOT_BOTTOM, SLOT_TOP)  # pick order: Bottom first, Top second

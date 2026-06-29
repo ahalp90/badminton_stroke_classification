@@ -862,7 +862,7 @@ def collate_npy(
         failed = failed_ls[i]
 
         min_t = min(len(failed), len(shuttle))
-        if min_t < len(failed) or min_t < len(shuttle):
+        if len(failed) != len(shuttle):
             joints_ls[i] = joints_ls[i][:min_t]
             pos_ls[i] = pos_ls[i][:min_t]
             shuttle = shuttle[:min_t]
