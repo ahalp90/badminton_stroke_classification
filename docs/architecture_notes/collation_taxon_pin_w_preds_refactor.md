@@ -427,8 +427,8 @@ elif not args.keep_unknown:
 Run:
 
 ```bash
-cd /home/ahalperi/badminton_stroke_classifier
-/home/ahalperi/.venvs/venv-bst/bin/python scripts/build_extract_stems.py \
+cd /home/ahalperi/badminton_stroke_classification
+/home/ahalperi/.venvs/venv-bst-x/bin/python scripts/build_extract_stems.py \
     --only-unknown --keep-busted \
     --output /scratch/comp320a/ShuttleSet_keypoints_raw_unknown/stems_unknown.txt
 ```
@@ -439,7 +439,7 @@ cd /home/ahalperi/badminton_stroke_classifier
 
 ```bash
 PYTHONPATH=src/bst_x \
-    /home/ahalperi/.venvs/venv-bst/bin/python -m preparing_data.raw_extract \
+    /home/ahalperi/.venvs/venv-bst-x/bin/python -m preparing_data.raw_extract \
     --clip-stems-file /scratch/comp320a/ShuttleSet_keypoints_raw_unknown/stems_unknown.txt \
     --save-dir /scratch/comp320a/ShuttleSet_keypoints_raw_unknown \
     --n-max 16
@@ -451,7 +451,7 @@ Wall time: ~1,278 / 32,203 of the original Phase-2 budget. Roughly 1.5 hours on 
 
 ```bash
 PYTHONPATH=src/bst_x \
-    /home/ahalperi/.venvs/venv-bst/bin/python -m preparing_data.apply_heuristic \
+    /home/ahalperi/.venvs/venv-bst-x/bin/python -m preparing_data.apply_heuristic \
     --raw-dir /scratch/comp320a/ShuttleSet_keypoints_raw_unknown \
     --output-dir /scratch/comp320a/ShuttleSet_keypoints_clean_sticky_anchor_unknown \
     --heuristic sticky_anchor \

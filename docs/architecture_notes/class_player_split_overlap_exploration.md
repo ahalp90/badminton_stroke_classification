@@ -185,17 +185,17 @@ Two scripts: one runs locally, one runs on bourbaki to regenerate the videos_len
 
 ```bash
 # push the dump script to bourbaki
-boursync -avR scratch/research/dump_videos_len.py bourbaki-hpc:badminton_stroke_classifier/
+boursync -avR scratch/research/dump_videos_len.py bourbaki-hpc:badminton_stroke_classification/
 
 # on bourbaki: produce the CSV against the live npy collated dirs
 ssh bourbaki-hpc
-cd badminton_stroke_classifier
-source venv-bst/bin/activate
+cd badminton_stroke_classification
+source venv-bst-x/bin/activate
 python scratch/research/dump_videos_len.py --trust-clip-count
 
 # pull the result back
 exit
-boursync -avR bourbaki-hpc:badminton_stroke_classifier/docs/architecture_notes/discard_flags_split_v2_dropunk_nosides.csv scratch/research/
+boursync -avR bourbaki-hpc:badminton_stroke_classification/docs/architecture_notes/discard_flags_split_v2_dropunk_nosides.csv scratch/research/
 ```
 
 The `--trust-clip-count` flag skips the existence check on the flat per-clip dir (which is pruned post-collation on bourbaki); the clip-count match between filtered `clips_master.csv` and `videos_len.npy` is sufficient verification.

@@ -106,7 +106,7 @@ root (copy .env.example and fill in your values):
     BST_X_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips
     BST_X_SHUTTLE_NPY_DIR=/scratch/comp320a/ShuttleSet/shuttle_npy_flat
     BST_X_MMPOSE_NPY_DIR=/scratch/comp320a/ShuttleSet_data_bst_25/dataset_npy_between_2_hits_with_max_limits_flat
-    BST_X_CLIPS_CSV=/home/username/badminton_stroke_classifier/notebooks/clips_master.csv
+    BST_X_CLIPS_CSV=/home/username/badminton_stroke_classification/notebooks/clips_master.csv
 
 Then just run with no flags:
 
