@@ -21,7 +21,7 @@ spreads the sample across video IDs without introducing run-to-run noise.
 Run from the repo root with both package roots on PYTHONPATH::
 
     PYTHONPATH=src/bst_x \\
-        python -m preparing_data.failsafe_bst_mmpose_zeroing_check_equivalence \\
+        python -m validation_scripts.failsafe_bst_mmpose_zeroing_check_equivalence \\
             --raw-dir /scratch/.../dataset_npy_..._flat_raw_phase1 \\
             --committed-dir /scratch/.../dataset_npy_..._flat \\
             --busted-stems-file docs/architecture_notes/busted_hit_zone_clips_phase1.txt \\
