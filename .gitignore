@@ -34,6 +34,9 @@ venv/
 # Local mirror of the engelbart raw-extract output (rsync'd per-clip *_raw_*.npy files).
 # Multi-GB depending on how many clips are pulled; never worth committing.
 scratch/raw_extract_local/
+# Clean per-clip fixture for the collation golden, regenerated locally from
+# raw_extract_local via apply_heuristic (sticky_anchor). Local-only, like the raw mirror.
+scratch/clean_extract_local/
 #symlinks
 data/shuttleset/raw_video
 data/shuttleset/clips

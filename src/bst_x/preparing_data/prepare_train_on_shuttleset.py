@@ -17,7 +17,12 @@ Run from the repo root with both package roots on PYTHONPATH::
         python -m preparing_data.prepare_train_on_shuttleset --help
 """
 
-from mmpose.apis import MMPoseInferencer
+# Deferred annotations so the MMPoseInferencer type hints (detect_players_2d/3d) don't force
+# the mmpose import at module load. That keeps collate_npy / get_H / the court helpers -- none
+# of which touch mmpose -- importable without the GPU dep (e.g. venv-bst-x collation, the CPU
+# goldens). mmpose is imported lazily inside the three functions that instantiate it, and
+# under TYPE_CHECKING for the static type hints. Keep this: reverting re-couples the module.
+from __future__ import annotations
 
 import argparse
 import gc
@@ -26,6 +31,7 @@ import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
 import torch
+from typing import TYPE_CHECKING
 
 import subprocess
 from concurrent.futures import Future, ProcessPoolExecutor, ThreadPoolExecutor
@@ -48,6 +54,9 @@ from pipeline.config import (
     resolve_taxonomy,
 )
 from pipeline.data_access import env_path, env_path_or_none, load_repo_dotenv
+
+if TYPE_CHECKING:  # type-only: keeps mmpose out of the runtime import (see module-top note)
+    from mmpose.apis import MMPoseInferencer
 
 
 def get_H(homography_info: pd.Series):
@@ -350,6 +359,7 @@ def detect_players_3d(
     # This DOES reload model weights from disk for every clip, which is slow.
     # If MMPose fixes the bug upstream, hoist this into prepare_3d_dataset_npy_from_raw_video
     # and pass it in like inferencer_2d to avoid the repeated load.
+    from mmpose.apis import MMPoseInferencer  # lazy: keeps the module mmpose-free at import (see top)
     inferencer_3d = MMPoseInferencer(pose3d="human3d")
     gen_3d = inferencer_3d(str(video_path), show=False)
 
@@ -606,6 +616,7 @@ def prepare_2d_dataset_npy_from_raw_video(
         instead of bounding box diagonal.
     :param joints_center_align: If True, center-align joints within bounding box.
     """
+    from mmpose.apis import MMPoseInferencer  # lazy: keeps the module mmpose-free at import (see top)
     pose_inferencer = MMPoseInferencer("human")
 
     _prepare_dataset_from_raw_video(
@@ -639,6 +650,7 @@ def prepare_3d_dataset_npy_from_raw_video(
     :param resolution_df: DataFrame with video resolutions, indexed by video ID.
     :param all_court_info: Dict mapping video ID to court info (homography, borders).
     """
+    from mmpose.apis import MMPoseInferencer  # lazy: keeps the module mmpose-free at import (see top)
     pose_inferencer_2d = MMPoseInferencer("human")
     # pose_inferencer_3d = MMPoseInferencer(pose3d='human3d')
 
