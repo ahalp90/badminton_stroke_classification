@@ -21,7 +21,7 @@ from transformers import get_cosine_schedule_with_warmup  # from HuggingFace, no
 
 from pathlib import Path
 from copy import deepcopy
-from collections import namedtuple
+from typing import NamedTuple
 from contextlib import redirect_stdout
 import argparse
 import math
@@ -67,47 +67,37 @@ DEFAULT_CLIPS_CSV = REPO_ROOT / 'notebooks' / 'clips_master.csv'
 # taxonomy + split. ablation_id is a separate, nullable training-time tag (augs /
 # loss / wiring on a fixed collation): manifest-only, never in the path. See
 # pipeline.config.derive_npy_collated_dir_basename for the disentanglement.
-Hyp = namedtuple('Hyp', [
-    'n_epochs', 'batch_size', 'lr', 'weight_decay', 'warm_up_step',
-    'taxonomy', 'seq_len', 'early_stop_n_epochs',
-    'pose_style', 'use_3d_pose', 'train_partial',
-    'use_aux_schedule', 'aux_fade_end_epoch',
-    'clips_csv', 'split_column', 'collation_id', 'ablation_id',
-    'label_smoothing', 'class_weights', 'adaptive_focal',
-    'use_val_improvability_gate', 'val_improvability_gate',
-    'augmentation',
-])
-hyp = Hyp(
-    n_epochs=80,
-    early_stop_n_epochs=40,
-    batch_size=128,
-    lr=5e-4,
+class Hyp(NamedTuple):
+    n_epochs: int = 80
+    batch_size: int = 128
+    lr: float = 5e-4
     # AdamW decoupled weight decay. 0.01 is PyTorch's AdamW default and what
     # every prior run used implicitly; kept as the default so non-sweep runs
     # barely move (norm/bias/embeddings now excluded from decay, but 0.01 on
     # them was near-inert anyway). The sweep overrides this per cell. Optimal
     # lambda for this dataset/LR/run-length is likely 0.1-0.3; see
     # docs/architecture_notes/hp_and_aug_speculations_30_05_2026.md (Q2).
-    weight_decay=0.01,
-    warm_up_step=100,
-    taxonomy='une_v1_14',
-    seq_len=100,
-    pose_style='JnB_bone',
-    use_3d_pose=False,
-    train_partial=1.0,
-    use_aux_schedule=True,
-    aux_fade_end_epoch=15,
-    clips_csv=str(DEFAULT_CLIPS_CSV),
-    split_column='split_v2',
-    collation_id='taxon_pinned_w_preds',
-    ablation_id=None,
-    label_smoothing=0.0,  # CDB-F1 cell forces LS=0; LS softens targets so confident-correct samples have p_t < 1.0, contaminating focal's per-sample hardness signal
+    weight_decay: float = 0.01
+    warm_up_step: int = 100
+    taxonomy: str = 'une_v1_14'
+    seq_len: int = 100
+    early_stop_n_epochs: int = 40
+    pose_style: str = 'JnB_bone'
+    use_3d_pose: bool = False
+    train_partial: float = 1.0
+    use_aux_schedule: bool = True
+    aux_fade_end_epoch: int = 15
+    clips_csv: str = str(DEFAULT_CLIPS_CSV)
+    split_column: str = 'split_v2'
+    collation_id: str = 'taxon_pinned_w_preds'
+    ablation_id: str | None = None
+    label_smoothing: float = 0.0  # CDB-F1 cell forces LS=0; LS softens targets so confident-correct samples have p_t < 1.0, contaminating focal's per-sample hardness signal
     # Manual per-class CE weights for the wrist_smash <-> smash confusion-pair smoke test.
     # Pair-balanced (both at 2.0) so the gradient has no directional bias toward one class:
     # tests whether loss-side reweighting alone can move the wrist_smash F1 floor without
     # stealing recall from smash. Weights renormalised to mean 1.0 inside the loss build so
     # overall loss scale stays comparable to uniform CE. Set to None for uniform CE.
-    class_weights=None,
+    class_weights: dict | None = None
     # Class-F1-driven adaptive focal loss (CDB-F1). Mutually exclusive with
     # class_weights, and forces label_smoothing=0 (LS contaminates focal's
     # hardness estimate). None disables; pass a dict to engage:
@@ -123,7 +113,7 @@ hyp = Hyp(
     #       ],
     #   }
     # Full design + paper-verified equations: docs/architecture_notes/class_f1_focal_design.md.
-    adaptive_focal={
+    adaptive_focal: dict | None = {
         # First-run sweet spot from run_20260501_164658: tau=1, gamma=1.
         # All four CDB knob variants (gamma=0, tau=0.5, pair-cap, gamma=2)
         # traded wrist_smash back for smash without macro moving, so this
@@ -134,7 +124,7 @@ hyp = Hyp(
         'momentum': 0.9,
         'warm_up_epochs': 5,
         'f1_floor': 0.0,
-    },
+    }
     # Val-improvability gate over the adaptive-focal alpha. Off by default;
     # flip on with use_val_improvability_gate=True or --val-improvability-gate.
     # Once a class stops improving on val it decays that class's alpha back
@@ -146,28 +136,30 @@ hyp = Hyp(
     # Defaults are the ones derived in
     # docs/architecture_notes/alpha_arc_analysis/ (macro plateaus ~e26-31,
     # cross_court_net_shot needs a patience >= its ~15-epoch new-high interval).
-    use_val_improvability_gate=False,
-    val_improvability_gate={
+    use_val_improvability_gate: bool = False
+    val_improvability_gate: dict = {
         'val_f1_smoothing_factor': 0.9,    # EMA retention on val F1 (~6.6-epoch half-life)
         'improvement_margin': 0.015,       # smoothed val must beat its best by this to count
         'patience_epochs': 15,             # epochs with no new high before decay starts
         'min_epochs_before_gating': 10,    # no decay before this epoch (keep the early boost)
         'revert_step_per_epoch': 0.2,      # fraction of the gap to the mean reverted per epoch
         'stop_gating_after_fraction': 0.75,  # freeze past 0.75*n_epochs (protect anneal blooms)
-    },
+    }
     # Train-time augmentations. Replaces the inherited (broken) joints-only
     # RandomTranslation_batch. Flip is the literature-norm dataset-doubler;
     # constrained jitter is the corrected, pos+shuttle-only,
     # layered-conditional-bound formulation. Full design + verified code
     # traces in docs/architecture_notes/augmentation_framework.md.
-    augmentation={
+    augmentation: dict = {
         'p_flip':   0.5,
         'p_jitter': 0.3,
         'cap_y':    0.05,
         'cap_x':    0.10,
         'eps':      0.15,
-    },
-)
+    }
+
+
+hyp = Hyp()
 
 
 # ==========================================================================
