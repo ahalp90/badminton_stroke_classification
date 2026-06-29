@@ -454,49 +454,6 @@ def detect_shuttlecock_by_TrackNetV3_with_attention(
     )
 
 
-def detect_shuttlecock_by_TrackNetV3_with_rectification(
-    cur_i: int,
-    total_tasks: int,
-    video_path: Path,
-    save_dir: Path,
-    model_folder: Path = None,
-):
-    """TrackNetV3 (with rectification module).
-
-    https://github.com/qaz812345/TrackNetV3
-
-    :param cur_i: Current task index (for progress printing).
-    :param total_tasks: Total number of tasks (for progress printing).
-    :param video_path: Path to the clip .mp4 file.
-    :param save_dir: Directory to save the shuttle detection CSV.
-    :param model_folder: Path to the cloned TrackNetV3 repository.
-    :raises ValueError: If model_folder is None.
-    """
-    if model_folder is None:
-        raise ValueError("model_folder is required for shuttle detection.")
-    process_args = [
-        "python",
-        str(model_folder / "predict.py").replace("\\", "/"),
-        "--video_file",
-        str(video_path).replace("\\", "/"),
-        "--tracknet_file",
-        str(model_folder / "ckpts" / "TrackNet_best.pt").replace("\\", "/"),
-        "--inpaintnet_file",
-        str(model_folder / "ckpts" / "InpaintNet_best.pt").replace("\\", "/"),
-        "--save_dir",
-        str(save_dir).replace("\\", "/"),
-        "--large_video",
-    ]
-    r = subprocess.run(process_args)
-    assert r.returncode == 0, "Subprocess failed!"
-
-    type_path = video_path.parent
-    set_name = type_path.parent.name
-    print(
-        f"Shuttlecock detection ({cur_i}/{total_tasks}): {set_name}/{type_path.name}/{video_path.name} done!"
-    )
-
-
 def get_shuttle_result(path: Path, v_width, v_height):
     df = pd.read_csv(str(path)).drop_duplicates(
         "Frame"

@@ -5,11 +5,8 @@
 
 import warnings
 
-import torch
-from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 
-from torchvision.transforms import v2
 import numpy as np
 from pathlib import Path
 
@@ -109,39 +106,6 @@ def interpolate_joints(joints: np.ndarray, pairs) -> np.ndarray:
     bones_center = np.stack(mid_joints, axis=-2)  # bones_center: (t, m, B, 2)
     return np.concatenate((joints, bones_center), axis=-2)  # (t, m, J+B, 2)
 
-
-class RandomTranslation(v2.Transform):
-    '''Same as RandomTranslation in TemPose.'''
-    def __init__(self, trans_range=(-0.3, 0.3), prob=0.3) -> None:
-        super().__init__()
-        self.trans_range = trans_range
-        self.p = prob
-
-    def __call__(self, x: np.ndarray):
-        # x: (t, m, J, d)
-        shift = np.random.uniform(*self.trans_range, size=x.shape[-1])
-        if np.random.uniform(0, 1) < self.p:
-            x = x + shift
-        return x
-
-
-class RandomTranslation_batch(v2.Transform):
-    '''Same as RandomTranslation in TemPose.'''
-    def __init__(self, trans_range=(-0.3, 0.3), prob=0.3) -> None:
-        super().__init__()
-        self.trans_range = trans_range
-        self.p = prob
-
-    def __call__(self, x: Tensor):
-        # x: (n, t, m, J, d)
-        n = x.shape[0]
-        d = x.shape[-1]
-        shift = torch.from_numpy(
-            np.random.uniform(*self.trans_range, size=(n, d)).astype(np.float32)
-        ).to(x.device)
-        if np.random.uniform(0, 1) < self.p:
-            x = x + shift.view(n, 1, 1, 1, d)
-        return x
 
 class Dataset_npy_collated(Dataset):
     def __init__(

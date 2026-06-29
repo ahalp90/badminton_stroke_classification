@@ -13,7 +13,6 @@ import shutil
 
 from moviepy import VideoFileClip
 import pandas as pd
-import numpy as np  # noqa: F401
 from pathlib import Path
 
 from pipeline.config import (

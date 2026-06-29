@@ -61,12 +61,7 @@ class RunStats:
     attempted: int = 0
     processed: int = 0
     skipped_existing: int = 0
-    skipped_missing_raw: int = 0
     skipped_missing_mp4_metadata: int = 0
-
-
-def _resolve_or_none(path: Path | None) -> Path | None:
-    return path.resolve() if path is not None else None
 
 
 def _validate_output_dir(output_dir: Path, raw_dir: Path) -> None:
