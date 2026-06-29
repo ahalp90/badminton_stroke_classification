@@ -127,7 +127,9 @@ def dump_topk_predictions(
         topk_idx = torch.topk(logits, k=k_eff, dim=-1).indices
         logits_ls.append(logits.cpu().numpy())
         y_true_ls.append(labels.numpy())
-        top1_ls.append(topk_idx[:, 0].cpu().numpy())
+        # top-1 via argmax to match every other metric site (equals topk_idx[:, 0] on
+        # the tie-free logits a trained model produces; the tie-guard downstream catches any tie).
+        top1_ls.append(logits.argmax(dim=-1).cpu().numpy())
         topk_idx_ls.append(topk_idx.cpu().numpy())
     return {
         'logits':      np.concatenate(logits_ls).astype(np.float32),
