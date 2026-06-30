@@ -12,7 +12,6 @@
 import numpy as np
 import torch
 from torch import Tensor, nn, optim
-import torch.nn.functional as F      # F = stateless functions (one_hot, softmax, etc.)
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter  # TensorBoard logging
 from torcheval.metrics.functional import multiclass_f1_score
@@ -293,11 +292,11 @@ def validate(
 ):
     model.eval()  # disable dropout + set batchnorm to eval mode
     total_loss = 0.0
-    # Accumulate confusion matrix components across batches for per-class F1
-    cum_tp = torch.zeros(n_classes)
-    cum_tn = torch.zeros(n_classes)
-    cum_fp = torch.zeros(n_classes)
-    cum_fn = torch.zeros(n_classes)
+    # Accumulate per-class TP/FP/FN on device (mirrors train_one_epoch);
+    # one .cpu() after the loop, not four per batch.
+    cum_tp = torch.zeros(n_classes, dtype=torch.long, device=device)
+    cum_fp = torch.zeros(n_classes, dtype=torch.long, device=device)
+    cum_fn = torch.zeros(n_classes, dtype=torch.long, device=device)
     cum_top2 = 0  # ground truth among the two highest logits, summed over samples
     cum_n = 0     # total samples seen
 
@@ -313,21 +312,13 @@ def validate(
         loss: Tensor = loss_fn(logits, labels)
         total_loss += loss.item()
 
-        # Manual per-class TP/FP/FN/TN computation via one-hot encoding
-        pred = F.one_hot(torch.argmax(logits, dim=1), n_classes).bool()
-        labels_onehot = F.one_hot(labels, n_classes).bool()
-
-        tp = torch.sum(pred & labels_onehot, dim=0)
-        tn = torch.sum(~pred & ~labels_onehot, dim=0)
-
-        fp = torch.sum(pred & ~labels_onehot, dim=0)
-        fn = torch.sum(~pred & labels_onehot, dim=0)
-
-        # .cpu() moves results back from GPU for accumulation
-        cum_tp += tp.cpu()
-        cum_tn += tn.cpu()
-        cum_fp += fp.cpu()
-        cum_fn += fn.cpu()
+        preds = logits.argmax(dim=1)
+        batch_tp, batch_fp, batch_fn = accumulate_class_counts(
+            preds, labels, n_classes,
+        )
+        cum_tp += batch_tp
+        cum_fp += batch_fp
+        cum_fn += batch_fn
 
         # Top-2 accuracy needs the two highest logits, so it's the one metric
         # not already in the confusion counts; accumulate it here.
@@ -335,6 +326,9 @@ def validate(
         top2_idx = logits.topk(2, dim=1).indices
         cum_top2 += int((top2_idx == labels.unsqueeze(1)).any(dim=1).sum())
 
+    cum_tp = cum_tp.cpu()
+    cum_fp = cum_fp.cpu()
+    cum_fn = cum_fn.cpu()
     val_loss = total_loss / len(loader)
 
     # Per-class F1, then macro average (mean across classes)
