@@ -41,7 +41,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from pipeline.config import derive_npy_collated_dir_basename, resolve_taxonomy
+from pipeline.config import derive_npy_collated_dir_basename, taxonomy_lookup
 from pipeline.data_access import env_path_or_none, load_repo_dotenv
 
 
@@ -80,7 +80,7 @@ def _cell_dir(root: Path, taxonomy: str, split_column: str) -> Path:
         use_3d_pose=False, seq_len=100,
         split_column=split_column, collation_id=COLLATION_ID,
     )
-    return root / f'ShuttleSet_data_{resolve_taxonomy(taxonomy).name}' / basename
+    return root / f'ShuttleSet_data_{taxonomy_lookup(taxonomy).name}' / basename
 
 
 def _require_root() -> Path:
@@ -127,7 +127,7 @@ def test_cell_label_coverage(taxonomy, split_column):
     if not cell_dir.is_dir():
         pytest.skip(f'{cell_dir} absent; covered by the dir-exists test.')
 
-    tax = resolve_taxonomy(taxonomy)
+    tax = taxonomy_lookup(taxonomy)
     n_classes = tax.n_classes
     present = {}
     for split in SPLITS:
@@ -181,7 +181,7 @@ def test_bst_25_unknown_has_support():
     if not cell_dir.is_dir():
         pytest.skip(f'{cell_dir} absent; covered by the dir-exists test.')
 
-    tax = resolve_taxonomy('bst_25')
+    tax = taxonomy_lookup('bst_25')
     assert tax.classes[-1] == 'unknown'
     unknown_idx = tax.n_classes - 1  # 24
 

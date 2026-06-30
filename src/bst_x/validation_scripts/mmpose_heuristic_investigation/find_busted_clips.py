@@ -55,7 +55,7 @@ sys.path.insert(0, str(REPO_ROOT / 'src' / 'bst_x'))
 # hit_frame_lookup lives next to validate_zeroed_frames.py as a flat module.
 sys.path.insert(0, str(REPO_ROOT / 'src' / 'bst_x' / 'validation_scripts'))
 
-from pipeline.config import TAXONOMIES, label_for_row, resolve_taxonomy  # noqa: E402
+from pipeline.config import TAXONOMIES, derive_class_index, taxonomy_lookup  # noqa: E402
 
 SPLITS = ('train', 'val', 'test')
 
@@ -111,7 +111,7 @@ def main() -> int:
         hit_lookup = build_hit_frame_lookup(args.set_dir, args.video_metadata_csv)
         print(f'  {len(hit_lookup):,} clip hit-frame indices computed')
 
-    taxonomy = resolve_taxonomy(args.taxonomy)
+    taxonomy = taxonomy_lookup(args.taxonomy)
 
     df = pd.read_csv(args.clips_csv)
     if args.split_column not in df.columns:
@@ -133,7 +133,7 @@ def main() -> int:
         split = getattr(row, args.split_column)
 
         if args.exclude_unknown:
-            if label_for_row(taxonomy, row.raw_type_en, row.player_side) is None:
+            if derive_class_index(taxonomy, row.raw_type_en, row.player_side) is None:
                 excluded_unknown += 1
                 continue
 

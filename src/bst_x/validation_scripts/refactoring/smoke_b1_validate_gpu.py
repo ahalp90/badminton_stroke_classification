@@ -34,9 +34,9 @@ sys.path.insert(0, str(SRC))
 
 from bst_x_train import validate  # noqa: E402
 from model.bst import BST_PPF  # noqa: E402
-from pipeline.config import resolve_taxonomy  # noqa: E402
+from pipeline.config import taxonomy_lookup  # noqa: E402
 
-N_CLASSES = resolve_taxonomy("une_v1_14").n_classes
+N_CLASSES = taxonomy_lookup("une_v1_14").n_classes
 B, T, N = 4, 100, 2
 J_TOTAL = 17 + 19            # joints + bones per player
 IN_DIM = J_TOTAL * 2         # validate() flattens (J, xy) -> in_dim = 72

@@ -38,18 +38,18 @@ import pandas as pd
 BST_REFACTOR_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BST_REFACTOR_ROOT))
 
-from pipeline.config import TAXONOMIES, Taxonomy, label_for_row, resolve_taxonomy  # noqa: E402
+from pipeline.config import TAXONOMIES, Taxonomy, derive_class_index, taxonomy_lookup  # noqa: E402
 
 
 def derive_labels(df: pd.DataFrame, taxonomy: Taxonomy) -> pd.Series:
     """Class label per row via the taxonomy's single decision point.
 
-    Routes through label_for_row, so excluded types (e.g. 'unknown' under a
+    Routes through derive_class_index, so excluded types (e.g. 'unknown' under a
     drop-unknown taxonomy) come back as None and nosides taxonomies never get a
     Top_/Bottom_ prefix. The caller drops the None rows.
     """
     def _label(row) -> str | None:
-        idx = label_for_row(taxonomy, row['raw_type_en'], row['player_side'])
+        idx = derive_class_index(taxonomy, row['raw_type_en'], row['player_side'])
         return None if idx is None else taxonomy.classes[idx]
     return df.apply(_label, axis=1)
 
@@ -109,11 +109,11 @@ def _resolve_dataset_npy_dir(
 def _run(args, dataset_npy_dir: Path) -> None:
     """Core per-class fail-rate computation and printing. Wrapped so --save-txt
     can tee stdout around it without duplicating the body."""
-    taxonomy = resolve_taxonomy(args.taxonomy)
+    taxonomy = taxonomy_lookup(args.taxonomy)
     df = pd.read_csv(args.clips_csv)
     df['label'] = derive_labels(df, taxonomy)
     # Rows the taxonomy excludes (e.g. 'unknown' under a drop-unknown taxonomy)
-    # come back as None from label_for_row; drop them before counting.
+    # come back as None from derive_class_index; drop them before counting.
     df = df[df['label'].notna()].copy()
 
     # Per-clip fail stats.

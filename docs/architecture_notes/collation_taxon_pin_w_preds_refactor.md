@@ -358,12 +358,12 @@ def resolve_taxonomy(name: str) -> Taxonomy:
     )
 
 
-def label_for_row(taxonomy: Taxonomy, raw_type: str, side: str) -> int | None:
+def derive_class_index(taxonomy: Taxonomy, raw_type: str, side: str) -> int | None:
     """Resolve a per-row class index, or None if the row should be filtered out.
 
     Used by the collator. excluded_base_stroke_types drops rows before any merge or side-
     prefix step; merge_map applies next; side-prefixing kicks in when
-    has_sides=True and the merged type is not in SIDE_AGNOSTIC_TYPES.
+    has_sides=True and the merged type is not in NOSIDE_CLASSES.
     """
     if raw_type in taxonomy.excluded_base_stroke_types:
         return None
@@ -468,7 +468,7 @@ Manual rsync of both sibling dirs from engelbart to bourbaki after B2 + B3 finis
 
 Three sub-changes:
 
-1. Replace the manual per-row label derivation (lines 774-803) with a call to `label_for_row` from `pipeline.config`. The CSV-level `drop_unknown` filter at line 768 also goes; `excluded_base_stroke_types` on the Taxonomy carries the same information, and the per-row check inside `label_for_row` is now the single point that filters.
+1. Replace the manual per-row label derivation (lines 774-803) with a call to `derive_class_index` from `pipeline.config`. The CSV-level `drop_unknown` filter at line 768 also goes; `excluded_base_stroke_types` on the Taxonomy carries the same information, and the per-row check inside `derive_class_index` is now the single point that filters.
 
 2. Add `unknown_root_dir: Path | None = None` parameter. Per-row branch picks the source dir based on `raw_type_en`:
 

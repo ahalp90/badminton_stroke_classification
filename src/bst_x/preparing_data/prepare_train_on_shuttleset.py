@@ -50,8 +50,8 @@ from pipeline.config import (
     Taxonomy,
     TAXONOMIES,
     derive_npy_collated_dir_basename,
-    label_for_row,
-    resolve_taxonomy,
+    derive_class_index,
+    taxonomy_lookup,
 )
 from pipeline.data_access import env_path, env_path_or_none, load_repo_dotenv
 # Court helpers live in pipeline.court_utils; re-export check_pos_in_court so the
@@ -587,7 +587,7 @@ def _resolve_clips_and_labels(
         )
     clips_df = clips_df[clips_df[split_column] == set_name].copy()
 
-    # label_for_row applies taxonomy.excluded_base_stroke_types first (returns
+    # derive_class_index applies taxonomy.excluded_base_stroke_types first (returns
     # None -> drop the row), then merge_map, then side-prefixing per
     # taxonomy.has_sides. The unknown_root_dir branch pulls per-clip files
     # from the sibling extract for rows that survived (i.e. taxonomies that
@@ -602,9 +602,9 @@ def _resolve_clips_and_labels(
         clips_df["clip_stem"],
     ):
         try:
-            idx = label_for_row(taxonomy, raw_type, side)
+            idx = derive_class_index(taxonomy, raw_type, side)
         except ValueError as e:
-            # Add clip stem context to the descriptive error label_for_row
+            # Add clip stem context to the descriptive error derive_class_index
             # already raises. Preserves the chain via `from e`.
             raise ValueError(
                 f"label derivation failed for clip {stem!r}: {e}"
@@ -844,7 +844,7 @@ def collate_npy(
         ``clip_stem``.
     :param split_column: Column in ``clips_csv`` to use for split assignment,
         e.g. ``'split_bst_baseline'`` or ``'split_v2'``.
-    :param taxonomy: Taxonomy. ``label_for_row`` drives per-row class index +
+    :param taxonomy: Taxonomy. ``derive_class_index`` drives per-row class index +
         the unknown-filter rule (via ``excluded_base_stroke_types``); no
         separate drop_unknown flag any more.
     :param shuttle_csv_dir: Directory containing TrackNetV3 shuttle CSVs
@@ -864,7 +864,8 @@ def collate_npy(
         raise ValueError("shuttle_csv_dir is required")
     if resolution_df is None:
         raise ValueError("resolution_df is required")
-    if unknown_root_dir is not None and 'unknown' in taxonomy.excluded_base_stroke_types:
+    excluded = taxonomy.excluded_base_stroke_types or frozenset()
+    if unknown_root_dir is not None and 'unknown' in excluded:
         raise ValueError(
             f"unknown_root_dir set but taxonomy {taxonomy.name!r} excludes "
             f"unknown rows (excluded_base_stroke_types contains 'unknown'). "
@@ -964,7 +965,7 @@ def main():
         "--taxonomy",
         default="une_v1_14",
         choices=list(TAXONOMIES.keys()),
-        help="Stroke type taxonomy (default: une_v1_14). Drives label_for_row "
+        help="Stroke type taxonomy (default: une_v1_14). Drives derive_class_index "
              "per-row index + the unknown-filter rule via "
              "excluded_base_stroke_types.",
     )
@@ -1064,14 +1065,12 @@ def main():
     args = parser.parse_args()
 
     # ---- Resolve taxonomy and derive intermediate paths ----
-    taxonomy = resolve_taxonomy(args.taxonomy)
-    if (
-        args.unknown_clip_npy_dir is not None
-        and 'unknown' in taxonomy.excluded_base_stroke_types
-    ):
+    taxonomy = taxonomy_lookup(args.taxonomy)
+    excluded = taxonomy.excluded_base_stroke_types or frozenset()
+    if args.unknown_clip_npy_dir is not None and 'unknown' in excluded:
         parser.error(
             f"--unknown-clip-npy-dir is set but taxonomy {taxonomy.name!r} "
-            f"excludes unknown rows (excluded_base_stroke_types={sorted(taxonomy.excluded_base_stroke_types)}). "
+            f"excludes unknown rows (excluded_base_stroke_types={sorted(excluded)}). "
             f"Either drop the flag or pick a taxonomy that retains unknown."
         )
     if taxonomy.has_unknown and args.unknown_clip_npy_dir is None:
@@ -1084,11 +1083,8 @@ def main():
             f"whose excluded_base_stroke_types includes 'unknown'."
         )
     str_3d = "_3d" if args.use_3d_pose else ""
-    # Preparing root uses the resolved canonical taxonomy name. Legacy
-    # aliases (e.g. 'une_merge_v1_nosides') resolve to canonical here so the
-    # on-disk dir lands under the new naming. The ROOT under which all
-    # ShuttleSet_data_<tax>/ dirs live reads BST_X_COLLATED_DATA_ROOT when
-    # set (matches the FE serving contract in frontend_integration_guide.md);
+    # ShuttleSet_data_<tax>/ root reads BST_X_COLLATED_DATA_ROOT when set
+    # (matches the FE serving contract in frontend_integration_guide.md);
     # otherwise falls back to the in-repo preparing_data/ convention for
     # local dev where /scratch isn't available.
     collated_data_root = env_path_or_none('BST_X_COLLATED_DATA_ROOT')
@@ -1141,7 +1137,7 @@ def main():
         print(f"  npy_collated:     {npy_collated_dir}")
         print(f"  clips_csv:        {args.clips_csv}")
         print(f"  split_column:     {args.split_column}")
-        print(f"  excluded_raw:     {sorted(taxonomy.excluded_base_stroke_types)}")
+        print(f"  excluded_raw:     {sorted(excluded)}")
         print(f"  unknown_clip_dir: {args.unknown_clip_npy_dir}")
         print(f"  collation_id:     {args.collation_id}")
         print(f"  pose_styles:      {sorted(pose_styles)}")

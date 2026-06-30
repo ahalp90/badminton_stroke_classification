@@ -98,8 +98,8 @@ from pipeline.config import (
     SHUTTLE_OUTPUT_DIR,
     TAXONOMIES,
     Taxonomy,
-    label_for_row,
-    resolve_taxonomy,
+    derive_class_index,
+    taxonomy_lookup,
 )
 
 
@@ -235,7 +235,7 @@ def _derive_class_label(
 ) -> str | None:
     """Resolve a folder-style class label, or None if the row is filtered out.
 
-    Thin wrapper around ``pipeline.config.label_for_row``: that function is the
+    Thin wrapper around ``pipeline.config.derive_class_index``: that function is the
     single source of truth for the merge_map + side-prefixing + side-agnostic
     rules. This adapter just looks up the resulting class string from
     ``taxonomy.classes`` so callers that work in label-name space (the CSV-row
@@ -252,7 +252,7 @@ def _derive_class_label(
     :return: folder-style label string (e.g. ``'Top_smash'``, ``'unknown'``)
         or None if the row should be dropped.
     """
-    idx = label_for_row(taxonomy, raw_type_en, player_side)
+    idx = derive_class_index(taxonomy, raw_type_en, player_side)
     return None if idx is None else taxonomy.classes[idx]
 
 
@@ -284,23 +284,23 @@ def get_clip_records(
     :param paths: Root directories for each data type plus the master CSV.
     :param split: One of 'train', 'val', 'test', or None for all splits.
     :param taxonomy_class: Derived class label (e.g. 'Top_smash', 'unknown'),
-        or None for all classes. Use ``resolve_taxonomy(taxonomy_name).classes``
+        or None for all classes. Use ``taxonomy_lookup(taxonomy_name).classes``
         to enumerate valid names.
     :param split_column: Column in clips_csv giving the train/val/test
         assignment, e.g. 'split_bst_baseline' (default) or 'split_v2'.
-    :param taxonomy_name: Name (or legacy alias) of the Taxonomy whose
-        merge_map + side rule + excluded_base_stroke_types drive label
-        derivation. Resolved via ``pipeline.config.resolve_taxonomy``.
+    :param taxonomy_name: Canonical name of the Taxonomy whose merge_map +
+        side rule + excluded_base_stroke_types drive label derivation.
+        Resolved via ``pipeline.config.taxonomy_lookup``.
     :raises ValueError: If ``split`` or ``taxonomy_class`` are not valid under
         the chosen taxonomy.
     :raises KeyError: If ``split_column`` is not a column in clips_csv or
-        ``taxonomy_name`` is not in TAXONOMIES (and not a registered alias).
+        ``taxonomy_name`` is not in TAXONOMIES.
     :return: List of ClipRecord in CSV row order.
     """
     if split is not None and split not in SPLITS:
         raise ValueError(f'split must be one of {SPLITS}, got {split!r}')
 
-    taxonomy = resolve_taxonomy(taxonomy_name)
+    taxonomy = taxonomy_lookup(taxonomy_name)
 
     if taxonomy_class is not None:
         valid_classes = set(taxonomy.classes)
@@ -382,7 +382,7 @@ def summarise(
     :param split: Split filter, or None for all.
     :param taxonomy_class: Class filter, or None for all.
     :param split_column: CSV column giving the split assignment.
-    :param taxonomy_name: Name (or legacy alias) of the Taxonomy for label
+    :param taxonomy_name: Canonical name of the Taxonomy for label
         derivation.
     """
     records = get_clip_records(

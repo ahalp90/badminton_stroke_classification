@@ -53,7 +53,7 @@ from src.bst_x.preparing_data.shuttleset_dataset import (
     Dataset_npy_collated,
 )
 from src.bst_x.model.bst import BST_0
-from src.bst_x.pipeline.config import TAXONOMIES, resolve_taxonomy  # noqa: F401
+from src.bst_x.pipeline.config import TAXONOMIES, taxonomy_lookup  # noqa: F401
 
 BST_X_DATA_DIR = os.environ.get("BST_X_DATA_DIR")
 
@@ -89,7 +89,7 @@ def test_pipeline_dataloader_to_model_forward_pass():
 
     # Use bst_25 (the largest registered taxonomy) so the head can handle
     # labels from any post-refactor collation reachable via BST_X_DATA_DIR.
-    n_classes = resolve_taxonomy('bst_25').n_classes
+    n_classes = taxonomy_lookup('bst_25').n_classes
 
     # Step 4: Load npy dataset.
     # Active configs only collate one pose_style at a time (J_only / JnB_bone /

@@ -185,7 +185,7 @@ Heaviest data-prep file (~1290 lines).
 - **Kept**: the taxonomy tables in `config.py`. Deliberate single-source-of-truth
   and genuinely used. The `raw_35` alias is inert but harmless one-line; keep.
   Every other alias is load-bearing. Keep the loud guards
-  (`__post_init__` ValueError, `resolve_taxonomy` KeyError, `label_for_row`
+  (`__post_init__` ValueError, `resolve_taxonomy` KeyError, `derive_class_index`
   re-raise).
 - **Applied**: extract the duplicated TSV-print loop in `data_access.py`. The
   ~9-line path-printing block was verbatim in `interactive()` (545-552) and

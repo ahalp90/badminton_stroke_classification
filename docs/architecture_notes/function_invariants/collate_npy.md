@@ -59,7 +59,7 @@ Helpers (out of split scope, but the contracts they impose are):
   `get_bone_pairs` (35-47): pure, 19 coco bone pairs.
 - `get_shuttle_result` (prepare_train:490-497): reads `{stem}_ball.csv`, normalises by
   resolution, returns `(t, 2)` float64.
-- `label_for_row` (`src/bst_x/pipeline/config.py:333-366`): the single per-row decision
+- `derive_class_index` (`src/bst_x/pipeline/config.py:333-366`): the single per-row decision
   point (see INV-7).
 - `VALID_POSE_STYLES` (prepare_train:658): `('J_only', 'JnB_interp', 'JnB_bone', 'Jn2B')`.
 
@@ -190,9 +190,9 @@ CSV at `shuttle_csv_dir / (clip_stem + "_ball.csv")` (886). Two contracts:
 - Every surviving clip's `vid` must exist in `resolution_df` (including unknown clips).
   Keep vid derivation co-located with the resolution + shuttle lookup.
 
-### INV-7 Taxonomy filter order is owned by `label_for_row` (exclude -> merge -> side)
+### INV-7 Taxonomy filter order is owned by `derive_class_index` (exclude -> merge -> side)
 
-S3 calls `label_for_row(taxonomy, raw_type, side)` (813). `label_for_row`
+S3 calls `derive_class_index(taxonomy, raw_type, side)` (813). `derive_class_index`
 (config.py:349-357) applies, in order: `excluded_base_stroke_types` first (349-350,
 returns `None`), then `merge_map` (351), then side-prefix when `has_sides` and the
 merged type is not in `SIDE_AGNOSTIC_TYPES` (352-355), then `classes.index` (357). The
@@ -201,7 +201,7 @@ collator must keep:
 - the `ValueError` re-wrap that adds clip-stem context (814-819), preserving `from e`.
 
 Do not inline the exclude/merge/side logic into the split; it is a single source of
-truth shared with `_derive_class_label` and must stay in `label_for_row`.
+truth shared with `_derive_class_label` and must stay in `derive_class_index`.
 
 ### INV-8 Unknown routing and the two pre-loop guards
 
@@ -382,10 +382,10 @@ the doc is sound.
 
 Line-ref / structure:
 - Stage map S0..S11 (719-970): every boundary verified against source. `collate_npy` def at 719, body ends at the 970 print. All ten internal boundaries (768, 790/796, 807-836/838-846/847-852, 856-869, 883-907, 909-916, 920-947, 949-951, 954-959, 961-969) match.
-- Helper list: `pad_and_augment_one_npy_video` 661-716 + float32 cast 688-690; `make_seq_len_same` 50-83 (return desc consistent with the function's own docstring); `create_bones` 86-96, `interpolate_joints` 99-110, `get_bone_pairs` 35-47 (counted 19 coco pairs); `get_shuttle_result` 490-497 (returns float64 (t,2)); `label_for_row` config.py:333-366 with ordered logic 349-357; `VALID_POSE_STYLES` prepare_train:658. All accurate.
+- Helper list: `pad_and_augment_one_npy_video` 661-716 + float32 cast 688-690; `make_seq_len_same` 50-83 (return desc consistent with the function's own docstring); `create_bones` 86-96, `interpolate_joints` 99-110, `get_bone_pairs` 35-47 (counted 19 coco pairs); `get_shuttle_result` 490-497 (returns float64 (t,2)); `derive_class_index` config.py:333-366 with ordered logic 349-357; `VALID_POSE_STYLES` prepare_train:658. All accurate.
 
 Invariants:
-- INV-1..INV-8, INV-10, INV-11: all line refs correct and behaviour correctly described. INV-7's "single source of truth shared with `_derive_class_label`" verified: `data_access.py:299` `_derive_class_label` is a thin wrapper calling `label_for_row`. INV-5b's "frame-zeroing removed" verified: comment at 902-905 + `docs/architecture_notes/frame_zeroing.md` exists; `failed = failed[:min_t]` at 900 is genuinely dead (reassigned at 893 next iter, unread after 900); `len(failed)==len(pos_ls[i])` holds by `detect_players_2d/3d` per-frame appends.
+- INV-1..INV-8, INV-10, INV-11: all line refs correct and behaviour correctly described. INV-7's "single source of truth shared with `_derive_class_label`" verified: `data_access.py:299` `_derive_class_label` is a thin wrapper calling `derive_class_index`. INV-5b's "frame-zeroing removed" verified: comment at 902-905 + `docs/architecture_notes/frame_zeroing.md` exists; `failed = failed[:min_t]` at 900 is genuinely dead (reassigned at 893 next iter, unread after 900); `len(failed)==len(pos_ls[i])` holds by `detect_players_2d/3d` per-frame appends.
 - INV-9: shapes AND dtypes verified against the captured golden, exact: `J_only (5,100,2,17,2) f32`, `JnB_bone/JnB_interp (5,100,2,36,2) f32`, `Jn2B (5,100,2,55,2) f32`, `pos (5,100,2,2) f32`, `shuttle (5,100,2) f32`, `videos_len (5,) i64`, `labels (5,) i64`, `clip_stems (5,) object`.
 
 Section 2 split mapping: faithful to the source review and the pass runbook

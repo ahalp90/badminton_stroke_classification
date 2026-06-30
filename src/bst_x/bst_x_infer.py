@@ -36,7 +36,7 @@ from pipeline.config import (
     Taxonomy,
     collation_id_from_manifest,
     derive_npy_collated_dir_basename,
-    resolve_taxonomy,
+    taxonomy_lookup,
 )
 from pipeline.data_access import env_path_or_none, load_repo_dotenv
 from bst_x_common import (
@@ -112,7 +112,7 @@ class Task:
         a mismatch between the weight file's head dim and
         ``taxonomy.n_classes`` raises a clear shape error inside
         ``load_state_dict``. For a legacy run, pass the taxonomy the run
-        recorded (``resolve_taxonomy(manifest['config']['taxonomy'])``).
+        recorded (``taxonomy_lookup(manifest['config']['taxonomy'])``).
 
         :param taxonomy: the taxonomy the weights were trained under.
         :param in_channels: 2 for 2D (xy) keypoints, 3 for 3D (xyz).
@@ -201,7 +201,7 @@ def dump_run_predictions(
     """
     manifest = yaml.safe_load((run_dir / 'manifest.yaml').read_text())
     config = manifest['config']
-    taxonomy = resolve_taxonomy(config['taxonomy'])
+    taxonomy = taxonomy_lookup(config['taxonomy'])
 
     target = next(
         (s for s in manifest.get('serials', []) if s['serial_no'] == serial), None

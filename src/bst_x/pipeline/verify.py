@@ -14,12 +14,12 @@ from pathlib import Path
 from pipeline.config import (
     CLIPS_OUTPUT_DIR, SHUTTLE_OUTPUT_DIR, EXCLUDED_VIDEOS, REMOVED_SHOTS,
     PLAYERS, SPLITS,
-    UNPREFIXED_TYPES, Taxonomy, resolve_taxonomy,
+    NOSIDE_FOLDERS, Taxonomy, taxonomy_lookup,
 )
 
 # Default taxonomy when callers don't pass one. Matches the project's
 # working baseline.
-_DEFAULT_TAXONOMY = resolve_taxonomy('une_v1_14')
+_DEFAULT_TAXONOMY = taxonomy_lookup('une_v1_14')
 
 
 def _parse_clip_filename(filename: str) -> tuple[int, int, int, int] | None:
@@ -109,7 +109,7 @@ def verify_class_merge(
         if not split_dir.is_dir():
             continue
         for src_type in taxonomy.merge_map:
-            if src_type in UNPREFIXED_TYPES:
+            if src_type in NOSIDE_FOLDERS:
                 src = split_dir / src_type
                 if src.exists() and any(src.glob('*.mp4')):
                     violations.append(src)

@@ -62,7 +62,7 @@ import numpy as np
 import torch
 
 from bst_x_infer import Task
-from pipeline.config import resolve_taxonomy
+from pipeline.config import taxonomy_lookup
 
 
 def main() -> int:
@@ -81,7 +81,7 @@ def main() -> int:
         raise FileNotFoundError(
             f"BST_X_DATA_DIR does not contain test/labels.npy: {bst_data_dir}"
         )
-    taxonomy = resolve_taxonomy(taxonomy_name)
+    taxonomy = taxonomy_lookup(taxonomy_name)
 
     # Determinism flags. Inference has no augmentation; with these the same
     # checkpoint + same input must produce byte-identical output.

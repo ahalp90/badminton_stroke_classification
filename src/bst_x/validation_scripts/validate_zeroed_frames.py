@@ -52,7 +52,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 BST_REFACTOR_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BST_REFACTOR_ROOT))
 
-from pipeline.config import TAXONOMIES, Taxonomy, resolve_taxonomy, SIDE_AGNOSTIC_TYPES  # noqa: E402
+from pipeline.config import TAXONOMIES, Taxonomy, taxonomy_lookup, NOSIDE_CLASSES  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -179,11 +179,11 @@ def _derive_stroke_player(
 
     Returns (player, stroke_type) where player is 'Top' / 'Bottom' for sided
     classes or '' for nosides taxonomies and side-agnostic types (e.g.
-    'unknown'). Mirrors label_for_row's side decision: a nosides taxonomy
+    'unknown'). Mirrors derive_class_index's side decision: a nosides taxonomy
     (has_sides=False, e.g. une_v1_14) never gets a Top_/Bottom_ prefix.
     """
     merged = (taxonomy.merge_map or {}).get(raw_type_en, raw_type_en)
-    if taxonomy.has_sides and merged not in SIDE_AGNOSTIC_TYPES:
+    if taxonomy.has_sides and merged not in NOSIDE_CLASSES:
         return player_side, merged
     return "", merged
 
@@ -1288,7 +1288,7 @@ def main():
             args.set_dir = repo_set_dir
             print(f"Auto-detected --set-dir: {args.set_dir}")
 
-    taxonomy = resolve_taxonomy(args.taxonomy)
+    taxonomy = taxonomy_lookup(args.taxonomy)
 
     # Resolve the flat per-clip npy directory. Prefer explicit --dataset-npy-dir,
     # else auto-discover under --data-root: first *_flat/ subdir that isn't the

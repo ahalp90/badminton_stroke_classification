@@ -126,7 +126,7 @@ Three more validation scripts using `taxonomy.standalone_set` and `taxonomy.clas
 - `src/bst_x/validation_scripts/mmpose_heuristic_investigation/find_busted_clips.py:116`
 - `src/bst_x/validation_scripts/mmpose_heuristic_investigation/zeroed_frames_class_audit.py:103-104`
 
-All three get the same forward-only adaptation as `fail_rate_per_class.py`: route through `label_for_row` returning the string class name (or the index, depending on use), switch `class_list()` method to `taxonomy.classes` attribute.
+All three get the same forward-only adaptation as `fail_rate_per_class.py`: route through `derive_class_index` returning the string class name (or the index, depending on use), switch `class_list()` method to `taxonomy.classes` attribute.
 
 ### Risks + plan corrections
 
@@ -172,13 +172,13 @@ All additions are forward-compat (no shim explosion). Modest creep relative to t
 
 Step A landed. Touched:
 
-- `src/bst_x/pipeline/config.py` — full taxonomy block rewrite. New `Taxonomy(name, classes, merge_map, has_sides, excluded_base_stroke_types)` dataclass + `__post_init__` pinning unknown at -1. Six new TAXONOMY_* objects (bst_25/bst_24/bst_12, une_v1_14/une_v1_15, shuttleset_18). New helpers: `resolve_taxonomy`, `label_for_row`, `_sided_classes`. New `TAXONOMY_ALIASES` for legacy-name resume. `derive_npy_collated_dir_basename` signature changed: `ablation_id` required, `split_column` + `drop_unknown` params gone. `MERGE_MAP_25` lands the paper-faithful `driven_flight: drive` fix.
+- `src/bst_x/pipeline/config.py` — full taxonomy block rewrite. New `Taxonomy(name, classes, merge_map, has_sides, excluded_base_stroke_types)` dataclass + `__post_init__` pinning unknown at -1. Six new TAXONOMY_* objects (bst_25/bst_24/bst_12, une_v1_14/une_v1_15, shuttleset_18). New helpers: `resolve_taxonomy`, `derive_class_index`, `_sided_classes`. New `TAXONOMY_ALIASES` for legacy-name resume. `derive_npy_collated_dir_basename` signature changed: `ablation_id` required, `split_column` + `drop_unknown` params gone. `MERGE_MAP_25` lands the paper-faithful `driven_flight: drive` fix.
 
-- `src/bst_x/pipeline/data_access.py` — `_derive_class_label` wraps `label_for_row` (returns string or None). `drop_unknown` parameter removed from `get_clip_records` / `summarise` / `interactive` / `_build_cli` (taxonomy carries the rule via `excluded_base_stroke_types`). `DEFAULT_TAXONOMY_NAME = 'bst_25'` for data exploration (Hyp default in bst_x_train will be `une_v1_14` — separate concern, lands in Step D).
+- `src/bst_x/pipeline/data_access.py` — `_derive_class_label` wraps `derive_class_index` (returns string or None). `drop_unknown` parameter removed from `get_clip_records` / `summarise` / `interactive` / `_build_cli` (taxonomy carries the rule via `excluded_base_stroke_types`). `DEFAULT_TAXONOMY_NAME = 'bst_25'` for data exploration (Hyp default in bst_x_train will be `une_v1_14` — separate concern, lands in Step D).
 
 - `src/bst_x/pipeline/{build_dataset, clip_generator, verify}.py` — dropped `MERGE_MAP`, `TAXONOMY_UNE_MERGE_V1`, `DEFAULT_TAXONOMY` imports. Each gained a `_DEFAULT_TAXONOMY = resolve_taxonomy('une_v1_14')` constant for function defaults. CLI default in build_dataset shifted to `'une_v1_14'`.
 
-- `tests/test_active_classes.py` → `tests/test_taxonomy.py` (renamed via `git mv`). Body rewritten: ~293 lines deleted (the active/full machinery), ~250 lines added covering the new Taxonomy contract, `label_for_row` parametrised cases including the driven_flight fix, `resolve_taxonomy` aliases, `_sided_classes` helper. BST_CG_AP forward+backward smoke kept and re-parametrised over the six new taxonomies. class_weights renorm tests kept (head-shape concern, independent of the active-class machinery).
+- `tests/test_active_classes.py` → `tests/test_taxonomy.py` (renamed via `git mv`). Body rewritten: ~293 lines deleted (the active/full machinery), ~250 lines added covering the new Taxonomy contract, `derive_class_index` parametrised cases including the driven_flight fix, `resolve_taxonomy` aliases, `_sided_classes` helper. BST_CG_AP forward+backward smoke kept and re-parametrised over the six new taxonomies. class_weights renorm tests kept (head-shape concern, independent of the active-class machinery).
 
 - `tests/test_data_access.py` — added `test_derive_class_label_applies_bst_25_driven_flight_fix` for the headline merge fix, `test_derive_class_label_excluded_returns_none` for the None-return contract. `test_drop_unknown_removes_unknown_rows` rewritten as `test_taxonomy_with_excluded_unknown_drops_unknown_rows` (drives via `bst_25` vs `bst_24` taxonomy choice, no separate flag). `_make_fake_dataset` default switched to `'bst_25'`. Interactive tests updated: dropped the now-removed drop_unknown menu prompt.
 
@@ -208,7 +208,7 @@ Re-extract the 1,278 unknown clips on engelbart. `scripts/build_extract_stems.py
 Bundled two tidies on Step A's surface in the same commit:
 
 - `Taxonomy.__post_init__` raises `ValueError` instead of asserting (asserts strip under `python -O`; the unknown-at-minus-one contract needs to fire in prod regardless).
-- `label_for_row`'s filter-before-merge order pinned by a new test (`test_label_for_row_filters_before_merge`): synthetic taxonomy with a raw type in both `excluded_base_stroke_types` and `merge_map`, the filter early-returns, merge never fires.
+- `derive_class_index`'s filter-before-merge order pinned by a new test (`test_label_for_row_filters_before_merge`): synthetic taxonomy with a raw type in both `excluded_base_stroke_types` and `merge_map`, the filter early-returns, merge never fires.
 
 71 cases pass in test_taxonomy.py (was 67 pre-commit; added the filter-first test + the post_init tests still pass under the new ValueError contract).
 
@@ -250,7 +250,7 @@ The lazy import I previously verified as "absent in apply_heuristic.py" was actu
 
 ## 2026-05-23: Step C committed
 
-`collate_npy` routes per-row through `label_for_row`: `excluded_base_stroke_types` drops what `drop_unknown` used to (gone from CLI + signature); `merge_map` + side rule fire next. New `unknown_root_dir` param routes `raw_type=='unknown'` rows through a sibling per-clip dir, for `bst_25` / `une_v1_15` cells against the `_unknown` sibling extract.
+`collate_npy` routes per-row through `derive_class_index`: `excluded_base_stroke_types` drops what `drop_unknown` used to (gone from CLI + signature); `merge_map` + side rule fire next. New `unknown_root_dir` param routes `raw_type=='unknown'` rows through a sibling per-clip dir, for `bst_25` / `une_v1_15` cells against the `_unknown` sibling extract.
 
 `clip_stems.npy` sidecar saves alongside `labels.npy`, row-aligned. `Dataset_npy_collated` loads it with graceful None fallback for legacy collations (warnings.warn); `adjust_to_partial_train_set` mirrors the per-class slicing.
 
@@ -258,7 +258,7 @@ CLI: `--drop-unknown` gone, `--ablation-id` required, `--unknown-clip-npy-dir` a
 
 ### Symmetric unknown-dir validation (post-agent hardening)
 
-Three Plan agents reviewed Step C before commit. All three agreed the diff is correctness-clean and B3 is unblocked. Agent 3 surfaced one important design subtlety: `bst_25` / `une_v1_15` (keepunk taxonomies) without `--unknown-clip-npy-dir` silently drops the 1,278 unknown rows via the missing-file branch (label_for_row keeps them alive, but `_pos.npy` doesn't exist under the canonical extract). Plan acknowledges that bst_25 / une_v1_15 cells must supply `--unknown-clip-npy-dir`, but didn't enforce it at the boundary.
+Three Plan agents reviewed Step C before commit. All three agreed the diff is correctness-clean and B3 is unblocked. Agent 3 surfaced one important design subtlety: `bst_25` / `une_v1_15` (keepunk taxonomies) without `--unknown-clip-npy-dir` silently drops the 1,278 unknown rows via the missing-file branch (derive_class_index keeps them alive, but `_pos.npy` doesn't exist under the canonical extract). Plan acknowledges that bst_25 / une_v1_15 cells must supply `--unknown-clip-npy-dir`, but didn't enforce it at the boundary.
 
 Fixed both ways:
 - `collate_npy` body: `if taxonomy.has_unknown and unknown_root_dir is None: raise ValueError(...)` (with a clear message naming the sibling extract + the bst_24 / une_v1_14 escape hatch).
@@ -268,8 +268,8 @@ Symmetric with the existing `unknown_root_dir set + taxonomy excludes unknown` v
 
 ### Other Step C hardenings (post-agent)
 
-- `label_for_row`: bare `tuple.index` ValueError replaced with a descriptive raise naming `taxonomy.name`, `raw_type`, `side`, derived `label_str`, and the full classes list. `from e` preserves the original traceback chain. New test (`test_label_for_row_raises_descriptive_error_on_missing_class`) pins the contract.
-- `collate_npy` per-row loop wraps `label_for_row` with a real `except ValueError` that adds clip stem context and re-raises via `from e`. Not a silent swallow.
+- `derive_class_index`: bare `tuple.index` ValueError replaced with a descriptive raise naming `taxonomy.name`, `raw_type`, `side`, derived `label_str`, and the full classes list. `from e` preserves the original traceback chain. New test (`test_label_for_row_raises_descriptive_error_on_missing_class`) pins the contract.
+- `collate_npy` per-row loop wraps `derive_class_index` with a real `except ValueError` that adds clip stem context and re-raises via `from e`. Not a silent swallow.
 - WARNING message for missing per-clip files: the "or {unknown_root_dir} for unknown rows" hint now only prints when `unknown_root_dir is not None` (was printing "or None for unknown rows" otherwise — cosmetic confusion).
 - `_make_synthetic_split` test helper extended to accept a `videos_len` array. New test (`test_dataset_clip_stems_after_zero_length_filter`) pins the parallel slicing of `clip_stems` alongside the other arrays when the zero-length filter fires.
 
@@ -308,7 +308,7 @@ Required ad-hoc step on bourbaki: user added `BST_X_COLLATED_DATA_ROOT=/scratch/
 
 ### Step C sanity collation -- bst_25 + split_v2
 
-Ran the new collator on bourbaki against bst_25 + split_v2. Numbers came back at train=22,743 / val=5,250 / test=4,210 = **32,203**, which is exactly the non-unknown count from clips_master.csv. Zero `WARNING: N clips had no flat per-clip files` — the 1,278 unknown rows weren't dropped at the file-existence check, they were filtered out at the CSV split filter (`clips_df[clips_df['split_v2'] == set_name]`) BEFORE label_for_row.
+Ran the new collator on bourbaki against bst_25 + split_v2. Numbers came back at train=22,743 / val=5,250 / test=4,210 = **32,203**, which is exactly the non-unknown count from clips_master.csv. Zero `WARNING: N clips had no flat per-clip files` — the 1,278 unknown rows weren't dropped at the file-existence check, they were filtered out at the CSV split filter (`clips_df[clips_df['split_v2'] == set_name]`) BEFORE derive_class_index.
 
 Root cause: `shuttleset_splits_v2.csv` is 14-class only (32,203 rows) by design. `clips_master.csv`'s `split_v2` column has NaN for all 1,278 unknown rows; `scripts/build_shots_master.py:178-184` asserts `n_no_v2 == n_unknown` as a hard-fail invariant. `split_bst_baseline` IS unknown-complete (875 train / 241 val / 162 test) because it's built from a vid→split mapping that inherits per-match regardless of class.
 
@@ -447,4 +447,4 @@ Did the whole model-side pass in one session on the laptop, smoke-tested in the 
 
 **Not done (needs bourbaki / a later session):** the actual 6-cell runs via the runner, the non-best npz prune, the run-ID-dependent docs (bst_x_overview headline numbers, models_registry new entries), and the J4 FE PR note. Everything code-side is import-clean and tested on CPU.
 
-Also fixed in passing: `model/bst.py`'s `__main__` smoke (was importing the removed `DEFAULT_TAXONOMY`) and a stale `class_list()` docstring in shuttleset_dataset. One BST-side straggler the Step-A audit missed is **flagged not fixed**: `validation_scripts/mmpose_heuristic_investigation/zeroed_frames_class_audit.py` still calls the removed `taxonomy.standalone_set` + `taxonomy.class_list()`. It's a standalone diagnostic (not imported, not in CI), so it doesn't break anything live, but it needs a real port to `label_for_row` (not a rename) before it'll run again.
+Also fixed in passing: `model/bst.py`'s `__main__` smoke (was importing the removed `DEFAULT_TAXONOMY`) and a stale `class_list()` docstring in shuttleset_dataset. One BST-side straggler the Step-A audit missed is **flagged not fixed**: `validation_scripts/mmpose_heuristic_investigation/zeroed_frames_class_audit.py` still calls the removed `taxonomy.standalone_set` + `taxonomy.class_list()`. It's a standalone diagnostic (not imported, not in CI), so it doesn't break anything live, but it needs a real port to `derive_class_index` (not a rename) before it'll run again.

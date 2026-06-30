@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 EXP = ROOT / "experiments/bst_x/shuttleset"
 OUT = ROOT / "experiments/bst_x/bst_x_training_runs.md"
 
-# Legacy -> canonical taxonomy (pipeline/config.py TAXONOMY_ALIASES).
+# Legacy -> canonical taxonomy (display map for historical manifests).
 TAX_ALIAS = {
     "une_merge_v1_nosides": "une_v1_14",
     "une_merge_v1": "une_v1_15",

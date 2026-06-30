@@ -19,14 +19,14 @@ from pipeline.config import (
     SET_INFO_DIR, RAW_VIDEO_DIR, CLIPS_OUTPUT_DIR,
     SPLITS, STROKE_TYPES_19, STROKE_TYPES_19_ZH,
     REMOVED_SHOTS, CLIP_WINDOW, PLAYERS,
-    UNPREFIXED_TYPES, Taxonomy, resolve_taxonomy,
+    NOSIDE_FOLDERS, Taxonomy, taxonomy_lookup,
 )
 
 from pipeline.player_mapping import collect_shots
 
 # Default taxonomy when callers don't pass one. Matches the project's
 # working baseline; override via the function arg for one-off runs.
-_DEFAULT_TAXONOMY = resolve_taxonomy('une_v1_14')
+_DEFAULT_TAXONOMY = taxonomy_lookup('une_v1_14')
 
 # Single source for the runtime guard and the CLI --clip-window choices.
 VALID_CLIP_WINDOWS = frozenset(
@@ -148,7 +148,7 @@ def _write_clips_for_video(
         raise ValueError(f"Unknown clip window: {clip_window!r}")
 
     for typ in stroke_types:
-        if typ in UNPREFIXED_TYPES:
+        if typ in NOSIDE_FOLDERS:
             (out_folder / typ).mkdir(parents=True, exist_ok=True)
         else:
             for player in players:
@@ -167,7 +167,7 @@ def _write_clips_for_video(
     try:
         for _, row in shots_df.iterrows():
             typ = row['type']
-            folder_name = typ if typ in UNPREFIXED_TYPES else f'{row["player"]}_{typ}'
+            folder_name = typ if typ in NOSIDE_FOLDERS else f'{row["player"]}_{typ}'
             out_path = (out_folder
                         / folder_name
                         / f'{video_id}_{row["set"]}_{row["rally"]}_{int(row["ball_round"])}.mp4')
@@ -313,7 +313,7 @@ def apply_class_merge(
     move_ops = []
     for split_dir in split_dirs:
         for src_type, dst_type in taxonomy.merge_map.items():
-            if src_type in UNPREFIXED_TYPES or dst_type in UNPREFIXED_TYPES:
+            if src_type in NOSIDE_FOLDERS or dst_type in NOSIDE_FOLDERS:
                 src = split_dir / src_type
                 dst = split_dir / dst_type
                 if src.exists():

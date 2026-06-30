@@ -45,7 +45,7 @@ N_PER_CLASS_PER_SPLIT = 2  # 14 classes × 2 = 28 stems per split, 56 total
 SEED = 42
 
 
-def label_for_row(raw_type_en: str) -> str:
+def derive_class_index(raw_type_en: str) -> str:
     return UNE_MERGE_V1_MAP.get(raw_type_en, raw_type_en)
 
 
@@ -54,7 +54,7 @@ def pick_stems(csv: pd.DataFrame, split: str, rng) -> list[tuple[int, str, dict]
     (row_index_into_collation, clip_stem, {csv fields needed for clip_index})."""
     sub = csv[(csv["split_v2"] == split) & (csv["raw_type_en"] != "unknown")].reset_index(drop=True)
     # row index here == row index in collated tensors (verified earlier).
-    sub["_class"] = sub["raw_type_en"].map(label_for_row)
+    sub["_class"] = sub["raw_type_en"].map(derive_class_index)
     sub["_row"] = sub.index
     picks: list[tuple[int, str, dict]] = []
     for cls in CLASS_LIST:
@@ -128,11 +128,11 @@ def main():
         print(f"=== {split.upper()}: {len(picks)} stems picked ===")
 
         # Sort by class then by row for stable display
-        picks_sorted = sorted(picks, key=lambda x: (label_for_row(x[2]["raw_type_en"]), x[0]))
+        picks_sorted = sorted(picks, key=lambda x: (derive_class_index(x[2]["raw_type_en"]), x[0]))
 
         clips_list = []
         for row_idx, stem, meta in picks_sorted:
-            true_cls = label_for_row(meta["raw_type_en"])
+            true_cls = derive_class_index(meta["raw_type_en"])
             true_class_idx = CLASS_TO_IDX[true_cls]
             side_prefix = meta["player_side"]  # 'Top' / 'Bottom'
             video_path = find_video_path(stem, side_prefix, true_cls, train_by_class, rr_index)
@@ -225,7 +225,7 @@ def main():
                 _, side_cls, _ = parts[0], parts[1], parts[2]
                 if "_" in side_cls:
                     file_class = side_cls.split("_", 1)[1]
-                    if file_class == label_for_row(meta["raw_type_en"]):
+                    if file_class == derive_class_index(meta["raw_type_en"]):
                         aligned_count += 1
                     else:
                         rr_count += 1

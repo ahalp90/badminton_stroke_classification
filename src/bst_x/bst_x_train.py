@@ -35,7 +35,7 @@ from result_utils import show_f1_results, plot_confusion_matrix
 from pipeline.config import (
     Taxonomy,
     derive_npy_collated_dir_basename,
-    resolve_taxonomy,
+    taxonomy_lookup,
 )
 from pipeline.data_access import env_path_or_none, load_repo_dotenv
 from run_tracker import track_run, track_serial
@@ -833,7 +833,7 @@ class Task:
         # Head dim and class names come straight off the taxonomy now: labels.npy
         # lands in [0, taxonomy.n_classes) at collation time, so there's no
         # runtime active/full remap and no data-derived head sizing.
-        self.taxonomy = taxonomy or resolve_taxonomy(hyp.taxonomy)
+        self.taxonomy = taxonomy or taxonomy_lookup(hyp.taxonomy)
         # Where to save/load weights for this run. Caller should pass a
         # per-invocation subdir (e.g. weight/run_YYYYMMDD_HHMMSS) so fresh
         # runs never collide with older weights — see __main__ setup.
@@ -1192,6 +1192,10 @@ if __name__ == '__main__':
         action=argparse.BooleanOptionalAction,
         default=None,
     )
+    # Testing-only n_epochs override (e.g. --serial-no 1 short-run bit-exacts
+    # that don't want the full 80-epoch default). Not piped through
+    # hparam_sweep; for production sweeps, edit Hyp.n_epochs directly.
+    parser.add_argument('--n-epochs', type=int, default=None)
     args = parser.parse_args()
 
     # Per-serial invocation contract: pass all three sharing-flags together so
@@ -1242,12 +1246,14 @@ if __name__ == '__main__':
         cell_overrides['use_val_improvability_gate'] = args.val_improvability_gate
     if args.weight_decay is not None:
         cell_overrides['weight_decay'] = args.weight_decay
+    if args.n_epochs is not None:
+        cell_overrides['n_epochs'] = args.n_epochs
     if cell_overrides:
         hyp = hyp._replace(**cell_overrides)
 
     # Resolve the taxonomy; its canonical name drives the on-disk dir +
     # weight-file naming, matching what the collator wrote.
-    taxonomy = resolve_taxonomy(hyp.taxonomy)
+    taxonomy = taxonomy_lookup(hyp.taxonomy)
 
     # Collated dir naming via shared helper (mirrored on the prepare_train
     # writer side); see ``pipeline.config.derive_npy_collated_dir_basename``.

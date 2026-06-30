@@ -38,7 +38,7 @@ def test_resolve_class_list_prefers_config_classes():
 def test_resolve_class_list_falls_back_to_legacy_arch_block():
     """Pre-refactor BST manifests have no config.classes; use the bandaid block."""
     manifest = {
-        'config': {'taxonomy': 'une_merge_v1_nosides'},  # no 'classes'
+        'config': {'taxonomy': 'une_v1_14'},  # no 'classes'
         'extra': {'arch': {'active_class_list': ['net_shot', 'return_net']}},
     }
     assert _resolve_class_list(manifest) == ['net_shot', 'return_net']

@@ -86,7 +86,7 @@ Merges rare stroke subtypes into their parent types according to the active taxo
 | back_court_drive | drive |
 | defensive_return_drive | drive |
 
-This reduces the 19 raw types to 14 (no sides, `unknown` excluded). `une_v1_15` is the same 14 plus `unknown`. The BST-paper family uses `MERGE_MAP_25` (6 merges, 19 -> 12 base types): `bst_25` (12 x Top/Bottom + `unknown` = 25), `bst_24` (no unknown = 24), `bst_12` (nosides = 12). `shuttleset_18` keeps all 18 raw types with no merge. Whether a taxonomy carries sides or keeps `unknown` is fixed per taxonomy (`has_sides`, `excluded_base_stroke_types`), not a runtime flag; legacy names (`une_merge_v1`, `merged_25`, `raw_35`) resolve via `resolve_taxonomy()`.
+This reduces the 19 raw types to 14 (no sides, `unknown` excluded). `une_v1_15` is the same 14 plus `unknown`. The BST-paper family uses `MERGE_MAP_25` (6 merges, 19 -> 12 base types): `bst_25` (12 x Top/Bottom + `unknown` = 25), `bst_24` (no unknown = 24), `bst_12` (nosides = 12). `shuttleset_18` keeps all 18 raw types with no merge. Whether a taxonomy carries sides or keeps `unknown` is fixed per taxonomy (`has_sides`, `excluded_base_stroke_types`), not a runtime flag.
 
 ### Step 5: Verify
 
@@ -178,7 +178,7 @@ python -m pipeline.build_dataset [OPTIONS]
 --skip-verify          Skip verification checks (step 5)
 --skip-shuttle         Skip TrackNetV3 shuttle extraction
 --no-merge             Keep all 19 stroke types (skip class merging)
---taxonomy NAME        Taxonomy (default une_v1_14): bst_25, bst_24, bst_12, une_v1_14, une_v1_15, shuttleset_18. Legacy aliases resolve via resolve_taxonomy().
+--taxonomy NAME        Taxonomy (default une_v1_14): bst_25, bst_24, bst_12, une_v1_14, une_v1_15, shuttleset_18.
 --dry-run              Preview what the pipeline would do without executing
 --force                Continue past verification failures
 ```
@@ -261,9 +261,9 @@ All configuration lives in `pipeline/config.py`. Key constants:
 | Constant | Description |
 |---|---|
 | `TAXONOMIES` | Dict of pinned `Taxonomy` instances: `'bst_25'`, `'bst_24'`, `'bst_12'`, `'une_v1_14'`, `'une_v1_15'`, `'shuttleset_18'`. Each pins its full ordered `classes` tuple plus `merge_map`, `has_sides`, and `excluded_base_stroke_types`; `n_classes` / `has_unknown` are properties. |
-| `TAXONOMY_ALIASES` / `resolve_taxonomy()` | Map legacy names (`'une_merge_v1'`, `'merged_25'`, `'raw_35'`) onto current taxonomies, so old runs and manifests still resolve. New code passes the canonical names. |
-| `label_for_row()` | The single per-row label decision: `excluded_base_stroke_types` (drop), then `merge_map`, then side-prefixing. Shared by the collator and `data_access`. |
-| `UNPREFIXED_TYPES` | Frozenset of raw types that never get `Top_`/`Bottom_` prefixed folders (`{'unknown', 'driven_flight'}`). Used only by clip generation. |
+| `taxonomy_lookup()` | Look up a `Taxonomy` by canonical name; raises `KeyError` for unknown names. |
+| `derive_class_index()` | The single per-row label decision: `excluded_base_stroke_types` (drop), then `merge_map`, then side-prefixing. Shared by the collator and `data_access`. |
+| `NOSIDE_FOLDERS` | Frozenset of raw types that get one flat folder at clip generation instead of split `Top_`/`Bottom_` folders (`{'unknown', 'driven_flight'}`). Disk-layout concern; not a taxonomy property. |
 | `SPLITS` | Train/val/test video ID lists (excluded videos auto-stripped) |
 | `EXCLUDED_VIDEOS` | Parsed from `flaw_shot_records.csv` at import time |
 | `REMOVED_SHOTS` | Individual bad shots, also from `flaw_shot_records.csv` |
@@ -331,16 +331,18 @@ Split (train/val/test) and class label for every clip come from `notebooks/clips
 ```python
 # Loading shuttle trajectories (flat: one file per clip, named after clip stem)
 import numpy as np
+
 shuttle = np.load('data/shuttleset/shuttle_npy/1_1_3_2.npy')
-xy = shuttle[:, :2]           # (t, 2) normalised coordinates
-visibility = shuttle[:, 2]    # (t,) detection confidence
+xy = shuttle[:, :2]  # (t, 2) normalised coordinates
+visibility = shuttle[:, 2]  # (t,) detection confidence
 
 # Getting class labels: each Taxonomy pins its full ordered class list in .classes
-from pipeline.config import TAXONOMIES, resolve_taxonomy
-labels_14 = TAXONOMIES['une_v1_14'].classes       # 14 classes (current default)
-labels_25 = TAXONOMIES['bst_25'].classes          # 25 classes (BST-paper family)
-labels_18 = TAXONOMIES['shuttleset_18'].classes   # 18 raw types
-legacy    = resolve_taxonomy('merged_25').classes # legacy alias -> bst_25
+from pipeline.config import TAXONOMIES, taxonomy_lookup
+
+labels_14 = TAXONOMIES['une_v1_14'].classes  # 14 classes (current default)
+labels_25 = TAXONOMIES['bst_25'].classes  # 25 classes (BST-paper family)
+labels_18 = TAXONOMIES['shuttleset_18'].classes  # 18 raw types
+classes = taxonomy_lookup('bst_25').classes  # equivalent canonical-name lookup
 ```
 
 ### Loading clip frames (video-Dataset pattern)
@@ -374,7 +376,7 @@ class ClipVideoDataset(Dataset):
         return load_video(self._path_by_stem[stem]), label
 ```
 
-`label_for_row(taxonomy, row.raw_type_en, row.player_side)` produces the int label (or `None` to skip a filtered row), applying exclusion + merge + side in one place, matching what `collate_npy` does for the pose/shuttle npys (see `preparing_data/prepare_train_on_shuttleset.py`). Pick your own video backend (cv2, decord, torchvision.io) for `load_video`.
+`derive_class_index(taxonomy, row.raw_type_en, row.player_side)` produces the int label (or `None` to skip a filtered row), applying exclusion + merge + side in one place, matching what `collate_npy` does for the pose/shuttle npys (see `preparing_data/prepare_train_on_shuttleset.py`). Pick your own video backend (cv2, decord, torchvision.io) for `load_video`.
 
 This pattern means the nested clips layout is transparent: the same `ClipVideoDataset` works for any `split_column` in `clips_master.csv` without needing to flatten or reorganise `clips/`.
 

@@ -23,7 +23,7 @@ import yaml
 
 import bst_x_infer
 from bst_x_common import build_bst_x_network, dump_topk_predictions
-from pipeline.config import resolve_taxonomy
+from pipeline.config import taxonomy_lookup
 from preparing_data.shuttleset_dataset import Dataset_npy_collated
 from torch.utils.data import DataLoader
 
@@ -56,7 +56,7 @@ def _build_fake_run(tmp_path: Path) -> tuple[Path, Path]:
 
     :return: (run_dir, collated_data_root) for dump_run_predictions.
     """
-    taxonomy = resolve_taxonomy(TAX_NAME)
+    taxonomy = taxonomy_lookup(TAX_NAME)
     torch.manual_seed(0)
     net, n_bones = build_bst_x_network(
         'BST_CG_AP', n_joints=17, pose_style='JnB_bone', in_channels=2,
@@ -119,7 +119,7 @@ def test_dump_run_predictions_writes_requested_splits(tmp_path, monkeypatch):
     assert inf['source_run_id'] == 'run_fe_smoke' and inf['serial_no'] == 5
     assert inf['splits'] == ['val', 'test'] and inf['taxonomy'] == TAX_NAME
 
-    taxonomy = resolve_taxonomy(TAX_NAME)
+    taxonomy = taxonomy_lookup(TAX_NAME)
     for split, expected_labels in (('val', [0, 5, 11, 3]), ('test', [7, 2, 9])):
         npz = np.load(out_dir / f'{split}_serial_5.npz', allow_pickle=True)
         assert set(npz.files) == NPZ_FIELDS, npz.files
@@ -166,7 +166,7 @@ def test_dump_run_predictions_missing_serial_exits(tmp_path):
 
 def test_dump_topk_predictions_k_clamps_to_head(tmp_path):
     """topk width clamps to the head size when k exceeds it."""
-    taxonomy = resolve_taxonomy(TAX_NAME)
+    taxonomy = taxonomy_lookup(TAX_NAME)
     torch.manual_seed(0)
     net, n_bones = build_bst_x_network(
         'BST_CG_AP', n_joints=17, pose_style='JnB_bone', in_channels=2,

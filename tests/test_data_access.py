@@ -20,7 +20,7 @@ from pipeline.config import (
     TAXONOMY_BST_24,
     TAXONOMY_BST_25,
     TAXONOMY_UNE_V1_14,
-    resolve_taxonomy,
+    taxonomy_lookup,
 )
 from pipeline.data_access import (
     ClipRecord,
@@ -87,7 +87,7 @@ def _make_fake_dataset(
     mmpose_dir = tmp / 'mmpose_npy_flat' if with_mmpose else None
     csv_path = tmp / 'clips_master.csv'
 
-    taxonomy = resolve_taxonomy(taxonomy_name)
+    taxonomy = taxonomy_lookup(taxonomy_name)
     if with_clips:
         clips_dir.mkdir(parents=True, exist_ok=True)
     if with_shuttle:
@@ -351,14 +351,14 @@ def test_invalid_taxonomy_class_raises():
             get_clip_records(
                 paths,
                 taxonomy_class='Top_nonexistent_stroke',
-                taxonomy_name='une_merge_v1',
+                taxonomy_name='une_v1_15',
             )
 
 
 def test_invalid_taxonomy_name_raises():
     with tempfile.TemporaryDirectory() as tmp:
         paths = _make_fake_dataset(Path(tmp), SIMPLE_ROWS)
-        with pytest.raises(KeyError, match='not registered and not aliased'):
+        with pytest.raises(KeyError, match='not registered'):
             get_clip_records(paths, taxonomy_name='does_not_exist')
 
 

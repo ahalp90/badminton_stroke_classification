@@ -51,7 +51,7 @@ sys.path.insert(0, str(SRC))
 
 import bst_x_train as t  # noqa: E402
 from model.bst import BST_PPF  # noqa: E402
-from pipeline.config import resolve_taxonomy  # noqa: E402
+from pipeline.config import taxonomy_lookup  # noqa: E402
 from preparing_data.shuttleset_dataset import get_bone_pairs  # noqa: E402
 
 SEED = 0
@@ -113,7 +113,7 @@ def run_seeded_train(tmp_dir: Path, device: torch.device) -> tuple[str, dict | N
         torch.backends.cudnn.benchmark = False
         import os
         os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
-    taxonomy = resolve_taxonomy(TAX_NAME)
+    taxonomy = taxonomy_lookup(TAX_NAME)
     n_classes = taxonomy.n_classes
     class_ls = list(taxonomy.classes)
     n_bones_pairs = len(get_bone_pairs("coco"))  # 19

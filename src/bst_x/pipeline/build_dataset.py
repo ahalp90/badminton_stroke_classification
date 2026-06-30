@@ -23,7 +23,7 @@ from pathlib import Path
 from pipeline.config import (
     RAW_VIDEO_DIR, CLIPS_OUTPUT_DIR, RESOLUTION_CSV_PATH,
     SPLITS, EXCLUDED_VIDEOS, REMOVED_SHOTS, CLIP_WINDOW,
-    TAXONOMIES, Taxonomy, resolve_taxonomy,
+    TAXONOMIES, Taxonomy, taxonomy_lookup,
 )
 
 from pipeline.download_videos import download_all_videos, build_resolution_csv
@@ -39,7 +39,7 @@ from pipeline.shuttle_extractor import extract_all_shuttles, shuttle_csvs_to_npy
 # Matches the project's working baseline; pick a different one via the CLI
 # --taxonomy flag for one-off runs.
 _DEFAULT_TAXONOMY_NAME = 'une_v1_14'
-_DEFAULT_TAXONOMY = resolve_taxonomy(_DEFAULT_TAXONOMY_NAME)
+_DEFAULT_TAXONOMY = taxonomy_lookup(_DEFAULT_TAXONOMY_NAME)
 
 
 def _step(number: int, title: str) -> None:

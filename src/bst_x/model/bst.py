@@ -423,8 +423,8 @@ BST_CG_AP = partial(BST, use_ppf=True, use_cg=True, use_ap=True)
 
 
 if __name__ == '__main__':
-    from pipeline.config import resolve_taxonomy
-    n_class = resolve_taxonomy('une_v1_14').n_classes
+    from pipeline.config import taxonomy_lookup
+    n_class = taxonomy_lookup('une_v1_14').n_classes
 
     b, t, n = 1, 100, 2
     n_features = (17 + 19 * 1) * n

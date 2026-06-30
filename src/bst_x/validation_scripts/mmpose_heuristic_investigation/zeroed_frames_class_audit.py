@@ -89,7 +89,7 @@ def main() -> None:
         )
 
     sys.path.insert(0, str(BST_X))
-    from pipeline.config import label_for_row, resolve_taxonomy
+    from pipeline.config import derive_class_index, taxonomy_lookup
 
     flat_dir = _resolve_flat_dir(args.flat_dir)
     if not flat_dir.is_dir():
@@ -97,7 +97,7 @@ def main() -> None:
 
     run_dir = _resolve_run_dir(args.run) if args.run else None
 
-    taxonomy = resolve_taxonomy(args.taxonomy)
+    taxonomy = taxonomy_lookup(args.taxonomy)
 
     df = pd.read_csv(args.clips_csv)
     df = df[df[args.split_column].isin(['train', 'val', 'test'])]
@@ -111,7 +111,7 @@ def main() -> None:
         # Single source of the merge + side + exclusion rule. None means the
         # taxonomy drops this raw type (e.g. unknown), so it's out-of-taxonomy
         # for the audit.
-        idx = label_for_row(taxonomy, raw_type, side)
+        idx = derive_class_index(taxonomy, raw_type, side)
         if idx is None:
             skipped_label += 1
             continue
