@@ -17,6 +17,8 @@ from typing import NamedTuple
 import numpy as np
 import pandas as pd
 
+J = 17  # COCO keypoint count, shared across heuristic variants.
+
 
 class RawClip(NamedTuple):
     """Per-clip raw MMPose output, as written by ``preparing_data.raw_extract``.

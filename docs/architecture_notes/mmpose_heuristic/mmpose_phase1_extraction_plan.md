@@ -2,11 +2,11 @@
 
 > **Status (2026-04-29):** Phase 2 raw extract done. Full 32,203-stem unified raw dir at `/scratch/comp320a/ShuttleSet_keypoints_raw/` on both bourbaki and engelbart (bit-identical), composed of 30,487 freshly re-extracted clips plus the 1,716 Phase-1 backfill merged in. Verification clean: file counts match, cross-node `rsync --checksum` empty, failsafe gate 50/50 byte-identical on the 1,716 overlap, `ndet` baseline captured at `validation_scripts/raw_ndet_stats_outputs/baseline_2026-04-29.md`. Next: `apply_heuristic.py --heuristic sticky_anchor` over the unified dir, then validate / collate / sanity-train. Earlier Phase-1 status preserved below.
 
-> **Status (2026-04-22):** Phase 1 raw extraction + apply_heuristic + sticky_anchor + byte-identity gate all done. 1,716 -> 61 residual busted clips after sticky_anchor (96.4% reduction). Next work is symlink-merge + collate + V4 retrain; see `mmpose_heuristic_investigation.md` section "Revisions 2026-04-22 (Phase 1 execution completion)" for the tactical list and findings. Earlier sections below are the plan as-written pre-execution; read them for context but treat the execution log as the source of truth for current state.
+> **Status (2026-04-22):** Phase 1 raw extraction + apply_heuristic + sticky_anchor + byte-identity gate all done. 1,716 -> 61 residual busted clips after sticky_anchor (96.4% reduction). Next work is symlink-merge + collate + V4 retrain; see `historical_mmpose_heuristic_investigation.md` section "Revisions 2026-04-22 (Phase 1 execution completion)" for the tactical list and findings. Earlier sections below are the plan as-written pre-execution; read them for context but treat the execution log as the source of truth for current state.
 
 Target session: originally 2026-04-21. Scope: identify the ~222 busted clips and run raw MMPose extraction on them, saving everything we'll need for later heuristic iteration. Heuristic application (`apply_heuristic.py`, `sticky_anchor` variant) is explicitly out of scope and will follow once raw outputs land on disk.
 
-Parent plan: `mmpose_heuristic_investigation.md` (same dir, section "Phase 1").
+Parent plan: `historical_mmpose_heuristic_investigation.md` (same dir, section "Phase 1").
 
 ## Goals for today
 
@@ -267,7 +267,7 @@ Intentionally NOT created today:
 4. Collate + re-train V4 on the mixed data, compare against committed V4 baseline.
 5. Decision gate: if Phase 1 signal clears, proceed to Phase 2 (full 33k re-extract + re-train). If not, trial `body_length_fallback` as Plan B.
 
-See the parent plan `mmpose_heuristic_investigation.md` for the full Phase 1 measurement protocol, decision gate thresholds, and Phase 2 structure.
+See the parent plan `historical_mmpose_heuristic_investigation.md` for the full Phase 1 measurement protocol, decision gate thresholds, and Phase 2 structure.
 
 ## Scope anchors and anti-hallucination reminders (appended 2026-04-21)
 
@@ -338,7 +338,7 @@ Steps 1-3 must pass before the batch. Skipping them risks burning 20 min of GPU 
 
 ### What follows (deliberately out of scope for this session)
 
-See the parent plan `mmpose_heuristic_investigation.md` for:
+See the parent plan `historical_mmpose_heuristic_investigation.md` for:
 - `apply_heuristic.py` CLI + `heuristics/` package design.
 - `current` variant byte-identity gate protocol.
 - `sticky_anchor` algorithm detail.
@@ -401,7 +401,7 @@ Raw extract also synced to local for heuristic iteration (path is per-machine; n
 
 ### Next steps
 
-> [Items 1-4 and 7 complete as of the Phase 1 execution completion (see `mmpose_heuristic_investigation.md` > "Revisions 2026-04-22 (Phase 1 execution completion)"). Items 5 and 6 are the active next steps; current canonical list lives in the parent doc's renumbered "Still to do for Phase 1" block.]
+> [Items 1-4 and 7 complete as of the Phase 1 execution completion (see `historical_mmpose_heuristic_investigation.md` > "Revisions 2026-04-22 (Phase 1 execution completion)"). Items 5 and 6 are the active next steps; current canonical list lives in the parent doc's renumbered "Still to do for Phase 1" block.]
 
 1. **Revisit sticky_anchor design** with the ndet findings as input. The score-alone-is-not-discriminative observation and the player-size/centrality dominance change the selector weighting. Design discussion is in-flight with Ariel; do not pre-empt.
 2. Write `apply_heuristic.py` + `heuristics/` package (`current` + `sticky_anchor`).
@@ -417,7 +417,7 @@ Raw extract also synced to local for heuristic iteration (path is per-machine; n
 - Player-dominance-by-size/centrality confirmed by user audit; area + centre-distance are reliable signals.
 - 5 clips with 100% zeroed hit-zones have been rsynced for visual inspection; findings pending.
 - The 222 vs 1,716 scope change means the heuristic runs over 7.7x more clips than originally scoped; storage and I/O still trivial at N=16 (under 1 GB for the full raw set).
-- Homography is calibrated to the outer (doubles) taped court. Current `eps = 0.01` filter gives only ~6 cm sideline / ~13 cm baseline of slack, ~1/8 to 1/20 of real in-play overflow. See `mmpose_heuristic_investigation.md` "Court-space geometry and buffer sizing (2026-04-22)" for the full audit including overlay PNG reference (`src/bst_x/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/homography_overlay_3_1_18_3_f032.png`).
+- Homography is calibrated to the outer (doubles) taped court. Current `eps = 0.01` filter gives only ~6 cm sideline / ~13 cm baseline of slack, ~1/8 to 1/20 of real in-play overflow. See `historical_mmpose_heuristic_investigation.md` "Court-space geometry and buffer sizing (2026-04-22)" for the full audit including overlay PNG reference (`src/bst_x/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/homography_overlay_3_1_18_3_f032.png`).
 
 ### Design stance: irrecoverable clips
 

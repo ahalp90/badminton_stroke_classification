@@ -63,59 +63,15 @@ Python API
 
 CLI usage
 ---------
-Run from the project root (or any directory with pipeline importable):
+Run from the project root. ``--help`` documents every flag; in brief:
 
-    # Count table for all splits and classes
-    python -m pipeline.data_access --summary
+    python -m pipeline.data_access --summary    # per-split/class count table
+    python -m pipeline.data_access              # interactive TUI
+    BST_X_CLIPS_DIR=/other/path python -m pipeline.data_access --summary  # path override
 
-    # Count table filtered to one split
-    python -m pipeline.data_access --split val --summary
-
-    # Count table for one class across all splits
-    python -m pipeline.data_access --class Top_smash --summary
-
-    # Switch to the split_v2 ablation column
-    python -m pipeline.data_access --split-column split_v2 --summary
-
-    # Pick a taxonomy that drops unknown (excluded_base_stroke_types handles it)
-    python -m pipeline.data_access --taxonomy bst_24 --summary
-
-    # TSV of all file paths (clip, shuttle, mmpose) -- redirect to file
-    python -m pipeline.data_access --split train > train_paths.tsv
-
-    # List all class names in the active taxonomy and exit
-    python -m pipeline.data_access --list-classes
-
-    # Override default data paths (e.g. different HPC scratch location)
-    python -m pipeline.data_access \\
-        --clips-dir /scratch/comp320a/ShuttleSet/clips \\
-        --shuttle-npy-dir /scratch/comp320a/ShuttleSet/shuttle_npy_flat \\
-        --summary
-
-    # Include mmpose paths once pose estimation has been run
-    python -m pipeline.data_access \\
-        --mmpose-npy-dir /scratch/comp320a/ShuttleSet_data_bst_25/\\
-dataset_npy_between_2_hits_with_max_limits_flat \\
-        --summary
-
-Environment / .env file
------------------------
-Instead of passing flags every time, set paths in a .env file at the project
-root (copy .env.example and fill in your values):
-
-    BST_X_CLIPS_DIR=/scratch/comp320a/ShuttleSet/clips
-    BST_X_SHUTTLE_NPY_DIR=/scratch/comp320a/ShuttleSet/shuttle_npy_flat
-    BST_X_MMPOSE_NPY_DIR=/scratch/comp320a/ShuttleSet_data_bst_25/dataset_npy_between_2_hits_with_max_limits_flat
-    BST_X_CLIPS_CSV=/home/username/badminton_stroke_classification/notebooks/clips_master.csv
-
-Then just run with no flags:
-
-    python -m pipeline.data_access --summary
-    python -m pipeline.data_access          # interactive TUI
-
-Shell exports take precedence over .env, so on-the-fly overrides work:
-
-    BST_X_CLIPS_DIR=/other/path python -m pipeline.data_access --summary
+Paths resolve from flags, then env vars / a project-root ``.env`` (copy
+``.env.example``; ``DataPaths`` lists the ``BST_X_*`` vars), then the
+``pipeline.config`` defaults. Shell exports win over ``.env``.
 
 Relationship to ``clip_index.py``
 ---------------------------------
@@ -488,6 +444,18 @@ def _menu(prompt: str, options: list[str]) -> str:
         print(f'  Enter a number between 1 and {len(options)}.')
 
 
+def _print_paths_tsv(records: list[ClipRecord]) -> None:
+    """Print clip records as tab-separated rows: split, class, stem, clip, shuttle, mmpose."""
+    for r in records:
+        clip_str = str(r.clip) if r.clip else 'MISSING_CLIP'
+        shuttle_str = str(r.shuttle_npy) if r.shuttle_npy else 'MISSING'
+        mmpose_str = str(r.mmpose_joints) if r.mmpose_joints else 'NO_MMPOSE'
+        print(
+            f'{r.split}\t{r.taxonomy_class}\t{r.clip_stem}\t'
+            f'{clip_str}\t{shuttle_str}\t{mmpose_str}'
+        )
+
+
 def interactive(
     paths: DataPaths,
     split_column: str = DEFAULT_SPLIT_COLUMN,
@@ -542,14 +510,7 @@ def interactive(
             split_column=split_column,
             taxonomy_name=taxonomy_name,
         )
-        for r in records:
-            clip_str = str(r.clip) if r.clip else 'MISSING_CLIP'
-            shuttle_str = str(r.shuttle_npy) if r.shuttle_npy else 'MISSING'
-            mmpose_str = str(r.mmpose_joints) if r.mmpose_joints else 'NO_MMPOSE'
-            print(
-                f'{r.split}\t{r.taxonomy_class}\t{r.clip_stem}\t'
-                f'{clip_str}\t{shuttle_str}\t{mmpose_str}'
-            )
+        _print_paths_tsv(records)
 
 
 def _build_cli() -> argparse.ArgumentParser:
@@ -652,14 +613,7 @@ def main(argv: list[str] | None = None) -> None:
             split_column=args.split_column,
             taxonomy_name=args.taxonomy,
         )
-        for r in records:
-            clip_str = str(r.clip) if r.clip else 'MISSING_CLIP'
-            shuttle_str = str(r.shuttle_npy) if r.shuttle_npy else 'MISSING'
-            mmpose_str = str(r.mmpose_joints) if r.mmpose_joints else 'NO_MMPOSE'
-            print(
-                f'{r.split}\t{r.taxonomy_class}\t{r.clip_stem}\t'
-                f'{clip_str}\t{shuttle_str}\t{mmpose_str}'
-            )
+        _print_paths_tsv(records)
 
 
 if __name__ == '__main__':

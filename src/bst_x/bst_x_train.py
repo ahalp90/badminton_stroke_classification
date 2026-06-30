@@ -8,25 +8,19 @@
 # Run from the repo root with both package roots on PYTHONPATH:
 #   PYTHONPATH=src/bst_x \
 #       python -m bst_x_train
-#
-# PyTorch training loop overview (differs significantly from TF/Keras):
-#   TF:      model.compile(optimizer, loss) -> model.fit(data)  (one line trains everything)
-#   PyTorch: you write the loop yourself — iterate batches, compute loss, call backward(), step()
-#   This is more verbose but gives full control over every training step.
 
 import numpy as np
 import torch
-from torch import Tensor, nn, optim  # nn = layers/models, optim = optimizers (like tf.keras.optimizers)
-import torch.nn.functional as F      # F = stateless functions (one_hot, softmax, etc.)
+from torch import Tensor, nn, optim
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter  # TensorBoard logging (same viewer as TF)
+from torch.utils.tensorboard import SummaryWriter  # TensorBoard logging
 from torcheval.metrics.functional import multiclass_f1_score
 
 from transformers import get_cosine_schedule_with_warmup  # from HuggingFace, not a custom module
 
 from pathlib import Path
 from copy import deepcopy
-from collections import namedtuple
+from typing import NamedTuple
 from contextlib import redirect_stdout
 import argparse
 import math
@@ -47,6 +41,7 @@ from pipeline.data_access import env_path_or_none, load_repo_dotenv
 from run_tracker import track_run, track_serial
 from bst_x_common import (
     Tee,
+    _write_prediction_npz,
     build_bst_x_network,
     compute_data_provenance,
     dump_topk_predictions,
@@ -72,47 +67,37 @@ DEFAULT_CLIPS_CSV = REPO_ROOT / 'notebooks' / 'clips_master.csv'
 # taxonomy + split. ablation_id is a separate, nullable training-time tag (augs /
 # loss / wiring on a fixed collation): manifest-only, never in the path. See
 # pipeline.config.derive_npy_collated_dir_basename for the disentanglement.
-Hyp = namedtuple('Hyp', [
-    'n_epochs', 'batch_size', 'lr', 'weight_decay', 'warm_up_step',
-    'taxonomy', 'seq_len', 'early_stop_n_epochs',
-    'pose_style', 'use_3d_pose', 'train_partial',
-    'use_aux_schedule', 'aux_fade_end_epoch',
-    'clips_csv', 'split_column', 'collation_id', 'ablation_id',
-    'label_smoothing', 'class_weights', 'adaptive_focal',
-    'use_val_improvability_gate', 'val_improvability_gate',
-    'augmentation',
-])
-hyp = Hyp(
-    n_epochs=80,
-    early_stop_n_epochs=40,
-    batch_size=128,
-    lr=5e-4,
+class Hyp(NamedTuple):
+    n_epochs: int = 80
+    batch_size: int = 128
+    lr: float = 5e-4
     # AdamW decoupled weight decay. 0.01 is PyTorch's AdamW default and what
     # every prior run used implicitly; kept as the default so non-sweep runs
     # barely move (norm/bias/embeddings now excluded from decay, but 0.01 on
     # them was near-inert anyway). The sweep overrides this per cell. Optimal
     # lambda for this dataset/LR/run-length is likely 0.1-0.3; see
     # docs/architecture_notes/hp_and_aug_speculations_30_05_2026.md (Q2).
-    weight_decay=0.01,
-    warm_up_step=100,
-    taxonomy='une_v1_14',
-    seq_len=100,
-    pose_style='JnB_bone',
-    use_3d_pose=False,
-    train_partial=1.0,
-    use_aux_schedule=True,
-    aux_fade_end_epoch=15,
-    clips_csv=str(DEFAULT_CLIPS_CSV),
-    split_column='split_v2',
-    collation_id='taxon_pinned_w_preds',
-    ablation_id=None,
-    label_smoothing=0.0,  # CDB-F1 cell forces LS=0; LS softens targets so confident-correct samples have p_t < 1.0, contaminating focal's per-sample hardness signal
+    weight_decay: float = 0.01
+    warm_up_step: int = 100
+    taxonomy: str = 'une_v1_14'
+    seq_len: int = 100
+    early_stop_n_epochs: int = 40
+    pose_style: str = 'JnB_bone'
+    use_3d_pose: bool = False
+    train_partial: float = 1.0
+    use_aux_schedule: bool = True
+    aux_fade_end_epoch: int = 15
+    clips_csv: str = str(DEFAULT_CLIPS_CSV)
+    split_column: str = 'split_v2'
+    collation_id: str = 'taxon_pinned_w_preds'
+    ablation_id: str | None = None
+    label_smoothing: float = 0.0  # CDB-F1 cell forces LS=0; LS softens targets so confident-correct samples have p_t < 1.0, contaminating focal's per-sample hardness signal
     # Manual per-class CE weights for the wrist_smash <-> smash confusion-pair smoke test.
     # Pair-balanced (both at 2.0) so the gradient has no directional bias toward one class:
     # tests whether loss-side reweighting alone can move the wrist_smash F1 floor without
     # stealing recall from smash. Weights renormalised to mean 1.0 inside the loss build so
     # overall loss scale stays comparable to uniform CE. Set to None for uniform CE.
-    class_weights=None,
+    class_weights: dict | None = None
     # Class-F1-driven adaptive focal loss (CDB-F1). Mutually exclusive with
     # class_weights, and forces label_smoothing=0 (LS contaminates focal's
     # hardness estimate). None disables; pass a dict to engage:
@@ -128,7 +113,7 @@ hyp = Hyp(
     #       ],
     #   }
     # Full design + paper-verified equations: docs/architecture_notes/class_f1_focal_design.md.
-    adaptive_focal={
+    adaptive_focal: dict | None = {
         # First-run sweet spot from run_20260501_164658: tau=1, gamma=1.
         # All four CDB knob variants (gamma=0, tau=0.5, pair-cap, gamma=2)
         # traded wrist_smash back for smash without macro moving, so this
@@ -139,7 +124,7 @@ hyp = Hyp(
         'momentum': 0.9,
         'warm_up_epochs': 5,
         'f1_floor': 0.0,
-    },
+    }
     # Val-improvability gate over the adaptive-focal alpha. Off by default;
     # flip on with use_val_improvability_gate=True or --val-improvability-gate.
     # Once a class stops improving on val it decays that class's alpha back
@@ -151,28 +136,30 @@ hyp = Hyp(
     # Defaults are the ones derived in
     # docs/architecture_notes/alpha_arc_analysis/ (macro plateaus ~e26-31,
     # cross_court_net_shot needs a patience >= its ~15-epoch new-high interval).
-    use_val_improvability_gate=False,
-    val_improvability_gate={
+    use_val_improvability_gate: bool = False
+    val_improvability_gate: dict = {
         'val_f1_smoothing_factor': 0.9,    # EMA retention on val F1 (~6.6-epoch half-life)
         'improvement_margin': 0.015,       # smoothed val must beat its best by this to count
         'patience_epochs': 15,             # epochs with no new high before decay starts
         'min_epochs_before_gating': 10,    # no decay before this epoch (keep the early boost)
         'revert_step_per_epoch': 0.2,      # fraction of the gap to the mean reverted per epoch
         'stop_gating_after_fraction': 0.75,  # freeze past 0.75*n_epochs (protect anneal blooms)
-    },
+    }
     # Train-time augmentations. Replaces the inherited (broken) joints-only
     # RandomTranslation_batch. Flip is the literature-norm dataset-doubler;
     # constrained jitter is the corrected, pos+shuttle-only,
     # layered-conditional-bound formulation. Full design + verified code
     # traces in docs/architecture_notes/augmentation_framework.md.
-    augmentation={
+    augmentation: dict = {
         'p_flip':   0.5,
         'p_jitter': 0.3,
         'cap_y':    0.05,
         'cap_x':    0.10,
         'eps':      0.15,
-    },
-)
+    }
+
+
+hyp = Hyp()
 
 
 # ==========================================================================
@@ -196,8 +183,10 @@ def aux_schedule_factor(epoch: int, fade_end_epoch: int) -> float:
     :param fade_end_epoch: epoch at which factor first reaches 0.0; stays 0 after.
     :return: scalar in [0, 1].
     """
-    if fade_end_epoch <= 1 or epoch >= fade_end_epoch:
-        return 0.0 if epoch >= fade_end_epoch else 1.0
+    if epoch >= fade_end_epoch:
+        return 0.0
+    if fade_end_epoch <= 1:
+        return 1.0
     progress = (epoch - 1) / (fade_end_epoch - 1)
     return 0.5 * (1.0 + math.cos(math.pi * progress))
 
@@ -235,7 +224,7 @@ def train_one_epoch(
         jitter_n_total)``. Counts are length-``n_classes`` int64 tensors on
         ``device``; jitter accumulators are plain ints over the epoch's clips.
     """
-    model.train()  # enable dropout + batchnorm training mode (TF: training=True)
+    model.train()  # enable dropout + batchnorm training mode
     total_loss = 0.0
     tp = torch.zeros(n_classes, dtype=torch.long, device=device)
     fp = torch.zeros(n_classes, dtype=torch.long, device=device)
@@ -245,8 +234,8 @@ def train_one_epoch(
     jitter_n_total = 0
 
     for (human_pose, pos, shuttle), video_len, labels in loader:
-        # .to(device) = move tensors to GPU/CPU. TF does this automatically;
-        # PyTorch requires explicit placement for every tensor.
+        # .to(device) = move tensors to GPU/CPU; PyTorch needs explicit
+        # placement for every tensor.
         human_pose: Tensor = human_pose.to(device)
         shuttle: Tensor = shuttle.to(device)
         pos: Tensor = pos.to(device)
@@ -271,10 +260,10 @@ def train_one_epoch(
         logits = model(human_pose, shuttle, pos, video_len)
         loss: Tensor = loss_fn(logits, labels)
 
-        # PyTorch manual gradient step (TF does this inside model.fit()):
-        optimizer.zero_grad()  # clear gradients from previous batch
-        loss.backward()        # backpropagation: compute gradients (like tape.gradient())
-        optimizer.step()       # apply gradients to weights (like optimizer.apply_gradients())
+        # Manual gradient step: zero grads, backprop, update weights.
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
         scheduler.step()       # update learning rate according to cosine schedule
 
         total_loss += loss.item()  # .item() extracts Python float from single-element tensor
@@ -302,13 +291,13 @@ def validate(
     device,
     n_classes: int,
 ):
-    model.eval()  # disable dropout + set batchnorm to eval mode (TF: training=False)
+    model.eval()  # disable dropout + set batchnorm to eval mode
     total_loss = 0.0
-    # Accumulate confusion matrix components across batches for per-class F1
-    cum_tp = torch.zeros(n_classes)
-    cum_tn = torch.zeros(n_classes)
-    cum_fp = torch.zeros(n_classes)
-    cum_fn = torch.zeros(n_classes)
+    # Accumulate per-class TP/FP/FN on device (mirrors train_one_epoch);
+    # one .cpu() after the loop, not four per batch.
+    cum_tp = torch.zeros(n_classes, dtype=torch.long, device=device)
+    cum_fp = torch.zeros(n_classes, dtype=torch.long, device=device)
+    cum_fn = torch.zeros(n_classes, dtype=torch.long, device=device)
     cum_top2 = 0  # ground truth among the two highest logits, summed over samples
     cum_n = 0     # total samples seen
 
@@ -324,21 +313,13 @@ def validate(
         loss: Tensor = loss_fn(logits, labels)
         total_loss += loss.item()
 
-        # Manual per-class TP/FP/FN/TN computation via one-hot encoding
-        pred = F.one_hot(torch.argmax(logits, dim=1), n_classes).bool()
-        labels_onehot = F.one_hot(labels, n_classes).bool()
-
-        tp = torch.sum(pred & labels_onehot, dim=0)
-        tn = torch.sum(~pred & ~labels_onehot, dim=0)
-
-        fp = torch.sum(pred & ~labels_onehot, dim=0)
-        fn = torch.sum(~pred & labels_onehot, dim=0)
-
-        # .cpu() moves results back from GPU for accumulation
-        cum_tp += tp.cpu()
-        cum_tn += tn.cpu()
-        cum_fp += fp.cpu()
-        cum_fn += fn.cpu()
+        preds = logits.argmax(dim=1)
+        batch_tp, batch_fp, batch_fn = accumulate_class_counts(
+            preds, labels, n_classes,
+        )
+        cum_tp += batch_tp
+        cum_fp += batch_fp
+        cum_fn += batch_fn
 
         # Top-2 accuracy needs the two highest logits, so it's the one metric
         # not already in the confusion counts; accumulate it here.
@@ -346,6 +327,9 @@ def validate(
         top2_idx = logits.topk(2, dim=1).indices
         cum_top2 += int((top2_idx == labels.unsqueeze(1)).any(dim=1).sum())
 
+    cum_tp = cum_tp.cpu()
+    cum_fp = cum_fp.cpu()
+    cum_fn = cum_fn.cpu()
     val_loss = total_loss / len(loader)
 
     # Per-class F1, then macro average (mean across classes)
@@ -374,136 +358,46 @@ def validate(
     return val_loss, f1_score_avg, f1_score_min, f1_score, present, accuracy, top2_accuracy
 
 
-@torch.no_grad()
-def test(
-    model: nn.Module,
-    loader,
-    device
-):
-    model.eval()
-    pred_ls = []
-    labels_ls = []
-    for (human_pose, pos, shuttle), video_len, labels in loader:
-        human_pose: Tensor = human_pose.to(device)
-        shuttle: Tensor = shuttle.to(device)
-        pos: Tensor = pos.to(device)
-        video_len: Tensor = video_len.to(device)
-
-        human_pose = human_pose.view(*human_pose.shape[:-2], -1)
-        logits = model(human_pose, shuttle, pos, video_len)
-
-        pred = torch.argmax(logits, dim=1).cpu()
-
-        pred_ls.append(pred)
-        labels_ls.append(labels)
-
-    return torch.cat(pred_ls), torch.cat(labels_ls)
-
-
-@torch.no_grad()
-def test_topk(
-    model: nn.Module,
-    loader,
-    device,
-    k=2
-):
-    model.eval()
-    pred_ls = []
-    labels_ls = []
-    for (human_pose, pos, shuttle), video_len, labels in loader:
-        human_pose: Tensor = human_pose.to(device)
-        shuttle: Tensor = shuttle.to(device)
-        pos: Tensor = pos.to(device)
-        video_len: Tensor = video_len.to(device)
-
-        human_pose = human_pose.view(*human_pose.shape[:-2], -1)
-        logits = model(human_pose, shuttle, pos, video_len)
-
-        _, pred = torch.topk(logits, k=k, dim=1)
-
-        pred_ls.append(pred.cpu())
-        labels_ls.append(labels)
-
-    return torch.cat(pred_ls), torch.cat(labels_ls)
-
-
 # ==========================================================================
 # Training loop with TensorBoard logging and early stopping
 # ==========================================================================
 
-def train_network(
-    model: nn.Module,
-    train_loader,
-    val_loader,
-    device,
-    save_path: Path,
-    n_bones,
+def _build_loss_fn(
     n_classes: int,
     class_ls: list[str],
     taxonomy: Taxonomy,
-    tb_dir: Path | None = None,
+    device,
 ):
-    # tb_dir lands the event files under experiments/<run_id>/tb/serial_N/ so
-    # TB folders pair with the run they came from. Default SummaryWriter() writes
-    # to ./runs/<host_time>/, which is what older runs used.
-    writer = SummaryWriter(log_dir=str(tb_dir)) if tb_dir is not None else SummaryWriter()
+    """Resolve hyp's three loss branches (CE / class-weighted CE / adaptive-focal)
+    into a single ``loss_fn`` instance.
 
-    # Locked Task-2 augmentation set: centreline flip across all three streams
-    # (with COCO bilateral joint-index swap and bone recompute) plus
-    # constrained pos+shuttle jitter (layered conditional bounds, joints
-    # untouched). Bone recompute requires the JnB_bone pose style; other
-    # styles (J_only, JnB_interp, Jn2B) need their own recompute helpers
-    # which are out of scope per docs/architecture_notes/augmentation_framework.md.
-    if hyp.pose_style != 'JnB_bone':
-        raise NotImplementedError(
-            f'Augmentation framework currently supports pose_style=JnB_bone only; '
-            f'got {hyp.pose_style!r}. Bone recompute via the bone_pairs table is the '
-            f'mechanism that propagates the flip+swap into bones; J_only has no bones, '
-            f'JnB_interp uses joint-pair midpoints, Jn2B uses both. Lift the equivalents '
-            f'to torch in preparing_data/augmentations.py before re-enabling the others.'
-        )
-    # Direct index rather than .get(key, default): the Hyp always carries all
-    # five aug keys (dict literal + all-or-nothing CLI override), so a missing
-    # key is a malformed config and should fail loud, not train on a default.
-    aug_cfg = hyp.augmentation
-    coupled_flip = CoupledFlip(
-        p=aug_cfg['p_flip'],
-        n_joints=17,
-        n_bones=n_bones,
-    )
-    constrained_jitter = ConstrainedJitter(
-        p_roll=aug_cfg['p_jitter'],
-        cap_y=aug_cfg['cap_y'],
-        cap_x=aug_cfg['cap_x'],
-        eps=aug_cfg['eps'],
-    )
-    print(
-        f"[aug] coupled flip p={coupled_flip.p}, "
-        f"constrained jitter p={constrained_jitter.p_roll} "
-        f"(cap_y={constrained_jitter.cap_y}, cap_x={constrained_jitter.cap_x}, "
-        f"eps={constrained_jitter.eps})"
-    )
+    Owns the three fail-loud guards: ``use_val_improvability_gate`` needs
+    ``adaptive_focal``; ``adaptive_focal`` is mutually exclusive with
+    ``class_weights``; ``adaptive_focal`` requires ``label_smoothing=0.0``.
+    All read the module-global ``hyp`` to mirror the pre-B7 shape (the rest of
+    ``train_network`` does the same).
 
-    # label_smoothing softens targets from [0,1] to reduce overconfidence.
-    # BST paper / TemPose default is 0.1; we sweep this knob to test
-    # whether it's bottlenecking the small-support classes that lose
-    # ground when the cleaner Phase-2 pose data lifts the head of the
-    # F1 distribution. See docs/architecture_notes/hparams_sweep_speculations.md.
-    #
-    # class_weights: optional manual per-class loss multipliers. Used as a
-    # smoke test for whether loss-side reweighting can move the bottleneck
-    # F1 classes (wrist_smash + its confusion partner smash). Renormalised to
-    # mean 1.0 so the overall loss magnitude stays comparable to uniform CE
-    # (keeps LR / grad-clip behaviour aligned across cells). None = uniform.
-    #
-    # adaptive_focal: class-F1-driven CDB-loss with optional focal modulation.
-    # Replaces the static class_weights lever with an EMA-smoothed per-class
-    # weight that re-prioritises classes whose train F1 stays low. Mutually
-    # exclusive with class_weights and forces label_smoothing=0 (LS softens
-    # targets, contaminating focal's per-sample hardness estimate).
-    # The val-improvability gate modulates the adaptive-focal alpha, so it can
-    # only run when adaptive_focal is engaged. Fail loud rather than silently
-    # ignoring the flag (the gate config would otherwise be dropped on the floor).
+    ``label_smoothing`` softens targets from [0,1] to reduce overconfidence.
+    BST paper / TemPose default is 0.1; we sweep this knob to test whether it's
+    bottlenecking the small-support classes that lose ground when the cleaner
+    Phase-2 pose data lifts the head of the F1 distribution. See
+    docs/architecture_notes/hparams_sweep_speculations.md.
+
+    ``class_weights``: optional manual per-class loss multipliers. Used as a
+    smoke test for whether loss-side reweighting can move the bottleneck F1
+    classes (wrist_smash + its confusion partner smash). Renormalised to mean
+    1.0 so the overall loss magnitude stays comparable to uniform CE (keeps LR /
+    grad-clip behaviour aligned across cells). None = uniform.
+
+    ``adaptive_focal``: class-F1-driven CDB-loss with optional focal
+    modulation. Replaces the static class_weights lever with an EMA-smoothed
+    per-class weight that re-prioritises classes whose train F1 stays low.
+    Mutually exclusive with class_weights and forces label_smoothing=0 (LS
+    softens targets, contaminating focal's per-sample hardness estimate). The
+    val-improvability gate modulates the adaptive-focal alpha, so it can only
+    run when adaptive_focal is engaged. Fail loud rather than silently ignoring
+    the flag (the gate config would otherwise be dropped on the floor).
+    """
     if hyp.use_val_improvability_gate and hyp.adaptive_focal is None:
         raise ValueError(
             'use_val_improvability_gate=True requires adaptive_focal (the gate '
@@ -570,7 +464,8 @@ def train_network(
                 f"(gating window epochs "
                 f"{loss_fn.gate_min_epochs_before_gating + 1}-{loss_fn.gate_freeze_epoch - 1})"
             )
-    elif hyp.class_weights:
+        return loss_fn
+    if hyp.class_weights:
         weights = torch.ones(n_classes, device=device)
         for cls_name, multiplier in hyp.class_weights.items():
             if cls_name not in class_ls:
@@ -584,17 +479,25 @@ def train_network(
         print(f"[loss] class-weighted CE (renormalised, mean=1.0):")
         for i, c in enumerate(class_ls):
             print(f"    {c:25s} weight={weights[i].item():.3f}")
-        loss_fn = nn.CrossEntropyLoss(weight=weights, label_smoothing=hyp.label_smoothing)
-    else:
-        loss_fn = nn.CrossEntropyLoss(label_smoothing=hyp.label_smoothing)
-    # AdamW with decoupled weight decay. Exclude norm gains, biases, and the
-    # learned tokens / positional embeddings from decay: decaying an LN/BN gain
-    # pulls its scale toward zero, and decaying a sinusoidally-seeded positional
-    # embedding erodes the positional signal. Matters at the lambda 0.1-0.4 the
-    # sweep covers; standard transformer recipe (Wang & Aitchison don't decay
-    # normalisation layers). ndim<=1 catches every norm gain/beta and bias; the
-    # two name hints catch the five ndim>=2 BST-owned params a shape rule misses.
-    # Verified split for BST_CG_AP: 27 decay / 55 no-decay tensors.
+        return nn.CrossEntropyLoss(weight=weights, label_smoothing=hyp.label_smoothing)
+    return nn.CrossEntropyLoss(label_smoothing=hyp.label_smoothing)
+
+
+def _split_param_groups(model: nn.Module):
+    """Decay vs no-decay walk for AdamW. Returns the two raw lists; the caller
+    builds the AdamW param-group dicts (so ``hyp.weight_decay`` / ``hyp.lr``
+    reads stay co-located with the optimiser construction).
+
+    Excludes norm gains, biases, and the learned tokens / positional embeddings
+    from decay: decaying an LN/BN gain pulls its scale toward zero, and decaying
+    a sinusoidally-seeded positional embedding erodes the positional signal.
+    Matters at the lambda 0.1-0.4 the sweep covers; standard transformer recipe
+    (Wang & Aitchison don't decay normalisation layers). ``ndim<=1`` catches
+    every norm gain/beta and bias; the two name hints catch the five ndim>=2
+    BST-owned params a shape rule misses. Verified split for BST_CG_AP:
+    27 decay / 55 no-decay tensors (model-pinned: a different variant or a
+    requires_grad change moves the count).
+    """
     no_decay_name_hints = ('embedding_', 'learned_token_')
     decay, no_decay = [], []
     for name, param in model.named_parameters():
@@ -603,6 +506,68 @@ def train_network(
         norm_or_bias = param.ndim <= 1
         token_or_posemb = any(hint in name for hint in no_decay_name_hints)
         (no_decay if norm_or_bias or token_or_posemb else decay).append(param)
+    return decay, no_decay
+
+
+def train_network(
+    model: nn.Module,
+    train_loader,
+    val_loader,
+    device,
+    save_path: Path,
+    n_bones,
+    n_classes: int,
+    class_ls: list[str],
+    taxonomy: Taxonomy,
+    tb_dir: Path | None = None,
+):
+    # tb_dir lands the event files under experiments/<run_id>/tb/serial_N/ so
+    # TB folders pair with the run they came from. Default SummaryWriter() writes
+    # to ./runs/<host_time>/, which is what older runs used.
+    writer = SummaryWriter(log_dir=str(tb_dir)) if tb_dir is not None else SummaryWriter()
+
+    # Locked Task-2 augmentation set: centreline flip across all three streams
+    # (with COCO bilateral joint-index swap and bone recompute) plus
+    # constrained pos+shuttle jitter (layered conditional bounds, joints
+    # untouched). Bone recompute requires the JnB_bone pose style; other
+    # styles (J_only, JnB_interp, Jn2B) need their own recompute helpers
+    # which are out of scope per docs/architecture_notes/augmentation_framework.md.
+    if hyp.pose_style != 'JnB_bone':
+        raise NotImplementedError(
+            f'Augmentation framework currently supports pose_style=JnB_bone only; '
+            f'got {hyp.pose_style!r}. Bone recompute via the bone_pairs table is the '
+            f'mechanism that propagates the flip+swap into bones; J_only has no bones, '
+            f'JnB_interp uses joint-pair midpoints, Jn2B uses both. Lift the equivalents '
+            f'to torch in preparing_data/augmentations.py before re-enabling the others.'
+        )
+    # Direct index rather than .get(key, default): the Hyp always carries all
+    # five aug keys (dict literal + all-or-nothing CLI override), so a missing
+    # key is a malformed config and should fail loud, not train on a default.
+    aug_cfg = hyp.augmentation
+    coupled_flip = CoupledFlip(
+        p=aug_cfg['p_flip'],
+        n_joints=17,
+        n_bones=n_bones,
+    )
+    constrained_jitter = ConstrainedJitter(
+        p_roll=aug_cfg['p_jitter'],
+        cap_y=aug_cfg['cap_y'],
+        cap_x=aug_cfg['cap_x'],
+        eps=aug_cfg['eps'],
+    )
+    print(
+        f"[aug] coupled flip p={coupled_flip.p}, "
+        f"constrained jitter p={constrained_jitter.p_roll} "
+        f"(cap_y={constrained_jitter.cap_y}, cap_x={constrained_jitter.cap_x}, "
+        f"eps={constrained_jitter.eps})"
+    )
+
+    loss_fn = _build_loss_fn(n_classes, class_ls, taxonomy, device)
+
+    # AdamW with decoupled weight decay. _split_param_groups owns the decay
+    # rules; this site owns the per-group weight_decay + hyp.lr wiring so the
+    # optimiser construction stays co-located with its hparams.
+    decay, no_decay = _split_param_groups(model)
     print(f'[optim] AdamW lr={hyp.lr} weight_decay={hyp.weight_decay} '
           f'(decay={len(decay)} tensors, no_decay={len(no_decay)})')
     optimizer = optim.AdamW(
@@ -751,7 +716,7 @@ def train_network(
         if curr_macro > best_macro:
             second_macro, second_macro_epoch = best_macro, best_macro_epoch
             best_macro, best_macro_epoch = curr_macro, epoch
-            # state_dict() = snapshot of all model weights as a dict (like model.get_weights() in TF)
+            # state_dict() = snapshot of all model weights as a dict
             # deepcopy because state_dict returns references that would change as training continues
             best_state = deepcopy(model.state_dict())
             # Snapshot the per-class val F1 at this same best-macro epoch so the
@@ -797,20 +762,20 @@ def train_network(
     # Save best checkpoint and restore it into the model. Done before TB
     # hparam logging so a logging failure doesn't lose the trained weights.
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(best_state, str(save_path))  # like model.save_weights() in TF
-    model.load_state_dict(best_state)       # like model.load_weights() in TF
+    torch.save(best_state, str(save_path))
+    model.load_state_dict(best_state)
 
     # HParams summary: one row per run, sortable in TB's HParams tab.
     # stopped_epoch - best_macro_epoch == early_stop_n_epochs confirms clean early-stop.
     # Coerce non-scalar values (dicts, None, etc.) to strings; TB's add_hparams
     # only accepts int / float / str / bool / Tensor.
-    def _to_hparam_value(value):
-        if isinstance(value, (int, float, str, bool)) or torch.is_tensor(value):
-            return value
-        return str(value)
+    hparam_dict = {}
+    for key, value in hyp._asdict().items():
+        is_tb_scalar = isinstance(value, (int, float, str, bool)) or torch.is_tensor(value)
+        hparam_dict[key] = value if is_tb_scalar else str(value)
 
     writer.add_hparams(
-        hparam_dict={k: _to_hparam_value(v) for k, v in hyp._asdict().items()},
+        hparam_dict=hparam_dict,
         metric_dict={
             'best/macro_f1':        best_macro,
             'best/macro_f1_epoch':  best_macro_epoch,
@@ -1011,8 +976,15 @@ class Task:
             print(f'Total training time: {t}')
             return False, val_at_best  # newly trained
 
-    def test(self, show_details=False, show_confusion_matrix=False) -> dict:
-        pred, gt = test(self.net, self.test_loader, self.device)
+    def test(self, dump: dict, show_details=False, show_confusion_matrix=False) -> dict:
+        """Derive test top-1 metrics from a precomputed dump.
+
+        ``dump`` is one split's output from ``dump_topk_predictions``: top-1 reads
+        straight off ``y_pred_top1`` (argmax, unified in Batch 2), no second forward
+        pass through the test loader.
+        """
+        pred = torch.from_numpy(dump['y_pred_top1'])
+        gt = torch.from_numpy(dump['y_true'])
         print(f'Test (num_strokes: {len(pred)}) =>')
 
         f1_score_each = multiclass_f1_score(
@@ -1067,15 +1039,26 @@ class Task:
             'per_class_f1': per_class_f1,
         }
 
-    def test_topk_acc(self, k=2) -> dict:
+    def test_topk_acc(self, dump: dict, k=2) -> dict:
+        """Derive top-k accuracy from a precomputed dump's raw logits.
+
+        Re-derives top-k from a fresh ``torch.topk(logits, k=k)`` rather than
+        slicing the stored ``topk_idx[:, :k]`` (the dump runs at k=5; slicing
+        breaks ties differently from a k=2 topk on rank-boundary rows). Real
+        trained logits are tie-free, so this matches a 3-pass top-k on actual data.
+        """
         assert k > 1, 'k should be > 1'
-        pred, gt = test_topk(self.net, self.test_loader, self.device, k=k)
+        logits = torch.from_numpy(dump['logits'])
+        gt = torch.from_numpy(dump['y_true'])
+        pred = torch.topk(logits, k=k, dim=1).indices
         gt = gt.unsqueeze(1).repeat(1, k)
         acc = torch.any(pred == gt, dim=1).sum().item() / len(gt)
         print(f'Top{k} Accuracy: {acc:.3f}')
         return {f'top{k}_accuracy': float(acc)}
 
-    def dump_predictions(self, run_dir: Path, serial_no: int, k: int = 5) -> None:
+    def dump_predictions(
+        self, run_dir: Path, serial_no: int, k: int = 5,
+    ) -> dict[str, dict]:
         """Dump per-split prediction npz (raw logits + top-k + ground truth).
 
         The per-stroke-logits payload that motivated the refactor: lets the FE
@@ -1092,9 +1075,13 @@ class Task:
         FE-shape JSON converter joins row -> stem inside the npz, no external
         sidecar and no re-deriving the collation filters.
 
+        Returns the per-split dump dicts so the caller can derive test metrics
+        from the same forward pass (B2: one test pass, not three).
+
         :param run_dir: experiments/<run_id>/ for this run.
         :param serial_no: serial whose weights are currently loaded in self.net.
         :param k: top-k width recorded per row.
+        :return: ``{split_name: dump_dict}`` for train / val / test.
         """
         out_dir = run_dir / 'predictions'
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -1103,6 +1090,7 @@ class Task:
             ('val',   self.val_loader),
             ('test',  self.test_loader),
         )
+        dumps: dict[str, dict] = {}
         for split_name, source in sources:
             dataset = source.dataset
             ordered = DataLoader(
@@ -1110,28 +1098,12 @@ class Task:
                 shuffle=False, num_workers=0, pin_memory=False,
             )
             dump = dump_topk_predictions(self.net, ordered, self.device, k=k)
-            # clip_stems straight off the in-memory dataset: kept in lockstep
-            # with labels through the drop + train_partial reorder, and the
-            # shuffle=False loader preserves that order, so the npz is a
-            # self-contained row -> stem join. Hard-fail on a None sidecar (a
-            # legacy collation with no clip_stems.npy): np.asarray(None) writes a
-            # silent 0-d array, which would desync every row from its stem.
-            assert dataset.clip_stems is not None, (
-                f'{split_name}: dataset.clip_stems is None (legacy collation with '
-                f'no clip_stems.npy); re-collate before dumping predictions.'
-            )
-            np.savez(
+            _write_prediction_npz(
                 out_dir / f'{split_name}_serial_{serial_no}.npz',
-                logits=dump['logits'],
-                y_true=dump['y_true'],
-                y_pred_top1=dump['y_pred_top1'],
-                topk_idx=dump['topk_idx'],
-                clip_stems=np.asarray(dataset.clip_stems, dtype=object),
-                class_list=np.array(self.taxonomy.classes, dtype=object),
-                run_id=np.array(run_dir.name, dtype=object),
-                serial_no=np.array(serial_no, dtype=np.int64),
-                taxonomy_name=np.array(self.taxonomy.name, dtype=object),
+                dump, dataset, self.taxonomy, run_dir.name, serial_no,
             )
+            dumps[split_name] = dump
+        return dumps
 
 
 # ==========================================================================
@@ -1400,14 +1372,19 @@ if __name__ == '__main__':
                 model_info=model_info, serial_no=serial_no, tb_dir=tb_dir,
             )
 
-            with redirect_stdout(tee):
-                print(f'\n=== Serial {serial_no} ({task.model_name}) ===')
-                test_metrics = task.test(show_details=True, show_confusion_matrix=False)
-                topk_metrics = task.test_topk_acc(k=2)
-
             # Per-stroke logits dump (all splits) for the FE / calibration. Runs
             # every serial; non-best are pruned manually after the runner finishes.
-            task.dump_predictions(run_dir=run_dir, serial_no=serial_no, k=5)
+            # Returns the per-split dumps so test_metrics/topk_metrics can derive
+            # off the same forward pass (B2: one test pass, not three).
+            dumps = task.dump_predictions(run_dir=run_dir, serial_no=serial_no, k=5)
+
+            with redirect_stdout(tee):
+                print(f'\n=== Serial {serial_no} ({task.model_name}) ===')
+                test_metrics = task.test(
+                    dump=dumps['test'],
+                    show_details=True, show_confusion_matrix=False,
+                )
+                topk_metrics = task.test_topk_acc(dump=dumps['test'], k=2)
 
             # Writes the manifest entry, and if aim is installed (it isn't on
             # the HPC train venv, so usually a no-op) mirrors this serial into

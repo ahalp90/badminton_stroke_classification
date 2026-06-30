@@ -286,7 +286,7 @@ Bridges collated `.npy` files to PyTorch `DataLoader`s. Imports `Taxonomy` from 
 | `create_bones()` / `interpolate_joints()` | Bone vector and midpoint computation from joint arrays. |
 | `POSE_BONE_MULTIPLIER` | Dict mapping pose style names to bone-set multipliers: `{'J_only': 0, 'JnB_bone': 1, 'JnB_interp': 1, 'Jn2B': 2}`. Used by train/infer scripts to compute `in_dim`. |
 | `pad_class_labels()` | Pads class label strings to uniform width for aligned F1 display. |
-| `RandomTranslation` / `RandomTranslation_batch` | Data augmentation: small random xy shifts applied to joint coordinates during training. |
+| `CoupledFlip` / `ConstrainedJitter` | Live augmentations (in `preparing_data/augmentations.py`): centreline flip across all three streams (with COCO bilateral swap + bone recompute) plus constrained pos+shuttle jitter (layered bounds, joints untouched). Hardcoded to `pose_style=JnB_bone`. The earlier `RandomTranslation_batch` is gone. |
 
 #### Known divergence: zero-length clip filtering
 
@@ -409,9 +409,11 @@ Stage 5 spans two files:
 | Name | Lives in | Role |
 |------|----------|------|
 | `Hyp` (namedtuple) | `bst_x_train.py` | Active training config, in the `Hyp`/`hyp` block near the top of `bst_x_train.py`.<br>• Schedule: `n_epochs=80`, `early_stop_n_epochs=40`, `warm_up_step=100`, `use_aux_schedule=True`, `aux_fade_end_epoch=15` (compressed warm-start-then-finetune, paired with the CG/AP cosine fade).<br>• Data: `taxonomy='une_v1_14'`, `split_column='split_v2'`, `collation_id='taxon_pinned_w_preds'`, `seq_len=100`, `pose_style='JnB_bone'`, `use_3d_pose=False`, `train_partial=1.0`.<br>• Optim: `batch_size=128`, `lr=5e-4`.<br>• `ablation_id` is a nullable training-time tag, separate from the `collation_id` path tag. `drop_unknown`/`expected_active_classes` were removed in the taxon_pinned_w_preds refactor: `excluded_base_stroke_types` carries the unknown-drop rule and labels.npy lands in active class space.<br>• BST-paper originals (`n_epochs=1600`, `warm_up_step=400`, `early_stop_n_epochs=300`, `taxonomy='merged_25'`, `aux_fade_end_epoch=60`) live verbatim in `historical_bst.md`; current LR + schedule rationale in `bst_x_overview.md`. |
-| `train_one_epoch()` | `bst_x_train.py` | Standard PyTorch training loop: forward pass, cross-entropy loss (with label smoothing 0.1), backward, optimizer step, scheduler step. Applies `RandomTranslation_batch` to joints (not bones). |
+| `train_one_epoch()` | `bst_x_train.py` | Standard PyTorch training loop: forward pass, cross-entropy loss (with label smoothing 0.1), backward, optimizer step, scheduler step. Applies the live augmentations (`CoupledFlip` then `ConstrainedJitter`) per batch and accumulates per-class TP/FP/FN counts via `accumulate_class_counts` for downstream `AdaptiveFocalLoss.update_alpha`. |
 | `validate()` | `bst_x_train.py` | Evaluates on val set. Accumulates per-class TP/FP/FN across batches, computes macro F1 and min-class F1. |
-| `test()` | `bst_x_train.py` (`Task.test`) | Runs inference on test set, returns `(predictions, ground_truth)` tensors. |
+| `Task.test()` | `bst_x_train.py` | Derives top-1 macro/min F1 + accuracy from a precomputed test-split dump (no second forward pass); returns a metrics dict. |
+| `Task.test_topk_acc()` | `bst_x_train.py` | Derives top-k accuracy from the dump's raw logits via a fresh `torch.topk(k)`; returns `{f'top{k}_accuracy': ...}`. |
+| `Task.dump_predictions()` | `bst_x_train.py` | Runs each split through one shuffle=False forward pass, writes the per-split prediction npz (logits + y_true + top-k + clip_stems), and returns the per-split dumps so `Task.test()` / `Task.test_topk_acc()` can reuse the test dump. |
 | `train_network()` | `bst_x_train.py` | Full training loop with AdamW optimizer, cosine LR schedule with warmup, early stopping on macro F1, and best-checkpoint saving. Applies the CG/AP warm-start schedule at the top of each epoch via `model.set_schedule_factors(cg_factor, ap_factor)`. Logs per-epoch scalars (`Loss/Train`, `Loss/Val`, `F1/Val_macro`, `F1/Val_min`, `Schedule/aux_factor`) plus an end-of-run **HParams** entry: best + 2nd-best macro F1 and min F1 (with their epochs), best val loss (with epoch), and `stopped_epoch`. `stopped_epoch - best/macro_f1_epoch == early_stop_n_epochs` confirms a clean early-stop vs a crash. |
 | `Task` (class) | `bst_x_train.py` | Orchestrates the full workflow: `prepare_dataloaders()` -> `get_network_architecture()` -> `seek_network_weights()` (loads existing or trains) -> `test()`. |
 | `MODELS` (dict) | `bst_x_common.py` | Maps variant names (`'BST_0'`, `'BST'`, etc.) to pre-configured partials imported from `model/bst.py`. Single dispatch point shared by `bst_x_train.py` and `bst_x_infer.py`. |
@@ -426,8 +428,9 @@ Task()
   .prepare_dataloaders(root_dir, pose_style, train_partial)
   .get_network_architecture(model_name='BST_CG_AP', in_channels=2)
   .seek_network_weights(model_info, serial_no)   # trains if no checkpoint found
-  .test(show_details, show_confusion_matrix)
-  .test_topk_acc(k=2)
+  dumps = .dump_predictions(run_dir, serial_no, k=5)   # one forward pass per split
+  .test(dump=dumps['test'], show_details, show_confusion_matrix)
+  .test_topk_acc(dump=dumps['test'], k=2)
 ```
 
 The `__main__` block runs 5 serial trials (`range(1, 6)`) to measure seed variance. Each invocation mints one timestamp and uses it to name both (a) the run folder `experiments/run_<timestamp>/` (holding `manifest.yaml`, `weights/`, and `tb/serial_N/`) and (b) the test log `test_logs/test_<timestamp>.log`, so artefacts for a single invocation line up on disk. All five serials' weights, per-serial TB event dirs, and test output land under that run folder. `Task.test()` and `task.test_topk_acc()` are wrapped in `redirect_stdout(Tee(sys.stdout, log_f))` so test metrics land in both the terminal and the log file. The script is wired into `run_tracker.py` with two function calls (`track_run` + `track_serial`) so the manifest captures hparams + per-serial metrics automatically; see the **Run tracker + aggregator** section below. Set `resume_from = '<run_folder_name>'` at the top of `__main__` to re-test an existing run's weights without retraining; leave it `None` for normal fresh-train behaviour.

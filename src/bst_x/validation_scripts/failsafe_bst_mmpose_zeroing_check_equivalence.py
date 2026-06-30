@@ -2,12 +2,11 @@
 
 Runs the ``current`` heuristic on a deterministic sample of the 1,716-clip
 hit-zone busted list and compares the produced ``_pos``/``_joints``/``_failed``
-outputs against the committed filtered extract. Any mismatch means the
-plumbing is wrong and no other heuristic variant (e.g. ``sticky_anchor``)
-should be trusted until it is fixed.
+outputs against the committed extract passed via ``--committed-dir``. Any
+mismatch means the plumbing is wrong and no other heuristic variant (e.g.
+``sticky_anchor``) should be trusted until it is fixed.
 
-Comparison tolerances match the plan in
-``docs/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md``:
+Comparison tolerances:
 
 - ``_failed.npy``: ``np.array_equal`` (bool must match exactly).
 - ``_pos.npy`` and ``_joints.npy``: ``np.allclose(rtol=0, atol=1e-5)``
@@ -18,20 +17,31 @@ Sampling is deterministic with no seeding: the 1,716 stems are sorted
 lexicographically and every ``len // sample_size``-th stem is kept. This
 spreads the sample across video IDs without introducing run-to-run noise.
 
+``--committed-dir`` is required. ``$BST_X_MMPOSE_NPY_DIR`` points at the
+``sticky_anchor`` clean extract, which is a different heuristic from
+``current`` and so would always fail this gate; the script refuses to default
+to it. For a refactor branch gate where no pre-existing ``current``-extract
+dir exists, use the dual-invocation pattern: run on main first with
+``--scratch-output-dir`` pointed at a fresh ``$REF`` dir (the comparison line
+in the log can be ignored on this pass — its purpose is to populate ``$REF``
+with main's current-extract NPYs), then run on the branch with
+``--committed-dir $REF`` and ``--scratch-output-dir`` pointed at a second
+dir. The branch's current-extract output gets compared stem-by-stem against
+main's.
+
 Run from the repo root with both package roots on PYTHONPATH::
 
     PYTHONPATH=src/bst_x \\
-        python -m preparing_data.failsafe_bst_mmpose_zeroing_check_equivalence \\
-            --raw-dir /scratch/.../dataset_npy_..._flat_raw_phase1 \\
-            --committed-dir /scratch/.../dataset_npy_..._flat \\
+        python -m validation_scripts.failsafe_bst_mmpose_zeroing_check_equivalence \\
+            --raw-dir /scratch/comp320a/ShuttleSet_keypoints_raw \\
+            --committed-dir /scratch/comp320a/clean_current_main_50 \\
             --busted-stems-file docs/architecture_notes/busted_hit_zone_clips_phase1.txt \\
             --clips-csv notebooks/clips_master.csv \\
-            --scratch-output-dir /scratch/.../dataset_npy_..._flat_failsafe_gate
+            --scratch-output-dir /scratch/comp320a/clean_current_branch_50
 """
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -117,8 +127,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--raw-dir", type=Path, required=True)
     parser.add_argument(
-        "--committed-dir", type=Path, default=None,
-        help="Committed filtered extract dir (defaults to $BST_X_MMPOSE_NPY_DIR).",
+        "--committed-dir", type=Path, required=True,
+        help="Current-extract committed dir to compare against. Required: "
+             "$BST_X_MMPOSE_NPY_DIR points at the sticky_anchor extract, which "
+             "would always fail this gate; the script does not fall back to it.",
     )
     parser.add_argument(
         "--busted-stems-file", type=Path, required=True,
@@ -145,16 +157,6 @@ def main() -> int:
     args = parser.parse_args()
 
     committed_dir = args.committed_dir
-    if committed_dir is None:
-        env_val = os.environ.get("BST_X_MMPOSE_NPY_DIR", "").strip()
-        if not env_val:
-            print(
-                "ERROR: --committed-dir not provided and BST_X_MMPOSE_NPY_DIR is unset.",
-                file=sys.stderr,
-            )
-            return 2
-        committed_dir = Path(env_val)
-
     if not committed_dir.is_dir():
         print(f"ERROR: committed-dir not found: {committed_dir}", file=sys.stderr)
         return 2

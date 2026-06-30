@@ -46,7 +46,7 @@ def download_video(
     :param output_dir: Directory to save the downloaded video.
     :return: Filename on success, None on failure.
     """
-    # Check if already downloaded (any extension, since yt-dlp may choose .mkv etc.)
+    # Any extension, since yt-dlp may choose .mkv etc.
     existing = list(output_dir.glob(f'{video_id} {video_name}.*'))
     if existing:
         print(f'  Skipping video {video_id} (already exists: {existing[0].name})')
@@ -71,16 +71,12 @@ def download_video(
             print(f'  ERROR video {video_id}: {result.stderr.strip()[:200]}')
             return None
 
-        # Find the downloaded file
         downloaded = list(output_dir.glob(f'{video_id} {video_name}.*'))
         if downloaded:
             print(f'  Downloaded video {video_id}: {downloaded[0].name}')
             return downloaded[0].name
         return None
 
-    except FileNotFoundError:
-        print('ERROR: yt-dlp not found. Install with: pip install yt-dlp')
-        return None
     except subprocess.TimeoutExpired:
         print(f'  TIMEOUT video {video_id}: download exceeded 30 minutes')
         return None

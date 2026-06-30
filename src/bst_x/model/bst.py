@@ -3,27 +3,27 @@
 # Licence. See src/bst_x/THIRD_PARTY_NOTICES.md. This project is otherwise
 # licensed LGPL-3.0-or-later.
 #
-# Refactored: consolidated 4 variant classes into 1 configurable class
+# Refactored: consolidated 4 variant classes into 1 configurable class.
 #
-# PyTorch notes for TensorFlow users:
-#   nn.Module    = tf.keras.Model (base class for all models/layers)
-#   nn.Parameter = a learnable tensor, like tf's self.add_weight() but standalone
-#   forward()    = the __call__/call() method — PyTorch calls it when you do model(x)
-#   .to(device)  = moves tensor to GPU/CPU — TF handles this automatically
-#   .contiguous()= ensures tensor is stored in contiguous memory after transpose/permute
-#                  (needed before .view(); harmless no-op if already contiguous)
+# A few PyTorch idioms used below, for readers coming from another framework:
+#   nn.Parameter      a tensor the optimiser trains (a learnable weight)
+#   register_buffer   a tensor that is NOT trained but still moves with
+#                     .to(device) and is saved in the checkpoint
+#   .contiguous()     repack a tensor into contiguous memory after a
+#                     transpose/permute; required before .view()
+#   forward()         runs when you call model(x)
 
 import torch
 from torch import nn, Tensor
 from positional_encodings.torch_encodings import PositionalEncoding1D
-from functools import partial  # partial(fn, arg=val) creates a new fn with some args pre-filled
+from functools import partial
 
 # Building blocks defined in tempose.py:
-#   TCN                = temporal convolution network (dilated 1D convs for sequence features)
-#   MLP                = Linear -> GELU -> Dropout -> Linear
-#   MLP_Head           = LayerNorm -> MLP (final classification layer)
-#   FeedForward        = MLP + Dropout (used inside transformer layers)
-#   TransformerEncoder = stack of self-attention TransformerLayers
+#   TCN                temporal convolution network (dilated 1D convs over time)
+#   MLP                Linear -> GELU -> Dropout -> Linear
+#   MLP_Head           LayerNorm -> MLP (final classification layer)
+#   FeedForward        MLP + Dropout (used inside transformer layers)
+#   TransformerEncoder stack of self-attention TransformerLayers
 from model.tempose import TCN, FeedForward, MLP, MLP_Head, TransformerEncoder
 
 
@@ -39,22 +39,22 @@ class MultiHeadCrossAttention(nn.Module):
         d_cat   = d_head * n_head = total projection size across all heads
     """
     def __init__(self, d_model, d_head, n_head, drop_p) -> None:
-        super().__init__()  # PyTorch equivalent of super().__init__() in tf.keras.Model
+        super().__init__()
         d_cat = d_head * n_head
 
         self.h = n_head
         # Queries come from x1, keys+values come from x2 (this is what makes it "cross")
         self.to_q = nn.Linear(d_model, d_cat, bias=False)
-        self.to_kv = nn.Linear(d_model, d_cat * 2, bias=False)  # *2 because K and V are packed together
-        self.scale = d_head**-0.5  # 1/sqrt(d_head) — standard attention scaling factor
+        self.to_kv = nn.Linear(d_model, d_cat * 2, bias=False)  # *2: K and V packed together
+        self.scale = d_head**-0.5  # 1/sqrt(d_head), standard attention scaling
 
-        self.attend = nn.Sequential(  # nn.Sequential = tf.keras.Sequential
+        self.attend = nn.Sequential(
             nn.Softmax(dim=-1),
             nn.Dropout(drop_p)  # This shouldn't be inplace.
         )
 
-        # Project multi-head output back to d_model, or skip if dimensions already match
-        # nn.Identity() = a no-op layer that passes input through unchanged
+        # Project multi-head output back to d_model, or pass through unchanged
+        # (nn.Identity) if the dimensions already match.
         self.tail = nn.Sequential(
             nn.Linear(d_cat, d_model),
             nn.Dropout(drop_p, inplace=True)
@@ -63,36 +63,32 @@ class MultiHeadCrossAttention(nn.Module):
     def forward(self, x1: Tensor, x2: Tensor, mask: Tensor = None):
         # x1, x2: (b, t, d_model)
         q: Tensor = self.to_q(x1)   # queries from x1
-        kv: Tensor = self.to_kv(x2) # keys+values from x2
+        kv: Tensor = self.to_kv(x2)  # keys+values from x2
         b, t, _ = q.shape
 
-        # Reshape to separate attention heads: (b, t, d_cat) -> (b, h, t, d_head)
-        # .view() = .reshape() but requires contiguous memory (faster, no copy)
-        # .transpose(1,2) = swap dims 1 and 2, like tf.transpose(perm=[0,2,1,3])
+        # Split into heads: (b, t, d_cat) -> (b, h, t, d_head).
+        # .view (not .reshape): no-copy reshape that needs contiguous memory;
+        # .reshape is the more common default but copies when it can't view.
         q = q.view(b, t, self.h, -1).transpose(1, 2)
-        # .chunk(2, dim=-1) = split last dim in half -> (K, V) tuple
+        # chunk(2) splits the packed projection back into K and V
         kv = kv.view(b, t, self.h, -1).chunk(2, dim=-1)
         k, v = map(lambda ts: ts.transpose(1, 2), kv)
         # q, k, v: (b, h, t, d_head)
 
-        # Attention scores: Q @ K^T / sqrt(d_head)
-        # @ = matrix multiply (same as tf.matmul or np.matmul)
         dots: Tensor = (q.contiguous() @ k.transpose(-1, -2).contiguous()) * self.scale
         # dots: (b, h, t, t) — attention score for every (query_pos, key_pos) pair
         if mask is not None:
             # mask: (b, t) — True for real frames, False for padding
             mask = mask.view(b, 1, 1, t)
-            # Set padded positions to -inf so softmax gives them zero weight
+            # Padded positions -> -inf so softmax gives them zero weight
             dots = dots.masked_fill(~mask, -torch.inf)
 
         coef = self.attend(dots)  # softmax -> dropout
-        # Weighted sum of values by attention coefficients
-        attention: Tensor = coef @ v.contiguous()
+        attention: Tensor = coef @ v.contiguous()  # weighted sum of values
         # attention: (b, h, t, d_head)
 
-        # Merge heads back: (b, h, t, d_head) -> (b, t, h*d_head)
+        # Merge heads: (b, h, t, d_head) -> (b, t, h*d_head)
         out = attention.transpose(1, 2).reshape(b, t, -1)
-        # out: (b, t, h*d_head)
         out = self.tail(out)  # project back to d_model
         return out  # (b, t, d_model)
 
@@ -109,7 +105,7 @@ class CrossTransformerLayer(nn.Module):
     Under investigation with the original author — could also be a bug."""
     def __init__(self, d_model, d_head, n_head, hd_mlp, drop_p) -> None:
         super().__init__()
-        self.layer_norm1_x1 = nn.LayerNorm(d_model)  # nn.LayerNorm = tf.keras.layers.LayerNormalization
+        self.layer_norm1_x1 = nn.LayerNorm(d_model)
         self.layer_norm1_x2 = nn.LayerNorm(d_model)
         self.cross_attn = MultiHeadCrossAttention(d_model, d_head, n_head, drop_p)
         self.layer_norm2 = nn.LayerNorm(d_model)
@@ -120,7 +116,7 @@ class CrossTransformerLayer(nn.Module):
         x2 = self.layer_norm1_x2(x2)
         x = self.cross_attn(x1, x2, mask)  # x1 queries, x2 provides context
         z = self.layer_norm2(x)
-        x = self.ff(z) + x  # residual connection (output = transform(x) + x)
+        x = self.ff(z) + x  # residual around the FFN only (see class NOTE)
         return x
 
 
@@ -149,7 +145,6 @@ class BST(nn.Module):
         if n_people > 2:
             raise NotImplementedError
 
-        # Store flags for use in forward()
         self.use_ppf = use_ppf
         self.use_cg = use_cg
         self.use_ap = use_ap
@@ -158,33 +153,28 @@ class BST(nn.Module):
         # Projects 2D court positions to in_dim and fuses with skeleton via multiplication
         self.mlp_positions = MLP(2, out_dim=in_dim, hd_dim=256, drop_p=drop_p) if use_ppf else None
 
-        # --- Always created: TCN feature extractors ---
-        # TCN = temporal convolution network with dilated 1D convolutions.
-        # Like a 1D CNN that operates along the time axis with increasing receptive field.
+        # --- TCN feature extractors (dilated 1D convs over time) ---
         # in_dim -> [d_model, d_model] means two conv layers, both outputting d_model channels.
         self.tcn_pose = TCN(in_dim, [d_model, d_model], tcn_kernel_size, drop_p)
         self.tcn_shuttle = TCN(2, [d_model // 2, d_model], tcn_kernel_size, drop_p)
 
-        # --- Always created: Temporal Transformer (processes each stream independently) ---
-        # "Class token" (CLS): a learnable vector prepended to the sequence that the
-        # transformer uses as a summary. After attention, position 0 (the CLS token)
-        # contains a learned summary of the entire sequence. This is the standard
-        # ViT/BERT trick — instead of pooling over all positions, you read one token.
+        # --- Temporal Transformer (processes each stream independently) ---
+        # CLS token: a learnable vector prepended to the sequence. After attention,
+        # position 0 holds a learned summary of the whole sequence, read instead of
+        # pooling over all positions (the standard ViT/BERT trick).
         self.learned_token_tem = nn.Parameter(torch.randn(1, d_model))
-        # Positional embeddings: added to input so the transformer knows frame order
-        # (transformers have no built-in notion of sequence position unlike LSTMs)
-        # Intentionally learnable (nn.Parameter): initialised with sinusoidal values in
-        # init_weights(), but gradients are enabled so the model can fine-tune positions
-        # during training. This gives a sensible starting point without constraining it.
+        # Positional embeddings tell the transformer the frame order (attention has no
+        # built-in notion of position). Learnable: seeded with sinusoidal values in
+        # init_weights() but free to fine-tune during training.
         self.embedding_tem = nn.Parameter(torch.empty(1, 1+seq_len, d_model))  # 1+ for CLS
         self.pre_dropout = nn.Dropout(drop_p, inplace=True)
         self.encoder_tem = TransformerEncoder(d_model, d_head, n_head, depth_tem, d_model * mlp_d_scale, drop_p)
 
-        # --- Always created: Cross Transformer (player attends to shuttle) ---
+        # --- Cross Transformer (player attends to shuttle) ---
         self.embedding_cross = nn.Parameter(torch.empty(1, seq_len, d_model))
         self.cross_trans = CrossTransformerLayer(d_model, d_head, n_head, d_model * mlp_d_scale, drop_p)
 
-        # --- Always created: Interactional Transformer (models cross-player dynamics) ---
+        # --- Interactional Transformer (models cross-player dynamics) ---
         self.learned_token_inter = nn.Parameter(torch.randn(1, d_model))
         self.embedding_inter = nn.Parameter(torch.empty(1, 1+seq_len, d_model))
         self.encoder_inter = TransformerEncoder(d_model, d_head, n_head, depth_inter, d_model * mlp_d_scale, drop_p)
@@ -204,9 +194,9 @@ class BST(nn.Module):
 
         self.d_model = d_model
 
-        # Scheduling factors for CG/AP warm-start, scalar in [0, 1].
-        # Buffers (not Parameters): not learned, travel with .to(device), saved in state_dict.
-        # Overwritten per epoch by the trainer via set_schedule_factors().
+        # Warm-start factors for CG/AP, scalar in [0, 1]; overwritten per epoch by the
+        # trainer via set_schedule_factors(). Buffers, not Parameters: not learned, but
+        # they travel with .to(device) and are saved in state_dict.
         self.register_buffer('cg_factor', torch.tensor(1.0))
         self.register_buffer('ap_factor', torch.tensor(1.0))
 
@@ -227,14 +217,14 @@ class BST(nn.Module):
         self.cg_factor.fill_(cg_factor)
         self.ap_factor.fill_(ap_factor)
 
-    @torch.no_grad()  # disable gradient tracking — this is init, not training
+    @torch.no_grad()
     def init_weights(self):
-        """Initialize positional encodings and learnable tokens.
-        In TF, kernel_initializer handles this; PyTorch requires explicit init."""
-        # Sinusoidal positional encodings: give the transformer a sense of frame order
+        """Seed positional encodings and learnable tokens (PyTorch has no
+        kernel_initializer equivalent, so init is explicit)."""
+        # Sinusoidal positional encodings give the transformer a sense of frame order.
+        # .copy_() overwrites each parameter's values in place; written out per
+        # embedding (not a loop) to keep the reassignment chain explicit.
         p_enc_1d_model = PositionalEncoding1D(self.d_model)
-
-        # .copy_() = in-place overwrite of the parameter's values
         pos_encoding: Tensor = p_enc_1d_model(self.embedding_tem)
         self.embedding_tem.copy_(pos_encoding)
 
@@ -248,13 +238,12 @@ class BST(nn.Module):
         nn.init.normal_(self.learned_token_tem, std=0.02)
         nn.init.normal_(self.learned_token_inter, std=0.02)
 
-        # .apply() walks every sub-module and calls the given function on each
-        # (like tf.keras.Model recursively visiting all layers)
+        # .apply() runs the given function on every sub-module recursively.
         self.apply(self.init_weights_recursive)
 
     def init_weights_recursive(self, m):
-        """Called on every sub-module by .apply() above. Sets initial weight values.
-        Xavier init keeps signal variance stable through deep networks."""
+        """Per-submodule init called by .apply(). Xavier keeps signal variance
+        stable through deep networks."""
         if isinstance(m, nn.Linear):
             nn.init.xavier_uniform_(m.weight)
             if m.bias is not None:
@@ -272,11 +261,11 @@ class BST(nn.Module):
         """Forward pass. Shape key: b=batch, t=timesteps, n=players(2), d=d_model(100).
         Pipeline: TCN -> Temporal Transformer -> Cross Transformer -> Interactional Transformer -> Head
         """
-        b, t, n, in_dim = JnB.shape
-        # Rearrange for 1D conv: PyTorch Conv1d expects (batch, channels, length)
-        # .permute() = reorder dimensions (like tf.transpose with perm=)
-        JnB = JnB.permute(0, 2, 3, 1).reshape(b*n, in_dim, t)
-        # JnB: (b*n, in_dim, t) — both players stacked in batch dim for parallel TCN
+        b, t, n_people, in_dim = JnB.shape
+        # Conv1d wants (batch, channels, length); stack both players in the batch dim
+        # so the TCN processes them in parallel.
+        JnB = JnB.permute(0, 2, 3, 1).reshape(b*n_people, in_dim, t)
+        # JnB: (b*n_people, in_dim, t)
 
         # ====================================================================
         # [PPF] Pose Position Fusion: modulate skeleton features by court position
@@ -284,8 +273,8 @@ class BST(nn.Module):
         if self.use_ppf:
             pos = self.mlp_positions(pos)
             # pos: (b, t, n, in_dim)
-            pos_impact = pos.permute(0, 2, 3, 1).reshape(b*n, in_dim, t)
-            # pos_impact: (b*n, in_dim, t)
+            pos_impact = pos.permute(0, 2, 3, 1).reshape(b*n_people, in_dim, t)
+            # pos_impact: (b*n_people, in_dim, t)
             JnB = JnB * pos_impact + JnB
             # Multiplicative fusion with residual: JnB * (1 + pos_impact)
 
@@ -293,8 +282,8 @@ class BST(nn.Module):
         # TCN: extract temporal features from pose and shuttle
         # ====================================================================
         JnB = self.tcn_pose(JnB)
-        JnB = JnB.view(b, n, -1, t).transpose(-2, -1)
-        # JnB: (b, n, t, d_model)
+        JnB = JnB.view(b, n_people, -1, t).transpose(-2, -1)
+        # JnB: (b, n_people, t, d_model)
 
         shuttle = shuttle.transpose(1, 2).contiguous()
         # shuttle: (b, 2, t)
@@ -303,44 +292,42 @@ class BST(nn.Module):
         # shuttle: (b, 1, t, d_model)
 
         x = torch.cat((JnB, shuttle), dim=1)
-        # x: (b, n+1, t, d_model) where n+1 = 3 (p1, p2, shuttle)
-        _, n, _, d = x.shape
+        # x: (b, n_streams, t, d_model) where n_streams = n_people + 1 = 3 (p1, p2, shuttle)
+        _, n_streams, _, d = x.shape
 
         # ====================================================================
         # Temporal Transformer: each stream (p1, p2, shuttle) processed independently
         # ====================================================================
-        # Prepend a learnable CLS token to each stream's sequence.
-        # .expand() = broadcast to larger size without copying memory (like tf.broadcast_to)
-        class_token_tem = self.learned_token_tem.view(1, 1, -1).expand(b*n, -1, -1)
-        x = x.view(b*n, t, d)
+        # Prepend the learnable CLS token to each stream. .expand() broadcasts to the
+        # batch size without copying memory.
+        class_token_tem = self.learned_token_tem.view(1, 1, -1).expand(b*n_streams, -1, -1)
+        x = x.view(b*n_streams, t, d)
         # Concatenate CLS token at position 0, then add positional embeddings
         x = torch.cat((class_token_tem, x), dim=1) + self.embedding_tem
-        # x: (b*n, 1+t, d_model) — "1+" because CLS token is prepended
+        # x: (b*n_streams, 1+t, d_model) — "1+" because CLS token is prepended
 
-        # Build padding mask: True for real frames + CLS, False for zero-padded frames.
-        # This prevents the transformer from attending to meaningless padding positions.
+        # Padding mask: True for real frames + CLS, False for zero-padded frames, so
+        # the transformer never attends to meaningless padding positions.
         range_t = torch.arange(0, 1+t, device=x.device).unsqueeze(0).expand(b, -1)
         video_len = video_len.unsqueeze(-1)
         mask = range_t < (1 + video_len)
         # mask: (b, 1+t)
-        # repeat_interleave: duplicate each mask row n times (one per stream: p1, p2, shuttle)
-        mask_n = mask.repeat_interleave(n, dim=0)
-        # mask_n: (b*n, 1+t)
+        # repeat_interleave: duplicate each mask row once per stream (p1, p2, shuttle)
+        mask_n = mask.repeat_interleave(n_streams, dim=0)
+        # mask_n: (b*n_streams, 1+t)
 
         x: Tensor = self.pre_dropout(x)
         x = self.encoder_tem(x, mask_n)  # self-attention across time within each stream
-        x = x.view(b, n, 1+t, d)
+        x = x.view(b, n_streams, 1+t, d)
         # x: (b, 3, 1+t, d_model) — 3 streams: [player1, player2, shuttle]
 
         # ====================================================================
         # Split the 3 streams back apart and extract their CLS tokens
         # ====================================================================
-        # .chunk(3, dim=1) = split dim 1 into 3 equal parts (like tf.split)
-        # .squeeze(1) = remove the now-singleton dim 1
         p1, p2, shuttle = map(lambda ts: ts.squeeze(1), x.chunk(3, dim=1))
         # p1, p2, shuttle: each (b, 1+t, d_model)
 
-        # Extract CLS tokens (position 0) — these are learned summaries of each stream
+        # CLS tokens (position 0): learned summaries of each stream
         p1_cls, p2_cls, shuttle_cls = \
             p1[:, 0].contiguous(), p2[:, 0].contiguous(), shuttle[:, 0].contiguous()
         # *_cls: (b, d_model) — one summary vector per stream per batch item
@@ -405,7 +392,7 @@ class BST(nn.Module):
         if self.use_cg:
             info_need_clean = torch.minimum(p1_shuttle_cls, p2_shuttle_cls)
             dirt = self.mlp_clean(info_need_clean)
-            # Warm-start schedule: cg_factor=1 applies full CG; cg_factor=0 bypasses the subtraction.
+            # Warm-start schedule: cg_factor=1 applies full CG; cg_factor=0 bypasses it.
             shuttle_cls = shuttle_cls - self.cg_factor * dirt
 
         # ====================================================================
@@ -425,9 +412,8 @@ class BST(nn.Module):
 
 # ==========================================================================
 # Pre-configured BST variants — the single source of truth for flag combos.
-# partial(BST, use_ppf=True, ...) creates a "pre-configured" version of BST
-# that acts like a class — you can call BST_CG_AP(in_dim=72, ...) and the
-# flags are already set. Same idea as functools.partial in any Python context.
+# partial(BST, use_ppf=True, ...) pre-fills the flags, so BST_CG_AP(in_dim=72, ...)
+# behaves like a class with those options already set.
 # ==========================================================================
 BST_0 = partial(BST, use_ppf=False, use_cg=False, use_ap=False)
 BST_PPF = partial(BST, use_ppf=True, use_cg=False, use_ap=False)

@@ -13,7 +13,7 @@ from pathlib import Path
 
 from pipeline.config import (
     CLIPS_OUTPUT_DIR, SHUTTLE_OUTPUT_DIR, EXCLUDED_VIDEOS, REMOVED_SHOTS,
-    PLAYERS, SPLITS,  # noqa: F401
+    PLAYERS, SPLITS,
     UNPREFIXED_TYPES, Taxonomy, resolve_taxonomy,
 )
 
@@ -139,7 +139,6 @@ def verify_splits_present(
     :param clip_paths: Pre-scanned list of .mp4 paths.
     :return: True if all splits exist and contain clips.
     """
-    # Group clip counts by split
     split_counts: dict[str, int] = {}
     for mp4 in clip_paths:
         try:

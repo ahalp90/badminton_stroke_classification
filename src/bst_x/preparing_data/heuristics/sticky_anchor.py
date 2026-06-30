@@ -34,8 +34,10 @@ E. Write outputs. EMA resets to ``halfcourt_centre[s]`` on zero; updates
    by ``ema_alpha`` on a picked slot whose pick is within the
    ``update_gate_eps`` in-court test.
 
-Full spec with rationale: "Sticky_anchor design, finalised (2026-04-22)"
-section of ``docs/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md``.
+Operational reference: ``docs/architecture_notes/mmpose_heuristic/mmpose_heuristic.md``
+(algorithm spec, hyperparameters, calibration, failsafe gate). Design log + rejected
+variants: ``docs/architecture_notes/mmpose_heuristic/historical_mmpose_heuristic_investigation.md``,
+"Sticky_anchor design, finalised (2026-04-22)" section.
 """
 from __future__ import annotations
 
@@ -45,7 +47,7 @@ import numpy as np
 
 from pipeline.court_utils import normalize_position, to_court_coordinate
 
-from .base import ClipContext, HeuristicOutput, RawClip
+from .base import ClipContext, HeuristicOutput, J, RawClip
 
 
 @dataclass(frozen=True)
@@ -66,7 +68,6 @@ class StickyAnchorParams:
     update_gate_eps: float = 0.01
 
 
-J = 17
 SLOT_TOP = 0
 SLOT_BOTTOM = 1
 SLOT_ORDER = (SLOT_BOTTOM, SLOT_TOP)  # pick order: Bottom first, Top second
@@ -329,9 +330,7 @@ def apply(raw: RawClip, ctx: ClipContext, **hyperparams) -> HeuristicOutput:
     Keeps the registry-contract ``apply(raw, ctx, **kw)`` signature; the
     ``StickyAnchorParams`` instance is constructed at this boundary.
     """
-    # Lazy import: prepare_train_on_shuttleset pulls in mmpose at module
-    # load. Deferring keeps tests/test_sticky_anchor.py runnable without
-    # the mmpose stack.
+    # Lazy import: prepare_train_on_shuttleset pulls in mmpose at module load.
     from preparing_data.prepare_train_on_shuttleset import (  # noqa: PLC0415
         normalize_joints,
     )

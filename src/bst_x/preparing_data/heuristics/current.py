@@ -25,7 +25,7 @@ hit the cap; in almost every hit, the two real players rank in the top
 ``N_max``. Byte-identity is preserved under this condition. If a real
 player is ever ranked below ``N_max`` on a cap-hit frame, the filter
 decision can diverge for that frame; this is documented in
-``docs/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md``.
+``docs/architecture_notes/mmpose_heuristic/historical_mmpose_heuristic_investigation.md``.
 
 The imports from ``prepare_train_on_shuttleset`` are deferred to ``apply``'s
 first call because that module has a top-level ``from mmpose.apis import
@@ -36,9 +36,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .base import ClipContext, HeuristicOutput, RawClip
-
-J = 17
+from .base import ClipContext, HeuristicOutput, J, RawClip
 
 
 def apply(raw: RawClip, ctx: ClipContext, **_hyperparams) -> HeuristicOutput:
@@ -47,9 +45,7 @@ def apply(raw: RawClip, ctx: ClipContext, **_hyperparams) -> HeuristicOutput:
     ``_hyperparams`` is accepted and ignored so the CLI can pass the
     sticky_anchor hyperparam block uniformly to every registered variant.
     """
-    # Lazy import: prepare_train_on_shuttleset pulls in mmpose at module
-    # load. Deferring keeps the heuristic package importable in venvs
-    # without the mmpose stack.
+    # Lazy import: prepare_train_on_shuttleset pulls in mmpose at module load.
     from preparing_data.prepare_train_on_shuttleset import (  # noqa: PLC0415
         check_pos_in_court,
         normalize_joints,

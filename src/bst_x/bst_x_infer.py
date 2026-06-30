@@ -26,7 +26,6 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import numpy as np
 import torch
 import yaml
 from torch import Tensor, nn
@@ -40,16 +39,20 @@ from pipeline.config import (
     resolve_taxonomy,
 )
 from pipeline.data_access import env_path_or_none, load_repo_dotenv
-from bst_x_common import build_bst_x_network, dump_topk_predictions
+from bst_x_common import (
+    _write_prediction_npz,
+    build_bst_x_network,
+    dump_topk_predictions,
+)
 
 
-@torch.no_grad()  # no gradient tracking needed for inference — saves memory
+@torch.no_grad()
 def infer(
     model: nn.Module,
     loader,
     device
 ):
-    model.eval()  # disable dropout, set batchnorm to eval mode
+    model.eval()
     pred_ls = []
 
     for (human_pose, pos, shuttle), video_len, labels in loader:
@@ -61,12 +64,10 @@ def infer(
         human_pose = human_pose.view(*human_pose.shape[:-2], -1)
         logits = model(human_pose, shuttle, pos, video_len)
 
-        # argmax gives predicted class index; .cpu() moves result back from GPU
         pred = torch.argmax(logits, dim=1).cpu()
 
         pred_ls.append(pred)
 
-    # torch.cat joins list of batch predictions into one tensor
     return torch.cat(pred_ls)
 
 
@@ -247,27 +248,9 @@ def dump_run_predictions(
         dataset = Dataset_npy_collated(collated_dir, split, config['pose_style'])
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         dump = dump_topk_predictions(net, loader, device, k=5)
-        # Hard-fail on a None sidecar (a legacy collation with no clip_stems.npy):
-        # np.asarray(None) writes a silent 0-d array that would desync the npz
-        # row -> stem join. New collations always carry clip_stems.npy.
-        assert dataset.clip_stems is not None, (
-            f'{split}: dataset.clip_stems is None (legacy collation with no '
-            f'clip_stems.npy); re-collate before dumping predictions.'
-        )
         out_path = out_dir / f'{split}_serial_{serial}.npz'
-        np.savez(
-            out_path,
-            logits=dump['logits'],
-            y_true=dump['y_true'],
-            y_pred_top1=dump['y_pred_top1'],
-            topk_idx=dump['topk_idx'],
-            # clip_stems off the in-memory dataset: row-aligned through the
-            # dataset's filters, so the npz row -> stem join is self-contained.
-            clip_stems=np.asarray(dataset.clip_stems, dtype=object),
-            class_list=np.array(taxonomy.classes, dtype=object),
-            run_id=np.array(run_dir.name, dtype=object),
-            serial_no=np.array(serial, dtype=np.int64),
-            taxonomy_name=np.array(taxonomy.name, dtype=object),
+        _write_prediction_npz(
+            out_path, dump, dataset, taxonomy, run_dir.name, serial,
         )
         written.append(out_path.name)
         print(f'saved: {out_path} ({len(dump["y_true"])} rows)')

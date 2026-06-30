@@ -17,7 +17,12 @@ Run from the repo root with both package roots on PYTHONPATH::
         python -m preparing_data.prepare_train_on_shuttleset --help
 """
 
-from mmpose.apis import MMPoseInferencer
+# Deferred annotations so the MMPoseInferencer type hints (detect_players_2d/3d) don't force
+# the mmpose import at module load. That keeps collate_npy and the pose-style joint helpers
+# -- none of which touch mmpose -- importable without the GPU dep (e.g. venv-bst-x collation,
+# the CPU goldens). mmpose is imported lazily inside the three functions that instantiate it,
+# and under TYPE_CHECKING for the static type hints. Keep this: reverting re-couples the module.
+from __future__ import annotations
 
 import argparse
 import gc
@@ -26,6 +31,7 @@ import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
 import torch
+from typing import TYPE_CHECKING
 
 import subprocess
 from concurrent.futures import Future, ProcessPoolExecutor, ThreadPoolExecutor
@@ -48,108 +54,12 @@ from pipeline.config import (
     resolve_taxonomy,
 )
 from pipeline.data_access import env_path, env_path_or_none, load_repo_dotenv
+# Court helpers live in pipeline.court_utils; re-export check_pos_in_court so the
+# heuristics (current.py, sticky_anchor.py) keep their existing import path.
+from pipeline.court_utils import check_pos_in_court, get_court_info  # noqa: F401
 
-
-def get_H(homography_info: pd.Series):
-    """Get from the pd object."""
-    h_str: str = homography_info["homography_matrix"]
-    H = h_str.strip().replace("[", "").replace("]", "").replace(",", "").split()
-    H = np.array(list(map(float, H))).reshape((3, 3))
-    return H
-
-
-def get_corner_camera(homography_info: pd.Series):
-    """Get from the pd object."""
-    corner_camera = homography_info.loc["upleft_x":"downright_y"]
-    corner_camera = corner_camera.to_numpy(dtype=float).reshape((2, 4))
-    return corner_camera
-
-
-def scale_pos_by_resolution(arr: np.ndarray, width, height, aim_w=1280, aim_h=720):
-    """
-    The shape of 2D `arr` is (2, N) or (3, N) if homogeneous.
-    """
-    new_arr = arr.copy()
-    new_arr[0, :] *= aim_w / width
-    new_arr[1, :] *= aim_h / height
-    return new_arr
-
-
-def convert_homogeneous(arr: np.ndarray):
-    """
-    The shape of 2D `arr` is (2, N). => The output will be (3, N).
-    """
-    return np.concatenate((arr, np.full((1, arr.shape[-1]), 1.0)), axis=0)
-
-
-def project(H: np.ndarray, P_prime: np.ndarray):
-    """
-    Transform coordinates from the camera system to the court system.
-
-    H: (3, 3)
-    P_prime: (3, N)
-    Output: (2, N)
-    """
-    P = H @ P_prime
-    P = P[:2, :] / P[-1, :]  # /= w
-    return P
-
-
-def get_court_info(homo_df: pd.DataFrame, vid: int):
-    """
-    Get the homography matrix and the 4 corners of the court in the court coordinate corresponding to the video.
-    """
-    homography_info = homo_df.loc[vid]
-
-    H = get_H(homography_info)
-    corner_camera = get_corner_camera(homography_info)
-    corner_camera = convert_homogeneous(corner_camera)
-
-    corner_court = project(H, corner_camera)
-    return {
-        "H": H,
-        "border_L": corner_court[0, 0],
-        "border_R": corner_court[0, 1],
-        "border_U": corner_court[1, 0],
-        "border_D": corner_court[1, 2],
-    }
-
-
-def to_court_coordinate(
-    arr_camera: np.ndarray, vid: int, all_court_info: dict, res_df: pd.DataFrame
-):
-    """
-    Convert the camera coordinate system to the court coordinate system.
-
-    If the camera coordinate is not from the resolution (1280, 720):
-        It will be scaled to represent in (1280, 720).
-
-    The shape of 2D `arr_camera` is (2, N).
-    """
-    res_info = res_df.loc[vid]  # for resolution scaling
-    H = all_court_info[vid]["H"]
-
-    arr_camera = scale_pos_by_resolution(
-        arr_camera, width=res_info["width"], height=res_info["height"]
-    )
-    arr_camera = convert_homogeneous(arr_camera)
-    arr_court = project(H, arr_camera)
-    return arr_court
-
-
-def normalize_position(arr: np.ndarray, court_info: dict):
-    """
-    Normalized by court boundary.
-
-    `arr`: (2, N). There are N 'x' and N 'y'.
-    Output: (2, N). Every 'x', 'y' in-court should be in [0, 1].
-    """
-    x_dist = court_info["border_R"] - court_info["border_L"]
-    y_dist = court_info["border_D"] - court_info["border_U"]
-
-    x_normalized = (arr[0, :] - court_info["border_L"]) / x_dist
-    y_normalized = (arr[1, :] - court_info["border_U"]) / y_dist
-    return np.stack((x_normalized, y_normalized))
+if TYPE_CHECKING:  # type-only: keeps mmpose out of the runtime import (see module-top note)
+    from mmpose.apis import MMPoseInferencer
 
 
 def normalize_joints(
@@ -164,12 +74,8 @@ def normalize_joints(
 
     Output: (m, J, 2), m=2.
 
-    Signature defaults preserved verbatim from BST upstream for canonical
-    accuracy. The CLI invocation in ``main()`` below overrides
-    ``center_align`` to True (matches BST upstream's own CLI default;
-    committed ShuttleSet extracts were produced with this override).
-    ``v_height=None`` is canonical at both layers: the signature default
-    and the CLI call agree, so no flip happens there.
+    Signature defaults are BST-upstream; ``main()`` overrides
+    ``center_align=True`` (what the committed extracts used).
     """
     # If v_height == None and center_align == False,
     # this normalization method is same as that used in TemPose.
@@ -204,39 +110,51 @@ def normalize_shuttlecock(arr: np.ndarray, v_width, v_height):
     return np.stack((x_normalized, y_normalized), axis=-1)
 
 
-def check_pos_in_court(keypoints: np.ndarray, vid: int, all_court_info: dict, res_df):
+def _order_two_on_court(
+    keypoints_2d: np.ndarray,
+    vid: int,
+    all_court_info: dict,
+    res_df: pd.DataFrame,
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """Decide whether a frame has exactly two on-court players, ordered Top-before-Bottom.
+
+    The shared per-frame decision called by detect_players_2d AND detect_players_3d.
+    Shape-agnostic: takes only the 2D keypoints + court info, never the joint payload
+    or any 3D array. The per-variant tails (failed-frame zero shapes, normalize_joints
+    + bbox in 2D, raw keypoints_3d in 3D) stay in the callers (B5 invariants 3.1, 3.7).
+
+    The ``< 2`` short-circuit precedes ``check_pos_in_court`` because the latter slices
+    ``keypoints[:, -2:, :]``, which raises on an empty detection (B5 invariant 3.2). The
+    flip is strict ``>``: on a y-tie the original ascending-index order is kept (B5
+    invariant 3.3). The flip relies on the ``!= 2`` guard upstream so ``np.flip`` on a
+    2-element array is a swap (same invariant).
+
+    :param keypoints_2d: (m, J, 2). The 2D keypoints, in both variants (the 3D caller
+        passes its `keypoints_2d`, not `keypoints_3d`; the court projection needs 2D
+        pixel coords; B5 invariant 3.5).
+    :param vid: clip's source video id, used to look up homography + resolution.
+    :param all_court_info: dict from get_court_info.
+    :param res_df: resolution DataFrame indexed by video id.
+    :return: ``(in_court_pid, pos_normalized)`` on success (exactly 2 on court,
+        ordered Top-before-Bottom); ``None`` on either failure path. ``pos_normalized``
+        is the full ``(m, 2)`` array, not the 2-row slice -- the caller does its own
+        ``pos_normalized[in_court_pid]`` (B5 invariant: helper returns the full array
+        so the caller's existing index expression stays correct).
     """
-    The shape of `keypoints` is (m, J, 2).
-
-    Output:
-        in_court: (m)
-        pos_court_normalized: (m, 2)
-    """
-    n_people = keypoints.shape[0]
-
-    feet_camera = keypoints[:, -2:, :]
-    # feet_camera: (m, J, 2), J=2
-    feet_camera = feet_camera.reshape(-1, 2).T
-    # feet_camera: (2, m*J)
-
-    feet_court = to_court_coordinate(
-        feet_camera, vid=vid, all_court_info=all_court_info, res_df=res_df
+    if len(keypoints_2d) < 2:
+        return None
+    in_court, pos_normalized = check_pos_in_court(
+        keypoints_2d, vid, all_court_info, res_df
     )
-    feet_court = feet_court.reshape(2, n_people, -1)
-    # feet_court: (2, m, J)
-
-    pos_court = feet_court.mean(axis=-1)  # middle point between feet
-    # pos_court: (2, m)
-    pos_court_normalized = normalize_position(
-        pos_court, court_info=all_court_info[vid]
-    ).T
-    # pos_court_normalized: (m, 2)
-
-    eps = 0.01  # soft border
-    dim_in_court = (pos_court_normalized > -eps) & (pos_court_normalized < (1 + eps))
-    in_court = dim_in_court[:, 0] & dim_in_court[:, 1]
-    # in_court: (m)
-    return in_court, pos_court_normalized
+    # in_court: (m), pos_normalized: (m, xy), xy=2
+    in_court_pid = np.nonzero(in_court)[0]
+    if len(in_court_pid) != 2:
+        return None
+    # Make sure Top player before Bottom player (comparing y-dim).
+    # Strict > so a y-tie keeps the np.nonzero ascending order.
+    if pos_normalized[in_court_pid[0], 1] > pos_normalized[in_court_pid[1], 1]:
+        in_court_pid = np.flip(in_court_pid)
+    return in_court_pid, pos_normalized
 
 
 def detect_players_2d(
@@ -269,36 +187,20 @@ def detect_players_2d(
         )  # batch_size=1 (default)
         # keypoints: (m, J, 2)
 
-        # Need at least 2 detected people in the frame.
         # Failed frames are kept as zeros (not dropped) so the clip stays intact.
         # Shuttle coords for these frames are zeroed at collation (Step 3).
-        if len(keypoints) < 2:
+        ordered = _order_two_on_court(keypoints, vid, all_court_info, res_df)
+        if ordered is None:
             failed_ls.append(True)
             players_positions.append(np.zeros((2, 2), dtype=float))
             players_joints.append(np.zeros((2, J, 2), dtype=float))
             continue
-
-        in_court, pos_normalized = check_pos_in_court(
-            keypoints, vid, all_court_info, res_df
-        )
-        # in_court: (m), pos_normalized: (m, xy), xy=2
-        in_court_pid = np.nonzero(in_court)[0]
-
-        # Need exactly 2 players on court. Same retention policy as above.
-        if len(in_court_pid) != 2:
-            failed_ls.append(True)
-            players_positions.append(np.zeros((2, 2), dtype=float))
-            players_joints.append(np.zeros((2, J, 2), dtype=float))
-            continue
+        in_court_pid, pos_normalized = ordered
 
         bboxes = np.array(
             [person["bbox"][0] for person in result["predictions"][0]]
         )  # batch_size=1 (default)
         # bboxes: (m, 4)
-
-        # Make sure Top player before Bottom player (comparing y-dim)
-        if pos_normalized[in_court_pid[0], 1] > pos_normalized[in_court_pid[1], 1]:
-            in_court_pid = np.flip(in_court_pid)
 
         failed_ls.append(False)
         players_positions.append(pos_normalized[in_court_pid])
@@ -345,11 +247,11 @@ def detect_players_3d(
     gen_2d = inferencer_2d(str(video_path), show=False)
     # WARNING: intentionally instantiated per-call, NOT per-loop-iteration in the caller.
     # The original author found that passing inferencer_3d as a parameter (the way
-    # inferencer_2d is passed) triggers an MMPose bug. The commented-out parameter
-    # on line ~300 and the commented-out caller on line ~588 are evidence of this.
+    # inferencer_2d is passed) triggers an MMPose bug.
     # This DOES reload model weights from disk for every clip, which is slow.
     # If MMPose fixes the bug upstream, hoist this into prepare_3d_dataset_npy_from_raw_video
     # and pass it in like inferencer_2d to avoid the repeated load.
+    from mmpose.apis import MMPoseInferencer  # lazy: keeps the module mmpose-free at import (see top)
     inferencer_3d = MMPoseInferencer(pose3d="human3d")
     gen_3d = inferencer_3d(str(video_path), show=False)
 
@@ -368,29 +270,13 @@ def detect_players_3d(
         )
         # keypoints_3d: (m, J, 3)
 
-        # Need at least 2 detected people in the frame.
-        if len(keypoints_2d) < 2:
+        ordered = _order_two_on_court(keypoints_2d, vid, all_court_info, res_df)
+        if ordered is None:
             failed_ls.append(True)
             players_positions.append(np.zeros((2, 2), dtype=float))
             players_joints.append(np.zeros((2, J, 3), dtype=float))
             continue
-
-        in_court, pos_normalized = check_pos_in_court(
-            keypoints_2d, vid, all_court_info, res_df
-        )
-        # in_court: (m), pos_normalized: (m, xy), xy=2
-        in_court_pid = np.nonzero(in_court)[0]
-
-        # Need exactly 2 players on court.
-        if len(in_court_pid) != 2:
-            failed_ls.append(True)
-            players_positions.append(np.zeros((2, 2), dtype=float))
-            players_joints.append(np.zeros((2, J, 3), dtype=float))
-            continue
-
-        # Make sure Top player before Bottom player (comparing y-dim)
-        if pos_normalized[in_court_pid[0], 1] > pos_normalized[in_court_pid[1], 1]:
-            in_court_pid = np.flip(in_court_pid)
+        in_court_pid, pos_normalized = ordered
 
         failed_ls.append(False)
         players_positions.append(pos_normalized[in_court_pid])
@@ -433,49 +319,6 @@ def detect_shuttlecock_by_TrackNetV3_with_attention(
         str(model_folder / "ckpts" / "TrackNet_best.pt").replace("\\", "/"),
         "--save_dir",
         str(save_dir).replace("\\", "/"),
-    ]
-    r = subprocess.run(process_args)
-    assert r.returncode == 0, "Subprocess failed!"
-
-    type_path = video_path.parent
-    set_name = type_path.parent.name
-    print(
-        f"Shuttlecock detection ({cur_i}/{total_tasks}): {set_name}/{type_path.name}/{video_path.name} done!"
-    )
-
-
-def detect_shuttlecock_by_TrackNetV3_with_rectification(
-    cur_i: int,
-    total_tasks: int,
-    video_path: Path,
-    save_dir: Path,
-    model_folder: Path = None,
-):
-    """TrackNetV3 (with rectification module).
-
-    https://github.com/qaz812345/TrackNetV3
-
-    :param cur_i: Current task index (for progress printing).
-    :param total_tasks: Total number of tasks (for progress printing).
-    :param video_path: Path to the clip .mp4 file.
-    :param save_dir: Directory to save the shuttle detection CSV.
-    :param model_folder: Path to the cloned TrackNetV3 repository.
-    :raises ValueError: If model_folder is None.
-    """
-    if model_folder is None:
-        raise ValueError("model_folder is required for shuttle detection.")
-    process_args = [
-        "python",
-        str(model_folder / "predict.py").replace("\\", "/"),
-        "--video_file",
-        str(video_path).replace("\\", "/"),
-        "--tracknet_file",
-        str(model_folder / "ckpts" / "TrackNet_best.pt").replace("\\", "/"),
-        "--inpaintnet_file",
-        str(model_folder / "ckpts" / "InpaintNet_best.pt").replace("\\", "/"),
-        "--save_dir",
-        str(save_dir).replace("\\", "/"),
-        "--large_video",
     ]
     r = subprocess.run(process_args)
     assert r.returncode == 0, "Subprocess failed!"
@@ -606,6 +449,7 @@ def prepare_2d_dataset_npy_from_raw_video(
         instead of bounding box diagonal.
     :param joints_center_align: If True, center-align joints within bounding box.
     """
+    from mmpose.apis import MMPoseInferencer  # lazy: keeps the module mmpose-free at import (see top)
     pose_inferencer = MMPoseInferencer("human")
 
     _prepare_dataset_from_raw_video(
@@ -639,6 +483,7 @@ def prepare_3d_dataset_npy_from_raw_video(
     :param resolution_df: DataFrame with video resolutions, indexed by video ID.
     :param all_court_info: Dict mapping video ID to court info (homography, borders).
     """
+    from mmpose.apis import MMPoseInferencer  # lazy: keeps the module mmpose-free at import (see top)
     pose_inferencer_2d = MMPoseInferencer("human")
     # pose_inferencer_3d = MMPoseInferencer(pose3d='human3d')
 
@@ -716,77 +561,24 @@ def pad_and_augment_one_npy_video(
     return pose_dict, pos, shuttle, new_video_len
 
 
-def collate_npy(
-    root_dir: Path,
-    set_name: str,
-    seq_len: int,
-    save_dir: Path,
+def _resolve_clips_and_labels(
     clips_csv: Path,
+    set_name: str,
     split_column: str,
     taxonomy: Taxonomy,
-    shuttle_csv_dir: Path | None = None,
-    resolution_df: pd.DataFrame | None = None,
-    pose_styles: frozenset[str] = frozenset({"JnB_bone"}),
-    unknown_root_dir: Path | None = None,
-):
-    """Collate per-clip .npy files into stacked batch arrays for one split.
+    root_dir: Path,
+    unknown_root_dir: Path | None,
+) -> tuple[list[str], np.ndarray, np.ndarray]:
+    """Concern 1: CSV filter + per-row label derivation + file-existence drop.
 
-    Reads split assignment and label from the master clips CSV, resolves
-    per-clip files at FLAT path ``{root_dir}/{clip_stem}_*.npy``, reads
-    shuttle trajectories from the canonical CSV dir, aligns temporal
-    dimensions, applies failed-frame masking, pads to uniform seq_len,
-    computes bone vectors and interpolations, then saves the stacked arrays
-    into ``save_dir/set_name/``. A row-aligned ``clip_stems.npy`` sidecar
-    is saved alongside ``labels.npy`` so downstream consumers can join row
-    index -> stem directly without re-deriving the CSV filter.
+    Reads ``clips_csv``, restricts to ``split_column == set_name``, and runs
+    one loop that does the label call, the unknown-root routing, the
+    existence check, and the three appends together. The single-loop
+    discipline keeps ``data_branches`` / ``labels`` / ``clip_stems_arr``
+    row-aligned in the same ``[0, n)`` space (B4 INV-1, INV-2, INV-3).
 
-    :param root_dir: FLAT per-clip dir containing
-        ``{clip_stem}_{joints,pos,failed}.npy`` for every clip.
-    :param set_name: One of 'train', 'val', 'test'.
-    :param seq_len: Target sequence length (frames). Clips are padded/strided to this length.
-    :param save_dir: Output directory. A set_name/ subdirectory is created inside.
-    :param clips_csv: Master clips CSV (one row per clip) providing split
-        assignment (``split_column``), ``raw_type_en``, ``player_side``,
-        ``clip_stem``.
-    :param split_column: Column in ``clips_csv`` to use for split assignment,
-        e.g. ``'split_bst_baseline'`` or ``'split_v2'``.
-    :param taxonomy: Taxonomy. ``label_for_row`` drives per-row class index +
-        the unknown-filter rule (via ``excluded_base_stroke_types``); no
-        separate drop_unknown flag any more.
-    :param shuttle_csv_dir: Directory containing TrackNetV3 shuttle CSVs
-        ({clip}_ball.csv). Required.
-    :param resolution_df: DataFrame with video resolutions (width/height), indexed
-        by video ID. Required.
-    :param unknown_root_dir: Optional FLAT per-clip dir for rows whose
-        ``raw_type_en == 'unknown'``. When set, unknown rows resolve their
-        per-clip files from this dir instead of ``root_dir``. Used to point
-        the bst_25 / une_v1_15 collations at the sibling
-        ``ShuttleSet_keypoints_clean_sticky_anchor_unknown/`` extract. Must
-        be None when the taxonomy has ``'unknown'`` in
-        ``excluded_base_stroke_types`` (those rows get dropped anyway).
+    Returns the trio so every later stage indexes one shared row order.
     """
-    assert set_name in ["train", "val", "test"], "Invalid set_name."
-    if shuttle_csv_dir is None:
-        raise ValueError("shuttle_csv_dir is required")
-    if resolution_df is None:
-        raise ValueError("resolution_df is required")
-    if unknown_root_dir is not None and 'unknown' in taxonomy.excluded_base_stroke_types:
-        raise ValueError(
-            f"unknown_root_dir set but taxonomy {taxonomy.name!r} excludes "
-            f"unknown rows (excluded_base_stroke_types contains 'unknown'). "
-            f"Either drop unknown_root_dir or pick a taxonomy that retains unknown."
-        )
-    if taxonomy.has_unknown and unknown_root_dir is None:
-        raise ValueError(
-            f"taxonomy {taxonomy.name!r} retains unknown in its class list, "
-            f"but unknown_root_dir is None. The 1,278 unknown clips don't have "
-            f"per-clip files under the canonical extract; they need to come "
-            f"from the sibling _unknown extract. Pass unknown_root_dir=<that "
-            f"sibling dir>, OR pick a taxonomy whose excluded_base_stroke_types "
-            f"includes 'unknown' (e.g. {taxonomy.name.replace('_25', '_24').replace('_15', '_14')!r})."
-        )
-
-    # Filter the master CSV down to this split.
     clips_df = pd.read_csv(clips_csv)
     if split_column not in clips_df.columns:
         raise KeyError(
@@ -795,11 +587,11 @@ def collate_npy(
         )
     clips_df = clips_df[clips_df[split_column] == set_name].copy()
 
-    # Per-row label derivation + unknown-row routing. label_for_row applies
-    # taxonomy.excluded_base_stroke_types first (returns None -> drop the
-    # row), then merge_map, then side-prefixing per taxonomy.has_sides. The
-    # unknown_root_dir branch pulls per-clip files from the sibling extract
-    # for rows that survived (i.e. taxonomies that retain unknown).
+    # label_for_row applies taxonomy.excluded_base_stroke_types first (returns
+    # None -> drop the row), then merge_map, then side-prefixing per
+    # taxonomy.has_sides. The unknown_root_dir branch pulls per-clip files
+    # from the sibling extract for rows that survived (i.e. taxonomies that
+    # retain unknown).
     data_branches: list[str] = []
     labels_ls: list[int] = []
     stems_ls: list[str] = []
@@ -850,36 +642,59 @@ def collate_npy(
         f"  [{set_name}] {len(data_branches)} clips after filter "
         f"(taxonomy={taxonomy.name}, split_column={split_column})."
     )
+    return data_branches, labels, clip_stems_arr
 
-    # load .npy files
+
+def _load_clip_npys(
+    data_branches: list[str], set_name: str,
+) -> tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray]]:
+    """Concern 2: parallel-load joints / pos / failed per clip.
+
+    `result()`s are collected in submission order; that's the row-alignment
+    contract every downstream stage depends on (B4 INV-4). Do not switch to
+    `as_completed`. `failed_ls` content is unused -- only `len(failed)` feeds
+    the temporal-align truncation (B4 INV-5b).
+    """
     print(f"Load .npy files for {set_name} set ...")
     with ThreadPoolExecutor() as executor:
         tasks1: list[Future] = []
         tasks2: list[Future] = []
         tasks3: list[Future] = []
-
         for branch in data_branches:
             tasks1.append(executor.submit(np.load, branch + "_joints.npy"))
             tasks2.append(executor.submit(np.load, branch + "_pos.npy"))
             tasks3.append(executor.submit(np.load, branch + "_failed.npy"))
-
         joints_ls = [t1.result() for t1 in tasks1]
         pos_ls = [t2.result() for t2 in tasks2]
         failed_ls = [t3.result() for t3 in tasks3]
     print("Finish loading.")
+    return joints_ls, pos_ls, failed_ls
 
-    # Load shuttle CSVs from the canonical pipeline CSV dir (data/shuttleset/shuttle_csv/),
-    # align temporal dimensions, and apply failed-frame masking.
-    #
-    # Shuttle data is read here rather than in the pose step because:
-    #   - Shuttle CSVs are taxonomy- and split-agnostic physical measurements;
-    #     they don't belong under taxonomy-specific directories.
-    #   - Decoupling lets the ~1.5-3 day GPU pose job run without needing CSVs
-    #     present, and lets collation be re-run cheaply when the taxonomy changes.
-    #
-    # Temporal alignment: MMPose and TrackNetV3 use different video backends that
-    # can disagree by 1-2 frames on the tail of the same .mp4. Truncating to the
-    # shorter length preserves frame alignment (both decoders start at frame 0).
+
+def _align_shuttle_and_truncate(
+    data_branches: list[str],
+    joints_ls: list[np.ndarray],
+    pos_ls: list[np.ndarray],
+    failed_ls: list[np.ndarray],
+    shuttle_csv_dir: Path,
+    resolution_df: pd.DataFrame,
+) -> tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray]]:
+    """Concern 3: read shuttle CSVs + truncate joints/pos/shuttle to a common length.
+
+    Shuttle is read here, not in the pose step: the CSVs are taxonomy/split-
+    agnostic, so decoupling lets the ~1.5-3 day GPU pose job run without them
+    and collation re-run cheaply per taxonomy.
+
+    Temporal alignment: MMPose and TrackNetV3 use different video backends
+    that can disagree by 1-2 frames on the tail of the same .mp4. Truncating
+    to the shorter length preserves frame alignment (both decoders start at
+    frame 0). Truncation propagates to joints AND pos so pose frame k stays
+    paired with shuttle frame k (B4 INV-5).
+
+    Returns the joints / pos / shuttle triple explicitly (per pre-analysis Q2)
+    so concern 4 doesn't need to know that joints_ls / pos_ls were also
+    mutated in place.
+    """
     shuttle_ls = []
     for i, branch in enumerate(data_branches):
         clip_stem = Path(branch).name  # e.g. '35_1_10_17'
@@ -893,11 +708,10 @@ def collate_npy(
         failed = failed_ls[i]
 
         min_t = min(len(failed), len(shuttle))
-        if min_t < len(failed) or min_t < len(shuttle):
+        if len(failed) != len(shuttle):
             joints_ls[i] = joints_ls[i][:min_t]
             pos_ls[i] = pos_ls[i][:min_t]
             shuttle = shuttle[:min_t]
-            failed = failed[:min_t]
 
         # Pose-fail frames no longer wipe shuttle. Pose tells you where a
         # player is in the court; shuttle tells you where the bird is. If
@@ -906,6 +720,30 @@ def collate_npy(
 
         shuttle_ls.append(shuttle)
 
+    return joints_ls, pos_ls, shuttle_ls
+
+
+def _pad_augment_stack_save(
+    joints_ls: list[np.ndarray],
+    pos_ls: list[np.ndarray],
+    shuttle_ls: list[np.ndarray],
+    pose_styles: frozenset[str],
+    seq_len: int,
+    save_dir: Path,
+    set_name: str,
+    labels: np.ndarray,
+    clip_stems_arr: np.ndarray,
+) -> None:
+    """Concern 4: per-clip pad/augment via ProcessPool, then stack + save.
+
+    `bad_styles` runs BEFORE the ProcessPool so a typo fails fast without
+    spinning workers (B4 INV-10). ProcessPool `.result()`s are collected in
+    submission order to preserve row alignment (B4 INV-4). The non-pose
+    stacks (pos / shuttle / videos_len) complete before any save; the
+    per-style pose stack is computed inline as `np.save`'s argument, so a
+    stack failure on style k would leave styles 0..k-1 written -- the live
+    behaviour, preserved here.
+    """
     bad_styles = set(pose_styles) - set(VALID_POSE_STYLES)
     if bad_styles:
         raise ValueError(
@@ -915,11 +753,9 @@ def collate_npy(
 
     bone_pairs = get_bone_pairs(skeleton_format="coco")
 
-    # Pad and compute only the requested pose representations.
     print(f"Pad, Create bones and Interpolate (pose_styles={sorted(pose_styles)}) ...")
     with ProcessPoolExecutor() as executor:
         tasks: list[Future] = []
-
         for joints, pos, shuttle in zip(joints_ls, pos_ls, shuttle_ls):
             tasks.append(
                 executor.submit(
@@ -933,41 +769,145 @@ def collate_npy(
                 )
             )
 
-        pose_ls: dict[str, list[np.ndarray]] = {k: [] for k in pose_styles}
-        pos_ls = []
-        shuttle_ls = []
-        videos_len = []
-
+        pose_arrs: dict[str, list[np.ndarray]] = {k: [] for k in pose_styles}
+        padded_pos: list[np.ndarray] = []
+        padded_shuttle: list[np.ndarray] = []
+        videos_len: list[int] = []
         for task in tasks:
-            pose_dict, pos, shuttle, v_len = task.result()
+            pose_dict, p, s, v_len = task.result()
             for k, arr in pose_dict.items():
-                pose_ls[k].append(arr)
-            pos_ls.append(pos)
-            shuttle_ls.append(shuttle)
+                pose_arrs[k].append(arr)
+            padded_pos.append(p)
+            padded_shuttle.append(s)
             videos_len.append(v_len)
 
-    pos = np.stack(pos_ls)
-    shuttle = np.stack(shuttle_ls)
-    videos_len = np.stack(videos_len)
+    pos_stacked = np.stack(padded_pos)
+    shuttle_stacked = np.stack(padded_shuttle)
+    videos_len_stacked = np.stack(videos_len)
     print("Finish padding and augmenting.")
 
     if not save_dir.is_dir():
         save_dir.mkdir()
-
     set_dir = save_dir / set_name
     if not set_dir.is_dir():
         set_dir.mkdir()
 
-    for k, arrs in pose_ls.items():
+    for k, arrs in pose_arrs.items():
         np.save(str(set_dir / f"{k}.npy"), np.stack(arrs))
-    np.save(str(set_dir / "pos.npy"), pos)
-    np.save(str(set_dir / "shuttle.npy"), shuttle)
-    np.save(str(set_dir / "videos_len.npy"), videos_len)
+    np.save(str(set_dir / "pos.npy"), pos_stacked)
+    np.save(str(set_dir / "shuttle.npy"), shuttle_stacked)
+    np.save(str(set_dir / "videos_len.npy"), videos_len_stacked)
     np.save(str(set_dir / "labels.npy"), labels)
     # Row-aligned clip stems sidecar so the post-hoc FE-JSON converter can
     # join row index -> stem without re-deriving the CSV filter.
     np.save(str(set_dir / "clip_stems.npy"), clip_stems_arr, allow_pickle=True)
     print("Collation is complete.")
+
+
+def collate_npy(
+    root_dir: Path,
+    set_name: str,
+    seq_len: int,
+    save_dir: Path,
+    clips_csv: Path,
+    split_column: str,
+    taxonomy: Taxonomy,
+    shuttle_csv_dir: Path | None = None,
+    resolution_df: pd.DataFrame | None = None,
+    pose_styles: frozenset[str] = frozenset({"JnB_bone"}),
+    unknown_root_dir: Path | None = None,
+):
+    """Collate per-clip .npy files into stacked batch arrays for one split.
+
+    Reads split assignment and label from the master clips CSV, resolves
+    per-clip files at FLAT path ``{root_dir}/{clip_stem}_*.npy``, reads
+    shuttle trajectories from the canonical CSV dir, aligns temporal
+    dimensions, applies failed-frame masking, pads to uniform seq_len,
+    computes bone vectors and interpolations, then saves the stacked arrays
+    into ``save_dir/set_name/``. A row-aligned ``clip_stems.npy`` sidecar
+    is saved alongside ``labels.npy`` so downstream consumers can join row
+    index -> stem directly without re-deriving the CSV filter.
+
+    Four staged helpers: ``_resolve_clips_and_labels`` builds the row order,
+    ``_load_clip_npys`` parallel-loads joints/pos/failed, ``_align_shuttle_and_truncate``
+    reads shuttle CSVs and truncates the triple to a common length, and
+    ``_pad_augment_stack_save`` runs the ProcessPool and writes the stacked
+    arrays. The argument guards stay here so a bad call fails before any work.
+
+    :param root_dir: FLAT per-clip dir containing
+        ``{clip_stem}_{joints,pos,failed}.npy`` for every clip.
+    :param set_name: One of 'train', 'val', 'test'.
+    :param seq_len: Target sequence length (frames). Clips are padded/strided to this length.
+    :param save_dir: Output directory. A set_name/ subdirectory is created inside.
+    :param clips_csv: Master clips CSV (one row per clip) providing split
+        assignment (``split_column``), ``raw_type_en``, ``player_side``,
+        ``clip_stem``.
+    :param split_column: Column in ``clips_csv`` to use for split assignment,
+        e.g. ``'split_bst_baseline'`` or ``'split_v2'``.
+    :param taxonomy: Taxonomy. ``label_for_row`` drives per-row class index +
+        the unknown-filter rule (via ``excluded_base_stroke_types``); no
+        separate drop_unknown flag any more.
+    :param shuttle_csv_dir: Directory containing TrackNetV3 shuttle CSVs
+        ({clip}_ball.csv). Required.
+    :param resolution_df: DataFrame with video resolutions (width/height), indexed
+        by video ID. Required.
+    :param unknown_root_dir: Optional FLAT per-clip dir for rows whose
+        ``raw_type_en == 'unknown'``. When set, unknown rows resolve their
+        per-clip files from this dir instead of ``root_dir``. Used to point
+        the bst_25 / une_v1_15 collations at the sibling
+        ``ShuttleSet_keypoints_clean_sticky_anchor_unknown/`` extract. Must
+        be None when the taxonomy has ``'unknown'`` in
+        ``excluded_base_stroke_types`` (those rows get dropped anyway).
+    """
+    assert set_name in ["train", "val", "test"], "Invalid set_name."
+    if shuttle_csv_dir is None:
+        raise ValueError("shuttle_csv_dir is required")
+    if resolution_df is None:
+        raise ValueError("resolution_df is required")
+    if unknown_root_dir is not None and 'unknown' in taxonomy.excluded_base_stroke_types:
+        raise ValueError(
+            f"unknown_root_dir set but taxonomy {taxonomy.name!r} excludes "
+            f"unknown rows (excluded_base_stroke_types contains 'unknown'). "
+            f"Either drop unknown_root_dir or pick a taxonomy that retains unknown."
+        )
+    if taxonomy.has_unknown and unknown_root_dir is None:
+        raise ValueError(
+            f"taxonomy {taxonomy.name!r} retains unknown in its class list, "
+            f"but unknown_root_dir is None. The 1,278 unknown clips don't have "
+            f"per-clip files under the canonical extract; they need to come "
+            f"from the sibling _unknown extract. Pass unknown_root_dir=<that "
+            f"sibling dir>, OR pick a taxonomy whose excluded_base_stroke_types "
+            f"includes 'unknown' (e.g. {taxonomy.name.replace('_25', '_24').replace('_15', '_14')!r})."
+        )
+
+    data_branches, labels, clip_stems_arr = _resolve_clips_and_labels(
+        clips_csv=clips_csv,
+        set_name=set_name,
+        split_column=split_column,
+        taxonomy=taxonomy,
+        root_dir=root_dir,
+        unknown_root_dir=unknown_root_dir,
+    )
+    joints_ls, pos_ls, failed_ls = _load_clip_npys(data_branches, set_name)
+    joints_ls, pos_ls, shuttle_ls = _align_shuttle_and_truncate(
+        data_branches=data_branches,
+        joints_ls=joints_ls,
+        pos_ls=pos_ls,
+        failed_ls=failed_ls,
+        shuttle_csv_dir=shuttle_csv_dir,
+        resolution_df=resolution_df,
+    )
+    _pad_augment_stack_save(
+        joints_ls=joints_ls,
+        pos_ls=pos_ls,
+        shuttle_ls=shuttle_ls,
+        pose_styles=pose_styles,
+        seq_len=seq_len,
+        save_dir=save_dir,
+        set_name=set_name,
+        labels=labels,
+        clip_stems_arr=clip_stems_arr,
+    )
 
 
 def main():

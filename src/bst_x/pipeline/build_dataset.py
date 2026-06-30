@@ -22,7 +22,7 @@ from pathlib import Path
 
 from pipeline.config import (
     RAW_VIDEO_DIR, CLIPS_OUTPUT_DIR, RESOLUTION_CSV_PATH,
-    SPLITS, EXCLUDED_VIDEOS, REMOVED_SHOTS, CLIP_WINDOW,  # noqa: F401
+    SPLITS, EXCLUDED_VIDEOS, REMOVED_SHOTS, CLIP_WINDOW,
     TAXONOMIES, Taxonomy, resolve_taxonomy,
 )
 
@@ -180,14 +180,13 @@ def run_pipeline(
     """
     _validate_inputs(tracknet_dir, skip_download, skip_shuttle)
 
-    # Step 1: Download videos
     if not skip_download:
         _step(1, 'Downloading videos from YouTube')
         download_all_videos(max_workers=workers)
     else:
         print('Step 1: Skipped (--skip-download)')
 
-    # Step 2: Build resolution CSV (check videos exist first)
+    # Check videos exist first.
     if not skip_resolution:
         _step(2, 'Building resolution CSV')
         video_files = list(RAW_VIDEO_DIR.glob('*.*'))
@@ -199,7 +198,7 @@ def run_pipeline(
     else:
         print('Step 2: Skipped (--skip-resolution)')
 
-    # Step 3: Generate clips (check resolution CSV exists first)
+    # Check resolution CSV exists first.
     if not skip_clips:
         _step(3, 'Generating labeled clips')
         if not RESOLUTION_CSV_PATH.exists():
@@ -210,7 +209,6 @@ def run_pipeline(
     else:
         print('Step 3: Skipped (--skip-clips)')
 
-    # Step 4: Apply class merge
     skip_merge = skip_clips or no_merge or taxonomy.merge_map is None
     if not skip_merge:
         n_merges = len(taxonomy.merge_map)
@@ -220,7 +218,6 @@ def run_pipeline(
         print('Step 4: Skipped' + (' (--skip-clips)' if skip_clips
               else ' (no merge for this taxonomy)'))
 
-    # Step 5: Verify clips
     if not skip_verify:
         _step(5, 'Verifying clips')
         clip_paths = _scan_clips(CLIPS_OUTPUT_DIR)
@@ -229,6 +226,7 @@ def run_pipeline(
             verify_no_excluded(clip_paths),
             verify_no_removed_shots(clip_paths),
         ]
+        # Clip size non-zero checked after full extract, allowing the batch to finish first.
         if not skip_merge:
             checks.append(verify_merge(taxonomy=taxonomy))
         warn_orphan_files(CLIPS_OUTPUT_DIR, clip_paths)
@@ -244,7 +242,6 @@ def run_pipeline(
     else:
         print('Step 5: Skipped (--skip-verify)')
 
-    # Step 6: Extract shuttle trajectories
     if not skip_shuttle:
         _step(6, 'Extracting shuttle trajectories')
         extract_all_shuttles(

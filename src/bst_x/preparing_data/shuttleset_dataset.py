@@ -5,18 +5,12 @@
 
 import warnings
 
-import torch
-from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 
-from torchvision.transforms import v2
 import numpy as np
 from pathlib import Path
 
 
-# ---------------------------------------------------------------------------
-# Display helper
-# ---------------------------------------------------------------------------
 def pad_class_labels(labels: list[str]) -> list[str]:
     """Pad class label strings to uniform width for aligned display (e.g. F1 table).
 
@@ -47,6 +41,20 @@ def get_bone_pairs(skeleton_format='coco'):
     return pairs
 
 
+def _pad_tail_to(
+    target_len: int,
+    joints: np.ndarray,
+    pos: np.ndarray,
+    shuttle: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Zero-pad the time axis (axis 0) of each array up to ``target_len``."""
+    pad_len = target_len - len(pos)
+    joints = np.pad(joints, ((0, pad_len), *([(0, 0)] * 3)))
+    pos = np.pad(pos, ((0, pad_len), *([(0, 0)] * 2)))
+    shuttle = np.pad(shuttle, ((0, pad_len), (0, 0)))
+    return joints, pos, shuttle
+
+
 def make_seq_len_same(
     target_len: int,
     joints: np.ndarray,
@@ -55,30 +63,23 @@ def make_seq_len_same(
 ):
     video_len = len(pos)
 
-    if video_len > target_len:
-        need_padding = (video_len % target_len) > (target_len // 2)
-        stride = video_len // target_len + int(need_padding)
+    # Already at or under target: arrays are normalized, so pad rather than interpolate.
+    if video_len <= target_len:
+        joints, pos, shuttle = _pad_tail_to(target_len, joints, pos, shuttle)
+        return joints, pos, shuttle, video_len
 
-        joints = joints[::stride][:target_len]
-        pos = pos[::stride][:target_len]
-        shuttle = shuttle[::stride][:target_len]
+    # Longer than target: stride-subsample. Pad the remainder when the leftover
+    # frames exceed half a stride (otherwise they'd be silently dropped).
+    need_padding = (video_len % target_len) > (target_len // 2)
+    stride = video_len // target_len + int(need_padding)
 
-        new_video_len = len(pos)
+    joints = joints[::stride][:target_len]
+    pos = pos[::stride][:target_len]
+    shuttle = shuttle[::stride][:target_len]
+    new_video_len = len(pos)
 
-        if need_padding:
-            pad_len = target_len - new_video_len
-            joints = np.pad(joints, ((0, pad_len), *([(0, 0)]*3)))
-            pos = np.pad(pos, ((0, pad_len), *([(0, 0)]*2)))
-            shuttle = np.pad(shuttle, ((0, pad_len), (0, 0)))
-
-    else:
-        # Since they have been normalized, we don't interpolate them.
-        new_video_len = video_len
-
-        pad_len = target_len - new_video_len
-        joints = np.pad(joints, ((0, pad_len), *([(0, 0)]*3)))
-        pos = np.pad(pos, ((0, pad_len), *([(0, 0)]*2)))
-        shuttle = np.pad(shuttle, ((0, pad_len), (0, 0)))
+    if need_padding:
+        joints, pos, shuttle = _pad_tail_to(target_len, joints, pos, shuttle)
 
     return joints, pos, shuttle, new_video_len
 
@@ -110,39 +111,6 @@ def interpolate_joints(joints: np.ndarray, pairs) -> np.ndarray:
     return np.concatenate((joints, bones_center), axis=-2)  # (t, m, J+B, 2)
 
 
-class RandomTranslation(v2.Transform):
-    '''Same as RandomTranslation in TemPose.'''
-    def __init__(self, trans_range=(-0.3, 0.3), prob=0.3) -> None:
-        super().__init__()
-        self.trans_range = trans_range
-        self.p = prob
-
-    def __call__(self, x: np.ndarray):
-        # x: (t, m, J, d)
-        shift = np.random.uniform(*self.trans_range, size=x.shape[-1])
-        if np.random.uniform(0, 1) < self.p:
-            x = x + shift
-        return x
-
-
-class RandomTranslation_batch(v2.Transform):
-    '''Same as RandomTranslation in TemPose.'''
-    def __init__(self, trans_range=(-0.3, 0.3), prob=0.3) -> None:
-        super().__init__()
-        self.trans_range = trans_range
-        self.p = prob
-
-    def __call__(self, x: Tensor):
-        # x: (n, t, m, J, d)
-        n = x.shape[0]
-        d = x.shape[-1]
-        shift = torch.from_numpy(
-            np.random.uniform(*self.trans_range, size=(n, d)).astype(np.float32)
-        ).to(x.device)
-        if np.random.uniform(0, 1) < self.p:
-            x = x + shift.view(n, 1, 1, 1, d)
-        return x
-
 class Dataset_npy_collated(Dataset):
     def __init__(
         self,
@@ -151,13 +119,11 @@ class Dataset_npy_collated(Dataset):
         pose_style='J_only',
         train_partial=1.0
     ):
-        '''
-        Parameters
-        - `set_name`: 'train', 'val', 'test'
-        - `pose_style`: 'J_only', 'JnB_interp', 'JnB_bone', 'Jn2B'
-        
-        Notice: There is no random translation here.
-        '''
+        """Load pre-collated arrays for one split.
+
+        :param set_name: 'train', 'val', or 'test'.
+        :param pose_style: 'J_only', 'JnB_interp', 'JnB_bone', or 'Jn2B'.
+        """
         super().__init__()
         
         assert set_name in ['train', 'val', 'test'], 'Invalid set_name.'
@@ -171,10 +137,9 @@ class Dataset_npy_collated(Dataset):
         self.videos_len = np.load(str(branch/'videos_len.npy'))
         self.labels: np.ndarray = np.load(str(branch/'labels.npy'))
 
-        # Row-aligned clip stems sidecar (Step C of the taxon_pinned_w_preds
-        # refactor). Legacy collations don't carry the file -- graceful None
-        # fallback so old collated dirs still load. New consumers (e.g. the
-        # post-hoc FE-JSON converter) should check for None before joining.
+        # Row-aligned clip stems sidecar. Legacy collations don't carry the file,
+        # so fall back to None and warn; new consumers (e.g. the post-hoc FE-JSON
+        # converter) must check for None before joining on it.
         clip_stems_path = branch/'clip_stems.npy'
         if clip_stems_path.exists():
             self.clip_stems: np.ndarray | None = np.load(
@@ -188,25 +153,17 @@ class Dataset_npy_collated(Dataset):
             )
             self.clip_stems = None
 
-        # ---------------------------------------------------------------
-        # DIVERGENCE FROM ORIGINAL BST: Drop zero-length clips.
-        #
-        # Clips where MMPose failed on EVERY frame end up with
-        # videos_len=0 after collation. The transformer's padding mask
-        # becomes all-False, causing softmax(all -inf) = NaN, which
-        # poisons the entire training run from the first epoch.
-        #
-        # The original BST author hand-curated his clip set and published
-        # pre-extracted .npy files (see BST-original README), so he
-        # likely never encountered zero-frame clips. Our automated
-        # pipeline processes all clips including degenerate ones.
-        #
-        # TODO: Investigate whether the original BST dataset_npy files
-        # (Google Drive links in BST-original/README.md) contain any
-        # zero-length clips. If they do, this is a latent bug in the
-        # original; if not, our clip extraction or pose detection is
-        # producing clips that his pipeline never generated.
-        # ---------------------------------------------------------------
+        # DIVERGENCE FROM ORIGINAL BST: drop zero-length clips. Clips where MMPose
+        # failed on every frame end up with videos_len=0 after collation. The
+        # transformer's padding mask then becomes all-False, softmax(all -inf)=NaN,
+        # and that poisons the run from epoch 1. The original author hand-curated
+        # his clip set and published pre-extracted .npy files, so he likely never
+        # hit zero-frame clips; our automated pipeline processes every clip,
+        # including degenerate ones.
+        # TODO: check whether the original BST dataset_npy files contain any
+        # zero-length clips (Google Drive links in BST-original/README.md). If
+        # they do, it's a latent bug upstream; if not, our extraction is producing
+        # clips his pipeline never generated.
         valid = self.videos_len > 0
         n_dropped = int(np.sum(~valid))
         if n_dropped > 0:
@@ -223,13 +180,8 @@ class Dataset_npy_collated(Dataset):
         if set_name == 'train' and train_partial < 1:
             self.adjust_to_partial_train_set(train_partial)
 
-        # J_only: (n, t, m, J, d)
-        # JnB: (n, t, m, J+B, d)
-        # Jn2B: (n, t, m, J+2B, d)
-        # pos: (n, t, m, xy)
-        # shuttle: (n, t, xy)
-        # videos_len: (n)
-        # labels: (n)
+        # human_pose: (n, t, m, J[+B], d); pos: (n, t, m, xy); shuttle: (n, t, xy)
+        # videos_len: (n); labels: (n)
 
     def adjust_to_partial_train_set(self, train_partial):
         new_human_pose = []
@@ -279,7 +231,6 @@ def prepare_npy_collated_loaders(
     num_workers=(0, 0, 0),
     train_partial=1.0
 ):
-    '''Notice that this one RandomTranslation is not used.'''
     train_set = Dataset_npy_collated(root_dir, 'train', pose_style, train_partial)
     val_set = Dataset_npy_collated(root_dir, 'val', pose_style)
     test_set = Dataset_npy_collated(root_dir, 'test', pose_style)

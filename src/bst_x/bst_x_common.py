@@ -127,7 +127,9 @@ def dump_topk_predictions(
         topk_idx = torch.topk(logits, k=k_eff, dim=-1).indices
         logits_ls.append(logits.cpu().numpy())
         y_true_ls.append(labels.numpy())
-        top1_ls.append(topk_idx[:, 0].cpu().numpy())
+        # top-1 via argmax to match every other metric site (equals topk_idx[:, 0] on
+        # the tie-free logits a trained model produces; the tie-guard downstream catches any tie).
+        top1_ls.append(logits.argmax(dim=-1).cpu().numpy())
         topk_idx_ls.append(topk_idx.cpu().numpy())
     return {
         'logits':      np.concatenate(logits_ls).astype(np.float32),
@@ -135,6 +137,51 @@ def dump_topk_predictions(
         'y_pred_top1': np.concatenate(top1_ls).astype(np.int64),
         'topk_idx':    np.concatenate(topk_idx_ls).astype(np.int64),
     }
+
+
+def _write_prediction_npz(out_path, dump, dataset, taxonomy, run_id, serial):
+    """Write a per-split prediction npz with the shared 9-key schema.
+
+    The single payload source for ``bst_x_train.Task.dump_predictions`` and
+    ``bst_x_infer.dump_run_predictions``. Both writers always produced the same
+    9 keys (proven byte-for-byte in 03 section 6.4); this helper makes that an
+    enforced contract instead of an accident. Out_path, the directory, the
+    split-loop, and any caller-specific manifest (e.g. the inference run's
+    inference_manifest.yaml) stay per-caller.
+
+    ``topk_idx`` ships as ``(N, k_eff) int64`` where ``k_eff = min(k, head_size)``;
+    both production writers pass ``k=5`` to ``dump_topk_predictions`` so the schema
+    is ``(N, 5)`` in deployment. Caller-side convention, not enforced here so tests
+    can exercise smaller heads or smaller k.
+
+    Hard-fails on a ``None`` ``clip_stems`` sidecar (a legacy collation without
+    ``clip_stems.npy``). ``np.asarray(None)`` would otherwise write a silent
+    0-d array that desyncs every row from its stem.
+
+    :param out_path: full destination path; the caller owns the dir + filename.
+    :param dump: one split's output from ``dump_topk_predictions``.
+    :param dataset: the in-memory dataset, for ``clip_stems`` row-aligned with
+        ``y_true``.
+    :param taxonomy: the resolved taxonomy (provides ``classes`` + ``name``).
+    :param run_id: the originating run dir's name (string-shaped).
+    :param serial: int64-castable serial index.
+    """
+    assert dataset.clip_stems is not None, (
+        f'{out_path.stem}: dataset.clip_stems is None (legacy collation with '
+        f'no clip_stems.npy); re-collate before dumping predictions.'
+    )
+    np.savez(
+        out_path,
+        logits=dump['logits'],
+        y_true=dump['y_true'],
+        y_pred_top1=dump['y_pred_top1'],
+        topk_idx=dump['topk_idx'],
+        clip_stems=np.asarray(dataset.clip_stems, dtype=object),
+        class_list=np.array(taxonomy.classes, dtype=object),
+        run_id=np.array(run_id, dtype=object),
+        serial_no=np.array(serial, dtype=np.int64),
+        taxonomy_name=np.array(taxonomy.name, dtype=object),
+    )
 
 
 def compute_data_provenance(

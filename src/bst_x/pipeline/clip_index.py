@@ -32,25 +32,7 @@ def build_clip_path_index(clips_dir: Path) -> dict[str, Path]:
     clip_stem to pick train/val/test membership + label per the active
     taxonomy.
 
-    Usage sketch::
-
-        from pipeline.clip_index import build_clip_path_index
-        from pipeline.config import CLIPS_OUTPUT_DIR
-
-        class ClipVideoDataset(Dataset):
-            def __init__(self, clips_dir, clips_csv, split_column,
-                         taxonomy, split='train'):
-                df = pd.read_csv(clips_csv)
-                df = df[df[split_column] == split]
-                self._path_by_stem = build_clip_path_index(clips_dir)
-                self.items = [
-                    (row.clip_stem, derive_label(row, taxonomy))
-                    for row in df.itertuples()
-                ]
-
-            def __getitem__(self, i):
-                stem, label = self.items[i]
-                return load_video(self._path_by_stem[stem]), label
+    See ``pipeline/README.md`` for a worked ``ClipVideoDataset`` sketch.
 
     No video-decode backend is assumed; the caller picks their own
     (cv2, decord, torchvision.io, etc.) in the Dataset subclass.

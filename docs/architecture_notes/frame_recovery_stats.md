@@ -50,7 +50,9 @@ pose-fail frames). Different stream, different recovery.
 - `ndet=1` floor:
   `src/bst_x/validation_scripts/raw_ndet_stats_outputs/baseline_2026-04-29.md`.
 - sticky_anchor heuristic design:
-  `docs/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md`.
+  `docs/architecture_notes/mmpose_heuristic/mmpose_heuristic.md` (operational reference) and
+  `docs/architecture_notes/mmpose_heuristic/historical_mmpose_heuristic_investigation.md`
+  (investigation history).
 
 Denominator note: the pose numbers sit on 1,722,058 frames, the shuttle
 crosstab on 1,719,627. The 2,431-frame gap (0.14%) is per-clip

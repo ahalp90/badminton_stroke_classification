@@ -1,4 +1,12 @@
-# MMPose Extraction: Heuristic Investigation
+# MMPose Extraction: Heuristic Investigation (historical record)
+
+The active operational reference is `mmpose_heuristic.md` in this dir: algorithm spec,
+hyperparameters, calibration, failsafe gate, current /scratch paths. This file is the
+investigation narrative the operational reference was extracted from: Phase 0/1/2 status
+updates (2026-04-25 and 2026-04-29), decision log, rejected variants, failure-mode triage,
+Phase 2 plan, amateur-generalisation notes, parked recovery routes. Paths and env-var values
+in the body below are frozen as the dated record describes them; for the current state see
+the operational reference.
 
 ## Rationale
 
@@ -122,7 +130,7 @@ Existing flat dirs on scratch already match the current naming convention. The n
 
 ### Byte-identity gate
 
-`failsafe_bst_mmpose_zeroing_check_equivalence.py` lives alongside `apply_heuristic.py`. Run it before trusting any `sticky_anchor` output:
+`failsafe_bst_mmpose_zeroing_check_equivalence.py` lives in `validation_scripts/`. Run it before trusting any `sticky_anchor` output:
 
 - Sample 50 clip stems from `docs/architecture_notes/busted_hit_zone_clips_phase1.txt`. Lex-sort, take every `len // 50`-th stem. Deterministic, no seeding. Draws from the busted list rather than `clips_master.csv` because raw extracts only exist for those 1,716 stems.
 - Run `apply_heuristic.py --heuristic current` on those stems against the raw extract, writing to `..._flat_failsafe_gate/`.
@@ -135,7 +143,7 @@ Canonical gate command (run from the repo root with both package roots on PYTHON
 
 ```
 PYTHONPATH=src/bst_x:src/bst_x/stroke_classification \
-    python -m preparing_data.failsafe_bst_mmpose_zeroing_check_equivalence \
+    python -m validation_scripts.failsafe_bst_mmpose_zeroing_check_equivalence \
         --raw-dir /scratch/comp320a/ShuttleSet_data_merged_25/dataset_npy_between_2_hits_with_max_limits_flat_raw_phase1 \
         --busted-stems-file docs/architecture_notes/busted_hit_zone_clips_phase1.txt \
         --clips-csv notebooks/clips_master.csv \
@@ -591,7 +599,7 @@ None of these need Phase 1 work; hooks exist via CLI args.
 - `src/bst_x/stroke_classification/preparing_data/prepare_train_on_shuttleset.py`: original `detect_players_2d`, `check_pos_in_court`, `to_court_coordinate`, `normalize_position`, `normalize_joints`, and the zeroing decision inside `detect_players_2d`.
 - `src/bst_x/stroke_classification/preparing_data/apply_heuristic.py`: CLI + `run` library entry point.
 - `src/bst_x/stroke_classification/preparing_data/heuristics/`: package with `__init__.py`, `base.py`, `current.py`, `sticky_anchor.py`.
-- `src/bst_x/stroke_classification/preparing_data/failsafe_bst_mmpose_zeroing_check_equivalence.py`: byte-identity gate.
+- `src/bst_x/validation_scripts/failsafe_bst_mmpose_zeroing_check_equivalence.py`: byte-identity gate.
 - `src/bst_x/validation_scripts/mmpose_heuristic_investigation/render_sticky_anchor_overlays.py`: overlay renderer (partial-pick fix landed 2026-04-25).
 - `src/bst_x/validation_scripts/mmpose_heuristic_investigation/analysis_outputs/busted_hit_zone_after_sticky_anchor.txt`: 61 stems still-busted after sticky_anchor.
 - `src/bst_x/validation_scripts/validate_zeroed_frames.py` and `fail_rate_per_class.py`: per-class fail-rate diagnostics.

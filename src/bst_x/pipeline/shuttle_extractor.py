@@ -32,9 +32,6 @@ def _default_csv_dir(clips_dir: Path) -> Path:
     return clips_dir.parent / 'shuttle_csv'
 
 
-# ---------------------------------------------------------------------------
-# Normalization (from prepare_train_on_shuttleset.py:150-159)
-# ---------------------------------------------------------------------------
 def normalize_shuttlecock(arr: np.ndarray, v_width: float, v_height: float) -> np.ndarray:
     """Normalize shuttle coordinates by video resolution.
 
@@ -55,73 +52,6 @@ def normalize_shuttlecock(arr: np.ndarray, v_width: float, v_height: float) -> n
 # ---------------------------------------------------------------------------
 # TrackNetV3 subprocess invocation
 # ---------------------------------------------------------------------------
-def extract_shuttle_trajectory(
-    clip_path: Path,
-    tracknet_dir: Path,
-    output_csv_dir: Path,
-    model_path: Path | None = None,
-    inpaintnet_path: Path | None = None,
-    tracknet_python: Path | None = None,
-    cur_i: int = 0,
-    total: int = 0,
-) -> bool:
-    """Run TrackNetV3 on a single clip.
-
-    Adapted from detect_shuttlecock_by_TrackNetV3_with_attention() in
-    prepare_train_on_shuttleset.py, with parameterised paths.
-
-    :param clip_path: Path to the .mp4 clip file.
-    :param tracknet_dir: Path to the cloned TrackNetV3 repository.
-    :param output_csv_dir: Directory to write the output CSV.
-    :param model_path: Path to TrackNet weights. Defaults to tracknet_dir/ckpts/TrackNet_best.pt.
-    :param inpaintnet_path: Path to InpaintNet weights, or None to skip inpainting.
-    :param tracknet_python: Python executable in BST venv (shared with TrackNetV3).
-        Defaults to sys.executable (assumes shared environment).
-    :param cur_i: Current clip index (for progress logging).
-    :param total: Total number of clips (for progress logging).
-    :return: True on success, False on failure.
-    """
-    # Skip if result already exists (safety net for direct callers;
-    # extract_all_shuttles also pre-filters for performance).
-    result_path = output_csv_dir / (clip_path.stem + '_ball.csv')
-    if result_path.exists():
-        return True
-
-    if model_path is None:
-        model_path = tracknet_dir / _DEFAULT_TRACKNET_SUBPATH
-    # inpaintnet_path=None means "no inpainting" (caller decides).
-    # extract_all_shuttles resolves the default and checks existence.
-
-    # Use BST venv's Python if provided (TrackNetV3 shares BST venv)
-    python_exe = str(tracknet_python) if tracknet_python else sys.executable
-
-    process_args = [
-        python_exe, str(tracknet_dir / 'predict.py'),
-        '--video_file', str(clip_path),
-        '--tracknet_file', str(model_path),
-        '--save_dir', str(output_csv_dir),
-    ]
-    # InpaintNet fills in occluded shuttle positions. Without it you're
-    # running TrackNet alone, not the full TrackNetV3 pipeline.
-    if inpaintnet_path and str(inpaintnet_path):
-        process_args.extend(['--inpaintnet_file', str(inpaintnet_path)])
-
-    try:
-        r = subprocess.run(process_args, capture_output=True, text=True, timeout=120)
-        if r.returncode != 0:
-            print(f'  ERROR ({cur_i}/{total}) {clip_path.name}: {r.stderr.strip()[:200]}')
-            return False
-        if cur_i and total:
-            print(f'  ({cur_i}/{total}) {clip_path.name} done')
-        return True
-    except subprocess.TimeoutExpired:
-        print(f'  TIMEOUT ({cur_i}/{total}) {clip_path.name}')
-        return False
-    except Exception as e:
-        print(f'  ERROR ({cur_i}/{total}) {clip_path.name}: {e}')
-        return False
-
-
 def extract_all_shuttles(
     clips_dir: Path = CLIPS_OUTPUT_DIR,
     tracknet_dir: Path = Path('.'),

@@ -14,8 +14,8 @@ Run from the repo root with both package roots on PYTHONPATH::
 
     PYTHONPATH=src/bst_x \\
         python -m preparing_data.apply_heuristic \\
-            --raw-dir /scratch/.../dataset_npy_..._flat_raw_phase1 \\
-            --output-dir /scratch/.../dataset_npy_..._flat_h_sticky_anchor \\
+            --raw-dir /scratch/comp320a/ShuttleSet_keypoints_raw \\
+            --output-dir /scratch/comp320a/ShuttleSet_keypoints_clean_<variant> \\
             --heuristic sticky_anchor \\
             --clips-csv notebooks/clips_master.csv
 """
@@ -24,7 +24,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 
 import numpy as np
@@ -61,12 +61,7 @@ class RunStats:
     attempted: int = 0
     processed: int = 0
     skipped_existing: int = 0
-    skipped_missing_raw: int = 0
     skipped_missing_mp4_metadata: int = 0
-
-
-def _resolve_or_none(path: Path | None) -> Path | None:
-    return path.resolve() if path is not None else None
 
 
 def _validate_output_dir(output_dir: Path, raw_dir: Path) -> None:
@@ -263,8 +258,6 @@ def _add_hyperparam_args(parser: argparse.ArgumentParser) -> None:
     of truth lives on the dataclass so adding a field here means editing it
     in one place.
     """
-    from dataclasses import fields  # local import keeps the module-level imports tidy
-
     # All fields on StickyAnchorParams are float; the dataclass annotations
     # are stringified by ``from __future__ import annotations`` so we
     # hard-code the argparse type rather than evaluating field.type strings.
@@ -275,8 +268,6 @@ def _add_hyperparam_args(parser: argparse.ArgumentParser) -> None:
 
 def _hyperparam_dict_from_args(args: argparse.Namespace) -> dict:
     """Marshal argparse values into the kwargs accepted at the registry boundary."""
-    from dataclasses import fields
-
     return {f.name: getattr(args, f.name) for f in fields(StickyAnchorParams)}
 
 
@@ -332,7 +323,7 @@ def main() -> int:
     except (ValueError, FileNotFoundError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
-    return 0 if stats is not None else 1
+    return 0 if stats else 1
 
 
 if __name__ == "__main__":

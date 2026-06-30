@@ -277,8 +277,6 @@ class ConstrainedJitter:
         # would read its minimum as 0 and incorrectly drop the centreline
         # constraint.
         #
-        # We replace sentinel frames with -inf for the max calculation and
-        # +inf for the min calculation, so they never win the reduction.
         # Real positions never land at exactly (0, 0): normalize_position
         # divides camera-frame coords by the court borders, and the result
         # almost never hits 0 by coincidence. The substitution stays local

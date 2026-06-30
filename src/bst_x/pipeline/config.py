@@ -32,8 +32,6 @@ RESOLUTION_CSV_PATH = SHUTTLESET_DIR / 'my_raw_video_resolution.csv'
 # Chinese names are used ONLY when reading/writing the upstream ShuttleSet CSV
 # annotations. All pipeline code, folder names, and logs use English.
 # ---------------------------------------------------------------------------
-# 19 stroke types as they appear in the CSV annotations (Chinese)
-# mapped to their official English translations.
 EN_TO_ZH: dict[str, str] = {
     'net_shot':                '放小球',
     'return_net':              '擋小球',
@@ -61,7 +59,7 @@ ZH_TO_EN: dict[str, str] = {v: k for k, v in EN_TO_ZH.items()}
 # All 19 raw annotation types (English)
 STROKE_TYPES_19 = list(EN_TO_ZH.keys())
 
-# The 19 types as Chinese strings, for matching against CSV annotation data
+# The 19 types as Chinese strings.
 STROKE_TYPES_19_ZH = list(EN_TO_ZH.values())
 
 
