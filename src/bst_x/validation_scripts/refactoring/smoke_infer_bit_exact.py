@@ -36,12 +36,12 @@ Usage on bourbaki / engelbart (dual-invocation main-vs-branch):
   # STEP 1 -- branch
   git checkout <refactor-branch>
   OUT_PATH=/tmp/preds_branch.npy \\
-      python src/bst_x/validation_scripts/post_tidy_smoke/smoke_infer_bit_exact.py
+      python src/bst_x/validation_scripts/refactoring/smoke_infer_bit_exact.py
 
   # STEP 2 -- main
   git checkout main
   OUT_PATH=/tmp/preds_main.npy \\
-      python src/bst_x/validation_scripts/post_tidy_smoke/smoke_infer_bit_exact.py
+      python src/bst_x/validation_scripts/refactoring/smoke_infer_bit_exact.py
 
   # STEP 3 -- diff
   git checkout <refactor-branch>

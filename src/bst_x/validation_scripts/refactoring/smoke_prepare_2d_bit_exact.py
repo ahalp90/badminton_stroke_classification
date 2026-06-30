@@ -45,7 +45,7 @@ Usage on bourbaki / engelbart (dual-invocation main-vs-branch):
   REFERENCE_DIR="$BST_X_MMPOSE_NPY_DIR" \\
   SCRATCH_DIR=/tmp/prepare_2d_smoke_main \\
   PYTHONPATH=src/bst_x \\
-      python src/bst_x/validation_scripts/post_tidy_smoke/smoke_prepare_2d_bit_exact.py
+      python src/bst_x/validation_scripts/refactoring/smoke_prepare_2d_bit_exact.py
 
   # STEP 2 -- the real gate on the branch.
   git checkout <refactor-branch>
@@ -53,7 +53,7 @@ Usage on bourbaki / engelbart (dual-invocation main-vs-branch):
   REFERENCE_DIR=/tmp/prepare_2d_smoke_main \\
   SCRATCH_DIR=/tmp/prepare_2d_smoke_branch \\
   PYTHONPATH=src/bst_x \\
-      python src/bst_x/validation_scripts/post_tidy_smoke/smoke_prepare_2d_bit_exact.py
+      python src/bst_x/validation_scripts/refactoring/smoke_prepare_2d_bit_exact.py
 
 A passing run prints ``PASS: N stems matched`` for every stem.
 """

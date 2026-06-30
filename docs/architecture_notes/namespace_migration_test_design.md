@@ -48,7 +48,7 @@ Locked decisions this suite verifies:
 
 **Environment.** Laptop `~/.venvs/badminton-cicd`: CPU-only, full model stack, pytest, fastapi TestClient. No GPU, no HPC. Everything below must run there.
 
-**Two homes.** Pytest tests live in `tests/test_namespace_migration.py` and run in CI (`.github/workflows/ci.yml` runs the whole suite on every push). The pre/post comparison harness lives in `scratch/rebrand_smoke/` as a plain script, mirroring the `scratch/post_tidy_smoke/` precedent, because it holds state across two tree states and needs the local artefact superset.
+**Two homes.** Pytest tests live in `tests/test_namespace_migration.py` and run in CI (`.github/workflows/ci.yml` runs the whole suite on every push). The pre/post comparison harness lives in `scratch/rebrand_smoke/` as a plain script, mirroring the `src/bst_x/validation_scripts/refactoring/` precedent, because it holds state across two tree states and needs the local artefact superset.
 
 **Tracked-artefact rule.** Pytest asserts only against git-tracked artefacts (64 run manifests, 64 tracked weight `.pt`, 165 sidecar `.json.gz`, 111 prediction `.npz`, the registry YAML). A fresh CI clone has all of these. The 122 untracked local-only weight files are the harness's job, not pytest's.
 
@@ -274,7 +274,7 @@ Imports of `pipeline.*` / `main_on_shuttleset.*` / `model.*` resolve through `co
 ### H1: artefact inventory capture and verify
 
 - **Purpose / bug class.** The pre/post instrument for the destructive steps (6b weight rename, Step 8 dir move). Catches: a weight file renamed wrongly or dropped; a manifest `weights_path` edited out of sync with its file; content corruption during the move; sidecars or TB logs touched when decisions 6 and 7 say untouched; the local untracked-weight superset that pytest deliberately ignores. This is the sketched "manifest weights_path integrity" test rebuilt around the prune-to-best reality: 175 of 312 manifest entries already point at deleted files on purpose, so "every weights_path resolves" is not a valid invariant. The valid invariant is "the resolution map is preserved under the rename".
-- **Location.** `scratch/rebrand_smoke/artefact_inventory.py` plus a short `scratch/rebrand_smoke/README.md` (mirror the `post_tidy_smoke` README shape: what it closes, how to run). Script, not pytest: it holds state across two tree states, needs the untracked superset, and hashes a few GB.
+- **Location.** `scratch/rebrand_smoke/artefact_inventory.py` plus a short `scratch/rebrand_smoke/README.md` (mirror the `refactoring/` README shape: what it closes, how to run). Script, not pytest: it holds state across two tree states, needs the untracked superset, and hashes a few GB.
 - **Runs.** Capture immediately before Step 6b; verify after Step 6b; re-capture; verify again after Step 8 with the source-prefix map. Verifying after non-destructive steps is a free no-op pass.
 - **Spec.**
   - `--capture out.json`: walk `EXPERIMENTS` and record:
