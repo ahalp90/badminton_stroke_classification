@@ -362,79 +362,42 @@ def validate(
 # Training loop with TensorBoard logging and early stopping
 # ==========================================================================
 
-def train_network(
-    model: nn.Module,
-    train_loader,
-    val_loader,
-    device,
-    save_path: Path,
-    n_bones,
+def _build_loss_fn(
     n_classes: int,
     class_ls: list[str],
     taxonomy: Taxonomy,
-    tb_dir: Path | None = None,
+    device,
 ):
-    # tb_dir lands the event files under experiments/<run_id>/tb/serial_N/ so
-    # TB folders pair with the run they came from. Default SummaryWriter() writes
-    # to ./runs/<host_time>/, which is what older runs used.
-    writer = SummaryWriter(log_dir=str(tb_dir)) if tb_dir is not None else SummaryWriter()
+    """Resolve hyp's three loss branches (CE / class-weighted CE / adaptive-focal)
+    into a single ``loss_fn`` instance.
 
-    # Locked Task-2 augmentation set: centreline flip across all three streams
-    # (with COCO bilateral joint-index swap and bone recompute) plus
-    # constrained pos+shuttle jitter (layered conditional bounds, joints
-    # untouched). Bone recompute requires the JnB_bone pose style; other
-    # styles (J_only, JnB_interp, Jn2B) need their own recompute helpers
-    # which are out of scope per docs/architecture_notes/augmentation_framework.md.
-    if hyp.pose_style != 'JnB_bone':
-        raise NotImplementedError(
-            f'Augmentation framework currently supports pose_style=JnB_bone only; '
-            f'got {hyp.pose_style!r}. Bone recompute via the bone_pairs table is the '
-            f'mechanism that propagates the flip+swap into bones; J_only has no bones, '
-            f'JnB_interp uses joint-pair midpoints, Jn2B uses both. Lift the equivalents '
-            f'to torch in preparing_data/augmentations.py before re-enabling the others.'
-        )
-    # Direct index rather than .get(key, default): the Hyp always carries all
-    # five aug keys (dict literal + all-or-nothing CLI override), so a missing
-    # key is a malformed config and should fail loud, not train on a default.
-    aug_cfg = hyp.augmentation
-    coupled_flip = CoupledFlip(
-        p=aug_cfg['p_flip'],
-        n_joints=17,
-        n_bones=n_bones,
-    )
-    constrained_jitter = ConstrainedJitter(
-        p_roll=aug_cfg['p_jitter'],
-        cap_y=aug_cfg['cap_y'],
-        cap_x=aug_cfg['cap_x'],
-        eps=aug_cfg['eps'],
-    )
-    print(
-        f"[aug] coupled flip p={coupled_flip.p}, "
-        f"constrained jitter p={constrained_jitter.p_roll} "
-        f"(cap_y={constrained_jitter.cap_y}, cap_x={constrained_jitter.cap_x}, "
-        f"eps={constrained_jitter.eps})"
-    )
+    Owns the three fail-loud guards: ``use_val_improvability_gate`` needs
+    ``adaptive_focal``; ``adaptive_focal`` is mutually exclusive with
+    ``class_weights``; ``adaptive_focal`` requires ``label_smoothing=0.0``.
+    All read the module-global ``hyp`` to mirror the pre-B7 shape (the rest of
+    ``train_network`` does the same).
 
-    # label_smoothing softens targets from [0,1] to reduce overconfidence.
-    # BST paper / TemPose default is 0.1; we sweep this knob to test
-    # whether it's bottlenecking the small-support classes that lose
-    # ground when the cleaner Phase-2 pose data lifts the head of the
-    # F1 distribution. See docs/architecture_notes/hparams_sweep_speculations.md.
-    #
-    # class_weights: optional manual per-class loss multipliers. Used as a
-    # smoke test for whether loss-side reweighting can move the bottleneck
-    # F1 classes (wrist_smash + its confusion partner smash). Renormalised to
-    # mean 1.0 so the overall loss magnitude stays comparable to uniform CE
-    # (keeps LR / grad-clip behaviour aligned across cells). None = uniform.
-    #
-    # adaptive_focal: class-F1-driven CDB-loss with optional focal modulation.
-    # Replaces the static class_weights lever with an EMA-smoothed per-class
-    # weight that re-prioritises classes whose train F1 stays low. Mutually
-    # exclusive with class_weights and forces label_smoothing=0 (LS softens
-    # targets, contaminating focal's per-sample hardness estimate).
-    # The val-improvability gate modulates the adaptive-focal alpha, so it can
-    # only run when adaptive_focal is engaged. Fail loud rather than silently
-    # ignoring the flag (the gate config would otherwise be dropped on the floor).
+    ``label_smoothing`` softens targets from [0,1] to reduce overconfidence.
+    BST paper / TemPose default is 0.1; we sweep this knob to test whether it's
+    bottlenecking the small-support classes that lose ground when the cleaner
+    Phase-2 pose data lifts the head of the F1 distribution. See
+    docs/architecture_notes/hparams_sweep_speculations.md.
+
+    ``class_weights``: optional manual per-class loss multipliers. Used as a
+    smoke test for whether loss-side reweighting can move the bottleneck F1
+    classes (wrist_smash + its confusion partner smash). Renormalised to mean
+    1.0 so the overall loss magnitude stays comparable to uniform CE (keeps LR /
+    grad-clip behaviour aligned across cells). None = uniform.
+
+    ``adaptive_focal``: class-F1-driven CDB-loss with optional focal
+    modulation. Replaces the static class_weights lever with an EMA-smoothed
+    per-class weight that re-prioritises classes whose train F1 stays low.
+    Mutually exclusive with class_weights and forces label_smoothing=0 (LS
+    softens targets, contaminating focal's per-sample hardness estimate). The
+    val-improvability gate modulates the adaptive-focal alpha, so it can only
+    run when adaptive_focal is engaged. Fail loud rather than silently ignoring
+    the flag (the gate config would otherwise be dropped on the floor).
+    """
     if hyp.use_val_improvability_gate and hyp.adaptive_focal is None:
         raise ValueError(
             'use_val_improvability_gate=True requires adaptive_focal (the gate '
@@ -501,7 +464,8 @@ def train_network(
                 f"(gating window epochs "
                 f"{loss_fn.gate_min_epochs_before_gating + 1}-{loss_fn.gate_freeze_epoch - 1})"
             )
-    elif hyp.class_weights:
+        return loss_fn
+    if hyp.class_weights:
         weights = torch.ones(n_classes, device=device)
         for cls_name, multiplier in hyp.class_weights.items():
             if cls_name not in class_ls:
@@ -515,17 +479,25 @@ def train_network(
         print(f"[loss] class-weighted CE (renormalised, mean=1.0):")
         for i, c in enumerate(class_ls):
             print(f"    {c:25s} weight={weights[i].item():.3f}")
-        loss_fn = nn.CrossEntropyLoss(weight=weights, label_smoothing=hyp.label_smoothing)
-    else:
-        loss_fn = nn.CrossEntropyLoss(label_smoothing=hyp.label_smoothing)
-    # AdamW with decoupled weight decay. Exclude norm gains, biases, and the
-    # learned tokens / positional embeddings from decay: decaying an LN/BN gain
-    # pulls its scale toward zero, and decaying a sinusoidally-seeded positional
-    # embedding erodes the positional signal. Matters at the lambda 0.1-0.4 the
-    # sweep covers; standard transformer recipe (Wang & Aitchison don't decay
-    # normalisation layers). ndim<=1 catches every norm gain/beta and bias; the
-    # two name hints catch the five ndim>=2 BST-owned params a shape rule misses.
-    # Verified split for BST_CG_AP: 27 decay / 55 no-decay tensors.
+        return nn.CrossEntropyLoss(weight=weights, label_smoothing=hyp.label_smoothing)
+    return nn.CrossEntropyLoss(label_smoothing=hyp.label_smoothing)
+
+
+def _split_param_groups(model: nn.Module):
+    """Decay vs no-decay walk for AdamW. Returns the two raw lists; the caller
+    builds the AdamW param-group dicts (so ``hyp.weight_decay`` / ``hyp.lr``
+    reads stay co-located with the optimiser construction).
+
+    Excludes norm gains, biases, and the learned tokens / positional embeddings
+    from decay: decaying an LN/BN gain pulls its scale toward zero, and decaying
+    a sinusoidally-seeded positional embedding erodes the positional signal.
+    Matters at the lambda 0.1-0.4 the sweep covers; standard transformer recipe
+    (Wang & Aitchison don't decay normalisation layers). ``ndim<=1`` catches
+    every norm gain/beta and bias; the two name hints catch the five ndim>=2
+    BST-owned params a shape rule misses. Verified split for BST_CG_AP:
+    27 decay / 55 no-decay tensors (model-pinned: a different variant or a
+    requires_grad change moves the count).
+    """
     no_decay_name_hints = ('embedding_', 'learned_token_')
     decay, no_decay = [], []
     for name, param in model.named_parameters():
@@ -534,6 +506,68 @@ def train_network(
         norm_or_bias = param.ndim <= 1
         token_or_posemb = any(hint in name for hint in no_decay_name_hints)
         (no_decay if norm_or_bias or token_or_posemb else decay).append(param)
+    return decay, no_decay
+
+
+def train_network(
+    model: nn.Module,
+    train_loader,
+    val_loader,
+    device,
+    save_path: Path,
+    n_bones,
+    n_classes: int,
+    class_ls: list[str],
+    taxonomy: Taxonomy,
+    tb_dir: Path | None = None,
+):
+    # tb_dir lands the event files under experiments/<run_id>/tb/serial_N/ so
+    # TB folders pair with the run they came from. Default SummaryWriter() writes
+    # to ./runs/<host_time>/, which is what older runs used.
+    writer = SummaryWriter(log_dir=str(tb_dir)) if tb_dir is not None else SummaryWriter()
+
+    # Locked Task-2 augmentation set: centreline flip across all three streams
+    # (with COCO bilateral joint-index swap and bone recompute) plus
+    # constrained pos+shuttle jitter (layered conditional bounds, joints
+    # untouched). Bone recompute requires the JnB_bone pose style; other
+    # styles (J_only, JnB_interp, Jn2B) need their own recompute helpers
+    # which are out of scope per docs/architecture_notes/augmentation_framework.md.
+    if hyp.pose_style != 'JnB_bone':
+        raise NotImplementedError(
+            f'Augmentation framework currently supports pose_style=JnB_bone only; '
+            f'got {hyp.pose_style!r}. Bone recompute via the bone_pairs table is the '
+            f'mechanism that propagates the flip+swap into bones; J_only has no bones, '
+            f'JnB_interp uses joint-pair midpoints, Jn2B uses both. Lift the equivalents '
+            f'to torch in preparing_data/augmentations.py before re-enabling the others.'
+        )
+    # Direct index rather than .get(key, default): the Hyp always carries all
+    # five aug keys (dict literal + all-or-nothing CLI override), so a missing
+    # key is a malformed config and should fail loud, not train on a default.
+    aug_cfg = hyp.augmentation
+    coupled_flip = CoupledFlip(
+        p=aug_cfg['p_flip'],
+        n_joints=17,
+        n_bones=n_bones,
+    )
+    constrained_jitter = ConstrainedJitter(
+        p_roll=aug_cfg['p_jitter'],
+        cap_y=aug_cfg['cap_y'],
+        cap_x=aug_cfg['cap_x'],
+        eps=aug_cfg['eps'],
+    )
+    print(
+        f"[aug] coupled flip p={coupled_flip.p}, "
+        f"constrained jitter p={constrained_jitter.p_roll} "
+        f"(cap_y={constrained_jitter.cap_y}, cap_x={constrained_jitter.cap_x}, "
+        f"eps={constrained_jitter.eps})"
+    )
+
+    loss_fn = _build_loss_fn(n_classes, class_ls, taxonomy, device)
+
+    # AdamW with decoupled weight decay. _split_param_groups owns the decay
+    # rules; this site owns the per-group weight_decay + hyp.lr wiring so the
+    # optimiser construction stays co-located with its hparams.
+    decay, no_decay = _split_param_groups(model)
     print(f'[optim] AdamW lr={hyp.lr} weight_decay={hyp.weight_decay} '
           f'(decay={len(decay)} tensors, no_decay={len(no_decay)})')
     optimizer = optim.AdamW(
