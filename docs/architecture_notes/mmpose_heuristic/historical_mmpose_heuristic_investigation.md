@@ -1,4 +1,12 @@
-# MMPose Extraction: Heuristic Investigation
+# MMPose Extraction: Heuristic Investigation (historical record)
+
+The active operational reference is `mmpose_heuristic.md` in this dir: algorithm spec,
+hyperparameters, calibration, failsafe gate, current /scratch paths. This file is the
+investigation narrative the operational reference was extracted from: Phase 0/1/2 status
+updates (2026-04-25 and 2026-04-29), decision log, rejected variants, failure-mode triage,
+Phase 2 plan, amateur-generalisation notes, parked recovery routes. Paths and env-var values
+in the body below are frozen as the dated record describes them; for the current state see
+the operational reference.
 
 ## Rationale
 

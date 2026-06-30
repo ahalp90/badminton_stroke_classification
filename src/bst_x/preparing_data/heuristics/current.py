@@ -25,7 +25,7 @@ hit the cap; in almost every hit, the two real players rank in the top
 ``N_max``. Byte-identity is preserved under this condition. If a real
 player is ever ranked below ``N_max`` on a cap-hit frame, the filter
 decision can diverge for that frame; this is documented in
-``docs/architecture_notes/mmpose_heuristic/mmpose_heuristic_investigation.md``.
+``docs/architecture_notes/mmpose_heuristic/historical_mmpose_heuristic_investigation.md``.
 
 The imports from ``prepare_train_on_shuttleset`` are deferred to ``apply``'s
 first call because that module has a top-level ``from mmpose.apis import

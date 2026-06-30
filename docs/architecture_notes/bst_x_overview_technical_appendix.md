@@ -250,7 +250,7 @@ From the player-overlap analysis (`class_player_split_overlap_exploration.md`): 
 
 #### Cross-cutting MMPose recovery routes
 
-Two recovery routes for the residual ~0.93% extraction failures, both specced in `mmpose_heuristic/mmpose_heuristic_investigation.md`, neither built. A homography-fail X3D-S-only rescue: for clips where the court homography itself doesn't fit so no court coords are possible, a pixel-space fallback picker (largest bbox per screen-half, torso-diagonal crop sizing) could feed the X3D-S stream while BST inputs stay zeroed; it needs a new metadata flag in the extract and is parked until per-class residuals show it's worth building. And gap-fill for partial-success frames: linear interpolation of `pos` and `joints` across short MMPose detection gaps when one slot picked cleanly and the other zeroed, bounded to ~15-frame gaps, gated on endpoint-proximity, explicitly not a fallback to sticky_anchor-rejected raw bboxes (those margins are generous enough that a rejection is diagnostic of upstream failure); a new post-processing module after sticky_anchor that preserves the byte-identity chain.
+Two recovery routes for the residual ~0.93% extraction failures, both specced in `mmpose_heuristic/historical_mmpose_heuristic_investigation.md`, neither built. A homography-fail X3D-S-only rescue: for clips where the court homography itself doesn't fit so no court coords are possible, a pixel-space fallback picker (largest bbox per screen-half, torso-diagonal crop sizing) could feed the X3D-S stream while BST inputs stay zeroed; it needs a new metadata flag in the extract and is parked until per-class residuals show it's worth building. And gap-fill for partial-success frames: linear interpolation of `pos` and `joints` across short MMPose detection gaps when one slot picked cleanly and the other zeroed, bounded to ~15-frame gaps, gated on endpoint-proximity, explicitly not a fallback to sticky_anchor-rejected raw bboxes (those margins are generous enough that a rejection is diagnostic of upstream failure); a new post-processing module after sticky_anchor that preserves the byte-identity chain.
 
 #### Per-joint adaptive focal (Phase 3 / trimester 2)
 
@@ -278,7 +278,7 @@ Sketched in `augmentation_framework.md`: extend CDB-F1 from per-class scalar alp
 - `bst_x_train.py`: the cosine schedule and Hyp namedtuple configuration.
 - `tuning_thoughts.md`: broader HP strategy; Q4/Q5 are items it didn't cover.
 - `architecture_1_bst_3dcnn_racket_extension_09_April.md`: the initial X3D-S fusion design doc.
-- `mmpose_heuristic/mmpose_heuristic_investigation.md`: the full sticky_anchor design and recovery-routes.
+- `mmpose_heuristic/historical_mmpose_heuristic_investigation.md`: the full sticky_anchor design and recovery-routes.
 - `model_capacity_bottleneck_question.md`: the research-grounded read on whether widening BST is the lever.
 - `train_val_test_split_analysis.md`: per-run train/val/test trajectories pinning the plateau as generalisation-bound on the smash/ws pair.
 - `class_f1_focal_design.md`: the CDB-F1 design (verified against ACCV 2020).

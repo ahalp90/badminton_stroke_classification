@@ -66,7 +66,7 @@ Chang's original BST work must have avoided this because he hand-curated his cli
 
 **Fix.** Test each slot's pick on its own (`pos[f, slot].any()`).
 
-**More.** `mmpose_heuristic/mmpose_heuristic_investigation.md`.
+**More.** `mmpose_heuristic/historical_mmpose_heuristic_investigation.md`.
 
 ### Mystery extra channel on drop-unknown runs (1 May)
 

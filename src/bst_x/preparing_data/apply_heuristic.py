@@ -14,8 +14,8 @@ Run from the repo root with both package roots on PYTHONPATH::
 
     PYTHONPATH=src/bst_x \\
         python -m preparing_data.apply_heuristic \\
-            --raw-dir /scratch/.../dataset_npy_..._flat_raw_phase1 \\
-            --output-dir /scratch/.../dataset_npy_..._flat_h_sticky_anchor \\
+            --raw-dir /scratch/comp320a/ShuttleSet_keypoints_raw \\
+            --output-dir /scratch/comp320a/ShuttleSet_keypoints_clean_<variant> \\
             --heuristic sticky_anchor \\
             --clips-csv notebooks/clips_master.csv
 """

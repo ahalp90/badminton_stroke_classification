@@ -2,14 +2,14 @@
 
 Loads a real checkpoint, runs inference on a collated dir's test split, and
 saves the predictions tensor as a ``.npy`` file. Run on both branches, then
-diff the two files: byte-identical output proves bst_x_infer's lift to
-``build_bst_x_network`` is behaviourally inert.
+diff the two files: byte-identical output proves the inference path is
+behaviourally inert across the change.
 
 Required env vars:
   BST_X_DATA_DIR  -- path to a collated dir (npy_<split>_<collation_id>/, with test/labels.npy)
-  WEIGHT_PATH   -- path to a real .pt checkpoint matching that dir's config
+  WEIGHT_PATH     -- path to a real .pt checkpoint matching that dir's config
 
-Optional env vars (defaults match the active Hyp on pre-phase-2-tidy):
+Optional env vars (defaults match the active Hyp on the une_v1_14 baseline):
   TAXONOMY      -- taxonomy name (default: une_v1_14)
   POSE_STYLE    -- pose style (default: JnB_bone)
   SEQ_LEN       -- sequence length (default: 100)
@@ -17,10 +17,13 @@ Optional env vars (defaults match the active Hyp on pre-phase-2-tidy):
   MODEL_NAME    -- BST variant (default: BST_CG_AP)
   OUT_PATH      -- where to write predictions npy (default: /tmp/smoke_infer_preds.npy)
 
-Usage on engelbart:
-  cd ~/badminton_stroke_classifier
-  source /home/ahalperi/.venvs/venv-bst/bin/activate
-  export BST_X_DATA_DIR=~/badminton_stroke_classifier/src/bst_x/preparing_data/ShuttleSet_data_une_v1_14/npy_v2_taxon_pinned_w_preds
+Usage on bourbaki / engelbart (dual-invocation main-vs-branch):
+
+  cd ~/badminton_stroke_classification
+  source /home/ahalperi/.venvs/venv-bst-x/bin/activate
+  set -a && source .env && set +a   # exports BST_X_COLLATED_DATA_ROOT etc.
+
+  export BST_X_DATA_DIR=/scratch/comp320a/ShuttleSet_data_une_v1_14/npy_v2_taxon_pinned_w_preds
   export WEIGHT_PATH=<full path to a recent .pt checkpoint matching the active Hyp>
 
   # CuBLAS deterministic mode -- without this CUDA picks different matmul
@@ -28,28 +31,26 @@ Usage on engelbart:
   # same code. The script sets torch.use_deterministic_algorithms(True);
   # this env var unlocks the same guarantee at the CuBLAS layer.
   export CUBLAS_WORKSPACE_CONFIG=:4096:8
-
-  # PYTHONPATH gives access to both package roots (matches conftest.py
-  # for tests and the documented invocation pattern post-step-P).
   export PYTHONPATH=src/bst_x
 
-  # Run on pre-phase-2-tidy
-  git checkout pre-phase-2-tidy
-  OUT_PATH=/tmp/preds_post_tidy.npy python src/bst_x/validation_scripts/post_tidy_smoke/smoke_infer_bit_exact.py
+  # STEP 1 -- branch
+  git checkout <refactor-branch>
+  OUT_PATH=/tmp/preds_branch.npy \\
+      python src/bst_x/validation_scripts/post_tidy_smoke/smoke_infer_bit_exact.py
 
-  # Run on main
+  # STEP 2 -- main
   git checkout main
-  OUT_PATH=/tmp/preds_main.npy python src/bst_x/validation_scripts/post_tidy_smoke/smoke_infer_bit_exact.py
+  OUT_PATH=/tmp/preds_main.npy \\
+      python src/bst_x/validation_scripts/post_tidy_smoke/smoke_infer_bit_exact.py
 
-  # Diff the two prediction files
-  python -c "import numpy as np; \
-    a=np.load('/tmp/preds_post_tidy.npy'); b=np.load('/tmp/preds_main.npy'); \
+  # STEP 3 -- diff
+  git checkout <refactor-branch>
+  python -c "import numpy as np; \\
+    a=np.load('/tmp/preds_branch.npy'); b=np.load('/tmp/preds_main.npy'); \\
     print('IDENTICAL' if np.array_equal(a, b) else f'DIFFER: {(a!=b).sum()}/{len(a)} mismatched class predictions')"
 
-  git checkout pre-phase-2-tidy
-
 A passing diff (``IDENTICAL``) means: same architecture, same loaded weights,
-same forward pass output. Bit-exact across the bst_x_infer.py refactor.
+same forward pass output. Bit-exact across the refactor.
 """
 from __future__ import annotations
 
