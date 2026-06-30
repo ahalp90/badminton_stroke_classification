@@ -110,6 +110,53 @@ def normalize_shuttlecock(arr: np.ndarray, v_width, v_height):
     return np.stack((x_normalized, y_normalized), axis=-1)
 
 
+def _order_two_on_court(
+    keypoints_2d: np.ndarray,
+    vid: int,
+    all_court_info: dict,
+    res_df: pd.DataFrame,
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """Decide whether a frame has exactly two on-court players, ordered Top-before-Bottom.
+
+    The shared per-frame decision called by detect_players_2d AND detect_players_3d.
+    Shape-agnostic: takes only the 2D keypoints + court info, never the joint payload
+    or any 3D array. The per-variant tails (failed-frame zero shapes, normalize_joints
+    + bbox in 2D, raw keypoints_3d in 3D) stay in the callers (B5 invariants 3.1, 3.7).
+
+    The ``< 2`` short-circuit precedes ``check_pos_in_court`` because the latter slices
+    ``keypoints[:, -2:, :]``, which raises on an empty detection (B5 invariant 3.2). The
+    flip is strict ``>``: on a y-tie the original ascending-index order is kept (B5
+    invariant 3.3). The flip relies on the ``!= 2`` guard upstream so ``np.flip`` on a
+    2-element array is a swap (same invariant).
+
+    :param keypoints_2d: (m, J, 2). The 2D keypoints, in both variants (the 3D caller
+        passes its `keypoints_2d`, not `keypoints_3d`; the court projection needs 2D
+        pixel coords; B5 invariant 3.5).
+    :param vid: clip's source video id, used to look up homography + resolution.
+    :param all_court_info: dict from get_court_info.
+    :param res_df: resolution DataFrame indexed by video id.
+    :return: ``(in_court_pid, pos_normalized)`` on success (exactly 2 on court,
+        ordered Top-before-Bottom); ``None`` on either failure path. ``pos_normalized``
+        is the full ``(m, 2)`` array, not the 2-row slice -- the caller does its own
+        ``pos_normalized[in_court_pid]`` (B5 invariant: helper returns the full array
+        so the caller's existing index expression stays correct).
+    """
+    if len(keypoints_2d) < 2:
+        return None
+    in_court, pos_normalized = check_pos_in_court(
+        keypoints_2d, vid, all_court_info, res_df
+    )
+    # in_court: (m), pos_normalized: (m, xy), xy=2
+    in_court_pid = np.nonzero(in_court)[0]
+    if len(in_court_pid) != 2:
+        return None
+    # Make sure Top player before Bottom player (comparing y-dim).
+    # Strict > so a y-tie keeps the np.nonzero ascending order.
+    if pos_normalized[in_court_pid[0], 1] > pos_normalized[in_court_pid[1], 1]:
+        in_court_pid = np.flip(in_court_pid)
+    return in_court_pid, pos_normalized
+
+
 def detect_players_2d(
     inferencer: MMPoseInferencer,
     video_path: Path,
@@ -140,36 +187,20 @@ def detect_players_2d(
         )  # batch_size=1 (default)
         # keypoints: (m, J, 2)
 
-        # Need at least 2 detected people in the frame.
         # Failed frames are kept as zeros (not dropped) so the clip stays intact.
         # Shuttle coords for these frames are zeroed at collation (Step 3).
-        if len(keypoints) < 2:
+        ordered = _order_two_on_court(keypoints, vid, all_court_info, res_df)
+        if ordered is None:
             failed_ls.append(True)
             players_positions.append(np.zeros((2, 2), dtype=float))
             players_joints.append(np.zeros((2, J, 2), dtype=float))
             continue
-
-        in_court, pos_normalized = check_pos_in_court(
-            keypoints, vid, all_court_info, res_df
-        )
-        # in_court: (m), pos_normalized: (m, xy), xy=2
-        in_court_pid = np.nonzero(in_court)[0]
-
-        # Need exactly 2 players on court.
-        if len(in_court_pid) != 2:
-            failed_ls.append(True)
-            players_positions.append(np.zeros((2, 2), dtype=float))
-            players_joints.append(np.zeros((2, J, 2), dtype=float))
-            continue
+        in_court_pid, pos_normalized = ordered
 
         bboxes = np.array(
             [person["bbox"][0] for person in result["predictions"][0]]
         )  # batch_size=1 (default)
         # bboxes: (m, 4)
-
-        # Make sure Top player before Bottom player (comparing y-dim)
-        if pos_normalized[in_court_pid[0], 1] > pos_normalized[in_court_pid[1], 1]:
-            in_court_pid = np.flip(in_court_pid)
 
         failed_ls.append(False)
         players_positions.append(pos_normalized[in_court_pid])
@@ -239,29 +270,13 @@ def detect_players_3d(
         )
         # keypoints_3d: (m, J, 3)
 
-        # Need at least 2 detected people in the frame.
-        if len(keypoints_2d) < 2:
+        ordered = _order_two_on_court(keypoints_2d, vid, all_court_info, res_df)
+        if ordered is None:
             failed_ls.append(True)
             players_positions.append(np.zeros((2, 2), dtype=float))
             players_joints.append(np.zeros((2, J, 3), dtype=float))
             continue
-
-        in_court, pos_normalized = check_pos_in_court(
-            keypoints_2d, vid, all_court_info, res_df
-        )
-        # in_court: (m), pos_normalized: (m, xy), xy=2
-        in_court_pid = np.nonzero(in_court)[0]
-
-        # Need exactly 2 players on court.
-        if len(in_court_pid) != 2:
-            failed_ls.append(True)
-            players_positions.append(np.zeros((2, 2), dtype=float))
-            players_joints.append(np.zeros((2, J, 3), dtype=float))
-            continue
-
-        # Make sure Top player before Bottom player (comparing y-dim)
-        if pos_normalized[in_court_pid[0], 1] > pos_normalized[in_court_pid[1], 1]:
-            in_court_pid = np.flip(in_court_pid)
+        in_court_pid, pos_normalized = ordered
 
         failed_ls.append(False)
         players_positions.append(pos_normalized[in_court_pid])
