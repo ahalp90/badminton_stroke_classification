@@ -357,59 +357,6 @@ def validate(
     return val_loss, f1_score_avg, f1_score_min, f1_score, present, accuracy, top2_accuracy
 
 
-@torch.no_grad()
-def test(
-    model: nn.Module,
-    loader,
-    device
-):
-    model.eval()
-    pred_ls = []
-    labels_ls = []
-    for (human_pose, pos, shuttle), video_len, labels in loader:
-        human_pose: Tensor = human_pose.to(device)
-        shuttle: Tensor = shuttle.to(device)
-        pos: Tensor = pos.to(device)
-        video_len: Tensor = video_len.to(device)
-
-        human_pose = human_pose.view(*human_pose.shape[:-2], -1)
-        logits = model(human_pose, shuttle, pos, video_len)
-
-        pred = torch.argmax(logits, dim=1).cpu()
-
-        pred_ls.append(pred)
-        labels_ls.append(labels)
-
-    return torch.cat(pred_ls), torch.cat(labels_ls)
-
-
-@torch.no_grad()
-def test_topk(
-    model: nn.Module,
-    loader,
-    device,
-    k=2
-):
-    model.eval()
-    pred_ls = []
-    labels_ls = []
-    for (human_pose, pos, shuttle), video_len, labels in loader:
-        human_pose: Tensor = human_pose.to(device)
-        shuttle: Tensor = shuttle.to(device)
-        pos: Tensor = pos.to(device)
-        video_len: Tensor = video_len.to(device)
-
-        human_pose = human_pose.view(*human_pose.shape[:-2], -1)
-        logits = model(human_pose, shuttle, pos, video_len)
-
-        _, pred = torch.topk(logits, k=k, dim=1)
-
-        pred_ls.append(pred.cpu())
-        labels_ls.append(labels)
-
-    return torch.cat(pred_ls), torch.cat(labels_ls)
-
-
 # ==========================================================================
 # Training loop with TensorBoard logging and early stopping
 # ==========================================================================
@@ -994,8 +941,15 @@ class Task:
             print(f'Total training time: {t}')
             return False, val_at_best  # newly trained
 
-    def test(self, show_details=False, show_confusion_matrix=False) -> dict:
-        pred, gt = test(self.net, self.test_loader, self.device)
+    def test(self, dump: dict, show_details=False, show_confusion_matrix=False) -> dict:
+        """Derive test top-1 metrics from a precomputed dump.
+
+        ``dump`` is one split's output from ``dump_topk_predictions``: top-1 reads
+        straight off ``y_pred_top1`` (argmax, unified in Batch 2), no second forward
+        pass through the test loader.
+        """
+        pred = torch.from_numpy(dump['y_pred_top1'])
+        gt = torch.from_numpy(dump['y_true'])
         print(f'Test (num_strokes: {len(pred)}) =>')
 
         f1_score_each = multiclass_f1_score(
@@ -1050,15 +1004,26 @@ class Task:
             'per_class_f1': per_class_f1,
         }
 
-    def test_topk_acc(self, k=2) -> dict:
+    def test_topk_acc(self, dump: dict, k=2) -> dict:
+        """Derive top-k accuracy from a precomputed dump's raw logits.
+
+        Re-derives top-k from a fresh ``torch.topk(logits, k=k)`` rather than
+        slicing the stored ``topk_idx[:, :k]`` (the dump runs at k=5; slicing
+        breaks ties differently from a k=2 topk on rank-boundary rows). Real
+        trained logits are tie-free, so this matches a 3-pass top-k on actual data.
+        """
         assert k > 1, 'k should be > 1'
-        pred, gt = test_topk(self.net, self.test_loader, self.device, k=k)
+        logits = torch.from_numpy(dump['logits'])
+        gt = torch.from_numpy(dump['y_true'])
+        pred = torch.topk(logits, k=k, dim=1).indices
         gt = gt.unsqueeze(1).repeat(1, k)
         acc = torch.any(pred == gt, dim=1).sum().item() / len(gt)
         print(f'Top{k} Accuracy: {acc:.3f}')
         return {f'top{k}_accuracy': float(acc)}
 
-    def dump_predictions(self, run_dir: Path, serial_no: int, k: int = 5) -> None:
+    def dump_predictions(
+        self, run_dir: Path, serial_no: int, k: int = 5,
+    ) -> dict[str, dict]:
         """Dump per-split prediction npz (raw logits + top-k + ground truth).
 
         The per-stroke-logits payload that motivated the refactor: lets the FE
@@ -1075,9 +1040,13 @@ class Task:
         FE-shape JSON converter joins row -> stem inside the npz, no external
         sidecar and no re-deriving the collation filters.
 
+        Returns the per-split dump dicts so the caller can derive test metrics
+        from the same forward pass (B2: one test pass, not three).
+
         :param run_dir: experiments/<run_id>/ for this run.
         :param serial_no: serial whose weights are currently loaded in self.net.
         :param k: top-k width recorded per row.
+        :return: ``{split_name: dump_dict}`` for train / val / test.
         """
         out_dir = run_dir / 'predictions'
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -1086,6 +1055,7 @@ class Task:
             ('val',   self.val_loader),
             ('test',  self.test_loader),
         )
+        dumps: dict[str, dict] = {}
         for split_name, source in sources:
             dataset = source.dataset
             ordered = DataLoader(
@@ -1115,6 +1085,8 @@ class Task:
                 serial_no=np.array(serial_no, dtype=np.int64),
                 taxonomy_name=np.array(self.taxonomy.name, dtype=object),
             )
+            dumps[split_name] = dump
+        return dumps
 
 
 # ==========================================================================
@@ -1383,14 +1355,19 @@ if __name__ == '__main__':
                 model_info=model_info, serial_no=serial_no, tb_dir=tb_dir,
             )
 
-            with redirect_stdout(tee):
-                print(f'\n=== Serial {serial_no} ({task.model_name}) ===')
-                test_metrics = task.test(show_details=True, show_confusion_matrix=False)
-                topk_metrics = task.test_topk_acc(k=2)
-
             # Per-stroke logits dump (all splits) for the FE / calibration. Runs
             # every serial; non-best are pruned manually after the runner finishes.
-            task.dump_predictions(run_dir=run_dir, serial_no=serial_no, k=5)
+            # Returns the per-split dumps so test_metrics/topk_metrics can derive
+            # off the same forward pass (B2: one test pass, not three).
+            dumps = task.dump_predictions(run_dir=run_dir, serial_no=serial_no, k=5)
+
+            with redirect_stdout(tee):
+                print(f'\n=== Serial {serial_no} ({task.model_name}) ===')
+                test_metrics = task.test(
+                    dump=dumps['test'],
+                    show_details=True, show_confusion_matrix=False,
+                )
+                topk_metrics = task.test_topk_acc(dump=dumps['test'], k=2)
 
             # Writes the manifest entry, and if aim is installed (it isn't on
             # the HPC train venv, so usually a no-op) mirrors this serial into

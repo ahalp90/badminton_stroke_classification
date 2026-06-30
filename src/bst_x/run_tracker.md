@@ -24,8 +24,9 @@ weight_dir = run_dir / 'weights'
 for serial_no in range(1, 6):
     tb_dir = run_dir / 'tb' / f'serial_{serial_no}'
     task.seek_network_weights(model_info=..., serial_no=serial_no, tb_dir=tb_dir)
-    test_metrics = task.test(...)
-    topk_metrics = task.test_topk_acc(k=2)
+    dumps = task.dump_predictions(run_dir=run_dir, serial_no=serial_no, k=5)
+    test_metrics = task.test(dump=dumps['test'], ...)
+    topk_metrics = task.test_topk_acc(dump=dumps['test'], k=2)
     track_serial(run_dir, serial_no,
                  weights_path=task.weight_path,
                  tb_dir=tb_dir,
