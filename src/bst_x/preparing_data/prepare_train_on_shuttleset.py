@@ -18,10 +18,10 @@ Run from the repo root with both package roots on PYTHONPATH::
 """
 
 # Deferred annotations so the MMPoseInferencer type hints (detect_players_2d/3d) don't force
-# the mmpose import at module load. That keeps collate_npy / get_H / the court helpers -- none
-# of which touch mmpose -- importable without the GPU dep (e.g. venv-bst-x collation, the CPU
-# goldens). mmpose is imported lazily inside the three functions that instantiate it, and
-# under TYPE_CHECKING for the static type hints. Keep this: reverting re-couples the module.
+# the mmpose import at module load. That keeps collate_npy and the pose-style joint helpers
+# -- none of which touch mmpose -- importable without the GPU dep (e.g. venv-bst-x collation,
+# the CPU goldens). mmpose is imported lazily inside the three functions that instantiate it,
+# and under TYPE_CHECKING for the static type hints. Keep this: reverting re-couples the module.
 from __future__ import annotations
 
 import argparse
@@ -54,111 +54,12 @@ from pipeline.config import (
     resolve_taxonomy,
 )
 from pipeline.data_access import env_path, env_path_or_none, load_repo_dotenv
+# Court helpers live in pipeline.court_utils; re-export check_pos_in_court so the
+# heuristics (current.py, sticky_anchor.py) keep their existing import path.
+from pipeline.court_utils import check_pos_in_court, get_court_info  # noqa: F401
 
 if TYPE_CHECKING:  # type-only: keeps mmpose out of the runtime import (see module-top note)
     from mmpose.apis import MMPoseInferencer
-
-
-def get_H(homography_info: pd.Series):
-    """Parse the (3, 3) homography matrix from a homography.csv row."""
-    h_str: str = homography_info["homography_matrix"]
-    H = h_str.strip().replace("[", "").replace("]", "").replace(",", "").split()
-    H = np.array(list(map(float, H))).reshape((3, 3))
-    return H
-
-
-def get_corner_camera(homography_info: pd.Series):
-    """Read the court's 4 camera-space corners from a homography.csv row, shaped (2, 4)."""
-    corner_camera = homography_info.loc["upleft_x":"downright_y"]
-    corner_camera = corner_camera.to_numpy(dtype=float).reshape((2, 4))
-    return corner_camera
-
-
-def scale_pos_by_resolution(arr: np.ndarray, width, height, aim_w=1280, aim_h=720):
-    """
-    The shape of 2D `arr` is (2, N) or (3, N) if homogeneous.
-    """
-    new_arr = arr.copy()
-    new_arr[0, :] *= aim_w / width
-    new_arr[1, :] *= aim_h / height
-    return new_arr
-
-
-def convert_homogeneous(arr: np.ndarray):
-    """
-    The shape of 2D `arr` is (2, N). => The output will be (3, N).
-    """
-    return np.concatenate((arr, np.full((1, arr.shape[-1]), 1.0)), axis=0)
-
-
-def project(H: np.ndarray, P_prime: np.ndarray):
-    """
-    Transform coordinates from the camera system to the court system.
-
-    H: (3, 3)
-    P_prime: (3, N)
-    Output: (2, N)
-    """
-    P = H @ P_prime
-    P = P[:2, :] / P[-1, :]
-    return P
-
-
-def get_court_info(homo_df: pd.DataFrame, vid: int):
-    """
-    Get the homography matrix and the 4 corners of the court in the court coordinate corresponding to the video.
-    """
-    homography_info = homo_df.loc[vid]
-
-    H = get_H(homography_info)
-    corner_camera = get_corner_camera(homography_info)
-    corner_camera = convert_homogeneous(corner_camera)
-
-    corner_court = project(H, corner_camera)
-    return {
-        "H": H,
-        "border_L": corner_court[0, 0],
-        "border_R": corner_court[0, 1],
-        "border_U": corner_court[1, 0],
-        "border_D": corner_court[1, 2],
-    }
-
-
-def to_court_coordinate(
-    arr_camera: np.ndarray, vid: int, all_court_info: dict, res_df: pd.DataFrame
-):
-    """
-    Convert the camera coordinate system to the court coordinate system.
-
-    If the camera coordinate is not from the resolution (1280, 720):
-        It will be scaled to represent in (1280, 720).
-
-    The shape of 2D `arr_camera` is (2, N).
-    """
-    res_info = res_df.loc[vid]  # for resolution scaling
-    H = all_court_info[vid]["H"]
-
-    arr_camera = scale_pos_by_resolution(
-        arr_camera, width=res_info["width"], height=res_info["height"]
-    )
-    arr_camera = convert_homogeneous(arr_camera)
-    arr_court = project(H, arr_camera)
-    return arr_court
-
-
-def normalize_position(arr: np.ndarray, court_info: dict):
-    """
-    Normalized by court boundary.
-
-    `arr`: (2, N). There are N 'x' and N 'y'.
-    Output: (2, N). Every 'x', 'y' in-court should be in [0, 1].
-    """
-    x_dist = court_info["border_R"] - court_info["border_L"]
-    y_dist = court_info["border_D"] - court_info["border_U"]
-
-    x_normalized = (arr[0, :] - court_info["border_L"]) / x_dist
-    y_normalized = (arr[1, :] - court_info["border_U"]) / y_dist
-    return np.stack((x_normalized, y_normalized))
 
 
 def normalize_joints(
@@ -207,41 +108,6 @@ def normalize_shuttlecock(arr: np.ndarray, v_width, v_height):
     x_normalized = arr[:, 0] / v_width
     y_normalized = arr[:, 1] / v_height
     return np.stack((x_normalized, y_normalized), axis=-1)
-
-
-def check_pos_in_court(keypoints: np.ndarray, vid: int, all_court_info: dict, res_df):
-    """
-    The shape of `keypoints` is (m, J, 2).
-
-    Output:
-        in_court: (m)
-        pos_court_normalized: (m, 2)
-    """
-    n_people = keypoints.shape[0]
-
-    feet_camera = keypoints[:, -2:, :]
-    # feet_camera: (m, J, 2), J=2
-    feet_camera = feet_camera.reshape(-1, 2).T
-    # feet_camera: (2, m*J)
-
-    feet_court = to_court_coordinate(
-        feet_camera, vid=vid, all_court_info=all_court_info, res_df=res_df
-    )
-    feet_court = feet_court.reshape(2, n_people, -1)
-    # feet_court: (2, m, J)
-
-    pos_court = feet_court.mean(axis=-1)  # middle point between feet
-    # pos_court: (2, m)
-    pos_court_normalized = normalize_position(
-        pos_court, court_info=all_court_info[vid]
-    ).T
-    # pos_court_normalized: (m, 2)
-
-    eps = 0.01  # soft border
-    dim_in_court = (pos_court_normalized > -eps) & (pos_court_normalized < (1 + eps))
-    in_court = dim_in_court[:, 0] & dim_in_court[:, 1]
-    # in_court: (m)
-    return in_court, pos_court_normalized
 
 
 def detect_players_2d(

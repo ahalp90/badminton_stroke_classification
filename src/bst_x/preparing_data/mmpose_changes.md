@@ -69,25 +69,25 @@ The earlier `if __name__ == '__main__': sys.path.append(...)` scaffolding for `p
 
 Every helper function in the pose processing chain is byte-identical:
 
-| Function | Purpose |
-|----------|---------|
-| `get_H()` | Extract homography matrix from DataFrame |
-| `get_corner_camera()` | Extract court corner coordinates |
-| `scale_pos_by_resolution()` | Scale coordinates to 1280x720 reference |
-| `convert_homogeneous()` | Convert to homogeneous coordinates |
-| `project()` | Apply homography projection |
-| `get_court_info()` | Build court info dict (homography + boundaries) |
-| `to_court_coordinate()` | Camera-to-court coordinate transform |
-| `normalize_position()` | Normalize by court boundaries to [0, 1] |
-| `normalize_joints()` | Normalize keypoints by bbox diagonal or video height |
-| `normalize_shuttlecock()` | Normalize by video resolution to [0, 1] |
-| `check_pos_in_court()` | Determine which detected people are on court |
-| `get_shuttle_result()` | Read TrackNetV3 CSV and normalize |
-| `make_seq_len_same()` | Pad/stride clips to uniform seq_len |
-| `create_bones()` | Compute bone vectors from joint pairs |
-| `interpolate_joints()` | Compute bone midpoints |
-| `pad_and_augment_one_npy_video()` | Full per-clip augmentation pipeline |
-| `collate_npy()` | Stack per-clip .npy files into batch arrays |
+| Function | Module | Purpose |
+|----------|--------|---------|
+| `get_H()` | `pipeline/court_utils.py` | Extract homography matrix from DataFrame |
+| `get_corner_camera()` | `pipeline/court_utils.py` | Extract court corner coordinates |
+| `scale_pos_by_resolution()` | `pipeline/court_utils.py` | Scale coordinates to 1280x720 reference |
+| `convert_homogeneous()` | `pipeline/court_utils.py` | Convert to homogeneous coordinates |
+| `project()` | `pipeline/court_utils.py` | Apply homography projection |
+| `get_court_info()` | `pipeline/court_utils.py` | Build court info dict (homography + boundaries) |
+| `to_court_coordinate()` | `pipeline/court_utils.py` | Camera-to-court coordinate transform |
+| `normalize_position()` | `pipeline/court_utils.py` | Normalize by court boundaries to [0, 1] |
+| `check_pos_in_court()` | `pipeline/court_utils.py` | Determine which detected people are on court (re-exported from `prepare_train_on_shuttleset` so the heuristics' lazy import path stays valid) |
+| `normalize_joints()` | `preparing_data/prepare_train_on_shuttleset.py` | Normalize keypoints by bbox diagonal or video height |
+| `normalize_shuttlecock()` | `preparing_data/prepare_train_on_shuttleset.py` | Normalize by video resolution to [0, 1] |
+| `get_shuttle_result()` | `preparing_data/prepare_train_on_shuttleset.py` | Read TrackNetV3 CSV and normalize |
+| `make_seq_len_same()` | `preparing_data/shuttleset_dataset.py` | Pad/stride clips to uniform seq_len |
+| `create_bones()` | `preparing_data/shuttleset_dataset.py` | Compute bone vectors from joint pairs |
+| `interpolate_joints()` | `preparing_data/shuttleset_dataset.py` | Compute bone midpoints |
+| `pad_and_augment_one_npy_video()` | `preparing_data/shuttleset_dataset.py` | Full per-clip augmentation pipeline |
+| `collate_npy()` | `preparing_data/prepare_train_on_shuttleset.py` | Stack per-clip .npy files into batch arrays |
 
 ---
 
