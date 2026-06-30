@@ -41,6 +41,7 @@ from pipeline.data_access import env_path_or_none, load_repo_dotenv
 from run_tracker import track_run, track_serial
 from bst_x_common import (
     Tee,
+    _write_prediction_npz,
     build_bst_x_network,
     compute_data_provenance,
     dump_topk_predictions,
@@ -1063,27 +1064,9 @@ class Task:
                 shuffle=False, num_workers=0, pin_memory=False,
             )
             dump = dump_topk_predictions(self.net, ordered, self.device, k=k)
-            # clip_stems straight off the in-memory dataset: kept in lockstep
-            # with labels through the drop + train_partial reorder, and the
-            # shuffle=False loader preserves that order, so the npz is a
-            # self-contained row -> stem join. Hard-fail on a None sidecar (a
-            # legacy collation with no clip_stems.npy): np.asarray(None) writes a
-            # silent 0-d array, which would desync every row from its stem.
-            assert dataset.clip_stems is not None, (
-                f'{split_name}: dataset.clip_stems is None (legacy collation with '
-                f'no clip_stems.npy); re-collate before dumping predictions.'
-            )
-            np.savez(
+            _write_prediction_npz(
                 out_dir / f'{split_name}_serial_{serial_no}.npz',
-                logits=dump['logits'],
-                y_true=dump['y_true'],
-                y_pred_top1=dump['y_pred_top1'],
-                topk_idx=dump['topk_idx'],
-                clip_stems=np.asarray(dataset.clip_stems, dtype=object),
-                class_list=np.array(self.taxonomy.classes, dtype=object),
-                run_id=np.array(run_dir.name, dtype=object),
-                serial_no=np.array(serial_no, dtype=np.int64),
-                taxonomy_name=np.array(self.taxonomy.name, dtype=object),
+                dump, dataset, self.taxonomy, run_dir.name, serial_no,
             )
             dumps[split_name] = dump
         return dumps
