@@ -758,9 +758,11 @@ instruction in the design pass).
 
 ---
 
-## 9. Val-improvability gate (added 2026-05-31)
+## 9. Val-improvability gate (added 2026-05-31, retired 2026-06-02, ripped 2026-07-01)
 
-This section post-dates the original design pass above. The loss was built and run, and a six-cell arc analysis (`docs/architecture_notes/alpha_arc_analysis/`) confirmed, at scale and across taxonomies, the failure mode §8 anticipated under "Train F1 vs val F1 drift". The val-improvability gate is the fix. It's off by default; a terser, decision-focused version of this writeup is in `hp_and_aug_speculations_30_05_2026.md` Q4.
+**Retired.** The gate was built and tested but retired after a two-batch sweep (Series H + J, 31 May - 2 June 2026) showed it never gave the best config on any of the three taxonomies it ran on. The simpler `wd 4e-1 + decay-exclusion` knob matched or beat the gate's lift wherever they overlapped. Reversal path: `focal_alpha_revert_sketch.md`. Retirement writeup: `bst_x_sweep_summary_wd_x_focal_alpha_revert.md`.
+
+This section post-dates the original design pass above. The loss was built and run, and a six-cell arc analysis (`docs/architecture_notes/alpha_arc_analysis/`) confirmed, at scale and across taxonomies, the failure mode §8 anticipated under "Train F1 vs val F1 drift". The val-improvability gate was the fix. A terser, decision-focused version of this writeup is in `hp_and_aug_speculations_30_05_2026.md` Q4.
 
 ### The problem, in plain English
 
@@ -804,38 +806,20 @@ Three properties matter:
 - **No clawback.** A fully-reverted class lands at exactly 1.0 (mean weight, trained normally, not abandoned). The freed budget goes only to the classes that weren't pulled, never back to the de-prioritised class through the renorm.
 - **Recoverable.** The revert ramps gradually and ramps back the moment a class sets a new val high, so a slow climber briefly mistaken for plateaued recovers on its own.
 
-### Why the patience and window defaults
+### Why the patience and window defaults landed where they did
 
-- **Patience is pinned by the slowest real climber.** cross_court clears the margin only every ~15-20 epochs, so patience has to sit above that or it gets decayed between its legitimate new highs. Default patience 15, margin 0.015, smoothing 0.9 (the same ~6.6-epoch half-life as the F1 EMA in §3).
-- **Don't gate too early.** No decay before epoch 10, so the early adaptive boost that gets the rare classes off the ground is left intact. Enforced to be at least the focal warm-up.
-- **Freeze in the anneal tail.** The arc analysis found the last stretch of training does real work for exactly the worst classes: as the cosine LR goes to 0, defensive_return_drive and wrist_smash gain +0.05-0.06 in the final ~12 epochs on shuttleset_18. So the gate freezes past 0.75 of the run rather than the run being cut, leaving those late blooms alone. Revert step 0.2 (a tripped class fully reverts over 5 epochs).
+- **Patience was pinned by the slowest real climber.** cross_court cleared the margin only every ~15-20 epochs, so patience had to sit above that or it would be decayed between its legitimate new highs. Landed at patience 15, margin 0.015, smoothing 0.9 (the same ~6.6-epoch half-life as the F1 EMA in §3).
+- **The gate held off early.** No decay before epoch 10, so the early adaptive boost that got the rare classes off the ground was left intact. Enforced to be at least the focal warm-up.
+- **Frozen in the anneal tail.** The arc analysis found the last stretch of training did real work for exactly the worst classes: as the cosine LR went to 0, defensive_return_drive and wrist_smash gained +0.05-0.06 in the final ~12 epochs on shuttleset_18. So the gate froze past 0.75 of the run rather than the run being cut, leaving those late blooms alone. Revert step 0.2 (a tripped class fully reverted over 5 epochs).
 
 ### Methodology note
 
 This drives a training hyperparameter (the per-class multiplier) off a val statistic, the same family as ReduceLROnPlateau (LR off val loss) and early stopping (halt off val). It's also closer to CDB's *original* difficulty signal: the published CDB used held-out accuracy, and §1's swap to train F1 is what introduced the gap-blindness this gate corrects. It is not training on val labels, and test stays held out, so the reported number stays honest; the one real cost is that val becomes a slightly less independent early-stopping signal. Disclose the val-gating in any writeup.
 
-### Config and turning it on
+### Honest ceiling (deprecated feature note)
 
-Off by default. The knobs live in a `val_improvability_gate` dict in the `Hyp` block, visible even when disabled:
-
-```
-use_val_improvability_gate=False,
-val_improvability_gate={
-    'val_f1_smoothing_factor': 0.9,
-    'improvement_margin': 0.015,
-    'patience_epochs': 15,
-    'min_epochs_before_gating': 10,
-    'revert_step_per_epoch': 0.2,
-    'stop_gating_after_fraction': 0.75,
-}
-```
-
-Turn it on with `use_val_improvability_gate=True`, `--val-improvability-gate` on the bst_x_train CLI, or `use_val_improvability_gate: true` on a `collation_runner` cell. It requires adaptive_focal (it modulates that alpha; bst_x_train raises if the gate is on with plain CE). TensorBoard logs `Revert/{c}` per class so the gate's action is visible, and `Alpha/{c}` shows the gated multiplier.
-
-### Honest ceiling
-
-Even a perfect gate buys a point or two of macro. The classes it feeds (the still-climbing mid-tier) are themselves mostly half-plateaued, driven_flight stays at 0 (42 clips, unrecoverable by reweighting), and wrist_smash stays confusable. The levers that move those are the inputs (the planned X3D wrist crop) and the taxonomy merge, not a loss knob. The gate tidies the budget around that ceiling; it doesn't lift it.
+The gate topped out at a point or two of macro. The classes it fed (the still-climbing mid-tier) were themselves mostly half-plateaued, driven_flight stayed at 0 (42 clips, unrecoverable by reweighting), and wrist_smash stayed confusable. The levers that move those are the inputs (the planned X3D wrist crop) and the taxonomy merge, not a loss knob. The macro ceiling analysis above still holds independently of the gate; that's why the gate was retired without changing the overall trajectory.
 
 ### Status
 
-Built 2026-05-31 (`apply_val_gate` in this module plus the wiring in `bst_x_train.py` and the `collation_runner` forward). Off by default, not yet run. Unit tests in `tests/test_adaptive_focal.py` section 9; two independent reviews passed. Full analysis, tables and figures in `docs/architecture_notes/alpha_arc_analysis/`.
+Built 2026-05-31, retired 2026-06-02, ripped from the tree 2026-07-01. Reversal path: `focal_alpha_revert_sketch.md`. Retirement writeup: `bst_x_sweep_summary_wd_x_focal_alpha_revert.md`. Motivating arc analysis: `alpha_arc_analysis/`.
