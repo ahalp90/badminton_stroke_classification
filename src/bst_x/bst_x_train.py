@@ -108,10 +108,12 @@ class Hyp(NamedTuple):
     # Full design + paper-verified equations: docs/architecture_notes/class_f1_focal_design.md.
     adaptive_focal: dict | None = {
         # First-run sweet spot from run_20260501_164658: tau=1, gamma=1.
-        # All four CDB knob variants (gamma=0, tau=0.5, pair-cap, gamma=2)
-        # traded wrist_smash back for smash without macro moving, so this
-        # combo holds the floor-lift sweet spot (+8.7 pp wrist_smash on the
-        # LS=0.1 baseline). Active default for the capacity-bump runs.
+        # All four CDB knob variants tried that sweep (gamma=0, tau=0.5,
+        # pair-cap, gamma=2) traded wrist_smash back for smash without macro
+        # moving, so this combo holds the floor-lift sweet spot (+8.7 pp
+        # wrist_smash on the LS=0.1 baseline). The pair-cap variant has since
+        # been removed; see docs/architecture_notes/focal_alpha_revert_sketch.md.
+        # Active default for the capacity-bump runs.
         'tau': 1.0,
         'gamma': 1.0,
         'momentum': 0.9,
@@ -362,7 +364,7 @@ def _build_loss_fn(
     grad-clip behaviour aligned across cells). None = uniform.
 
     ``adaptive_focal``: class-F1-driven CDB-loss with optional focal
-    modulation. Replaces the static class_weights lever with an EMA-smoothed
+    modulation. Replaces the static class_weights knob with an EMA-smoothed
     per-class weight that re-prioritises classes whose train F1 stays low.
     Mutually exclusive with class_weights and forces label_smoothing=0 (LS
     softens targets, contaminating focal's per-sample hardness estimate).

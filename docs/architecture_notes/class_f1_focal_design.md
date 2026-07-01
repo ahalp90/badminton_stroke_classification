@@ -818,7 +818,7 @@ This drives a training hyperparameter (the per-class multiplier) off a val stati
 
 ### Honest ceiling (deprecated feature note)
 
-The gate topped out at a point or two of macro. The classes it fed (the still-climbing mid-tier) were themselves mostly half-plateaued, driven_flight stayed at 0 (42 clips, unrecoverable by reweighting), and wrist_smash stayed confusable. The levers that move those are the inputs (the planned X3D wrist crop) and the taxonomy merge, not a loss knob. The macro ceiling analysis above still holds independently of the gate; that's why the gate was retired without changing the overall trajectory.
+The gate topped out at a point or two of macro. The classes it fed (the still-climbing mid-tier) were themselves mostly half-plateaued, driven_flight stayed at 0 (42 clips, unrecoverable by reweighting), and wrist_smash stayed confusable. Those classes get moved by different inputs (the planned X3D wrist crop) or by the taxonomy merge; loss knobs won't shift them. The macro ceiling analysis above still holds independently of the gate; that's why the gate was retired without changing the overall trajectory.
 
 ### Status
 
