@@ -104,46 +104,21 @@ class Hyp(NamedTuple):
     #   adaptive_focal={
     #       'tau': 1.0, 'gamma': 1.0, 'momentum': 0.9,
     #       'warm_up_epochs': 5, 'f1_floor': 0.0,
-    #       # Optional pair-cap rules for known confusion pairs the scalar CDB
-    #       # signal can't model. Each rule enforces alpha[numer] >= ratio *
-    #       # alpha[denom] after the standard renormalisation, with the bump
-    #       # absorbed across the other (n - 2) classes so mean alpha stays 1.0.
-    #       'pair_caps': [
-    #           {'numer': 'smash', 'denom': 'wrist_smash', 'ratio': 0.7},
-    #       ],
     #   }
     # Full design + paper-verified equations: docs/architecture_notes/class_f1_focal_design.md.
     adaptive_focal: dict | None = {
         # First-run sweet spot from run_20260501_164658: tau=1, gamma=1.
-        # All four CDB knob variants (gamma=0, tau=0.5, pair-cap, gamma=2)
-        # traded wrist_smash back for smash without macro moving, so this
-        # combo holds the floor-lift sweet spot (+8.7 pp wrist_smash on the
-        # LS=0.1 baseline). Active default for the capacity-bump runs.
+        # All four CDB knob variants tried that sweep (gamma=0, tau=0.5,
+        # pair-cap, gamma=2) traded wrist_smash back for smash without macro
+        # moving, so this combo holds the floor-lift sweet spot (+8.7 pp
+        # wrist_smash on the LS=0.1 baseline). The pair-cap variant has since
+        # been removed; see docs/architecture_notes/focal_alpha_revert_sketch.md.
+        # Active default for the capacity-bump runs.
         'tau': 1.0,
         'gamma': 1.0,
         'momentum': 0.9,
         'warm_up_epochs': 5,
         'f1_floor': 0.0,
-    }
-    # Val-improvability gate over the adaptive-focal alpha. Off by default;
-    # flip on with use_val_improvability_gate=True or --val-improvability-gate.
-    # Once a class stops improving on val it decays that class's alpha back
-    # toward the renorm mean of 1.0, freeing the over-allocated budget for
-    # classes still climbing (the adaptive_focal alpha is driven by train F1,
-    # which keeps rising on plateaued classes via overfitting; this reads val to
-    # catch that). Requires adaptive_focal (it modulates that alpha). The dict
-    # stays visible here even when disabled so the knobs are easy to find/tune.
-    # Defaults are the ones derived in
-    # docs/architecture_notes/alpha_arc_analysis/ (macro plateaus ~e26-31,
-    # cross_court_net_shot needs a patience >= its ~15-epoch new-high interval).
-    use_val_improvability_gate: bool = False
-    val_improvability_gate: dict = {
-        'val_f1_smoothing_factor': 0.9,    # EMA retention on val F1 (~6.6-epoch half-life)
-        'improvement_margin': 0.015,       # smoothed val must beat its best by this to count
-        'patience_epochs': 15,             # epochs with no new high before decay starts
-        'min_epochs_before_gating': 10,    # no decay before this epoch (keep the early boost)
-        'revert_step_per_epoch': 0.2,      # fraction of the gap to the mean reverted per epoch
-        'stop_gating_after_fraction': 0.75,  # freeze past 0.75*n_epochs (protect anneal blooms)
     }
     # Train-time augmentations. Replaces the inherited (broken) joints-only
     # RandomTranslation_batch. Flip is the literature-norm dataset-doubler;
@@ -371,9 +346,8 @@ def _build_loss_fn(
     """Resolve hyp's three loss branches (CE / class-weighted CE / adaptive-focal)
     into a single ``loss_fn`` instance.
 
-    Owns the three fail-loud guards: ``use_val_improvability_gate`` needs
-    ``adaptive_focal``; ``adaptive_focal`` is mutually exclusive with
-    ``class_weights``; ``adaptive_focal`` requires ``label_smoothing=0.0``.
+    Owns the two fail-loud guards: ``adaptive_focal`` is mutually exclusive
+    with ``class_weights``; ``adaptive_focal`` requires ``label_smoothing=0.0``.
     All read the module-global ``hyp`` to mirror the pre-B7 shape (the rest of
     ``train_network`` does the same).
 
@@ -390,20 +364,11 @@ def _build_loss_fn(
     grad-clip behaviour aligned across cells). None = uniform.
 
     ``adaptive_focal``: class-F1-driven CDB-loss with optional focal
-    modulation. Replaces the static class_weights lever with an EMA-smoothed
+    modulation. Replaces the static class_weights knob with an EMA-smoothed
     per-class weight that re-prioritises classes whose train F1 stays low.
     Mutually exclusive with class_weights and forces label_smoothing=0 (LS
-    softens targets, contaminating focal's per-sample hardness estimate). The
-    val-improvability gate modulates the adaptive-focal alpha, so it can only
-    run when adaptive_focal is engaged. Fail loud rather than silently ignoring
-    the flag (the gate config would otherwise be dropped on the floor).
+    softens targets, contaminating focal's per-sample hardness estimate).
     """
-    if hyp.use_val_improvability_gate and hyp.adaptive_focal is None:
-        raise ValueError(
-            'use_val_improvability_gate=True requires adaptive_focal (the gate '
-            'decays the adaptive-focal alpha; with plain CE there is no alpha to '
-            'modulate). Set adaptive_focal to a config dict or disable the gate.'
-        )
     if hyp.adaptive_focal is not None:
         if hyp.class_weights:
             raise ValueError(
@@ -426,44 +391,15 @@ def _build_loss_fn(
             momentum=af_cfg.get('momentum', 0.9),
             warm_up_epochs=af_cfg.get('warm_up_epochs', 5),
             f1_floor=af_cfg.get('f1_floor', 0.0),
-            pair_caps=af_cfg.get('pair_caps'),
-            # Gate config only when the flag is on; None leaves the gate off.
-            # n_epochs lets the gate resolve stop_gating_after_fraction.
-            val_improvability_gate=(
-                hyp.val_improvability_gate if hyp.use_val_improvability_gate else None
-            ),
-            n_epochs=hyp.n_epochs,
             device=device,
-        )
-        # Print resolved pair_caps as triples (rather than the dict spec) so the
-        # log shows the index lookup succeeded against the active class list.
-        pair_cap_str = (
-            ', '.join(
-                f'{class_ls[n]}/{class_ls[d]}>={r:.2f}'
-                for n, d, r in loss_fn.pair_caps
-            )
-            if loss_fn.pair_caps else 'none'
         )
         print(
             f"[loss] adaptive focal (CDB-F1): "
             f"tau={loss_fn.tau}, gamma={loss_fn.gamma}, "
             f"momentum={loss_fn.momentum}, "
             f"warm_up_epochs={loss_fn.warm_up_epochs}, "
-            f"f1_floor={loss_fn.f1_floor}, "
-            f"pair_caps=[{pair_cap_str}]"
+            f"f1_floor={loss_fn.f1_floor}"
         )
-        if loss_fn.val_gate_enabled:
-            print(
-                f"[loss] val-improvability gate ON: "
-                f"smoothing={loss_fn.gate_val_f1_smoothing_factor}, "
-                f"margin={loss_fn.gate_improvement_margin}, "
-                f"patience={loss_fn.gate_patience_epochs}, "
-                f"min_epochs_before_gating={loss_fn.gate_min_epochs_before_gating}, "
-                f"revert_step={loss_fn.gate_revert_step_per_epoch}, "
-                f"freeze_epoch={loss_fn.gate_freeze_epoch} "
-                f"(gating window epochs "
-                f"{loss_fn.gate_min_epochs_before_gating + 1}-{loss_fn.gate_freeze_epoch - 1})"
-            )
         return loss_fn
     if hyp.class_weights:
         weights = torch.ones(n_classes, device=device)
@@ -637,12 +573,6 @@ def train_network(
             device=device,
             n_classes=n_classes,
         )
-        # Val-improvability gate: decay plateaued classes' alpha toward the mean
-        # using this epoch's val F1. Must run after validate (needs the val F1)
-        # and after update_alpha above (which refreshed the base alpha from train
-        # F1); the gated alpha then drives next epoch's training. No-op when off.
-        if isinstance(loss_fn, AdaptiveFocalLoss) and loss_fn.val_gate_enabled:
-            loss_fn.apply_val_gate(f1_per_class, present)
         t1 = time.time()
         print(f'Epoch({epoch}/{hyp.n_epochs}): train_loss={train_loss:.3f}, '
               f'val_loss={val_loss:.3f}, macro_f1={f1_score_avg:.3f}, min_f1={f1_score_min:.3f} '
@@ -702,12 +632,6 @@ def train_network(
                 writer.add_scalar(f'F1_val/{c}', f1_per_class[i].item(), epoch)
             if isinstance(loss_fn, AdaptiveFocalLoss):
                 writer.add_scalar(f'Alpha/{c}', loss_fn.alpha[i].item(), epoch)
-                # Per-class revert fraction (0 = full adaptive alpha, 1 = pulled
-                # all the way to the renorm mean) so the gate's action is visible.
-                if loss_fn.val_gate_enabled:
-                    writer.add_scalar(
-                        f'Revert/{c}', loss_fn.gate_revert_fraction[i].item(), epoch
-                    )
 
         curr_macro, curr_min = f1_score_avg.item(), f1_score_min.item()
 
@@ -1184,14 +1108,6 @@ if __name__ == '__main__':
     # default. Absent leaves the module default (0.01). Applies to the decay
     # param group only; the no-decay group stays at 0.0 regardless.
     parser.add_argument('--weight-decay', type=float, default=None)
-    # Enable/disable the val-improvability alpha gate, overriding the Hyp default.
-    # --val-improvability-gate turns it on, --no-val-improvability-gate off;
-    # absent leaves the module default (off). Requires adaptive_focal.
-    parser.add_argument(
-        '--val-improvability-gate',
-        action=argparse.BooleanOptionalAction,
-        default=None,
-    )
     # Testing-only n_epochs override (e.g. --serial-no 1 short-run bit-exacts
     # that don't want the full 80-epoch default). Not piped through
     # hparam_sweep; for production sweeps, edit Hyp.n_epochs directly.
@@ -1242,8 +1158,6 @@ if __name__ == '__main__':
         cell_overrides['collation_id'] = args.collation_id
     if args.ablation_id is not None:
         cell_overrides['ablation_id'] = args.ablation_id
-    if args.val_improvability_gate is not None:
-        cell_overrides['use_val_improvability_gate'] = args.val_improvability_gate
     if args.weight_decay is not None:
         cell_overrides['weight_decay'] = args.weight_decay
     if args.n_epochs is not None:
