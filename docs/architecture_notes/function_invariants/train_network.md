@@ -4,6 +4,15 @@
 > the simplification-pass commits between then and `18e5c2c` shifted line
 > numbers. The invariants below are the durable content; re-verify line refs
 > before relying on them._
+>
+> _2026-07-01 update: the val-improvability-gate wiring named throughout this
+> doc (`apply_val_gate`, `use_val_improvability_gate`, `val_improvability_gate`,
+> `pair_caps`, `Revert/{c}`) was removed from `AdaptiveFocalLoss` and
+> `bst_x_train.py` in the `remove-adaptive-focal-extensions` rip, merged into
+> main at `39e72a5`. The per-epoch ordering and structural invariants below
+> still hold for the base CDB-F1 loss surface; treat any extension-method
+> references as historical. Reversal path:
+> `docs/architecture_notes/focal_alpha_revert_sketch.md`._
 
 Maps the invariants a naive split of `train_network` (`src/bst_x/bst_x_train.py`)
 would silently break. This is the reviewable map; any implementer re-verifies

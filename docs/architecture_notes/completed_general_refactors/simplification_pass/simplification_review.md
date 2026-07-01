@@ -63,6 +63,10 @@ seeding / continue / best-update branching that doesn't vectorise cleanly, and
 `n_classes` is ~14-25. Leave it. Comments here are load-bearing maths
 rationale.
 
+_(2026-07-01: `apply_val_gate` was subsequently removed with the
+`remove-adaptive-focal-extensions` rip, merged at `39e72a5`. This note is
+retained as a historical snapshot of the simplification review's coverage.)_
+
 ### `bst_x_train.py`
 
 - **Applied**: `validate()` reuse of `accumulate_class_counts`. The hand-rolled
