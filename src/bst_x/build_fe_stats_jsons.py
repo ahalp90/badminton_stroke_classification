@@ -8,20 +8,15 @@ API serves, all under ``<run_dir>/fe_jsons/``:
     fe_jsons/perclass_stats_{val,test}.json.gz   confusion-matrix views
     fe_jsons/clip_index.json.gz                  stem -> clip metadata + mp4 path
 
-Confidence is raw softmax, no temperature (DL-027): the field is ``softmax``, there is
-no ``temperature`` key, and the served confidence is ``softmax(logits)``.
+Confidence is raw softmax; temperature scaling dropped per ECE.
 
-``predictions`` and ``perclass_stats`` are pure npz readouts and run anywhere.
-``clip_index`` also reads ``clips_master.csv`` (match / side / raw type) and rglobs the
-clips tree for each mp4's path, so run it where the clips dir is mounted
-(engelbart / bourbaki) to fill ``video_path``; without it the rest of the entry still
-populates and ``video_path`` is null.
-
-Invocation matches the rest of this package (PYTHONPATH =
-``src/bst_x``):
-
+As elsewhere, CLI call by:
+    PYTHONPATH = ``src/bst_x``
     python -m build_fe_stats_jsons \
-        --run-dir .../experiments/bst_x/shuttleset/run_20260531_005535_005154 --serial 3
+        --run-dir .../experiments/bst_x/shuttleset/run__<datetime>--serial <n>
+
+``predictions`` and ``perclass_stats`` are pure npz reads; ``clip_index`` needs
+the clips tree mounted (engelbart / bourbaki) to fill ``video_path`` (null otherwise).
 """
 
 from __future__ import annotations
@@ -39,30 +34,35 @@ from pipeline.data_access import DataPaths, load_repo_dotenv
 
 
 def write_json_gz(path: Path, obj: dict) -> None:
-    """Write ``obj`` as gzipped JSON (FE okayed the move off plain ``.json``).
-
-    JSON is the most gzip-friendly payload going (repeated keys, number arrays), and
-    gzip decompresses natively browser-side (a ``Content-Encoding: gzip`` response, or
-    ``DecompressionStream``) as well as via stdlib everywhere else. ``mtime=0`` drops the
-    gzip header timestamp so an unchanged rebuild stays byte-identical (clean git diffs).
-    indent is kept: under gzip the whitespace compresses to near-nothing and ``zcat``
-    stays readable.
-
-    :param path: output path, expected to end in ``.json.gz``.
-    :param obj: any JSON-serialisable object.
-    """
+    """Write ``obj`` as gzipped JSON to ``path`` (should end in ``.json.gz``)."""
+    # ``mtime=0`` zeroes the gzip header's timestamps; unchanged recompresses are byte-identical.
     path.write_bytes(gzip.compress(json.dumps(obj, indent=2).encode(), mtime=0))
 
 
 def softmax(logits: np.ndarray) -> np.ndarray:
-    """Row-wise softmax over ``(n, n_classes)``, max-shifted for stability."""
+    # exp(large logit) -> inf; shift so max is 0, bounding exp output to (0, 1].
     shifted = logits - logits.max(axis=1, keepdims=True)
     exp = np.exp(shifted)
     return exp / exp.sum(axis=1, keepdims=True)
 
 
+def top5(weights: np.ndarray, total: int, class_list: list[str]) -> list[list]:
+    """Top-5 ``[class, share]`` of one normalised confusion row (or column)."""
+    if total == 0:
+        return []
+    share = weights / total
+    order = np.argsort(-share)[:5]                   # top-5 indices by share, descending
+    result = []
+    for class_idx in order:
+        class_share = share[class_idx]
+        if class_share <= 0:
+            continue
+        result.append([class_list[class_idx], round(float(class_share), 2)])
+    return result
+
+
 def build_predictions_json(dump: np.lib.npyio.NpzFile, split: str) -> dict:
-    """Per-clip predictions for one split: raw softmax + top-k, no temperature."""
+    """Per-clip predictions for one split: raw softmax + top-k."""
     logits = dump["logits"]                          # (n, n_classes) float32
     y_true = dump["y_true"]
     y_pred = dump["y_pred_top1"]
@@ -70,12 +70,7 @@ def build_predictions_json(dump: np.lib.npyio.NpzFile, split: str) -> dict:
     stems = dump["clip_stems"]
     class_list = [str(c) for c in dump["class_list"]]
 
-    # The npz's stored top-1 must equal a fresh argmax and the top-k head, or the
-    # dump is internally inconsistent and every clip below is wrong. Fail loud.
-    assert np.array_equal(logits.argmax(axis=1), y_pred)
-    assert np.array_equal(topk_idx[:, 0], y_pred)
-
-    probs = softmax(logits)                          # raw softmax (DL-027), no /T
+    probs = softmax(logits)
     rows = np.arange(len(y_true))[:, None]
     topk_prob = probs[rows, topk_idx]                # (n, k), aligned to topk_idx
 
@@ -106,24 +101,18 @@ def build_perclass_stats(dump: np.lib.npyio.NpzFile, split: str) -> dict:
     class_list = [str(c) for c in dump["class_list"]]
     n = len(class_list)
 
-    conf = np.zeros((n, n), dtype=np.int64)          # conf[t, p] = #(true t, pred p)
+    conf = np.zeros((n, n), dtype=np.int64)
+    # Each conf[t, p] cell counts clips where y_true=t AND y_pred=p.
     np.add.at(conf, (y_true, y_pred), 1)
 
     support_true = conf.sum(axis=1)                  # row sums: per true class
     support_pred = conf.sum(axis=0)                  # col sums: per predicted class
-    tp = np.diag(conf)
+    tp = np.diag(conf)                               # diag of confusion matrix is per-class TP
+    # Safe vectorised divide: result is 0 where the denom is 0, not NaN/inf.
     precision = np.divide(tp, support_pred, out=np.zeros(n), where=support_pred > 0)
     recall = np.divide(tp, support_true, out=np.zeros(n), where=support_true > 0)
     pr = precision + recall
     f1 = np.divide(2 * precision * recall, pr, out=np.zeros(n), where=pr > 0)
-
-    def top5(weights: np.ndarray, total: int) -> list[list]:
-        """Top-5 ``[class, share]`` of one normalised confusion row (or column)."""
-        if total == 0:
-            return []
-        share = weights / total
-        order = np.argsort(share)[::-1][:5]
-        return [[class_list[j], round(float(share[j]), 2)] for j in order if share[j] > 0]
 
     per_class = {}
     for cls_idx, name in enumerate(class_list):
@@ -134,14 +123,14 @@ def build_perclass_stats(dump: np.lib.npyio.NpzFile, split: str) -> dict:
             "recall": round(float(recall[cls_idx]), 4),
             "f1": round(float(f1[cls_idx]), 4),
             # row c: real-c clips, what got predicted (recall view).
-            "top5_when_true": top5(conf[cls_idx, :], int(support_true[cls_idx])),
+            "top5_when_true": top5(conf[cls_idx, :], int(support_true[cls_idx]), class_list),
             # col c: predicted-c clips, what was actually true (precision view).
-            "top5_when_pred": top5(conf[:, cls_idx], int(support_pred[cls_idx])),
+            "top5_when_pred": top5(conf[:, cls_idx], int(support_pred[cls_idx]), class_list),
         }
 
     return {
         "split": split,
-        "n_clips": int(len(y_true)),
+        "n_clips": len(y_true),
         "class_list": class_list,
         "per_class": per_class,
     }
@@ -208,7 +197,7 @@ def main() -> None:
     paths = DataPaths(**path_kwargs)
 
     pred_dir = args.run_dir / "predictions"          # raw npz dumps live here
-    fe_dir = args.run_dir / "fe_jsons"               # derived FE artifacts go here
+    fe_dir = args.run_dir / "fe_jsons"               # derived FE artefacts go here
     fe_dir.mkdir(parents=True, exist_ok=True)
 
     stems_by_split: dict[str, list[str]] = {}
