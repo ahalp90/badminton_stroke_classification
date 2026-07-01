@@ -13,6 +13,8 @@ The two share the renorm contract (mean alpha = 1.0) at the seam and arrive toge
 - To pull a file's state at re-wire time: `git show 1104562:src/bst_x/loss/adaptive_focal.py` (etc.).
 - When the doc and the working tree disagree on a line number, the verbatim section is the source of truth.
 
+**Removed:** 2026-07-01. The extension wiring, tests, config forwarding, and live-wiring docs came out across Batches 1-6 of the `remove-adaptive-focal-extensions` branch. Final code-removal commit: `914e60c` (adaptive_focal.py extensions). The merge-into-main SHA will be pinned here after the branch merges.
+
 ## Contents
 - [What each mechanism does](#what-each-mechanism-does)
 - [Re-wire checklist](#re-wire-checklist)
