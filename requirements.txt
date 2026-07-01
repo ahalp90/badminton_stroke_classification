@@ -1,29 +1,41 @@
-# --- ML & Data ---
-torch
-torchvision
-numpy
-pandas
-matplotlib
-scikit-learn
-opencv-python         # cv2; used by perception/video_io.py and tests/test_video_io.py
-ultralytics           # YOLO11 + ByteTrack; perception/players.py + scripts/preprocess_videos.py
-positional-encodings  # Positional encoding layers used by BST-X transformer model (bst_x/model/)
-torchinfo             # Model summary utility used by tempose.py in the BST-X model module
-tensorboard           # Backs torch.utils.tensorboard.SummaryWriter (imported at module load in bst_x_train.py)
-torcheval             # multiclass_f1_score used in the bst_x_train training loop
-transformers          # HuggingFace; provides get_cosine_schedule_with_warmup for the bst_x_train LR schedule
-pyyaml                # tests/test_active_classes.py reads taxonomy YAMLs
-parse                 # TrackNetV3 vendor dep (src/bric/perception/_vendor/tracknetv3)
+# Pinned dependency set for CI and the Docker image (single source of truth: uv.lock).
+#
+# Pins are taken from the uv lockfile so CI tests *exactly* what the Docker image
+# ships. After changing deps in pyproject.toml (and `uv lock`), update them with:
+#   ./scripts/gen-requirements.sh --check     # reports any pin that drifted from uv.lock
+# then bump the versions below to match. See docs/ci.md.
+#
+# torch / torchvision are intentionally LEFT UNPINNED here. Both CI and the
+# Dockerfile install them FIRST from an explicit PyTorch index (CPU by default,
+# cu128 for the prod GPU box) before this file is applied, so pip sees them
+# already satisfied and skips them. Pinning them here would fight that step --
+# the lockfile resolves torch to a `+cu128` build on Linux. See Dockerfile.
 
+# --- ML & Data ---
+torch                 # installed via explicit --index-url before this file (see Dockerfile); unpinned on purpose
+torchvision           # ditto
+numpy==2.4.4
+pandas==2.3.3
+matplotlib==3.10.9
+scikit-learn==1.8.0
+opencv-python==4.13.0.92     # cv2; used by perception/video_io.py and tests/test_video_io.py
+ultralytics==8.4.50          # YOLO11 + ByteTrack; perception/players.py + scripts/preprocess_videos.py
+positional-encodings==6.0.3  # Positional encoding layers used by BST-X transformer model (bst_x/model/)
+torchinfo==1.8.0             # Model summary utility used by tempose.py in the BST-X model module
+tensorboard==2.20.0          # Backs torch.utils.tensorboard.SummaryWriter (imported at module load in bst_x_train.py)
+torcheval==0.0.7             # multiclass_f1_score used in the bst_x_train training loop
+transformers==5.8.1          # HuggingFace; provides get_cosine_schedule_with_warmup for the bst_x_train LR schedule
+pyyaml==6.0.3                # tests/test_active_classes.py reads taxonomy YAMLs
+parse==1.22.0                # TrackNetV3 vendor dep (src/bric/perception/_vendor/tracknetv3)
 
 # --- Backend API ---
-fastapi
-uvicorn  # The server that runs FastAPI
-python-multipart  # Required for file upload endpoints
+fastapi==0.136.1
+uvicorn==0.46.0              # The server that runs FastAPI
+python-multipart==0.0.28     # Required for file upload endpoints
 
 # --- Testing & Infrastructure ---
-pytest
-httpx  # Required by FastAPI TestClient
+pytest==9.0.3
+httpx==0.28.1                # Required by FastAPI TestClient
 
 # bst_x subproject has complex dependencies; so requires 2-3 separate venvs depending on how you run it.
-# req Python 3.11.x. Probably 3.11.15 should be fine (to test soon).
+# Requires Python 3.11.x.

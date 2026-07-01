@@ -1,0 +1,92 @@
+name: PR quality
+
+# PR-scoped gates. commit-lint + pr-body block; advisory is an AI review that is
+# dormant without a GEMINI_API_KEY and never blocks. See docs/ci.md.
+on:
+  pull_request:
+    # `edited` re-runs pr-body when the PR description is filled in / fixed.
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  commit-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # need the base branch to diff the PR's commit range
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install gitlint
+        run: pip install gitlint==0.19.1
+      - name: Lint commit messages in this PR
+        run: gitlint --commits "origin/${{ github.base_ref }}..HEAD"
+
+  pr-body:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require filled-in PR description sections
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const REQUIRED = ['What', 'Why', 'Testing'];
+            const raw = context.payload.pull_request.body || '';
+            // Strip HTML comments (template guidance/placeholders) before checking.
+            const body = raw.replace(/<!--[\s\S]*?-->/g, '');
+
+            const sections = {};
+            let current = null;
+            for (const line of body.split(/\r?\n/)) {
+              const m = line.match(/^\s*#{1,6}\s+(.+?)\s*$/);
+              if (m) { current = m[1].toLowerCase(); sections[current] = ''; }
+              else if (current) { sections[current] += line + '\n'; }
+            }
+
+            const missing = REQUIRED.filter(n => !(sections[n.toLowerCase()] || '').trim());
+            if (missing.length) {
+              core.setFailed(
+                `PR description is missing or has empty section(s): ${missing.join(', ')}. ` +
+                `Fill in every "## ${REQUIRED.join('", "## ')}" section ` +
+                `(template: .github/pull_request_template.md).`
+              );
+            } else {
+              core.info('PR description has all required sections. 👍');
+            }
+
+  advisory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write   # post/update the advisory comment
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}   # dormant unless set
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}           # optional model override
+    steps:
+      - name: Dormant notice (no key configured)
+        if: ${{ env.GEMINI_API_KEY == '' }}
+        run: echo "GEMINI_API_KEY not set -- AI advisory is dormant (this is fine). See docs/ci.md to enable it for free."
+
+      - uses: actions/checkout@v7
+        if: ${{ env.GEMINI_API_KEY != '' }}
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        if: ${{ env.GEMINI_API_KEY != '' }}
+        with:
+          python-version: "3.11"
+      # Script never exits non-zero: rate-limit/outage/bad-model -> ::warning::, not a failure.
+      - name: AI advisory review (non-blocking)
+        if: ${{ env.GEMINI_API_KEY != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/pr_advisory.py

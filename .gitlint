@@ -1,0 +1,22 @@
+# Commit-message rules, enforced by the `commit-lint` job in
+# .github/workflows/pr-quality.yml and (optionally) locally via pre-commit.
+# Docs: https://jorisroovers.com/gitlint/latest/configuration/
+#
+# Goal: messages that a human can read and understand later. These are
+# deliberately lenient -- structure and length only, no opinionated format.
+
+[general]
+# Don't force a body on small commits -- structure/length only.
+ignore=body-is-missing
+
+[title-max-length]
+line-length=72
+
+[title-min-length]
+min-length=10
+
+[title-must-not-contain-word]
+# Reject low-signal placeholder subjects.
+words=wip,fixup,asdf,test123,stuff,temp
+[body-max-line-length]
+line-length=100

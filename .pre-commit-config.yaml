@@ -1,0 +1,20 @@
+# Optional local hooks for fast feedback before you push -- the CI checks in
+# .github/workflows/ are the real gate. Opt in once with:
+#   uv tool install pre-commit   # or: pipx install pre-commit
+#   pre-commit install --hook-type commit-msg --hook-type pre-commit
+#
+# Then each commit is checked locally with the SAME rules CI enforces, so you
+# don't discover a commit-message problem only after pushing.
+repos:
+  # Commit-message linting -- uses the repo's .gitlint config.
+  - repo: https://github.com/jorisroovers/gitlint
+    rev: v0.19.1
+    hooks:
+      - id: gitlint
+
+  # Match CI's pinned ruff so local lint == CI lint.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.12
+    hooks:
+      - id: ruff
+        args: [--fix]
