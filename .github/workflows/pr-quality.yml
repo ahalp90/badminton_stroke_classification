@@ -62,6 +62,27 @@ jobs:
               core.info('PR description has all required sections. 👍');
             }
 
+  main-files:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write   # edit the PR body to insert the file list
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # need base + head to diff the PR range
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      # Deterministic, stdlib-only. Inserts/refreshes a short "Main files changed"
+      # block (top files by churn). Idempotent: a no-op edit is skipped, so it
+      # doesn't retrigger this `edited`-listening workflow. Never blocks.
+      - name: Add "Main files changed" to the PR body
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/pr_main_files.py
+
   advisory:
     runs-on: ubuntu-latest
     timeout-minutes: 10

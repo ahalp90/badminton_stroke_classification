@@ -12,7 +12,18 @@ is removed) · `docker-build` (builds the images, no push).
 
 **`pr-quality.yml`** (PRs):
 `commit-lint` (gitlint, rules in `.gitlint`) · `pr-body` (needs **What / Why /
-Testing** sections) · `advisory` (AI review, never blocks).
+Testing** sections) · `main-files` (deterministic; inserts a short **Main files
+changed** block into the PR body) · `advisory` (AI review, never blocks).
+
+`main-files` (`scripts/pr_main_files.py`) lists the most-impactful changed files
+(up to 8), ranked by churn × path relevance (`src/`, `training/` outrank config;
+the `data/` `experiments/` `notebooks/` trees score 0 and never show), skipping
+trivial (<3-line) and noise files (lockfiles, generated/minified, binary + model
+blobs). Knobs are constants at the top of the script. It edits the PR body
+between `<!-- main-files-start/end -->` markers
+and only PATCHes when the block actually changes, so its own edit can't retrigger
+the `edited` run. No key needed; on fork PRs the token is read-only so it no-ops.
+Don't mark it required (it edits, doesn't gate).
 
 ## Enable the AI advisory (optional, free)
 
