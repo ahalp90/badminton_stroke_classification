@@ -13,6 +13,9 @@ name: PR quality
 # merge. See docs/ci.md.
 on:
   pull_request:
+    # `edited` is included so filling in / fixing the PR description re-runs the
+    # pr-body check (the default set is opened/synchronize/reopened only).
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
@@ -26,11 +29,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Need the base branch present locally to diff the PR's commit range.
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install gitlint
@@ -45,10 +48,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Require filled-in PR description sections
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
-            const REQUIRED = ['What', 'Why', 'How tested'];
+            const REQUIRED = ['What', 'Why', 'Testing'];
             const raw = context.payload.pull_request.body || '';
             // Drop HTML comments (the template's guidance/placeholders) before checking.
             const body = raw.replace(/<!--[\s\S]*?-->/g, '');
@@ -97,11 +100,11 @@ jobs:
         if: ${{ env.GEMINI_API_KEY == '' }}
         run: echo "GEMINI_API_KEY is not set -- AI advisory is dormant (this is fine). See docs/ci.md to enable it for free."
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: ${{ env.GEMINI_API_KEY != '' }}
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         if: ${{ env.GEMINI_API_KEY != '' }}
         with:
           python-version: "3.11"

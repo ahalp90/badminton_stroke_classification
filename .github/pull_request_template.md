@@ -10,5 +10,5 @@ language. Lines inside HTML comments like this one are ignored by the check.
 ## Why
 <!-- Why is this change needed? Link an issue if there is one. -->
 
-## How tested
+## Testing
 <!-- How did you check it works? Tests run, manual steps, screenshots, etc. -->

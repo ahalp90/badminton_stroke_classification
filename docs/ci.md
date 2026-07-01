@@ -29,7 +29,7 @@ would block PRs forever. So if the frontend is deleted later, the job logs
 | Job | What it does | Blocking? |
 |-----|--------------|-----------|
 | `commit-lint` | `gitlint` over the PR's commits (rules in `.gitlint`) | ✅ |
-| `pr-body` | checks the PR description has filled-in **What / Why / How tested** sections | ✅ |
+| `pr-body` | checks the PR description has filled-in **What / Why / Testing** sections | ✅ |
 | `advisory` | Gemini reads the commits + PR body + diffstat and comments on legibility/substance | ❌ never blocks |
 
 ## The AI advisory (free, optional, non-blocking)
