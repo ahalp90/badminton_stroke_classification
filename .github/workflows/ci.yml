@@ -1,49 +1,110 @@
-name: Run Tests
+name: CI
 
+# Runs on every PR, and on pushes to main. (A PR from a branch in this repo
+# triggers `pull_request` only -- `push` is scoped to main -- so PRs don't
+# run the whole suite twice.)
 on:
   push:
+    branches: [main]
   pull_request:
+
+# Least privilege: these jobs only need to read the repo.
+permissions:
+  contents: read
+
+# A newer push to the same ref cancels the older, still-running CI for it.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 10
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install ruff
-
+      # Pinned so a new ruff release can't introduce rules that fail CI on
+      # untouched code. Matches the ruff version in uv.lock.
+      - name: Install ruff
+        run: pip install ruff==0.15.12
       - name: Run linting
         run: ruff check .
 
   test:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 25
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
-
+          python-version: "3.11"
+          cache: pip
+      # Mirror the Dockerfile: install CPU torch from the explicit index first,
+      # then the pinned requirements (which leave torch/torchvision unpinned, so
+      # pip sees them already satisfied here and skips the multi-GB CUDA wheels).
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
-          pip install pytest
-
       - name: Run tests
         env:
           UPLOAD_DIR: /tmp/test_uploads
         run: |
           mkdir -p /tmp/test_uploads
           pytest
+
+  # Builds the frontend so a broken React/Vite app is caught in CI, not at
+  # deploy time. Deliberately self-skips (stays green) if frontend/ is removed,
+  # so deleting the frontend later never turns this job red. No `paths:` filter
+  # on purpose -- a path-filtered *required* check that never runs would block
+  # PRs forever; always-run-and-self-skip avoids that.
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect frontend
+        id: detect
+        run: |
+          if [ -f frontend/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No frontend/package.json -- skipping frontend build (this is fine)."
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.detect.outputs.present == 'true'
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install, lint and build
+        if: steps.detect.outputs.present == 'true'
+        working-directory: frontend
+        run: |
+          npm ci
+          # eslint is advisory for now -- report issues but don't fail the build.
+          npm run lint || echo "::warning title=frontend eslint::eslint reported issues (non-blocking)"
+          npm run build
+
+  # Smoke-test that the production Dockerfiles still build (no registry push).
+  # Catches Dockerfile/apt/torch-index breakage in a PR instead of on the
+  # server during a manual `docker compose up --build`.
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image (CPU torch, no push)
+        run: docker build --build-arg TORCH_INDEX=cpu -t badminton-backend:ci .
+      - name: Build frontend image (no push)
+        run: |
+          if [ -f frontend/Dockerfile ]; then
+            docker build -t badminton-frontend:ci ./frontend
+          else
+            echo "No frontend/Dockerfile -- skipping frontend image build (this is fine)."
+          fi

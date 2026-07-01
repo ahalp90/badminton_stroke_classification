@@ -1,0 +1,114 @@
+name: PR quality
+
+# Commit-message + PR-description quality gates. PR-scoped only.
+#
+#   commit-lint : gitlint over the PR's commits        (BLOCKING, deterministic)
+#   pr-body     : required PR description sections      (BLOCKING, deterministic)
+#   advisory    : Gemini reads commits + PR + diff and  (NON-BLOCKING, AI)
+#                 comments on legibility/substance.
+#
+# The advisory job is DORMANT until a GEMINI_API_KEY secret is added: with no
+# key it skips silently (no nagging). With a key, if the model is rate-limited
+# or unreachable it posts a ::warning:: and still passes -- it never blocks a
+# merge. See docs/ci.md.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  commit-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need the base branch present locally to diff the PR's commit range.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install gitlint
+        run: pip install gitlint==0.19.1
+      - name: Lint commit messages in this PR
+        # Lints every commit on the PR branch that isn't already on the base.
+        # Rules live in .gitlint at the repo root.
+        run: gitlint --commits "origin/${{ github.base_ref }}..HEAD"
+
+  pr-body:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require filled-in PR description sections
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const REQUIRED = ['What', 'Why', 'How tested'];
+            const raw = context.payload.pull_request.body || '';
+            // Drop HTML comments (the template's guidance/placeholders) before checking.
+            const body = raw.replace(/<!--[\s\S]*?-->/g, '');
+
+            // Map "## Heading" -> text under it (until the next heading).
+            const lines = body.split(/\r?\n/);
+            const sections = {};
+            let current = null;
+            for (const line of lines) {
+              const m = line.match(/^\s*#{1,6}\s+(.+?)\s*$/);
+              if (m) { current = m[1].toLowerCase(); sections[current] = ''; }
+              else if (current) { sections[current] += line + '\n'; }
+            }
+
+            const missing = [];
+            for (const name of REQUIRED) {
+              const content = (sections[name.toLowerCase()] || '').trim();
+              if (!content) missing.push(name);
+            }
+
+            if (missing.length) {
+              core.setFailed(
+                `PR description is missing or has empty section(s): ${missing.join(', ')}.\n` +
+                `Fill in every "## ${REQUIRED.join('", "## ')}" section so reviewers can ` +
+                `understand the change. (The template is in .github/pull_request_template.md.)`
+              );
+            } else {
+              core.info('PR description has all required sections filled in. 👍');
+            }
+
+  advisory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write   # to post/update the advisory comment
+    env:
+      # Dormant unless this secret is set. (Secrets are not exposed to PRs from
+      # forks, so the gate runs on same-repo branches only -- expected.)
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # Optional override, e.g. set repo variable GEMINI_MODEL to a current
+      # free-tier model if the default name ever changes. Falls back in the script.
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+    steps:
+      - name: Dormant notice (no key configured)
+        if: ${{ env.GEMINI_API_KEY == '' }}
+        run: echo "GEMINI_API_KEY is not set -- AI advisory is dormant (this is fine). See docs/ci.md to enable it for free."
+
+      - uses: actions/checkout@v4
+        if: ${{ env.GEMINI_API_KEY != '' }}
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        if: ${{ env.GEMINI_API_KEY != '' }}
+        with:
+          python-version: "3.11"
+      - name: AI advisory review (non-blocking)
+        if: ${{ env.GEMINI_API_KEY != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # The script never exits non-zero: a rate-limit / outage / bad model
+        # name becomes a ::warning:: annotation, not a failed check.
+        run: python scripts/pr_advisory.py
