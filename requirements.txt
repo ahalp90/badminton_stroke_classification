@@ -39,3 +39,6 @@ httpx==0.28.1                # Required by FastAPI TestClient
 
 # bst_x subproject has complex dependencies; so requires 2-3 separate venvs depending on how you run it.
 # Requires Python 3.11.x.
+
+jaxtyping
+beartype

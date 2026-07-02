@@ -384,15 +384,13 @@ def _build_loss_fn(
             )
         af_cfg = hyp.adaptive_focal
         loss_fn = AdaptiveFocalLoss(
-            n_classes=n_classes,
             class_names=class_ls,
             tau=af_cfg.get('tau', 1.0),
             gamma=af_cfg.get('gamma', 1.0),
             momentum=af_cfg.get('momentum', 0.9),
             warm_up_epochs=af_cfg.get('warm_up_epochs', 5),
             f1_floor=af_cfg.get('f1_floor', 0.0),
-            device=device,
-        )
+        ).to(device)
         print(
             f"[loss] adaptive focal (CDB-F1): "
             f"tau={loss_fn.tau}, gamma={loss_fn.gamma}, "

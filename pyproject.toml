@@ -49,6 +49,9 @@ dependencies = [
     "fastapi",
     "uvicorn",
     "python-multipart",
+    # Runtime type + shape enforcement for tensor-shape/dtype contracts.
+    "jaxtyping",
+    "beartype",
 ]
 
 [project.optional-dependencies]

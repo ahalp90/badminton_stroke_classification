@@ -71,27 +71,27 @@ def _reference_tp_fp_fn(
 # ---------------------------------------------------------------------------
 
 def test_f1_perfect_classifier():
-    tp = torch.tensor([10.0, 5.0, 8.0])
-    fp = torch.zeros(3)
-    fn = torch.zeros(3)
+    tp = torch.tensor([10, 5, 8], dtype=torch.int64)
+    fp = torch.zeros(3, dtype=torch.int64)
+    fn = torch.zeros(3, dtype=torch.int64)
     f1 = per_class_f1_from_counts(tp, fp, fn)
     assert torch.allclose(f1, torch.ones(3), atol=1e-6)
 
 
 def test_f1_no_predictions():
     """All FN, no TP / FP -> precision 0, recall 0, F1 0."""
-    tp = torch.zeros(3)
-    fp = torch.zeros(3)
-    fn = torch.tensor([10.0, 5.0, 8.0])
+    tp = torch.zeros(3, dtype=torch.int64)
+    fp = torch.zeros(3, dtype=torch.int64)
+    fn = torch.tensor([10, 5, 8], dtype=torch.int64)
     f1 = per_class_f1_from_counts(tp, fp, fn)
     assert torch.allclose(f1, torch.zeros(3), atol=1e-6)
 
 
 def test_f1_only_false_positives():
     """All FP, no TP / FN -> precision 0, recall 0, F1 0."""
-    tp = torch.zeros(3)
-    fp = torch.tensor([5.0, 3.0, 2.0])
-    fn = torch.zeros(3)
+    tp = torch.zeros(3, dtype=torch.int64)
+    fp = torch.tensor([5, 3, 2], dtype=torch.int64)
+    fn = torch.zeros(3, dtype=torch.int64)
     f1 = per_class_f1_from_counts(tp, fp, fn)
     assert torch.allclose(f1, torch.zeros(3), atol=1e-6)
 
@@ -101,18 +101,18 @@ def test_f1_known_mix():
 
     precision = 8/10 = 0.8, recall = 8/10 = 0.8, F1 = 2*0.64/1.6 = 0.8.
     """
-    tp = torch.tensor([8.0])
-    fp = torch.tensor([2.0])
-    fn = torch.tensor([2.0])
+    tp = torch.tensor([8], dtype=torch.int64)
+    fp = torch.tensor([2], dtype=torch.int64)
+    fn = torch.tensor([2], dtype=torch.int64)
     f1 = per_class_f1_from_counts(tp, fp, fn)
     assert torch.allclose(f1, torch.tensor([0.8]), atol=1e-4)
 
 
 def test_f1_empty_counters_no_nan():
     """Class with no TP, FP, FN must yield 0, not NaN (eps guard)."""
-    tp = torch.zeros(3)
-    fp = torch.zeros(3)
-    fn = torch.zeros(3)
+    tp = torch.zeros(3, dtype=torch.int64)
+    fp = torch.zeros(3, dtype=torch.int64)
+    fn = torch.zeros(3, dtype=torch.int64)
     f1 = per_class_f1_from_counts(tp, fp, fn)
     assert torch.isfinite(f1).all()
     assert torch.allclose(f1, torch.zeros(3), atol=1e-6)
@@ -208,7 +208,7 @@ def test_accumulate_stress_large_n_classes():
 # ---------------------------------------------------------------------------
 
 def test_forward_returns_scalar(class_names_3):
-    loss_fn = AdaptiveFocalLoss(n_classes=3, class_names=class_names_3)
+    loss_fn = AdaptiveFocalLoss(class_names=class_names_3)
     logits = torch.randn(4, 3)
     labels = torch.tensor([0, 1, 2, 1])
     loss = loss_fn(logits, labels)
@@ -219,7 +219,7 @@ def test_forward_returns_scalar(class_names_3):
 def test_forward_batch_size_1(class_names_3):
     """B=1 stresses the unsqueeze(1) / squeeze(1) parity and per-sample paths."""
     loss_fn = AdaptiveFocalLoss(
-        n_classes=3, class_names=class_names_3,
+        class_names=class_names_3,
         warm_up_epochs=0, momentum=0.0,
     )
     loss_fn.update_alpha(torch.tensor([0.9, 0.5, 0.1]))
@@ -233,7 +233,7 @@ def test_forward_batch_size_1(class_names_3):
 def test_forward_all_same_class(class_names_3):
     """Whole batch labelled the same class exercises the homogeneous-batch path."""
     loss_fn = AdaptiveFocalLoss(
-        n_classes=3, class_names=class_names_3,
+        class_names=class_names_3,
         warm_up_epochs=0, momentum=0.0,
     )
     loss_fn.update_alpha(torch.tensor([0.9, 0.5, 0.1]))
@@ -246,7 +246,7 @@ def test_forward_all_same_class(class_names_3):
 def test_warmup_uniform_alpha_matches_plain_ce(class_names_3):
     """During warm-up with gamma=0, loss must equal nn.CrossEntropyLoss(reduction='mean')."""
     loss_fn = AdaptiveFocalLoss(
-        n_classes=3, class_names=class_names_3,
+        class_names=class_names_3,
         gamma=0.0, warm_up_epochs=5,
     )
     logits = torch.randn(8, 3)
@@ -260,7 +260,7 @@ def test_warmup_uniform_alpha_matches_plain_ce(class_names_3):
 def test_warmup_uniform_alpha_with_gamma_matches_focal(class_names_3):
     """During warm-up with gamma=2, alpha is uniform so loss matches plain focal."""
     loss_fn = AdaptiveFocalLoss(
-        n_classes=3, class_names=class_names_3,
+        class_names=class_names_3,
         gamma=2.0, warm_up_epochs=5,
     )
     logits = torch.randn(8, 3)
@@ -277,7 +277,7 @@ def test_warmup_uniform_alpha_with_gamma_matches_focal(class_names_3):
 def test_post_warmup_uses_alpha(class_names_3):
     """After warm-up, low-F1 class gets larger weight than high-F1 class."""
     loss_fn = AdaptiveFocalLoss(
-        n_classes=3, class_names=class_names_3,
+        class_names=class_names_3,
         tau=1.0, gamma=0.0, warm_up_epochs=0, momentum=0.0,
     )
     # momentum=0 so the EMA jumps straight to the input. F1 stack: a easy,
@@ -298,7 +298,7 @@ def test_post_warmup_uses_alpha(class_names_3):
 # ---------------------------------------------------------------------------
 
 def test_update_alpha_shape_check_raises(class_names_3):
-    loss_fn = AdaptiveFocalLoss(n_classes=3, class_names=class_names_3)
+    loss_fn = AdaptiveFocalLoss(class_names=class_names_3)
     with pytest.raises(ValueError, match='shape'):
         loss_fn.update_alpha(torch.tensor([0.5, 0.5]))  # wrong length
 
@@ -306,7 +306,7 @@ def test_update_alpha_shape_check_raises(class_names_3):
 def test_update_alpha_mean_one(class_names_14):
     """alpha mean must be exactly 1.0 (within fp tolerance) after every update."""
     loss_fn = AdaptiveFocalLoss(
-        n_classes=14, class_names=class_names_14,
+        class_names=class_names_14,
         tau=1.0, momentum=0.5, warm_up_epochs=0,
     )
     g = torch.Generator().manual_seed(7)
@@ -319,7 +319,7 @@ def test_update_alpha_mean_one(class_names_14):
 def test_update_alpha_ema_step():
     """One EMA step at momentum=0.9, init=1.0, input=0.5 -> 0.95."""
     loss_fn = AdaptiveFocalLoss(
-        n_classes=2, class_names=['a', 'b'],
+        class_names=['a', 'b'],
         momentum=0.9, warm_up_epochs=0, tau=1.0,
     )
     loss_fn.update_alpha(torch.tensor([0.5, 0.5]))
@@ -337,15 +337,15 @@ def test_update_alpha_tau_widens_spread():
     f1 = torch.tensor([0.9, 0.5, 0.1])
 
     loss_low = AdaptiveFocalLoss(
-        n_classes=3, class_names=['a', 'b', 'c'],
+        class_names=['a', 'b', 'c'],
         tau=0.5, momentum=0.0, warm_up_epochs=0,
     )
     loss_mid = AdaptiveFocalLoss(
-        n_classes=3, class_names=['a', 'b', 'c'],
+        class_names=['a', 'b', 'c'],
         tau=1.0, momentum=0.0, warm_up_epochs=0,
     )
     loss_high = AdaptiveFocalLoss(
-        n_classes=3, class_names=['a', 'b', 'c'],
+        class_names=['a', 'b', 'c'],
         tau=2.0, momentum=0.0, warm_up_epochs=0,
     )
     loss_low.update_alpha(f1.clone())
@@ -371,7 +371,7 @@ def test_ema_converges_to_constant_input():
     """100 EMA updates with a constant input should land within 1e-3 of the input.
     momentum=0.9 has half-life ~6.6, so 100 updates is far past convergence."""
     loss_fn = AdaptiveFocalLoss(
-        n_classes=2, class_names=['a', 'b'],
+        class_names=['a', 'b'],
         momentum=0.9, warm_up_epochs=0,
     )
     target = torch.tensor([0.3, 0.7])
@@ -383,7 +383,7 @@ def test_ema_converges_to_constant_input():
 def test_update_alpha_warmup_gating(class_names_3):
     """During warm-up the EMA still updates but forward returns CE-uniform loss."""
     loss_fn = AdaptiveFocalLoss(
-        n_classes=3, class_names=class_names_3,
+        class_names=class_names_3,
         warm_up_epochs=3, momentum=0.0, gamma=0.0,
     )
     # Push very non-uniform F1 into the running estimate; alpha gets a wide spread.
@@ -414,7 +414,7 @@ def test_update_alpha_warmup_gating(class_names_3):
 def test_f1_floor_clamps_input():
     """f1_floor=0.5 clamps a 0.1 reading to 0.5 before the EMA absorbs it."""
     loss_fn = AdaptiveFocalLoss(
-        n_classes=2, class_names=['a', 'b'],
+        class_names=['a', 'b'],
         f1_floor=0.5, momentum=0.0, warm_up_epochs=0, tau=1.0,
     )
     loss_fn.update_alpha(torch.tensor([0.9, 0.1]))
@@ -429,7 +429,7 @@ def test_f1_floor_clamps_input():
 
 def test_gradient_flow_post_warmup(class_names_3):
     loss_fn = AdaptiveFocalLoss(
-        n_classes=3, class_names=class_names_3,
+        class_names=class_names_3,
         tau=1.0, gamma=1.0, momentum=0.0, warm_up_epochs=0,
     )
     loss_fn.update_alpha(torch.tensor([0.9, 0.5, 0.1]))
@@ -447,7 +447,7 @@ def test_gradient_flow_post_warmup(class_names_3):
 def test_alpha_scales_per_class_gradient_magnitude():
     """A class with high alpha pulls a larger gradient on its rows."""
     loss_fn = AdaptiveFocalLoss(
-        n_classes=2, class_names=['a', 'b'],
+        class_names=['a', 'b'],
         tau=1.0, gamma=0.0, momentum=0.0, warm_up_epochs=0,
     )
     # Class 0 high alpha (low F1), class 1 low alpha (high F1).
@@ -476,7 +476,7 @@ def test_alpha_is_buffer_not_parameter(class_names_3):
     """alpha and f1_running must be buffers, never parameters; gradient must
     not route through them. A future refactor that flips them to nn.Parameter
     would silently train the loss state and distort the LR schedule."""
-    loss_fn = AdaptiveFocalLoss(n_classes=3, class_names=class_names_3)
+    loss_fn = AdaptiveFocalLoss(class_names=class_names_3)
     buffer_names = dict(loss_fn.named_buffers())
     param_names = dict(loss_fn.named_parameters())
     assert 'alpha' in buffer_names
@@ -488,7 +488,7 @@ def test_alpha_is_buffer_not_parameter(class_names_3):
 
 
 def test_buffers_in_state_dict(class_names_3):
-    loss_fn = AdaptiveFocalLoss(n_classes=3, class_names=class_names_3)
+    loss_fn = AdaptiveFocalLoss(class_names=class_names_3)
     sd = loss_fn.state_dict()
     assert 'f1_running' in sd
     assert 'alpha' in sd
@@ -496,19 +496,19 @@ def test_buffers_in_state_dict(class_names_3):
 
 def test_state_dict_round_trip(class_names_3):
     src = AdaptiveFocalLoss(
-        n_classes=3, class_names=class_names_3,
+        class_names=class_names_3,
         momentum=0.0, warm_up_epochs=0, tau=1.0,
     )
     src.update_alpha(torch.tensor([0.9, 0.5, 0.1]))
 
-    dst = AdaptiveFocalLoss(n_classes=3, class_names=class_names_3)
+    dst = AdaptiveFocalLoss(class_names=class_names_3)
     dst.load_state_dict(src.state_dict())
     assert torch.allclose(dst.f1_running, src.f1_running)
     assert torch.allclose(dst.alpha, src.alpha)
 
 
 def test_to_cpu_moves_buffers(class_names_3):
-    loss_fn = AdaptiveFocalLoss(n_classes=3, class_names=class_names_3)
+    loss_fn = AdaptiveFocalLoss(class_names=class_names_3)
     loss_fn.to('cpu')
     assert loss_fn.f1_running.device.type == 'cpu'
     assert loss_fn.alpha.device.type == 'cpu'
@@ -516,22 +516,17 @@ def test_to_cpu_moves_buffers(class_names_3):
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason='CUDA not available')
 def test_to_cuda_moves_buffers(class_names_3):
-    loss_fn = AdaptiveFocalLoss(n_classes=3, class_names=class_names_3)
+    loss_fn = AdaptiveFocalLoss(class_names=class_names_3)
     loss_fn.to('cuda')
     assert loss_fn.f1_running.device.type == 'cuda'
     assert loss_fn.alpha.device.type == 'cuda'
 
 
-def test_class_names_length_check():
-    with pytest.raises(ValueError, match='class_names'):
-        AdaptiveFocalLoss(n_classes=3, class_names=['a', 'b'])  # too short
-
-
 def test_invalid_momentum_raises():
     with pytest.raises(ValueError, match='momentum'):
-        AdaptiveFocalLoss(n_classes=3, class_names=['a', 'b', 'c'], momentum=1.5)
+        AdaptiveFocalLoss(class_names=['a', 'b', 'c'], momentum=1.5)
     with pytest.raises(ValueError, match='momentum'):
-        AdaptiveFocalLoss(n_classes=3, class_names=['a', 'b', 'c'], momentum=-0.1)
+        AdaptiveFocalLoss(class_names=['a', 'b', 'c'], momentum=-0.1)
 
 
 # ---------------------------------------------------------------------------
@@ -548,7 +543,7 @@ def test_end_to_end_mini_loop():
     n_classes = 4
     model = torch.nn.Linear(8, n_classes)
     loss_fn = AdaptiveFocalLoss(
-        n_classes=n_classes, class_names=['a', 'b', 'c', 'd'],
+        class_names=['a', 'b', 'c', 'd'],
         warm_up_epochs=2, momentum=0.5, tau=1.0, gamma=0.0,
     )
     optimiser = torch.optim.SGD(model.parameters(), lr=0.01)

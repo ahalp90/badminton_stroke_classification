@@ -355,6 +355,8 @@ for the full motivation.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from beartype import beartype
+from jaxtyping import Float32, Int64, jaxtyped
 
 
 class AdaptiveFocalLoss(nn.Module):
@@ -370,18 +372,19 @@ class AdaptiveFocalLoss(nn.Module):
 
     def __init__(
         self,
-        n_classes: int,
         class_names: list[str],
         tau: float = 1.0,
         gamma: float = 1.0,
         momentum: float = 0.9,
         warm_up_epochs: int = 5,
         f1_floor: float = 0.0,
-        device: torch.device | None = None,
     ):
         super().__init__()
-        self.n_classes = n_classes
-        self.class_names = class_names
+        if not 0.0 <= momentum < 1.0:
+            raise ValueError(f'momentum must be in [0, 1); got {momentum}')
+
+        self.class_names = list(class_names)
+        self.n_classes = len(self.class_names)
         self.tau = tau
         self.gamma = gamma
         self.momentum = momentum
@@ -394,11 +397,11 @@ class AdaptiveFocalLoss(nn.Module):
         # and persists in module state.
         self.register_buffer(
             'f1_running',
-            torch.ones(n_classes, device=device),
+            torch.ones(self.n_classes),
         )
         self.register_buffer(
             'alpha',
-            torch.ones(n_classes, device=device),
+            torch.ones(self.n_classes),
         )
         self.epoch = 0  # bumped by update_alpha; controls warm-up gating
 
@@ -412,28 +415,32 @@ class AdaptiveFocalLoss(nn.Module):
         During warm-up (epoch < warm_up_epochs), still updates the EMA
         but the forward() branch falls back to uniform alpha.
         """
-        per_class_f1 = per_class_f1.clamp(min=self.f1_floor, max=1.0)
-        self.f1_running = (
-            self.momentum * self.f1_running
-            + (1.0 - self.momentum) * per_class_f1
-        )
+        if per_class_f1.shape != (self.n_classes,):
+            raise ValueError(
+                f'per_class_f1 shape {tuple(per_class_f1.shape)} != ({self.n_classes},)'
+            )
+
+        f1 = per_class_f1.to(self.f1_running).clamp(min=self.f1_floor, max=1.0)
+        # In-place buffer updates: keep the registered buffer identity stable
+        # across .to(device) / state_dict round-trips.
+        self.f1_running.mul_(self.momentum).add_(f1, alpha=1.0 - self.momentum)
         raw_alpha = (1.0 - self.f1_running).clamp(min=1e-8) ** self.tau
         # Renormalise to mean 1.0 so loss scale stays comparable to uniform CE.
-        self.alpha = raw_alpha * (self.n_classes / raw_alpha.sum())
+        self.alpha.copy_(raw_alpha * (self.n_classes / raw_alpha.sum()))
         self.epoch += 1
 
+    @jaxtyped(typechecker=beartype)
     def forward(
         self,
-        logits: torch.Tensor,
-        labels: torch.Tensor,
-    ) -> torch.Tensor:
+        logits: Float32[torch.Tensor, 'batch n_classes'],
+        labels: Int64[torch.Tensor, 'batch'],
+    ) -> Float32[torch.Tensor, '']:
         """
-        logits: [B, n_classes] pre-softmax.
-        labels: [B] int64.
+        Pre-softmax logits and class-index labels; returns scalar mean loss.
         """
         log_probs = F.log_softmax(logits, dim=-1)               # [B, C]
         log_p_t = log_probs.gather(1, labels.unsqueeze(1)).squeeze(1)  # [B]
-        p_t = log_p_t.exp().clamp(max=1.0 - 1e-7)               # [B]
+        p_t = log_p_t.exp()                                     # [B]
 
         # Per-class alpha lookup; warm-up forces uniform.
         if self.epoch < self.warm_up_epochs:
@@ -441,29 +448,29 @@ class AdaptiveFocalLoss(nn.Module):
         else:
             alpha_t = self.alpha[labels]                        # [B]
 
-        # focal modulator: (1 - p_t)^gamma
-        if self.gamma > 0:
-            focal_mod = (1.0 - p_t) ** self.gamma
-        else:
-            focal_mod = 1.0
+        # gamma=0 collapses (1 - p_t)^0 to 1 batch-wide; no special-case branch.
+        # Clamp base > 0: (1 - p_t)^gamma has infinite slope at 0 for gamma < 1.
+        focal_mod = (1.0 - p_t).clamp(min=1e-7) ** self.gamma
 
         loss = -alpha_t * focal_mod * log_p_t                   # [B]
         return loss.mean()
 
 
+@jaxtyped(typechecker=beartype)
 def per_class_f1_from_counts(
-    tp: torch.Tensor,
-    fp: torch.Tensor,
-    fn: torch.Tensor,
+    tp: Int64[torch.Tensor, 'n_classes'],
+    fp: Int64[torch.Tensor, 'n_classes'],
+    fn: Int64[torch.Tensor, 'n_classes'],
     eps: float = 1e-8,
-) -> torch.Tensor:
+) -> Float32[torch.Tensor, 'n_classes']:
     """
-    Compute per-class F1 from running TP / FP / FN tensors of shape [n_classes].
+    Compute per-class F1 from running TP / FP / FN counts.
     Used by the train loop end-of-epoch to feed AdaptiveFocalLoss.update_alpha.
+    ``eps`` also promotes the int64 counts through the arithmetic to float32.
     """
     precision = tp / (tp + fp + eps)
     recall = tp / (tp + fn + eps)
-    f1 = 2 * precision * recall / (precision + recall + eps)
+    f1 = 2.0 * precision * recall / (precision + recall + eps)
     return f1
 ```
 
