@@ -549,9 +549,11 @@ the input follows the physical shuttle.
 
 ## What remains worth investigating?
 
-First resolve video 15's source alignment. Its scores cannot reliably guide detector
-changes while its labels point to the wrong footage. Check the annotation's source edit
-instead of assuming that one constant timestamp shift will fix everything.
+Exclude ShuttleSet22 video 15 from use and from the released extracts. Its labels
+point to the wrong footage, and the decision is to drop this video. Label repair is
+no longer planned. [Issue #147](https://github.com/ahalp90/badminton_cv_annotator/issues/147)
+records the exclusion work and an efficient check of both datasets for other
+unreliable labels. The scores above remain the historical reference.
 
 Then investigate court geometry before another contact-model fit. The evidence
 identifies two distinct problems. A poor per-scene outline can reject useful scenes. A

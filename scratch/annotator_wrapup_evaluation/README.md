@@ -4,12 +4,17 @@ For the questions about videos 15 and 53, start with
 [the follow-up answers](VIDEO_CHECKS.md). That report now says what was counted in
 full, what was checked in a sample, and what is still open.
 
+The decision is to exclude ShuttleSet22 video 15 from use and from the released
+extracts. [Issue #147](https://github.com/ahalp90/badminton_cv_annotator/issues/147)
+contains the evidence images, completed label checks and remaining release work.
+It also calls for an efficient check of both datasets for other unreliable labels.
+
 The reports cover different questions. You do not need to read them all in order.
 
 | What you want to know | Where to read |
 |---|---|
 | What changes without videos 15 and 53? Could the labels explain the failures? What was checked elsewhere? | [Follow-up answers](VIDEO_CHECKS.md) |
-| What exactly goes wrong with the court outlines? | [Court issue with numbered before-and-after pictures](COURT_ISSUE.md) |
+| What exactly goes wrong with the court outlines? | [Issue #148 with numbered before-and-after pictures](https://github.com/ahalp90/badminton_cv_annotator/issues/148); [local copy](COURT_ISSUE.md) |
 | How does one particular video perform? | [Per-video viewer](VIDEO_BREAKDOWN.html); open locally in a browser |
 | What does the final detector produce overall? | [Original overview](REPORT.md) |
 | More detail on missed hits, wrong players, clip selection and the initial footage checks | [Expanded report](REPORT_BIG.md) |

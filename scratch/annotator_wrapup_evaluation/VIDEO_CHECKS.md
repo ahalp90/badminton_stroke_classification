@@ -97,6 +97,11 @@ the labels cannot judge.
 
 ## Is video 15 usable for evaluation?
 
+**Decision after the follow-up: exclude ShuttleSet22 video 15 from use and from the
+released extracts.** Label repair is no longer planned. [Issue #147](https://github.com/ahalp90/badminton_cv_annotator/issues/147)
+records the removal work, later direct hit checks and an efficient check of both
+datasets for other unreliable labels. The original scores below remain unchanged.
+
 Its current labels cannot reliably tell us how well the detector works on the footage.
 The footage itself contains ordinary match play, and the detector may still produce
 useful clips from it. The current labels cannot reliably tell us which clips are

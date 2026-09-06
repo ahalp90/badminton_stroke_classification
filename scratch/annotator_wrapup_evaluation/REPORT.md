@@ -261,9 +261,10 @@ would miss that transition.
 
 ## What this suggests doing next
 
-1. **Resolve video 15's label-to-video alignment before using its errors to guide
-   another model change.** Check whether the annotations and download use different
-   edits of the match. Keep the current counts as the historical reference.
+1. **Exclude ShuttleSet22 video 15 from use and from the released extracts.** The
+   decision is to drop this video rather than repair its labels. [Issue #147](https://github.com/ahalp90/badminton_cv_annotator/issues/147)
+   covers the removal and an efficient label check across both datasets. Keep the
+   current counts as the historical reference.
 2. **Investigate court geometry and scene rejection before another contact-model fit.**
    The footage shows visible match play being rejected before contact scoring.
    A useful follow-up should check both rescued scenes and newly admitted non-play
