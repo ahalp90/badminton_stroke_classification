@@ -1,18 +1,23 @@
-# Annotator failure investigation: what we found
+# Where the annotator succeeds and fails
 
-**Fix the court stage before fitting another contact model.**
+This branch ran a set of checks on the finished badminton annotator to work out where it succeeds, where it fails, and what needs fixing next. It covered individual hits, player assignments, whole rallies and the clips selected for review.
 
-This branch evaluates the finished annotator on the saved ShuttleSet22 outputs and tries to explain where its errors come from. The aim is not just to produce another accuracy number, but to separate failures caused by bad labels, court rejection, missing player inputs, contact selection, and rally boundaries. The detector itself stays fixed while we trace errors back through the saved pipeline state and check representative cases against the footage.
+The detector improvements and benchmark are recorded in [PR #149](https://github.com/ahalp90/badminton_cv_annotator/pull/149). This investigation breaks those outputs down: which videos work well, which errors occur together, what selection leaves behind, and where the pipeline loses usable play.
 
-Without the bad labels from ShuttleSet22 video 15, the saved learned annotator misses 3,633 labelled contacts. The court check blocks **2,374 of them (65.3%)** before normal contact scoring. We found usable live play among those rejected scenes and reproduced two concrete failures: OpenCV wrecks a court outline in video 53, while the shared outline loses a visible player in video 17.
+The main investigation used saved outputs from 47 ShuttleSet22 videos, keeping the detector fixed. It compared annotation errors with the court and player inputs available at the time. Footage checks tested the labels and looked at successful and failed cases. Replays then tested whether changing a court outline changed the pipeline's decisions. [What was checked, and why](experiment_lineage.md) follows those experiments.
 
-Video 15 is a separate problem. Its labels point to the wrong parts of the match, including rallies that appear to match the detector only by coincidence. Drop that video and its derived release records rather than repairing it. Video 53 should stay: direct checks support its labels, and its poor score exposes the court failure instead of bad ground truth.
+For the same work in pictures, see the [visual overview](visual_overview.md).
 
-The learned path is still useful. On the 46 videos left after removing video 15, it produces **1,763 / 3,327 fully correct rallies (53.0%)**. The ordinary heuristic produces **4 / 3,327 (0.12%)**. The fixed confidence ranking keeps **747 clips**: 616 known correct, 114 known wrong and 17 the labels cannot judge. Among judgeable clips, exact-annotation precision is **84.4%**. That is a good bootstrap for review and fixup, not hands-off ground truth.
+**The main finding: fix the court stage before fitting another contact model.**
+
+The footage checks found that video 15's labels point to the wrong parts of the match. Excluding it leaves 46 videos and 3,633 missed labelled contacts. **2,374 of those misses (65.3%)** fall in court-rejected scenes. Usable live play was being blocked before normal contact scoring. Two failures were reproduced: OpenCV wrecks a court outline in video 53, while the shared outline loses a visible player in video 17.
+
+The learned output still provides useful clips for review and fixup. Keep video 53 in the evaluation: its checked labels support fixing the court handling. Drop video 15 and its derived release records rather than trying to repair its labels.
 
 The numbers below describe the saved run. Rerun them after #147 removes video 15 from the release and #148 changes the court stage.
 
 **Contents**  
+[How the results vary](#how-the-results-vary)  
 [Results at a glance](#results-at-a-glance)  
 [Video 15 and the next benchmark](#video-15-and-the-next-benchmark)  
 [Why court handling comes first](#why-court-handling-comes-first)  
@@ -23,9 +28,28 @@ The numbers below describe the saved run. Rerun them after #147 removes video 15
 [Reading guide](#reading-guide)  
 [Limits](#limits)
 
+## How the results vary
+
+A high hit-matching score can still leave many rallies with errors. A fully correct rally fits in one clip, with every labelled hit matched once, no extra hits and the right player for each.
+
+![Each video's contact timing-match rate against its fully correct rally rate, across the original 47 videos.](figures/video_variation.png)
+
+This is the original **47-video** view. “Trusted” in older plots means cleaned labels. Video 15's labels turned out to point to the wrong footage, so its score is not a valid measure of detector quality.
+
+The spread matters beyond the two outliers. Video 41 has 59/77 fully correct rallies (76.6%); video 17 has 17/73 (23.3%) despite matching 842/976 contacts. Different weak videos need different explanations: most of video 53's missed hits fall in court-rejected scenes, while video 17 mostly fails later.
+
+The investigation also found:
+
+- **Selection leaves useful output behind.** Of 1,763 fully correct rallies, 616 reach the review queue. The fixed threshold was not retuned here.
+- **Errors overlap.** In the historical 124 wrong selected clips, 92 have extra contacts and 74 have misses. Every clip with a wrong matched player also has another error.
+- **Starts and finishes are harder.** Even in court-accepted frames outside video 15, miss rates are 9.0% for serves and 11.2% for final contacts, against 2.3% in the middle.
+- **Matched hits are usually close.** Outside video 15, 98.0% of timing matches are within five frames. Missing events remain a separate problem.
+
+See the [per-video outcome charts](output_errors.md#video-to-video-variation) for the full spread, or open the [interactive video breakdown](VIDEO_BREAKDOWN.html) locally for contact/player confusion matrices and input conditions. The [visual overview](visual_overview.md) puts these plots together with the footage checks.
+
 ## Results at a glance
 
-The same saved learned output is shown under three cumulative video populations. Removing a video changes the denominator; it does not repair the output.
+The table starts with all 47 videos, then removes video 15, then video 53 as well for comparison. The 46-video column is the main result. Removing a video changes what is counted; the saved detector output stays the same.
 
 | Saved learned output, cleaned labels, ±10 frames | All 47: historical | Without video 15 | Without videos 15 and 53: sensitivity |
 |---|---:|---:|---:|
@@ -53,6 +77,8 @@ The fixed selection rule leaves this 46-video review queue:
 | **Total** | **747** |
 
 Among the 730 judgeable clips, exact-annotation precision is **616 / 730 = 84.4%**. Recall is **616 / 3,327 = 18.5%**, giving **30.4% F1**. Counting the 17 unknown clips as not proven correct gives **616 / 747 = 82.5%**.
+
+The selected clips still need review before use as ground truth.
 
 ![Correct, wrong and unjudgeable clips in the saved review queue.](figures/review_queue.png)
 
@@ -155,20 +181,20 @@ Live backlog: [promising_leads.md](promising_leads.md).
 
 ## Reading guide
 
-For most readers:
+This README gives the overall result. Pick a question for more detail:
 
-1. **This README** — conclusions and headline numbers.
-2. [evaluation_tables.md](evaluation_tables.md) — compact numbers and recount command.
-3. [output_errors.md](output_errors.md) — contact, rally and selected-clip failures.
-4. [court_failures.md](court_failures.md) — reproduced court failures and the rerun target.
-5. [video_checks.md](video_checks.md) — video 15, video 53, weak-video checks and original-ShuttleSet status.
-6. [heuristic_comparison.md](heuristic_comparison.md) — ordinary heuristic versus learned output.
-7. [label_accounting.md](label_accounting.md) — historical/all-source/±5 accounting.
-8. [experiment_lineage.md](experiment_lineage.md) — what was actually checked.
-9. [last_followups.md](last_followups.md) — closed detector ideas.
-10. [promising_leads.md](promising_leads.md) — live questions only.
-
-Saved-file pointers, full commands and validation receipts: [evaluation_reproduction.md](evaluation_reproduction.md).
+| Question | Where to look |
+|---|---|
+| What was tested, and why? | [The investigation](experiment_lineage.md) |
+| How do outcomes differ across videos? | [Video variation and outcome charts](output_errors.md#video-to-video-variation), [interactive breakdown](VIDEO_BREAKDOWN.html) |
+| What kinds of errors remain? | [Contacts, rallies and selected clips](output_errors.md) |
+| Is the pipeline blocking usable play? | [Court and player checks](court_failures.md) |
+| Do the labels agree with the footage? | [Video checks](video_checks.md), including the original-ShuttleSet results |
+| What did the learned detector improve? | [Heuristic comparison](heuristic_comparison.md) |
+| Which detector ideas were tried and set aside? | [Last follow-ups](last_followups.md) |
+| What should happen next? | [Remaining work](promising_leads.md) |
+| Where are the exact numbers and definitions? | [Evaluation tables](evaluation_tables.md) and [label accounting](label_accounting.md) |
+| Where is the evidence, and how do I rerun a check? | [Saved files and commands](evaluation_reproduction.md) |
 
 ## Limits
 

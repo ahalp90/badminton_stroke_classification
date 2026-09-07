@@ -1,6 +1,6 @@
 # Last annotator follow-ups
 
-Closed detector-side checks from the wrap-up. Live work is in [promising_leads.md](promising_leads.md).
+Earlier attempts to improve the detector left the existing output as the best option. This page records those experiments and the ideas set aside during the failure investigation. Work still to do is in [promising_leads.md](promising_leads.md).
 
 **Contents**  
 [Independent edge padding](#independent-edge-padding)  

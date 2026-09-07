@@ -1,5 +1,7 @@
 # Court failures: usable play is being blocked upstream
 
+The court checks asked whether bad outlines were blocking usable play or losing visible players. Replays changed only the outline to see whether the court or player decision changed.
+
 Outside bad-label video 15, the learned annotator misses 3,633 labelled contacts. **2,374 of them are in scenes the court stage rejected before normal contact scoring.** Two different geometry failures are confirmed: one rejects usable play at the scene gate; the other passes the scene, then replaces a good outline with a worse one and loses a visible player.
 
 **Contents**  

@@ -1,8 +1,8 @@
 # Ordinary heuristic versus learned output
 
-The learned path is not a small cleanup of the hand-written annotator. On the 46 videos outside bad-label video 15, the ordinary heuristic gets **4 / 3,327 rallies fully correct (0.12%)**; the learned output gets **1,763 / 3,327 (53.0%)**.
+This comparison checks what the learned contact work improved while using the same saved court, pose and shuttle inputs. It helps separate improvements in contact detection from the input problems both methods still face.
 
-The comparison is useful because both paths inherit the same court, pose and shuttle inputs. It shows which failures the learned contact work fixed and which upstream problems remain shared.
+On the 46 videos outside bad-label video 15, the ordinary heuristic gets **4 / 3,327 rallies fully correct (0.12%)**; the learned output gets **1,763 / 3,327 (53.0%)**.
 
 **Contents**  
 [What is being compared](#what-is-being-compared)  

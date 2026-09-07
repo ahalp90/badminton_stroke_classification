@@ -1,5 +1,7 @@
 # Label and video checks
 
+An apparent detector error can also be a label problem. Game and score checks tested whether labels referred to the right rally. Closer frame checks tested the timing and player for individual hits.
+
 **Video 15 should be excluded. Video 53 should stay.** The later checks found a few isolated label problems elsewhere, but no second large wrong-rally mismatch.
 
 **Contents**  

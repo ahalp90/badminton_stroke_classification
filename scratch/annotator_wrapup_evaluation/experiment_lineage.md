@@ -1,6 +1,19 @@
-# Annotator evaluation lineage: what was actually checked
+# What was checked, and why
 
-Canonical history of the wrap-up investigation, ordered by research decision rather than commit. Final detector dead ends are in [last_followups.md](last_followups.md); live work is in [promising_leads.md](promising_leads.md).
+The investigation started with the finished detector's saved output. It asked what went wrong and how much the available evidence could explain. The checks covered both failures and successes.
+
+| Question | How it was checked |
+|---|---|
+| Which parts of the annotation are wrong? | Counted missed and extra hits, wrong players and incomplete rallies; compared clips kept and discarded by selection. |
+| Do the labels refer to the action on screen? | Checked the game and score, then inspected individual hits and players in sampled footage. |
+| Were court and player inputs available when contacts were missed? | Compared saved inputs at matched and missed contact times, then inspected failures and successful controls. |
+| Can a bad court outline cause these failures? | Replayed the court and player decisions, then changed only the outline in the checked cases. |
+| What did the learned contact work improve? | Scored the ordinary heuristic against the same labels and compared their errors. |
+| How much do videos 15 and 53 affect the totals? | Recounted the same outputs with each video exclusion. |
+
+The counts show where errors occur. Footage checks test whether the labels and pipeline decisions agree with visible play. Changing only the court outline tests its effect on the checked decisions; it does not measure how many full rallies a repaired pipeline would recover.
+
+Earlier detector experiments are in [last_followups.md](last_followups.md). Work still to do is in [promising_leads.md](promising_leads.md).
 
 **Contents**  
 [1. Freeze the saved learned output](#1-freeze-the-saved-learned-output)  
@@ -25,7 +38,7 @@ Selection:
 
 `scratch/contact_det_closing_pass/results/serve_followups/chosen_acceptance_broader.json.gz`
 
-Independent edge padding and a corrected-target chooser refit were tested later and rejected. Production wiring and automatic exact approval stayed unchanged. See [last_followups.md](last_followups.md).
+The preceding detector work had already tried and rejected independent edge padding and a corrected-target chooser refit. This investigation used the existing output. Production wiring and automatic exact approval stayed unchanged. See [last_followups.md](last_followups.md).
 
 ## 2. Recount all 47 ShuttleSet22 videos
 
