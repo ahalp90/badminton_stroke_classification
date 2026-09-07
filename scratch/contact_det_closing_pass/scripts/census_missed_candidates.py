@@ -1,5 +1,8 @@
 """Census why unmatched development labels have no nearby detector contact."""
 
+# Direct execution needs the path setup before project imports.
+# ruff: noqa: E402
+
 from __future__ import annotations
 
 import argparse
