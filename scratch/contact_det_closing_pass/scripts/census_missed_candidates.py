@@ -12,13 +12,14 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-import numpy as np
-
-from scratch.contact_det_full_ds_fit.scripts.score_contact_baseline import SCORE_DTYPE
+# Direct script execution needs the repo path before this import.
+from scratch.contact_det_full_ds_fit.scripts.score_contact_baseline import SCORE_DTYPE  # noqa: E402
 
 D_FIXTURES = (
     "sset_01",
