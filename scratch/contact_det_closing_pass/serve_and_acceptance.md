@@ -1,109 +1,106 @@
-# Final deployment view: contacts, serves and automatic use
+# Deployment view: contacts, serves and high-confidence rally selection
 
-The ranking model selects whole-rally clips reliably. Their contact annotations still need review.
+Across the 47 videos, the final detector proposes **3,982 rally clips**. A downstream confidence ranking keeps **784** at the fixed threshold used here.
 
-## The two reads used throughout this report
+Those 784 are already very reliable for **finding whole rallies**. Their exact contact annotations are useful too, but still deserve review. That distinction is the main deployment result.
 
-ShuttleSet22 contains **3,965 rallies** in the source CSVs.
+**Contents**  
+[Evaluation populations](#evaluation-populations)  
+[Contact performance](#contact-performance)  
+[Serve performance](#serve-performance)  
+[Exact annotation at the strict threshold](#exact-annotation-at-the-strict-threshold)  
+[Whole-rally discovery at the strict threshold](#whole-rally-discovery-at-the-strict-threshold)  
+[What goes wrong in the exact failures?](#what-goes-wrong-in-the-exact-failures)  
+[The 44 clips trusted GT cannot settle](#the-44-clips-trusted-gt-cannot-settle)  
+[Deleting extra contacts](#deleting-extra-contacts)  
+[Recommendation](#recommendation)
 
-The existing cleaning drops **543** from strict scoring: 542 contain at least one contact marked `flaw`, and one has timestamps out of order.
+## Evaluation populations
 
-The tables compare two sets of ground-truth (GT) labels:
+ShuttleSet22 has **3,965 source rallies**. Cleaning excludes 543 from strict scoring: 542 contain a contact marked `flaw`, and one has timestamps out of order.
 
-- **Trusted GT only:** score against the remaining 3,422 rallies.
-- **All GT included:** restore the 543 rallies and their source labels. Unknown selections receive no credit.
+- **Trusted GT:** 3,422 rallies.
+- **All GT:** all 3,965 source rallies; unknown selected clips get no credit in the conservative precision read.
 
-Both use the same saved predictions, scored at **±10 frames on a 30 fps clock**.
+Both use the same saved predictions at **±10 frames on a 30 fps clock**.
 
 ## Contact performance
 
-Across the 47 videos:
+Trusted-GT contact timing is **81.0 / 88.2 / 84.5%** P/R/F1. Requiring the correct player gives **78.5 / 85.5 / 81.8%**.
 
-| Task | Labels | Precision | Recall | F1 |
-|---|---|---:|---:|---:|
-| Timing only | Trusted GT | 81.0% | 88.2% | 84.5% |
-| Timing only | All GT | 90.1% | 86.9% | 88.4% |
-| Timing + correct player | Trusted GT | 78.5% | 85.5% | 81.8% |
-| Timing + correct player | All GT | 87.2% | 84.0% | 85.6% |
+With all source labels restored, the same predictions score **90.1 / 86.9 / 88.4%** and **87.2 / 84.0 / 85.6%** respectively.
 
-Serves are harder to find than later contacts. The next section separates serve detection from getting the rally start right.
+![Final contact performance.](figures/contact_prf.svg)
 
-![All-contact precision, recall and F1.](figures/contact_prf.svg)
-
-Contact breakdown: [contact_performance.md](contact_performance.md).
+More detail: [contact_performance.md](contact_performance.md).
 
 ## Serve performance
 
-There are two useful serve questions.
+There are two different questions.
 
 ### Is the serve found anywhere in the contact stream?
 
-This is a recall measure because the full-stream detector outputs contacts, not a dedicated “serve” prediction.
+This is recall-only because the full stream contains contacts, not one dedicated serve prediction.
 
-| Measure | Trusted-GT recall | All GT included |
+| Measure | Trusted GT recall | All GT recall |
 |---|---:|---:|
 | Serve timing | **2,781 / 3,422 = 81.3%** | **2,855 / 3,965 = 72.0%** |
 | Serve timing + correct server | **2,647 / 3,422 = 77.4%** | **2,667 / 3,965 = 67.3%** |
 
 ### Does the proposed rally start at the serve?
 
-Every nonempty proposal makes one explicit start prediction, so this task has clean precision, recall and F1:
+Every nonempty proposal makes one explicit start prediction, so this task has precision, recall and F1:
 
-| Task | Labels | Precision | Recall | F1 |
-|---|---|---:|---:|---:|
-| Start is serve | Trusted GT | 70.4% | 76.7% | 73.4% |
-| Start is serve | All GT | 72.1% | 67.7% | 69.8% |
-| Start + correct server | Trusted GT | 68.1% | 74.1% | 71.0% |
-| Start + correct server | All GT | 68.5% | 64.4% | 66.4% |
+| Task | Trusted GT | All GT |
+|---|---:|---:|
+| Start is serve | **70.4 / 76.7 / 73.4%** | **72.1 / 67.7 / 69.8%** |
+| Start + correct server | **68.1 / 74.1 / 71.0%** | **68.5 / 64.4 / 66.4%** |
 
-The sequence-based player assignment still helps substantially. Among the 2,781 serves matched in time:
+Alternating player assignment matters. Among the 2,781 trusted-GT serves already matched in time:
 
 | Player answer | Correct | Wrong | Missing |
 |---|---:|---:|---:|
 | Raw wrist/net guess | 2,222 | 250 | 309 |
 | **Final sequence-based answer** | **2,647** | **128** | **6** |
 
-This table checks player assignment only for serves already found within the timing window.
+That last table only asks who served **after the serve has already been found**.
 
-## Automatic use: fully correct rallies
+## Exact annotation at the strict threshold
 
-The ranking model selects **784** proposed rallies. Of these, **740 can be judged against trusted GT** and **44 cannot**.
-
-| Measure | Trusted GT only | All GT included |
-|---|---:|---:|
-| **Fully correct rally precision** | **616 / 740 = 83.2%** | **615 / 784 = 78.4%** |
-| **Fully correct rally recall** | **616 / 3,422 = 18.0%** | **615 / 3,965 = 15.5%** |
-| **Fully correct rally F1** | **29.6%** | **25.9%** |
-
-Restoring the original labels gives **615 correct, 140 wrong and 29 still unknown**. Unknown cases receive no credit in the all-GT column.
-
-The selector also leaves **1,147 fully correct trusted-GT rallies unselected**.
-
-For fully correct rally selections, the selected set still needs review. Keep automatic approval off.
-
-## Automatic use: contains one whole rally
-
-The exact metric hides an important product result.
-
-Of the **124 selected proposals that fail strict scoring**, **112 still contain exactly one whole labelled rally**. Their problem is inside the contact sequence.
-
-Only **12** have a fundamental rally-level problem: they cut off a rally or overlap more than one labelled rally.
-
-That gives:
+Trusted GT can judge **740 of the 784** selected clips exactly.
 
 | Measure | Trusted GT only | All GT included |
 |---|---:|---:|
-| **Contains one whole rally precision*** | **728 / 740 = 98.4%** | **739 / 784 = 94.3%** |
-| **Contains one whole rally recall*** | **728 / 3,422 = 21.3%** | **739 / 3,965 = 18.6%** |
-| **Contains one whole rally F1*** | **35.0%** | **31.1%** |
+| Fully correct rally precision | **616 / 740 = 83.2%** | **615 / 784 = 78.4%** |
+| Fully correct rally recall | **616 / 3,422 = 18.0%** | **615 / 3,965 = 15.5%** |
+| Fully correct rally F1 | **29.6%** | **25.9%** |
 
-*Some contact details inside the rally may still be incorrect.*
+With source labels restored there are **615 correct, 140 wrong and 29 still unknown**. The conservative all-GT precision gives unknowns no credit.
 
-![Fully correct rally versus whole-rally selection, using the same two reads.](figures/automatic_use.svg)
+The threshold also leaves **1,147 fully correct trusted-GT rallies unselected**. Exact auto-approval should therefore stay off.
 
-### What is wrong inside the 124 fully-correct-rally failures?
+## Whole-rally discovery at the strict threshold
 
-These categories overlap:
+Here the picture is much better.
+
+Of the **124** trusted-GT selected clips that fail exact annotation, **112 still contain exactly one whole labelled rally**. Only **12** cut it off or overlap more than one rally.
+
+| Measure | Trusted GT only | All GT included |
+|---|---:|---:|
+| Contains one whole rally precision | **728 / 740 = 98.4%** | **739 / 784 = 94.3%** |
+| Contains one whole rally recall | **728 / 3,422 = 21.3%** | **739 / 3,965 = 18.6%** |
+| Contains one whole rally F1 | **35.0%** | **31.1%** |
+
+![Exact annotation quality and whole-rally clip quality.](figures/high_confidence_selection.svg)
+
+So the same threshold gives two products:
+
+- **whole-rally discovery:** extremely reliable, deliberately low recall;
+- **exact contact annotation:** a strong prior, but not quite hands-off.
+
+## What goes wrong in the exact failures?
+
+Categories overlap:
 
 | Problem | Selected proposals |
 |---|---:|
@@ -111,32 +108,38 @@ These categories overlap:
 | Misses the serve | **43** |
 | Misses a later contact | **39** |
 | Wrong or missing player assignment | **10** |
-| Cuts off a rally or overlaps more than one rally | **12** |
+| Does not cleanly contain one whole rally | **12** |
 
-![Why the selected-but-imperfect rallies fail strict scoring. Trusted GT only.](figures/selected_errors.svg)
+![Failure modes among selected-but-imperfect rallies.](figures/selected_errors.svg)
 
-The key result is **112 / 124 = 90.3%**: most fully-correct-rally failures are still the right whole rally with local contact errors.
+The useful headline is **112 / 124 = 90.3%**: most exact failures are still the right rally with local contact mistakes.
 
-## The 44 clips with untrusted GT
+## The 44 clips trusted GT cannot settle
 
-All 44 received a sampled visual review. Four mix replay footage with live play, and one appears to be warm-up footage. The other 39 show live play, though many openings are obscured by camera changes.
+Restoring source labels resolves 15 as wrong. Another 28 have no source labels, and one lacks player information. Thirteen contain a whole source-labelled rally; none is confirmed fully correct.
 
-Two frames per second cannot verify exact contact timing, so this adds no perfect-rally credit. [Review details and clip notes](promising_leads.md#4-what-the-44-untrusted-gt-selections-contain).
+A sampled visual review covered all 44 clips plus two seconds either side:
 
-## Deleting extra contacts: not worth another model
+- **39** show live play without an obvious replay inside the interval;
+- **4** mix replay and live play: `19_056`, `20_036`, `22_017`, `27_006`;
+- **1** appears to be pre-match warm-up: `52_000`.
 
-A separate deletion score was tested on the development videos.
+Camera changes make many openings unclear; five clips show serve action before the proposed start. All 43 clips containing live play show the rally ending in the review samples.
 
-It raises perfect rallies **1,209 → 1,217**, but that comes from **22 repairs and 14 losses**.
+The review used two frames per second, so it can check footage and broad boundaries but not exact contact timing. It adds no fully-correct credit. Notes: `results/selected_clip_review.csv`.
 
-That trade is too weak. The model was not carried into the 47-video run.
+## Deleting extra contacts
 
-## Deployment recommendation
+A separate deletion score moved the final development detector **1,209 → 1,217** at ±10, from **22 repairs and 14 losses**.
 
-For **fully correct rally selection**: keep automatic approval off.
+That is too weak for another broad detector component, so it never went to the 47-video run.
 
-For **review ordering**: keep the ranking score.
+Deletion may still help **after** the system is already confident it has the right whole rally. That narrower cleanup problem remains open in [promising_leads.md](promising_leads.md).
 
-For **selecting clips that contain one whole rally***: the ranking model is already very strong, at **98.4% precision with trusted GT and 94.3% verified with all GT included**.
+## Recommendation
+
+- **Exact annotation:** keep automatic approval off.
+- **Review order:** keep the confidence ranking.
+- **Whole-rally discovery:** the strict threshold is already excellent at **98.4% precision on trusted GT** and **94.3% under the conservative all-GT read**.
 
 Compact numbers and reproduction command: [serve_tables.md](serve_tables.md).

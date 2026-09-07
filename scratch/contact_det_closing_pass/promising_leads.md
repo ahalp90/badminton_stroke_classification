@@ -1,411 +1,168 @@
-# Promising leads we stopped, deferred, or folded into later work
+# Promising leads: what remains to investigate
 
-This is the research backlog for the closing pass.
+This is the **live backlog** after the closing pass. Completed, rejected and absorbed experiments belong in [experiment_lineage.md](experiment_lineage.md) and [last_followups.md](last_followups.md), not here.
 
-The main reports answer **“what should we use now?”** This file answers a different question:
+**Contents**  
+[Priority map](#priority-map)  
+[1. Safely clean up right-rally near-misses](#1-safely-clean-up-right-rally-near-misses)  
+[2. Choose the serve better when a good candidate already exists](#2-choose-the-serve-better-when-a-good-candidate-already-exists)  
+[3. Recover later contacts that never enter the candidate data](#3-recover-later-contacts-that-never-enter-the-candidate-data)  
+[4. Supply exact labels for unjudgeable high-confidence clips](#4-supply-exact-labels-for-unjudgeable-high-confidence-clips)  
+[5. Retry Qwen3.8 with reasoning enabled](#5-retry-qwen38-with-reasoning-enabled)
 
-**“What looked worth pursuing, but did not become part of the final detector — and should we ever come back to it?”**
+## Priority map
 
-The distinction matters. Some ideas were tested properly and failed. Some were only deprioritised. Some were useful, but a later experiment absorbed the good part.
-
-## What I would revisit first
-
-| Lead | Status | Why it still matters |
+| Open question | Why it matters | Best next step |
 |---|---|---|
-| Fix the contact-level mistakes inside already-correct rally clips | **Revisit first** | 112 of the 124 selected proposals that fail fully correct rally scoring are still the correct whole rally. |
-| Pick the serve better from candidates we already have | **Revisit** | Many missed serves already had a useful candidate; the model chose the wrong one. |
-| Recover contacts that never entered the saved candidate files | **Deferred upstream work** | More than half of the missed later contacts in the development census had no nearby row to choose from. |
-| Supply missing labels for selected clips | **Visual review complete; exact labels still needed** | The 44-clip review found replay contamination, apparent warm-up footage and unclear openings. |
+| Clean up contact mistakes after finding the right whole rally | **112** high-confidence exact failures still contain the correct whole rally | Find evidence that separates helpful local edits from damaging ones |
+| Choose the serve better from candidates already available | **243** missed serves already had a useful candidate in the shortlist | Improve serve selection instead of widening the search again |
+| Recover contacts that never reach the candidate pool | **1,072** missed later contacts had no nearby frozen feature row | Trace the upstream step that drops them |
+| Resolve high-confidence clips with insufficient GT | **44** selected clips cannot be fully judged against trusted GT | Add exact contact/player labels |
+| Retry the visual model with reasoning enabled | Earlier Qwen3.8 tests used direct answers only | Re-run the same reviewed cases within the L40 48 GB budget |
 
-The rest of this document explains those leads, then records the branches that are genuinely closed.
+![Open questions after the closing pass. Counts use different denominators and are not comparable rates; the Qwen retry is not shown because it is a configuration test, not an error population.](figures/promising_opportunities.svg)
 
-![The strongest remaining opportunities. Counts come from different diagnostics, so the bars show scale rather than directly comparable rates.](figures/promising_opportunities.svg)
+## 1. Safely clean up right-rally near-misses
 
----
+Among the 740 high-confidence clips that trusted GT can judge exactly:
 
-## 1. Turn “right rally, slightly wrong contacts” into fully correct rallies
+- **616 are fully correct**;
+- **112 contain the whole rally but have local contact mistakes**;
+- only **12** have a fundamental containment problem.
 
-**Status: revisit first**
+So **728 / 740 = 98.4%** already contain the right whole rally. The next opportunity is local cleanup, not better clip discovery.
 
-This is the clearest opportunity left by the final results.
+![Most high-confidence exact failures are local mistakes inside the correct whole rally.](figures/near_miss_errors.svg)
 
-The ranking model selects 740 proposals whose trusted GT lets us score them exactly:
+The final follow-up made that opportunity more concrete. In the development subset, **58 of 119 wrong selected clips** have a complete one-edit repair somewhere in the existing candidate pool:
 
-- **616 are perfect**;
-- **112 are the correct whole rally but have contact-level mistakes**;
-- only **12** have a fundamental rally-level problem.
+| One-edit repair available | Wrong selected clips |
+|---|---:|
+| Delete an event before the first label | 5 |
+| Delete an event after the last label | 17 |
+| Insert one later contact | 16 |
+| Replace one event with an existing candidate | 20 |
+| **Total unique clips** | **58** |
 
-So **728 / 740 = 98.4%** of the selected clips are already the correct whole rally.
+But labels chose those repairs after the fact. Every currently correct selected clip also has damaging edits available, so the missing piece is **how to know when an edit is safe**.
 
-The 112 near-misses mostly fail because of **extra contacts, missed contacts, or a smaller number of player-assignment errors**. These categories overlap.
+The 17 tail-deletion cases are a useful narrow test. Their final contact gaps overlap heavily with correct rally endings, so “long pause = delete the last event” does not work.
 
-![Why the 112 correct-rally selections still fail fully correct rally scoring.](figures/near_miss_errors.svg)
+### Open question
 
-This suggests a much narrower next problem than “build a better detector”:
+**Once we are already confident the clip contains one whole rally, what evidence can identify the remaining contact error without damaging clips that are already correct?**
 
-**Given a clip we are already very confident contains one whole rally, can a second pass clean up its remaining contact mistakes?**
+A useful experiment should predict a concrete residual error—extra contact, missing serve, missing later contact or wrong player—and show that acting on it beats leaving the sequence alone.
 
-That was not tested in this branch.
+Evidence:
 
-A useful version would predict concrete residual errors — for example:
+- `results/serve_followups/acceptance_breakdown.json.gz`
+- `results/last_followups/selected_repairs.json.gz`
+- [last_followups.md](last_followups.md#3-small-repairs-inside-selected-clips)
 
-- “there is probably one extra contact here”;
-- “the serve is missing”;
-- “a later contact is missing”;
-- “this player assignment is probably wrong”.
+## 2. Choose the serve better when a good candidate already exists
 
-That is different from making the approval threshold stricter. The experiments already showed that simply taking the highest ranking scores does **not** produce a reliably exact subset.
+Trusted-GT serve timing recall is **81.3%**, versus **88.9%** for non-serves.
 
-**Why this is promising:** the hard macro problem — finding one whole rally — is already mostly solved inside the selected set. The remaining problem is much more local.
-
-Saved evidence:
-`results/serve_followups/acceptance_breakdown.json.gz`
-
----
-
-## 2. Choose the serve better before generating more serve candidates
-
-**Status: revisit**
-
-The final detector finds **81.3% of serves** with trusted GT, compared with **88.9% recall for non-serve contacts**, so there is still meaningful serve-specific headroom.
-
-The development diagnosis split 797 missed serves into four groups:
+The development diagnosis split **797 missed serves** like this:
 
 | Why the serve was missed | Missed serves |
 |---|---:|
-| A useful scored frame existed, but it was not included in the small candidate list | **347** |
-| A useful candidate was already in the list, but the model chose something else | **243** |
-| No prepared physical evidence was available for the useful frame | **181** |
+| Useful scored frame existed but was not in the small candidate list | **347** |
+| Useful candidate was already in the list but the model chose something else | **243** |
+| No prepared physical evidence for the useful frame | **181** |
 | Useful scored evidence existed outside the current early-search window | **26** |
 
-The key number is **243**.
+The **243** selection failures are the cleanest target. The useful candidate was already there.
 
-Those serves did **not** need a bigger search. A useful candidate was already available and the model picked the wrong result.
+We already tried widening the serve shortlist. It gained only four fully correct rallies on the 47 videos, from **19 repairs and 15 losses**, and found just three extra serves at ±10.
 
-We did test the obvious brute-force response — let the model consider more early candidates. On the 47-video comparison, that version gains only **four** perfect rallies over the final detector. It repairs 19 and breaks 15. It finds only three extra serves at ±10.
+### Open question
 
-So the next serve experiment should **not** be “make the candidate list wider again.”
+**What helps the model choose the right serve when a good candidate is already present?**
 
-A better question is:
+Possible directions include a serve-specific ranking target, better player/pose evidence, or a more local objective for the opening contact. The point is to improve **selection**, not simply add more candidates.
 
-**What evidence would help the model choose the right serve when a good candidate is already present?**
+Evidence: `results/serve_followups/development_diagnosis.json.gz`.
 
-That might mean a serve-specific ranking target, better use of player/pose evidence, or a local score aimed specifically at the first contact. This exact experiment was not run.
+## 3. Recover later contacts that never enter the candidate data
 
-Saved evidence:
-`results/serve_followups/development_diagnosis.json.gz`
+A downstream chooser cannot recover a contact it never sees.
 
----
-
-## 3. Recover later contacts that never entered the saved candidate files
-
-**Status: deferred upstream work**
-
-The early missed-contact census found **2,043 missed later contacts** at ±10 across the 32 development videos.
-
-Where did they disappear?
+Across 32 development videos, the missed-later-contact census found **2,043 misses** at ±10:
 
 | What happened | Missed later contacts |
 |---|---:|
-| **No nearby row existed in the frozen feature files** | **1,072** |
-| Nearby candidates existed, but all scores were below 0.90 | 668 |
-| A score reached 0.90, but suppression removed it | 181 |
+| **No nearby row in the frozen feature files** | **1,072** |
+| Nearby candidates existed but all scores were below 0.90 | 668 |
+| A score reached 0.90 but suppression removed it | 181 |
 | A retained prediction competed for another label | 122 |
 | A row existed but the scoring mask skipped it | **0** |
 
-The important number is **1,072**.
+The **1,072 with no nearby row** are a hard ceiling for the current downstream models.
 
-For more than half of the missed later contacts, the final selection model never had a nearby saved candidate to work with. No amount of reranking the existing candidate rows can recover those contacts.
+### Open question
 
-This closing pass deliberately reused saved tracks, poses, court data and detector scores instead of rerunning upstream vision work. That was sensible while large gains were still available from the saved evidence.
+**Which upstream candidate-generation step loses those contacts, and can we change it so useful candidates reach the chooser?**
 
-But if we want another substantial recall jump after the current detector, this is an obvious ceiling:
+A future vision rerun should target that mechanism and measure how many previously absent contacts become recoverable. A broad rerun without tracing the loss first would be much less informative.
 
-**Why are those 1,072 contacts missing from the prepared candidate data, and can upstream candidate generation recover them?**
+A later diagnosis found **551 misses near candidates already in the shortlist**, versus **87 near scored frames left out of it**. Better candidate choice comes first; revisit a wider shortlist if excluded candidates become the main remaining problem.
 
-That may require changing or rerunning the feature/candidate preparation rather than adding another downstream tree.
+Evidence: `results/missed_candidate_census.json.gz`, `results/followups/residual_diagnosis.json.gz`.
 
-Saved evidence:
-`results/missed_candidate_census.json.gz`
+## 4. Supply exact labels for unjudgeable high-confidence clips
 
----
+Trusted GT cannot settle exact correctness for **44 selected clips**.
 
-## 4. What the 44 untrusted-GT selections contain
+Restoring source labels resolves **15 as wrong**. Of the rest:
 
-**Status: source labels recounted; visual review complete**
+- **28 have no source labels**;
+- **1 lacks player information**.
 
-Restoring the original labels resolves **15 as wrong**. Another **28 have no source labels**, and **one lacks player information**. Thirteen contain a whole source-labelled rally; none is confirmed fully correct.
+A sampled visual review already covered all 44 intervals. It found 39 live-play clips, four mixing replay with live play (`19_056`, `20_036`, `22_017`, `27_006`), and one apparent warm-up clip (`52_000`).
 
-A sampled visual review covered all 44 intervals, including two seconds before and after each:
+That review is enough for broad footage/boundary sanity, but not frame-level contact timing or player attribution.
 
-- **39 show live play** without an obvious replay inside the interval;
-- **four include a replay before returning to live play**: `19_056`, `20_036`, `22_017` and `27_006`;
-- **one appears to be pre-match warm-up**: `52_000`.
+### Open question
 
-Camera changes around the serve make many openings unclear. In five clips, serve action is visible before the proposed start. All 43 clips containing live play show the rally ending in the review samples.
+**What do exact contact and player labels say about these clips?**
 
-The review used two frames per second. It checks footage and broad boundaries; exact contact timing still needs frame-level labels. It gives no additional perfect-rally credit.
+This is mostly an annotation task. It would tighten the high-confidence precision estimate and show whether missing GT is hiding another error pattern.
 
-Clip times, source videos and individual notes: [selected_clip_review.csv](results/selected_clip_review.csv).
+Notes: `results/selected_clip_review.csv`.
 
----
+## 5. Retry Qwen3.8 with reasoning enabled
 
-# Lower-priority ideas that still have a reason to exist
+The direct-answer visual veto failed badly, but we never tried **Qwen3.8 with reasoning enabled**. One controlled retry is worth doing before closing that route completely.
 
-## 5. Try a more diverse set of later-contact candidates
+The old controls give us reason to be sceptical: the model claimed exact timing in **11 / 13 non-visible cases** and live contact in **21 / 25 pure replay clips**. Reasoning mode needs to improve those failures too.
 
-**Status: deferred, lower priority**
+Reuse the already-reviewed rally-start cases, questions and scorer. First test the existing video input with thinking enabled. If that helps, try deterministic frame sheets under the same reasoning settings. Frame sheets are an input-format comparison, not extra information.
 
-The follow-up diagnosis found:
+### Keep it viable on the L40 48 GB
 
-- **551** missed later contacts already had a nearby candidate in the existing shortlist;
-- only **87** were near a scored frame that had not made the shortlist.
+The useful constraints from the earlier retry spec are:
 
-That says the immediate problem is usually **choosing or scoring the candidates we already have**, not candidate diversity.
+- keep **one active request** (`max_num_seqs=1`);
+- do not enlarge the model context just because reasoning is enabled;
+- keep **processed prompt + visual tokens + generation allowance ≤ `max_model_len`**;
+- start with a **4,096-token** reasoning/output allowance; only try 8,192 for a genuine length truncation that still fits;
+- leave cache settings alone so this remains one experiment rather than several;
+- if it does not fit, reduce visual workload or reasoning allowance while preserving local contact detail.
 
-A more diverse later-contact shortlist was therefore deliberately not run.
+For frame sheets, keep original frame IDs and enough consecutive frames around the candidate contact to judge timing. Do not use labels to choose frames, and do not turn “not visible” into “definitely false”.
 
-It may become worth revisiting if:
+### What would count as useful?
 
-1. selection among the current later candidates improves substantially; and
-2. the remaining misses are then dominated by candidates that never make the shortlist.
+Use the same concrete outcomes as before: **correct server, correct visible-contact timing, unsupported timing claims on non-visible cases, and incomplete outputs**. Compare paired cases, not explanation quality.
 
-Until then, it is not the first bottleneck.
+If reasoning mostly repeats or reshuffles the old errors—or cannot finish inside the practical memory/context budget—close the route. A clear paired improvement would justify a small confirmation on other already-labelled cases, not automatic approval.
 
----
 
-## 6. Rerun upstream vision extraction
+### Reference docs for the Qwen retry
 
-**Status: deferred**
-
-No new tracking, pose, contact vision model or broad iterative extraction pass was run in this closing work.
-
-That was deliberate: the saved evidence still contained large cheap gains, including later-contact insertion and the rally-boundary fix.
-
-The reason to revisit upstream vision is now concrete rather than vague: the **1,072 missed later contacts with no nearby frozen feature row**.
-
-So if this branch continues, “rerun vision” should mean:
-
-**change the upstream candidate-generation step specifically to address those missing rows**, then measure whether they become recoverable.
-
-A broad rerun without that target would just be expensive archaeology.
-
----
-
-# Tested ideas that are closed in their current form
-
-## 7. Insert two later contacts instead of one
-
-**Status: closed in this form**
-
-There was real theoretical headroom.
-
-On development data, letting the labels choose two compatible insertions instead of one increased the best possible complete-rally count by:
-
-- **82** when the other rally edits could also change;
-- **55** when the existing base choice was held fixed.
-
-So the candidate pool contains genuine two-miss cases.
-
-But the learned model could not exploit that opportunity cleanly.
-
-With the final boundary fix, the two-insertion version reaches **1,210** perfect development rallies at ±10 versus **1,209** for the simpler one-insertion version.
-
-That one-rally net gain comes from **15 repairs and 14 losses**.
-
-The current brute-force pair expansion is therefore closed. It adds complexity without dependable gain.
-
-The underlying idea is not impossible forever. It would make more sense to revisit after a much better local insertion model or as a sequential cleanup step, rather than by tripling the whole alternative pool again.
-
-Saved results:
-`results/followups/both_result.json.gz`
-and `results/followups/both_boundary_result_fixed_membership.json.gz`
-
----
-
-## 8. Add a separate model for deleting extra contacts
-
-**Status: closed in this form**
-
-Extra contacts are clearly a real problem. They are the most common exact-scoring failure in the final selected set.
-
-The development diagnosis also found **723 deletions** that appeared locally useful across 479 proposals.
-
-But there was an important catch:
-
-- the existing whole-sequence model already offered **675** of those opportunities;
-- **637 / 723** locally useful deletions still left a different labelled contact missing;
-- only **16** would have made the whole rally perfect by themselves.
-
-A separate deletion score was then tested.
-
-At ±10 it moves the final development detector from **1,209 → 1,217** perfect rallies:
-
-- 22 repairs;
-- 14 losses.
-
-It also harms 67 proposals that were already imperfect.
-
-That is not a good enough trade for another model, so this version was closed before the 47-video run.
-
-### Why deletion may still come back in a different role
-
-This result says **do not add a broad deletion model to the main detector**.
-
-It does *not* say “never remove extra contacts.”
-
-Of the 112 selected clips that contain the right whole rally, 80 have extra predicted contacts. A conservative cleanup pass applied only after we already know the clip is almost certainly one whole rally is a much narrower problem than the deletion experiment tested here.
-
-That narrower version remains plausible; it was not tested.
-
-Saved results:
-`results/serve_followups/deletion_development.json.gz`
-
----
-
-## 9. Use a visual-language model to veto bad automatic selections
-
-**Status: closed for this task**
-
-This looked attractive because the question sounds visual: “does the clip really show the serve where we think it does?”
-
-The small test failed badly.
-
-Among 57 selected development proposals sent to the visual model at ±10:
-
-- before the visual veto: **45 correct, 12 wrong**;
-- after the veto: **6 correct, 1 wrong**.
-
-It catches 11 of the 12 mistakes, but throws away **39 of the 45 correct proposals**.
-
-Historical controls were also worrying:
-
-- exact timing was claimed in **11 / 13** cases where the contact was not visible;
-- “live” contact was claimed on **21 / 25** pure replay clips.
-
-Do not rerun the same visual veto with more clips.
-
-A future visual experiment would need a different task, stronger visibility/replay labels, and evidence that the model can answer that narrower question reliably.
-
-Saved results:
-`results/followups/vlm_acceptance_result.json.gz`
-
----
-
-## 10. Widen the scoring mask over the existing saved rows
-
-**Status: closed by diagnosis**
-
-This one does not need another model run.
-
-Among the 2,043 missed later contacts in the development census, **zero** had a nearby saved row that was merely skipped by the scoring mask.
-
-So widening that mask over the existing frozen rows has no demonstrated recovery opportunity.
-
-If upstream candidate preparation changes in future, this can be checked again. With the current saved data, it is a dead end.
-
----
-
-## 11. Launch a broad new player-attribution campaign
-
-**Status: low priority / effectively closed for now**
-
-Player attribution is not perfect, but it is no longer the main bottleneck.
-
-After the final local insertion work and rally-boundary fix, only **21 development proposals at ±10** have:
-
-- complete timing;
-- the whole rally contained;
-- but the wrong player assignment.
-
-The final alternating-player rule already turns the serve-side result from:
-
-- 2,222 correct / 250 wrong / 309 missing
-
-into:
-
-- **2,647 correct / 128 wrong / 6 missing**
-
-among the 2,781 trusted-GT serves found in time.
-
-There are still side errors mixed with other failures, but a broad player-attribution campaign is unlikely to buy as much as fixing missing/extra contacts.
-
-Revisit only after contact-sequence errors are substantially lower.
-
----
-
-# Ideas that were absorbed rather than abandoned
-
-## 12. Physical measurements
-
-**Status: absorbed into the final model**
-
-The standalone first-contact experiments made the physical measurements look weak.
-
-On the eight comparison videos, adding direct physical measurements to the first-contact-only models did not improve complete-rally recovery.
-
-But when the whole finished rally was scored jointly, the same physical evidence helped **reduce bad edits**:
-
-- without direct physical measurements: 233 perfect rallies, 9 losses;
-- with them: **235 perfect rallies, 3 losses**.
-
-So the lesson is not “physics did nothing.”
-
-The useful part of that branch is already in the final whole-sequence model. There is no reason to resurrect the standalone physical model.
-
----
-
-## 13. A local score for inserted contacts
-
-**Status: absorbed into the final detector**
-
-The later-contact experiment originally left this as the obvious next branch:
-
-**judge whether the proposed inserted contact itself is useful, instead of only asking whether the whole edited rally looks good.**
-
-That experiment was later run.
-
-The local inserted-contact score raises the 47-video perfect-rally count from **1,597 to 1,622** by itself, and remains part of the final **1,763** detector.
-
-This lead is complete.
-
----
-
-## 14. Fixing rally boundaries
-
-**Status: absorbed into the final detector**
-
-Earlier work left rally containment as a possible source of error.
-
-The follow-up confirmed it strongly:
-
-- starting point: 1,597 perfect rallies;
-- conservative boundary correction only: **1,732**;
-- repairs / losses: **135 / 0** at ±10.
-
-That branch is no longer research debt. It is one of the main final-system changes.
-
----
-
-# What not to do next
-
-The old reports contain several tempting ways to spend time without attacking the current bottleneck.
-
-I would **not** start with:
-
-- another broad threshold search for exact automatic approval;
-- a still-wider serve candidate list;
-- the same two-insertion expansion;
-- the same deletion model;
-- the same VLM veto;
-- widening the scoring mask over the current frozen rows;
-- a broad new player-side campaign.
-
-The strongest next questions are much narrower:
-
-1. **Can we clean up the 112 selected clips that are already the correct whole rally?**
-2. **Can we choose the correct serve more often when the useful candidate is already present?**
-3. **What upstream step is responsible for the 1,072 missed later contacts that never enter the saved candidate files?**
-4. **Can missing contact labels resolve the remaining selected clips after the visual review?**
-
-Those are the leads this closing pass leaves open.
+- Qwen3.8-27B-FP8 model card: thinking controls and sampling defaults — https://huggingface.co/Qwen/Qwen3.8-27B-FP8
+- Qwen vision utilities: image/video resizing and visual budgets — https://github.com/QwenLM/Qwen3-VL
+- vLLM engine arguments: context length, cache dtype and memory settings — https://docs.vllm.ai/en/latest/configuration/engine_args/
+- vLLM memory tuning — https://docs.vllm.ai/en/v0.18.1/configuration/optimization/

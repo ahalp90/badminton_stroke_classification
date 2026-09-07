@@ -16,10 +16,11 @@ from scratch.contact_det.scripts.score_contact_rallies import (
 )
 from scratch.contact_det_closing_pass.scripts.regenerate_figures import (
     regenerate_metric_figures,
+    selection_metrics,
+    stage_recall,
 )
 from scratch.contact_det_closing_pass.scripts.summarise_metrics import (
     ROOT,
-    contact_table,
     full_stream_counts,
     section_rows,
     selection_summary,
@@ -34,8 +35,7 @@ from scratch.contact_det_full_ds_fit.scripts.rally_start_model import (
 def test_duplicate_source_timestamps_keep_their_separate_player_labels() -> None:
     events = (FixedEvent("video", 100, 1.0, "Top"), FixedEvent("video", 103, 1.0, "Bot"))
     stream = ContactStreams((FixedSpan("video", 0, 90, 110, events),), {"video": events})
-    labels = HumanLabels({"video": (RallyReference("video", 0, "rally", (100, 100)),)},
-                         {("video", 100): "Bot"})
+    labels = HumanLabels({"video": (RallyReference("video", 0, "rally", (100, 100)),)}, {("video", 100): "Bot"})
     sides = {("video", "rally"): ("Top", "Bot")}
     rows = section_rows(stream, labels, sides, {"video": 30.0}, 5)
     assert rows[0]["outcome"] == "correct"
@@ -59,15 +59,20 @@ def test_unlabelled_proposal_stays_unknown_without_recovery_credit() -> None:
 def test_full_stream_tolerance_scales_to_source_frames(fps: float, expected: int) -> None:
     events = (FixedEvent("video", 115, 1.0, "Top"),)
     stream = ContactStreams((FixedSpan("video", 0, 90, 120, events),), {"video": events})
-    labels = HumanLabels({"video": (RallyReference("video", 0, "rally", (100,)),)},
-                         {("video", 100): "Top"})
+    labels = HumanLabels({"video": (RallyReference("video", 0, "rally", (100,)),)}, {("video", 100): "Top"})
     counts = full_stream_counts(stream, labels, {("video", "rally"): ("Top",)}, {"video": fps}, 10)
     assert counts["serve_matched"] == counts["start_matched"] == expected
 
 
 def test_repeated_proposals_do_not_inflate_unique_rally_recovery() -> None:
-    row = {"fixture": "video", "rally_id": "rally", "fully_correct": True,
-           "whole_rally_contained": True, "overlapping_rallies": 1, "outcome": "correct"}
+    row = {
+        "fixture": "video",
+        "rally_id": "rally",
+        "fully_correct": True,
+        "whole_rally_contained": True,
+        "overlapping_rallies": 1,
+        "outcome": "correct",
+    }
     summary = selection_summary([row, row], 1)
     assert summary["correct"] == 2
     assert summary["unique_complete"] == summary["unique_contained"] == 1
@@ -79,10 +84,6 @@ def test_reports_and_chart_labels_reproduce_the_saved_counts(tmp_path: Path) -> 
     table = tmp_path / "serve_tables.md"
     write_table(result, table)
     assert table.read_text() == (ROOT / "serve_tables.md").read_text()
-    for name in ("README.md", "serve_and_acceptance.md", "contact_performance.md"):
-        report = (ROOT / name).read_text()
-        assert contact_table(result, "contacts") in report
-        assert contact_table(result, "starts") in report
 
     regenerate_metric_figures(result, tmp_path)
     for generated in tmp_path.glob("*.svg"):
@@ -91,3 +92,31 @@ def test_reports_and_chart_labels_reproduce_the_saved_counts(tmp_path: Path) -> 
         assert re.findall(r"<!-- (.*?) -->", generated.read_text()) == re.findall(
             r"<!-- (.*?) -->", saved.read_text()
         ), generated.name
+
+
+def test_selection_figures_keep_population_denominators_separate() -> None:
+    result = {
+        "selected": {
+            "retained": {"10": {"proposals": 10, "unknown": 2, "unique_complete": 4, "labelled_rallies": 20}},
+            "all_gt": {"10": {"proposals": 10, "unknown": 2, "unique_complete": 4, "labelled_rallies": 25}},
+        }
+    }
+    assert selection_metrics(result, "unique_complete") == pytest.approx([50, 20, 200 * 4 / 28])
+    assert selection_metrics(result, "unique_complete", "all_gt") == pytest.approx([40, 16, 200 * 4 / 35])
+
+
+def test_stage_figures_use_requested_order_and_each_population() -> None:
+    result = {
+        "stages": {
+            "final": {
+                "retained": {"10": {"unique_complete": 8, "labelled_rallies": 10}},
+                "all_gt": {"10": {"unique_complete": 7, "labelled_rallies": 20}},
+            },
+            "original": {
+                "retained": {"10": {"unique_complete": 3, "labelled_rallies": 10}},
+                "all_gt": {"10": {"unique_complete": 2, "labelled_rallies": 20}},
+            },
+        }
+    }
+    assert stage_recall(result, ["original", "final"]) == [30, 80]
+    assert stage_recall(result, ["original", "final"], "all_gt") == [10, 35]

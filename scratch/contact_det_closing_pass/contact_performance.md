@@ -1,88 +1,93 @@
 # Contact-level performance
 
-The whole-rally score is deliberately strict: one missed contact, one extra contact, or one wrong player makes the entire rally fail.
+A whole rally fails strict scoring if even one contact is missed, added, mistimed or given to the wrong player. This page looks underneath that end-to-end score: **how good are the individual contacts?**
 
-This page answers the middle question:
+We primarily score **38,218 trusted contact labels** from 3,422 rallies. Restoring all source rows gives **43,159 labels** across 3,965 rallies. Both reads use the same predictions.
 
-**How well does the final detector find individual contacts?**
+**Contents**  
+[Final contact precision, recall and F1](#final-contact-precision-recall-and-f1)  
+[Serves versus later contacts](#serves-versus-later-contacts)  
+[Does the proposed rally start at the serve?](#does-the-proposed-rally-start-at-the-serve)  
+[How performance changed](#how-performance-changed)  
+[Why contact recall and fully-correct-rally recall differ](#why-contact-recall-and-fully-correct-rally-recall-differ)  
+[Tighter ±5 check](#tighter-5-check)  
+[Reproduce the numbers](#reproduce-the-numbers)
 
-## All contacts: precision, recall and F1
+## Final contact precision, recall and F1
 
-The 47 videos contain **38,218 trusted contact labels**, or **43,159 with all source labels restored**. Both scores use the same predictions at ±10 frames on a 30 fps clock.
+At ±10 frames on a 30 fps clock:
 
-| Task | Labels | Precision | Recall | F1 |
-|---|---|---:|---:|---:|
-| Timing only | Trusted GT | 81.0% | 88.2% | 84.5% |
-| Timing only | All GT | 90.1% | 86.9% | 88.4% |
-| Timing + correct player | Trusted GT | 78.5% | 85.5% | 81.8% |
-| Timing + correct player | All GT | 87.2% | 84.0% | 85.6% |
+| Task | Trusted GT | All GT |
+|---|---:|---:|
+| Timing only | **81.0 / 88.2 / 84.5%** | **90.1 / 86.9 / 88.4%** |
+| Timing + correct player | **78.5 / 85.5 / 81.8%** | **87.2 / 84.0 / 85.6%** |
 
-The trusted-GT score comes from:
+The trusted timing result comes from **41,605 predictions**, **33,716 timing matches**, and **32,667 matches with the correct player too**.
 
-- **41,605 predicted contacts**;
-- **33,716 timing matches**;
-- **32,667 matches with both correct timing and correct player**.
+Restoring the **543 excluded rallies** lets more of those same predictions count as matches, which is why precision rises. The restored rows are useful for comparison, but some were excluded precisely because their labels are unreliable.
 
-Restoring labels lets more of the same predictions count as matches, which raises precision. The restored labels include the 543 rallies excluded during cleaning.
-
-![Contact precision, recall and F1 for both label sets at ±10.](figures/contact_prf.svg)
+![Contact precision, recall and F1 on trusted GT.](figures/contact_prf.svg)
 
 ## Serves versus later contacts
 
-The saved full-stream matcher tells us which labelled contacts were serves, so recall splits cleanly:
+Serves are harder:
 
-| Contact type | Labels | Timing recall | Timing + correct-player recall |
-|---|---|---:|---:|
-| Non-serve | Trusted GT | 88.9% | 86.3% |
-| Non-serve | All GT | 88.4% | 85.7% |
-| Serve | Trusted GT | 81.3% | 77.4% |
-| Serve | All GT | 72.0% | 67.3% |
+| Labelled contact | Trusted GT: timing / + player | All GT: timing / + player |
+|---|---:|---:|
+| Non-serve | **88.9% / 86.3%** | **88.4% / 85.7%** |
+| Serve | **81.3% / 77.4%** | **72.0% / 67.3%** |
 
-![Serve and non-serve recall at ±10.](figures/contact_recovery.svg)
+![Serve and non-serve recovery on trusted GT.](figures/contact_recovery.svg)
 
-**Serves are the harder contact class under both sets of labels.**
+### Why there is no full-stream non-serve precision
 
-### Why there is no separate non-serve precision here
+The full-stream detector outputs **contacts**, not a serve/non-serve class for every prediction. We can therefore split labelled contacts into serves and non-serves for recall, but there is no clean denominator of “predicted non-serves”.
 
-The full-stream detector outputs **contacts**, not a serve/non-serve class for every prediction. “Serve” becomes an explicit prediction only when a contact is used as the first event of a proposed rally.
+The next section uses the task that really does make one explicit serve prediction.
 
-So subtracting serves from the label denominator gives a clean **non-serve recall**, but there is no equally natural full-stream “predicted non-serve” denominator.
+## Does the proposed rally start at the serve?
 
-Rather than invent one, the next section reports precision/recall/F1 for the task that *does* explicitly predict a serve.
-
-## Does the proposed rally actually start at the serve?
-
-Every nonempty proposed rally makes one explicit start prediction. There are **3,725** such starts, compared with **3,422 trusted serves** or **3,965 across all GT**.
+Every nonempty proposed rally has one explicit start. There are **3,725** such predictions, versus 3,422 trusted serves or 3,965 across all source GT.
 
 At ±10:
 
-| Task | Labels | Precision | Recall | F1 |
-|---|---|---:|---:|---:|
-| Start is serve | Trusted GT | 70.4% | 76.7% | 73.4% |
-| Start is serve | All GT | 72.1% | 67.7% | 69.8% |
-| Start + correct server | Trusted GT | 68.1% | 74.1% | 71.0% |
-| Start + correct server | All GT | 68.5% | 64.4% | 66.4% |
+| Task | Trusted GT | All GT |
+|---|---:|---:|
+| Start is serve | **70.4 / 76.7 / 73.4%** | **72.1 / 67.7 / 69.8%** |
+| Start + correct server | **68.1 / 74.1 / 71.0%** | **68.5 / 64.4 / 66.4%** |
 
-## How contact performance changed during the closing pass
+This is the clean precision/recall/F1 serve metric. “Serve found anywhere in the full stream” is recall-only.
 
-This stage comparison uses **trusted GT at ±10**.
+## How performance changed
+
+Trusted GT at ±10:
 
 | Detector stage | Timing P / R / F1 | Timing + player P / R / F1 |
 |---|---:|---:|
-| Whole-sequence model | 81.1 / 87.3 / 84.1% | 75.0 / 80.8 / 77.8% |
-| + one later-contact repair | 81.1 / 88.0 / 84.4% | 78.3 / 85.0 / 81.5% |
+| Score possible sequences | 81.1 / 87.3 / 84.1% | 75.0 / 80.8 / 77.8% |
+| + one missed later contact | 81.1 / 88.0 / 84.4% | 78.3 / 85.0 / 81.5% |
 | **Final detector** | **81.0 / 88.2 / 84.5%** | **78.5 / 85.5 / 81.8%** |
 
-![Contact-level progress during the closing pass.](figures/contact_progression.svg)
+![Contact-level progression.](figures/contact_progression.svg)
 
-The large player-aware gain happens when the later-contact work is added. That stage does more than insert missed contacts: the alternating player sequence also fixes many player labels at timestamps that were already present.
+The big player-aware jump comes with the later-contact stage, partly because alternating player assignment fixes labels at contacts that were already present.
 
-The final rally-boundary fix then adds many **perfect whole rallies** while barely moving contact P/R/F1, because its main job is to make the proposed video interval contain contacts the detector had already found.
+Rally-boundary correction then adds many fully correct rallies while barely moving contact P/R/F1. It is fixing clip containment, not finding many new contacts.
 
-## How this fits with the rally-level results
+## Why contact recall and fully-correct-rally recall differ
 
-Contact scores measure individual events. A perfect rally needs every event to be right, so long rallies multiply the chances of at least one mistake. Whole-rally clip selection checks whether the video contains the rally, even when some contact details need repair.
+Contact metrics score events one at a time. A fully correct rally needs **every** event right, no contradictory extras, and every player correct. Longer rallies simply offer more chances for one local error to sink the whole rally.
+
+That is why **88.2% contact recall** can coexist with only **51.5% fully-correct-rally recall**, and why high-confidence whole-rally discovery can still be excellent.
+
+## Tighter ±5 check
+
+At ±5 frames, trusted-GT timing is **79.3 / 86.3 / 82.6%** and timing + player is **76.9 / 83.7 / 80.2%**.
+
+Non-serve recall is **87.9%** timing-only and **85.5%** with the correct player. Rally-start P/R/F1 is **60.0 / 65.3 / 62.5%**, or **58.2 / 63.3 / 60.6%** with the correct server.
+
+All-GT ±5 values are in [serve_tables.md](serve_tables.md).
 
 ## Reproduce the numbers
 
-The [compact reference](serve_tables.md) gives both label populations at ±10 and ±5, plus the command to rebuild them from saved predictions.
+[serve_tables.md](serve_tables.md) contains both label reads at ±10 and ±5 plus the rebuild command.

@@ -1,65 +1,69 @@
 # First 47-video test of whole-sequence selection
 
-## Result
+**Contents**  
+[Question](#question)  
+[Answer](#answer)  
+[Contact-level effect](#contact-level-effect)  
+[What the repairs changed](#what-the-repairs-changed)  
+[Why the sequence score was not an approval score](#why-the-sequence-score-was-not-an-approval-score)  
+[Cost](#cost)  
+[Decision](#decision)
 
-The whole-sequence model held up across the 47 ShuttleSet22 videos.
+## Question
 
-The same saved predictions are scored against the trusted labels and all original source labels.
+Does whole-sequence selection still help when we move from the eight comparison videos to all 47 ShuttleSet22 videos?
+
+## Answer
+
+Yes. The same saved predictions show a large gain under both label reads.
 
 | Measure | Trusted GT only | All GT included |
 |---|---:|---:|
-| Perfect-rally recall: original detector | 995 / 3,422 = **29.1%** | 993 / 3,965 = **25.0%** |
-| Perfect-rally recall: first-contact repair only | 1,105 / 3,422 = **32.3%** | 1,103 / 3,965 = **27.8%** |
-| Perfect-rally recall: whole-sequence model | **1,435 / 3,422 = 41.9%** | 1,433 / 3,965 = **36.1%** |
+| Original detector | 995 / 3,422 = **29.1%** | 993 / 3,965 = **25.0%** |
+| Serve repair only | 1,105 / 3,422 = **32.3%** | 1,103 / 3,965 = **27.8%** |
+| **Whole-sequence model** | **1,435 / 3,422 = 41.9%** | **1,433 / 3,965 = 36.1%** |
 
-Compared with the original detector, the whole-sequence model:
+Against trusted GT, whole-sequence selection repairs **447** rallies and breaks **7** that were previously perfect: **+440 overall**. It improves 44 videos and ties in three.
 
-- repairs **447** rallies;
-- breaks **7** previously perfect rallies;
-- gains **440** perfect rallies overall;
-- improves in 44 videos and ties in three.
+![The first large gain across the 47 videos.](figures/broader_gain.svg)
 
-Against trusted GT, individual-contact timing P/R/F1 is **81.1% / 87.3% / 84.1%**. Requiring the player to be correct gives **75.0% / 80.8% / 77.8%**.
+## Contact-level effect
 
-So the whole-rally gain is not only a rally-level effect: it also recovers more labelled contacts, although it still produces too many unmatched predictions.
+Trusted-GT contact timing reaches **81.1 / 87.3 / 84.1%** P/R/F1. Requiring the correct player gives **75.0 / 80.8 / 77.8%**.
 
-![The first large gain across all 47 videos, under both label sets.](figures/broader_gain.svg)
+So the whole-rally gain is real at contact level too, though unmatched predictions remain a problem.
 
-## What the model changed
+## What the repairs changed
 
-The 447 repairs came from:
+The 447 repairs are:
 
-- **364** missing first contacts added;
+- **364** missing serves added;
 - **52** extra contacts removed;
 - **13** first contacts replaced;
-- **18** first-contact repair + removal combinations.
+- **18** serve-repair + removal combinations.
 
-The seven losses were four bad additions, two bad replacements and one bad removal.
+The seven losses are four bad additions, two bad replacements and one bad removal.
 
-The first-contact problem still dominates, but choosing the whole finished sequence makes removals and combined repairs useful too.
+Serve repair still dominates, but choosing the finished sequence also makes removals and combined edits useful.
 
-## The model score was not an automatic-approval score
+## Why the sequence score was not an approval score
 
-A score rule chosen on development data selected 382 proposals:
+A development rule based on the sequence model's own score selected 382 proposals:
 
-- 278 perfect;
-- 95 wrong under strict scoring;
-- 9 with GT that could not settle the result.
+- **278** perfect;
+- **95** wrong under strict scoring;
+- **9** whose GT could not settle the result.
 
-That was useful evidence that the sequence-selection model could build better output, but its own score was not a reliable “this is ground truth” probability.
-
-A separate ranking model was tested later.
+That score was good enough to choose better sequences, but not good enough to mean “safe ground truth”. A separate ranking model was tested later.
 
 ## Cost
 
-The expensive video models were not rerun.
-
-Rebuilding the saved inputs and applying the model took about **21.5 minutes across all 47 videos**.
+No expensive video model was rerun. Rebuilding the saved inputs and applying the whole-sequence model took about **21.5 minutes across all 47 videos**.
 
 ## Decision
 
-Keep this as the new reference and test the next missing capability: **adding one missed contact later in the rally**.
+Keep whole-sequence selection and tackle the next obvious weakness: **missed contacts later in the rally**.
 
 Next: [later_contact_comparison.md](later_contact_comparison.md).
 
-Saved results: `results/broader_result.json.gz` and `results/broader_predictions.json.gz`.
+Saved results: `results/broader_result.json.gz`, `results/broader_predictions.json.gz`.

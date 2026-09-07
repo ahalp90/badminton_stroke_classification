@@ -1,85 +1,65 @@
-# Experiment lineage: what we actually ran on this branch
+# Experiment lineage: what was actually run
 
-This is the map of the experiments that happened on **`contact-det-last-effort`**.
+This is the canonical map of **`contact-det-last-effort`**, ordered by research decision rather than commit.
 
-It is chronological by **research decision**, not commit-by-commit. The point is to make it possible to read a result in the docs, see a name like `local` or `early`, and know where it came from in the code.
+Come here when another report mentions an internal name such as `local`, `early`, `fixed_membership`, `gap` or `chosen`, or when you need the runner/result file behind a claim.
 
-The branch starts with the existing detector and saved vision outputs. Everything below is work done in this closing-pass series.
+![The closing-pass lineage, including the final negative checks.](figures/experiment_lineage.svg)
 
-![Branch experiment lineage.](figures/experiment_lineage.svg)
+**Contents**  
+[Short version](#short-version)  
+[1. Serve-repair comparisons](#1-serve-repair-comparisons)  
+[2. Score whole finished sequences](#2-score-whole-finished-sequences)  
+[3. First 47-video run](#3-first-47-video-run)  
+[4. Add one missed later contact](#4-add-one-missed-later-contact)  
+[5. Final detector follow-ups](#5-final-detector-follow-ups)  
+[6. Confidence-ranking experiments](#6-confidence-ranking-experiments)  
+[7. Final serve and ranking pass](#7-final-serve-and-ranking-pass)  
+[8. Closing checks](#8-closing-checks)  
+[Code-name dictionary](#code-name-dictionary)  
+[What survives](#what-survives)
 
-## The short version
+## Short version
 
 ```text
-Existing contact detector
-        |
-        v
-1. First-contact comparisons
-   summary/whole
-   summary/opening
-   physical/whole
-   physical/opening
-        |
-        v
-2. Choose the whole finished contact sequence
-        |
-        v
-3. Run that model on 47 ShuttleSet22 videos
-        |
-        v
-4. Allow one missed later contact
-   + require a 0.05 score improvement before changing output
-        |
-        v
-5. Final detector follow-ups
-   ├── local  = score the proposed inserted contact itself
-   ├── pairs  = allow two later insertions
-   ├── both   = pairs + local score
-   ├── early  = consider more possible serve timestamps
-   └── fixed_membership = extend clip boundaries without changing contacts
-        |
-        +---- pairs/both: closed
-        +---- early: saved alternative, not recommended
-        |
-        v
-Recommended detector
-local + fixed_membership
-        |
-        +---- gap review-ranking evidence
-        +---- VLM veto: closed
-        +---- deletion score: closed
-        |
-        v
-6. Final serve + ranking pass
-   serve recount
-   chosen acceptance on the actual recommended detector
-   accepted-error breakdown
+Previous detector
+    ↓
+serve repair
+    ↓
+score possible finished sequences
+    ↓
+47-video check
+    ↓
+add one missed later contact + ≥0.05 whole-rally guard
+    ↓
+evaluate added contact independently
+    + rally start/end correction
+    ↓
+recommended detector
+    ↓
+confidence ranking + serve/error analysis
+    ↓
+closing checks: no further cheap gain
 ```
 
-The final detector is therefore **not** one giant model. It is the result of a sequence of branch decisions.
+The final detector is the surviving path through these decisions, not one giant model.
 
 ---
 
-# 1. First-contact comparisons
+# 1. Serve-repair comparisons
 
-## Question
+**Question:** can we repair the start of a rally more reliably, and which evidence helps?
 
-**Can we repair the start of a rally more reliably, and which evidence is actually useful?**
+Four small models were compared:
 
-This is the branch's first model-comparison stage.
-
-The experiment compares four small models:
-
-| Name in the writeup | What it learns from | What “whole” / “opening” means |
+| Write-up name | Inputs | Target |
 |---|---|---|
-| `summary/whole` | numerical summaries of the proposed rally | target is whether the whole rally becomes correct |
-| `summary/opening` | the same summary inputs | target asks specifically whether the opening repair is useful |
-| `physical/whole` | summary inputs + saved physical measurements | whole-rally target |
-| `physical/opening` | summary inputs + saved physical measurements | opening-specific target |
+| `summary/whole` | numerical rally summaries | whole rally becomes correct |
+| `summary/opening` | same summaries | opening repair is useful |
+| `physical/whole` | summaries + saved physical measurements | whole rally becomes correct |
+| `physical/opening` | summaries + physical measurements | opening repair is useful |
 
-### Main runner
-
-`run_start_comparison.py`
+Main runner: `run_start_comparison.py`
 
 Supporting code:
 
@@ -87,60 +67,40 @@ Supporting code:
 - `targets.py`
 - `score_saved_start_reference.py`
 
-Main saved outputs:
+Saved outputs:
 
 - `results/start_comparison_result.json.gz`
 - `results/start_comparison_predictions.json.gz`
 - `results/historical_start_reference.json.gz`
 
-## What happened
+The opening-specific target was more aggressive and repaired more rallies. Physical measurements were not especially useful as a **standalone serve-repair model**.
 
-The opening-specific target was more aggressive and found more repairs. The physical measurements were not especially useful **as a standalone first-contact model**.
+That led to the next question: would the same evidence help if the model judged a **finished contact sequence** instead of one local edit?
 
-That did **not** kill the physical features. It led directly to the next question:
+### Diagnostics triggered here
 
-**What if all of this evidence is judged together when choosing the finished rally, instead of forcing one local model to make the whole decision?**
+These were investigations, not detector variants:
 
-## Diagnostics that grew out of this stage
-
-These were not competing detector versions; they were investigations prompted by the first results.
-
-| Diagnostic | Code | What it answered |
+| Diagnostic | Code | What it checked |
 |---|---|---|
-| Correct the old scoring baseline | `recount_matching.py` | Does the old scorer incorrectly certify clipped rallies or make avoidable contact pairings? |
-| Check excluded GT | `check_label_coverage.py` | What did the inherited label cleaner remove? |
-| Find where missed contacts disappear | `census_missed_candidates.py` | Are misses absent from the saved rows, below threshold, suppressed, or merely not selected? |
-| Measure repair headroom | `diagnose_repair_capacity.py` | How many rallies could be repaired if labels were allowed to pick among existing candidates? |
+| Correct old scoring baseline | `recount_matching.py` | clipped rallies / avoidable pairings |
+| Check excluded GT | `check_label_coverage.py` | what inherited cleaning removed |
+| Find missed contacts | `census_missed_candidates.py` | absent row, low score, suppression or bad selection |
+| Measure repair headroom | `diagnose_repair_capacity.py` | what labels could recover from existing candidates |
 
-Main records:
+Records: `results/matching_*.json.gz`, `results/label_coverage.json.gz`, `results/missed_candidate_census.json.gz`, `results/repair_capacity.json.gz`.
 
-- `results/matching_*.json.gz`
-- `results/label_coverage.json.gz`
-- `results/missed_candidate_census.json.gz`
-- `results/repair_capacity.json.gz`
-
-These diagnostics are why later work focused on **selection and insertion from already-saved candidates** before rerunning upstream vision.
+These checks are why later work focused on **better use of saved candidates** before rerunning upstream vision.
 
 ---
 
-# 2. Choose the whole finished contact sequence
+# 2. Score whole finished sequences
 
-## Question
+**Question:** can one model compare a few finished versions of the rally and pick the best one?
 
-**Instead of deciding each repair separately, can one model compare a few finished versions of the rally and pick the best one?**
+Alternatives could keep the sequence, add/replace the serve, remove one extra contact, or combine a serve repair with one removal. They could not yet add a missed later contact.
 
-The alternatives included:
-
-- leave the rally unchanged;
-- add or replace the first contact;
-- delete one apparent extra contact;
-- combine a first-contact repair with one deletion.
-
-It did **not** yet add a missing contact later in the rally.
-
-### Main runner
-
-`run_whole_rally_comparison.py`
+Main runner: `run_whole_rally_comparison.py`
 
 Supporting code:
 
@@ -149,42 +109,31 @@ Supporting code:
 - `whole_rally_learning.py`
 - `whole_rally_evaluation.py`
 
-Main saved outputs:
+Saved outputs: `results/whole_rally_result.json.gz`, `results/whole_rally_predictions.json.gz`.
 
-- `results/whole_rally_result.json.gz`
-- `results/whole_rally_predictions.json.gz`
+On eight comparison videos, fully correct proposals rise **182 → 235 at ±10**.
 
-## What happened
+Physical measurements find their useful role here: little raw gain, but fewer bad edits when the model judges the finished sequence.
 
-On the eight comparison videos, the fully correct count rose from **182 to 235 at ±10**.
-
-This is where the physical measurements found a useful role: they added little raw gain, but reduced bad edits when the whole finished sequence was being judged.
-
-**Decision:** carry the whole-sequence model into the 47-video comparison.
+**Decision:** take whole-sequence selection to the 47-video comparison.
 
 See [whole_rally_report.md](whole_rally_report.md).
 
 ---
 
-# 3. Broader 47-video run
+# 3. First 47-video run
 
-## Question
+**Question:** does whole-sequence selection still help across all 47 ShuttleSet22 videos?
 
-**Does the whole-sequence model still help when we run it across the full 47-video ShuttleSet22 comparison?**
-
-### Main runners
+Main runners:
 
 - `prepare_broader_inputs.py`
 - `freeze_broader_models.py`
 - `run_broader_comparison.py`
 
-Related checks:
+Related checks: `replay_simple_replacements.py`, `freeze_acceptance.py`, `plot_broader_acceptance.py`.
 
-- `replay_simple_replacements.py`
-- `freeze_acceptance.py`
-- `plot_broader_acceptance.py`
-
-Main saved outputs:
+Saved outputs:
 
 - `results/broader_predictions.json.gz`
 - `results/broader_result.json.gz`
@@ -194,15 +143,11 @@ Main saved outputs:
 - `results/broader_acceptance_development.json.gz`
 - `results/broader_acceptance_policy.json.gz`
 
-## What happened
+Fully correct rallies rise **995 → 1,435**.
 
-Fully correct rallies rose from **995 to 1,435**.
+The sequence model's own score was also tested as an auto-approval score. It was not safe enough. A side check on cancelling simple first-contact replacements reduced ±5 damage, but the combined model still won on the main ±10 target.
 
-The branch also tested whether the whole-sequence model's own score was safe enough to act as an automatic-approval score. It was not.
-
-A small side experiment also asked whether simple first-contact replacements should just be cancelled. That reduced damage at ±5, but the original combined model still won on the main ±10 target.
-
-**Decision:** keep the combined whole-sequence detector and attack the obvious remaining problem: missed contacts later in the rally.
+**Decision:** keep whole-sequence selection and attack missed contacts later in the rally.
 
 See [broader_comparison.md](broader_comparison.md).
 
@@ -210,13 +155,11 @@ See [broader_comparison.md](broader_comparison.md).
 
 # 4. Add one missed later contact
 
-## Question
+**Question:** can we recover a post-serve contact from candidates the pipeline already saved?
 
-**Can the detector recover a contact that occurs after the serve, using candidates it already saved but did not select?**
+This introduces the `later` family.
 
-This is the stage that introduces the branch's `later` family.
-
-### Main runners
+Main runners:
 
 - `prepare_later_inputs.py`
 - `run_later_comparison.py`
@@ -224,13 +167,9 @@ This is the stage that introduces the branch's `later` family.
 - `prepare_later_broader_inputs.py`
 - `run_later_broader.py`
 
-Supporting code:
+Supporting code: `later_options.py`, `later_evaluation.py`, `later_acceptance_features.py`.
 
-- `later_options.py`
-- `later_evaluation.py`
-- `later_acceptance_features.py`
-
-Main saved outputs:
+Saved outputs:
 
 - `results/later/later_opportunity.json.gz`
 - `results/later/later_predictions.json.gz`
@@ -241,25 +180,12 @@ Main saved outputs:
 - `results/later/later_broader_predictions.json.gz`
 - `results/later/later_broader_result.json.gz`
 
-## Two versions were actually compared
+Two policies mattered:
 
-### Take the new model's favourite every time
+- always take the new favourite: **1,096** correct development rallies, **42 losses**;
+- require ≥0.05 improvement: **1,095**, only **8 losses**.
 
-This reached **1,096** fully correct development rallies at ±10, but caused **42 losses**.
-
-### Require a 0.05 score improvement
-
-`run_later_margin.py` kept the old output unless the new choice scored at least **0.05 higher**.
-
-That kept essentially the same gain — **1,095** fully correct development rallies — while cutting losses to **8**.
-
-That 0.05 rule became part of the branch's detector lineage.
-
-## Broader result
-
-On the 47 videos, the detector moved:
-
-**1,435 → 1,597 fully correct rallies.**
+The guard keeps almost all the gain while avoiding churn. On 47 videos it moves **1,435 → 1,597**.
 
 **Decision:** keep one later-contact insertion with the 0.05 rule.
 
@@ -269,21 +195,11 @@ See [later_contact_comparison.md](later_contact_comparison.md).
 
 # 5. Final detector follow-ups
 
-The 1,597-rally detector above becomes the reference for the next branching stage.
+The 1,597 detector is called **`session_start`** in this code.
 
-In the follow-up code this reference is often called **`session_start`**.
+> `session_start` = whole-sequence selection + one later contact + 0.05 guard. It is not the original project baseline.
 
-That name is easy to misread. It does **not** mean the original detector at the beginning of the project.
-
-> **`session_start` = the 1,597-rally detector: whole-sequence selection + one later contact + the 0.05 rule.**
-
-The follow-up work then branches in several directions.
-
-## 5a. `local`: score the proposed inserted contact itself
-
-### Question
-
-**Can we judge the proposed insertion locally, instead of asking only whether the whole edited rally looks good?**
+## 5a. `local`: independently evaluate the added contact
 
 Code:
 
@@ -292,71 +208,34 @@ Code:
 - `run_insertion_followup.py --variant local`
 - `run_insertion_broader.py --variant local`
 
-Results:
+Results: `results/followups/local_result.json.gz`, `results/followups/local_broader_predictions.json.gz`, `results/followups/local_broader_result.json.gz`.
 
-- `results/followups/local_result.json.gz`
-- `results/followups/local_broader_predictions.json.gz`
-- `results/followups/local_broader_result.json.gz`
+Broader result: **1,597 → 1,622**.
 
-Broader result:
-
-**1,597 → 1,622 fully correct rallies.**
-
-**Decision:** keep the local insertion score.
-
----
+**Decision:** keep it.
 
 ## 5b. `pairs`: allow two later insertions
 
-### Question
+Code: `pair_targets.py`, `run_insertion_followup.py --variant pairs`  
+Result: `results/followups/pairs_result.json.gz`
 
-**Some rallies miss two later contacts. Does allowing a pair of insertions produce a useful learned gain?**
+There is theoretical headroom, but the learned model changes too much for too little gain.
 
-Code:
+**Decision:** close it.
 
-- `pair_targets.py`
-- `run_insertion_followup.py --variant pairs`
+## 5c. `both`: pairs + local evidence
 
-Result:
+Code: `run_insertion_followup.py --variant both`
 
-- `results/followups/pairs_result.json.gz`
+Results: `results/followups/both_result.json.gz`, `results/followups/both_boundary_result_fixed_membership.json.gz`.
 
-There was genuine theoretical headroom, but the learned model gained too little and changed too much output.
+With boundary correction, this reaches **1,210** correct development rallies versus **1,209** for the simpler local version: **15 repairs / 14 losses**.
 
-**Decision:** close this version.
+**Decision:** close it with `pairs`.
 
----
+## 5d. `early`: wider serve shortlist
 
-## 5c. `both`: pair insertions + local insertion evidence
-
-### Question
-
-**Does the local insertion score make the two-insertion branch safe enough to become useful?**
-
-Code:
-
-`run_insertion_followup.py --variant both`
-
-Results:
-
-- `results/followups/both_result.json.gz`
-- `results/followups/both_boundary_result_fixed_membership.json.gz`
-
-With the later boundary fix included, this version reached **1,210** fully correct development rallies at ±10 versus **1,209** for the simpler local version.
-
-That one-rally net gain involved **15 repairs and 14 losses**.
-
-**Decision:** close `both` along with `pairs`.
-
----
-
-## 5d. `early`: consider more possible serve timestamps
-
-### Question
-
-**Are we missing serves because the early candidate list is too small?**
-
-The old path considered up to two earlier candidates. This version expands that to four.
+The existing path considered up to two earlier candidates; `early` considers four.
 
 Code:
 
@@ -372,156 +251,61 @@ Results:
 - `results/followups/early_broader_predictions.json.gz`
 - `results/followups/early_broader_result.json.gz`
 
-It looked useful on development data.
+With boundary correction it reaches **1,767** versus **1,763**, but those four net rallies come from **19 repairs / 15 losses**.
 
-On the 47-video comparison, once the boundary fix was added, it reached **1,767** versus **1,763** for the recommendation.
+**Decision:** preserve the saved alternative; do not recommend it.
 
-Against the recommended version it repaired **19** rallies and broke **15**.
+## 5e. Rally start/end correction
 
-**Decision:** preserve `early` as the highest-count alternative, but do not prefer it.
+**Question:** how many apparent detector failures are clips cut too tightly around an otherwise good contact sequence?
 
----
+Code: `boundary_followup.py`, `run_boundary_followup.py`, `run_boundary_broader.py`.
 
-## 5e. Rally-boundary correction
+The final mode is **`fixed_membership`**: extend the clip only when doing so does not change which predicted contacts belong to it.
 
-### Question
+Main comparisons:
 
-**How many “contact detector failures” are actually clips whose start/end times cut off a rally that the detector otherwise has?**
+- `session_start + fixed_membership` → **1,732**, **135 repairs / 0 losses**; `results/followups/session_start_boundary_broader_result_fixed_membership.json.gz`.
+- `local + fixed_membership` → **1,763**; `results/followups/local_boundary_broader_predictions_fixed_membership.json.gz`, `results/followups/local_boundary_broader_result_fixed_membership.json.gz`.
+- `early + fixed_membership` → **1,767**, but with too much churn; `results/followups/early_boundary_broader_result_fixed_membership.json.gz`.
 
-Code:
-
-- `boundary_followup.py`
-- `run_boundary_followup.py`
-- `run_boundary_broader.py`
-
-The final boundary mode is called:
-
-**`fixed_membership`**
-
-That means:
-
-> extend the proposed clip only when doing so **does not change which predicted contacts belong to it**.
-
-This distinction matters because an earlier boundary version could accidentally pull a neighbouring contact into a previously good rally.
-
-### Main comparisons
-
-`session_start + fixed_membership`
-
-Result:
-
-- `results/followups/session_start_boundary_broader_result_fixed_membership.json.gz`
-
-Broader fully correct count:
-
-**1,732**, with **135 repairs and 0 losses** against `session_start`.
-
-`local + fixed_membership`
-
-Results:
-
-- `results/followups/local_boundary_broader_predictions_fixed_membership.json.gz`
-- `results/followups/local_boundary_broader_result_fixed_membership.json.gz`
-
-Broader fully correct count:
-
-**1,763**.
-
-This becomes the **recommended detector**.
-
-`early + fixed_membership`
-
-Result:
-
-- `results/followups/early_boundary_broader_result_fixed_membership.json.gz`
-
-Broader fully correct count:
-
-**1,767**, but with too much repair/loss churn for four extra successes.
-
-**Decision:** final detector = **`local + fixed_membership`**.
+**Decision:** recommended detector = **`local + fixed_membership`**.
 
 See [followup_comparison.md](followup_comparison.md).
 
 ---
 
-# 6. Review-ranking experiments
+# 6. Confidence-ranking experiments
 
-These experiments do **not** change the contact sequence. They try to answer:
+The code calls these **`acceptance`** experiments. They rank finished detector outputs; they do not change contacts.
 
-**Which outputs should a human look at first, or which ones look safe enough to use automatically?**
+## 6a. Earlier `gap` ranking
 
-There are two generations of this work on the branch.
+Code: `gap_evidence.py`, `run_gap_acceptance.py`, `run_gap_broader.py`.
 
-## 6a. Earlier `gap` ranking experiment
+Results: `results/followups/gap_acceptance_result.json.gz`, `results/followups/gap_broader_predictions.json.gz`, `results/followups/gap_broader_result.json.gz`.
 
-### Question
+Important: this first `gap` run scored the **1,597 detector**, not the final detector. Ranking improved, but not enough for exact auto-approval.
 
-**Does evidence inside the spaces between predicted contacts help us recognise incomplete rallies?**
+## 6b. Direct-answer VLM veto
 
-Code:
+Code: `prepare_vlm_acceptance.py`, `score_vlm_acceptance.py`.
 
-- `gap_evidence.py`
-- `run_gap_acceptance.py`
-- `run_gap_broader.py`
+Results: `results/followups/vlm_acceptance_decisions.json.gz`, `results/followups/vlm_acceptance_result.json.gz`.
 
-Results:
+On routed development cases, **45 correct / 12 wrong** became **6 / 1**. It removed most mistakes and most good output.
 
-- `results/followups/gap_acceptance_result.json.gz`
-- `results/followups/gap_broader_predictions.json.gz`
-- `results/followups/gap_broader_result.json.gz`
-
-Important historical detail:
-
-> This first `gap` experiment scored the **preceding 1,597 detector**, not the final `local + fixed_membership` detector.
-
-It improved ranking, but did not make the selected output safe enough for automatic use.
+**Decision:** close the direct-answer veto. The never-tested reasoning-enabled Qwen3.8 retry is tracked separately in [promising_leads.md](promising_leads.md).
 
 ---
 
-## 6b. Visual-model veto
+# 7. Final serve and ranking pass
 
-### Question
-
-**Can a visual-language model reject bad automatically selected rallies?**
-
-Code:
-
-- `prepare_vlm_acceptance.py`
-- `score_vlm_acceptance.py`
-
-Results:
-
-- `results/followups/vlm_acceptance_decisions.json.gz`
-- `results/followups/vlm_acceptance_result.json.gz`
-
-On the routed development cases at ±10:
-
-**45 correct / 12 wrong → 6 correct / 1 wrong** after the visual veto.
-
-It removed most of the mistakes and also removed most of the good output.
-
-**Decision:** close this task.
-
----
-
-# 7. Final serve + ranking pass on the recommended detector
-
-Once **`local + fixed_membership`** had been chosen, the branch ran a final measurement pass on that actual detector.
-
-This is where the final serve numbers, deletion test and current ranking results come from.
+Once `local + fixed_membership` was chosen, serve and ranking measurements were rerun on that actual detector.
 
 ## 7a. Serve recount
 
-### Question
-
-**On the actual recommended detector, how often do we find the serve, start the clip on it, and name the correct server?**
-
-Code:
-
-- `serve_metrics.py`
-- `run_serve_followups.py`
-- `write_serve_tables.py`
+Code: `serve_metrics.py`, `run_serve_followups.py`, `write_serve_tables.py`.
 
 Results:
 
@@ -529,62 +313,28 @@ Results:
 - `results/serve_followups/broader_serves.json.gz`
 - `results/serve_followups/serve_per_video.csv.gz`
 
-This is the source of the final serve/contact tables in [contact_performance.md](contact_performance.md) and [serve_tables.md](serve_tables.md).
-
----
+These feed [contact_performance.md](contact_performance.md) and [serve_tables.md](serve_tables.md).
 
 ## 7b. Serve-error diagnosis
 
-### Question
+Code: `run_serve_diagnosis.py`  
+Result: `results/serve_followups/development_diagnosis.json.gz`
 
-**Why are the remaining serves missed?**
-
-Code:
-
-`run_serve_diagnosis.py`
-
-Result:
-
-`results/serve_followups/development_diagnosis.json.gz`
-
-This is where the branch found, among other things, that many missed serves already had a useful candidate available and were **selection failures rather than candidate-generation failures**.
-
-That finding remains open in [promising_leads.md](promising_leads.md).
-
----
+Many missed serves already had a useful candidate; selection was the problem. That remains open in [promising_leads.md](promising_leads.md).
 
 ## 7c. Local deletion score
 
-### Question
+Code: `deletion_evidence.py`, `local_deletion.py`, `run_deletion_followup.py`.
 
-**Can a separate score safely remove extra contacts from the recommended detector?**
+Results: `results/serve_followups/deletion_predictions.json.gz`, `results/serve_followups/deletion_development.json.gz`.
 
-Code:
+Development result: **1,209 → 1,217**, from **22 repairs / 14 losses**.
 
-- `deletion_evidence.py`
-- `local_deletion.py`
-- `run_deletion_followup.py`
+**Decision:** close the broad deletion model; do not run it on the 47 videos.
 
-Results:
+## 7d. `chosen` ranking on the final detector
 
-- `results/serve_followups/deletion_predictions.json.gz`
-- `results/serve_followups/deletion_development.json.gz`
-
-Development result at ±10:
-
-**1,209 → 1,217**, from **22 repairs and 14 losses**.
-
-**Decision:** close the broad deletion model. It was not run on the 47-video comparison.
-
----
-
-## 7d. `chosen` acceptance: ranking the actual final detector
-
-### Question
-
-**Now that the detector itself has changed, how well can we rank the outputs it actually produces?**
-
-This supersedes the earlier `gap` result for deployment discussion.
+This supersedes the earlier `gap` ranking for deployment.
 
 Code:
 
@@ -596,14 +346,14 @@ Code:
 - `acceptance_breakdown.py`
 - `write_acceptance_tables.py`
 
-The two feature names are:
+Feature names:
 
-- **`base`** = ranking features without the extra between-contact evidence;
-- **`gap`** = the same ranking model with the extra between-contact evidence.
+- **`base`** = ranking without extra between-contact evidence;
+- **`gap`** = same ranking plus evidence from spaces between contacts.
 
-The word `gap` here changes the **ranking score only**. It does not add or remove a contact.
+Here `gap` changes only ranking, not contacts.
 
-Main results:
+Results:
 
 - `results/serve_followups/chosen_acceptance_development.json.gz`
 - `results/serve_followups/chosen_acceptance_broader_predictions.json.gz`
@@ -611,66 +361,88 @@ Main results:
 - `results/serve_followups/acceptance_breakdown.json.gz`
 - `results/serve_followups/acceptance_per_video.csv.gz`
 
-This is the source of the current **616 fully correct / 124 imperfect / 44 untrusted-GT** selected-output result.
-
-It is also where the important **112 of 124 still contain one whole rally** result comes from.
+This yields the 784-clip high-confidence subset: **616 fully correct / 124 imperfect / 44 unjudgeable by trusted GT**. Of the 124 exact failures, **112 still contain one whole rally**.
 
 See [serve_and_acceptance.md](serve_and_acceptance.md).
 
 ---
 
-# Code-name dictionary
+# 8. Closing checks
 
-This is the shortest route from an internal result filename to what it means.
+These happened after the recommendation. None changed it.
 
-| Code/result name | Plain-English meaning |
-|---|---|
-| `session_start` | The 1,597-rally detector after one later insertion + the 0.05 rule; reference at the start of the final follow-up |
-| `local` | Add a score for whether the proposed inserted contact itself looks useful |
-| `pairs` | Allow two later-contact insertions |
-| `both` | `pairs` + `local` |
-| `early` | Consider more possible early/serve timestamps |
-| `fixed_membership` | Extend rally start/end times without changing which predicted contacts belong to the rally |
-| `guarded_only` | Apply only the boundary correction to the preceding detector |
-| `recommended` | Final `local + fixed_membership` detector |
-| `base` acceptance | Review-ranking model without extra between-contact evidence |
-| `gap` acceptance | Review-ranking model with extra evidence from spaces between predicted contacts |
-| `chosen` acceptance | Ranking experiment run on the actual recommended detector rather than an earlier detector |
-| `original` in serve tables | Original saved contact stream before this branch's repair sequence |
-| `preceding` in serve tables | The 1,597 detector before the final local/boundary follow-up |
-| `wider_early` in serve tables | The saved `early + fixed_membership` alternative |
+## 8a. Independent edge padding
+
+Only two of 3,982 clips change; fully correct counts and the 784 selected-clip results stay identical at ±10 and ±5 under both label reads.
+
+**Decision:** keep `fixed_membership`.
+
+Evidence: `results/last_followups/edge_padding.json.gz`; runner `scripts/replay_edge_padding.py`.
+
+## 8b. Correct chooser targets after padding
+
+A real target mismatch exists: padding turns some pre-padding negatives into correct finished outputs.
+
+Across **942,471 alternatives from 32 development videos**, **806** flip negative→positive across **244 proposals**, including **116 currently wrong proposals**. A controlled development refit improves **1,209 → 1,218**, but the 47-video replay falls **1,763 → 1,761** from **21 repairs / 23 losses** and breaks two currently correct selected clips.
+
+**Decision:** real mismatch, bad final trade. Do not adopt the refit.
+
+Details: [last_followups.md](last_followups.md).
+
+## 8c. Small repairs inside high-confidence clips
+
+Among 570 selected development clips, 119 are wrong. Labels can find a complete one-edit repair for **58**:
+
+- 5 delete before the first label;
+- 17 delete after the last label;
+- 16 insert one later contact;
+- 20 replace one event.
+
+That is headroom, not a working method: every currently correct clip also has damaging alternatives.
+
+**Decision:** no broad correction fit yet. The live cleanup question is in [promising_leads.md](promising_leads.md).
 
 ---
 
-# What actually survives into the final detector
+# Code-name dictionary
 
-The experiments above leave this path:
+| Code/result name | Plain-English meaning |
+|---|---|
+| `session_start` | 1,597 detector: whole-sequence + one later insertion + 0.05 guard |
+| `local` | independently evaluate the proposed added contact |
+| `pairs` | allow two later-contact insertions |
+| `both` | `pairs` + `local` |
+| `early` | wider serve shortlist |
+| `fixed_membership` | extend rally bounds without changing predicted contact membership |
+| `guarded_only` | boundary correction only on the preceding detector |
+| `recommended` | final `local + fixed_membership` detector |
+| `base` acceptance | confidence ranking without extra between-contact evidence |
+| `gap` acceptance | ranking with extra between-contact evidence |
+| `chosen` acceptance | ranking run on the actual recommended detector |
+| `original` in serve tables | saved contact stream before this closing-pass repair sequence |
+| `preceding` in serve tables | 1,597 detector before final local/boundary refinements |
+| `wider_early` in serve tables | `early + fixed_membership` saved alternative |
+
+# What survives
 
 ```text
-whole-sequence selection
+score possible finished sequences
         +
 one later-contact insertion
         +
-0.05 minimum score improvement
+0.05 whole-rally improvement guard
         +
-local inserted-contact score
+independent added-contact evaluation
         +
-fixed_membership boundary correction
+fixed_membership rally-boundary correction
         +
 alternating player assignment
 ```
 
-The ranking model is **downstream of that detector**. It decides review priority; it does not change the contact sequence.
+The confidence ranking sits downstream and only changes review priority.
 
-The branches that were tested and then dropped are:
+Dropped: `pairs`, `both`, broad deletion, direct-answer VLM veto.  
+Saved but not recommended: `early`.
 
-- `pairs`
-- `both`
-- broad local deletion
-- the visual-model veto
-
-The branch that remains saved as an alternative but is not recommended is:
-
-- `early`
-
-For ideas that remain worth revisiting, see [promising_leads.md](promising_leads.md).
+Final negative checks and reproduction details: [last_followups.md](last_followups.md).  
+Live research backlog: [promising_leads.md](promising_leads.md).

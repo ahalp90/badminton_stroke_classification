@@ -1,71 +1,78 @@
 # Adding one missed contact later in the rally
 
-## Result
+**Contents**  
+[Question](#question)  
+[Answer](#answer)  
+[Contact-level effect](#contact-level-effect)  
+[Where the contact comes from](#where-the-contact-comes-from)  
+[The 0.05 edit rule](#the-005-edit-rule)  
+[What the repairs were](#what-the-repairs-were)  
+[What was still noisy](#what-was-still-noisy)  
+[Cost](#cost)  
+[Decision](#decision)
 
-The same predictions are scored against **3,422 trusted rallies** and **all 3,965 source rallies**.
+## Question
+
+Can we recover a contact after the serve from plausible timestamps the pipeline already saved but did not select?
+
+## Answer
+
+Yes. Across the 47 videos, this stage raises trusted-GT fully correct rallies **1,435 → 1,597**.
 
 | Measure | Trusted GT only | All GT included |
 |---|---:|---:|
-| Perfect-rally recall before later-contact repair | 1,435 / 3,422 = **41.9%** | 1,433 / 3,965 = **36.1%** |
-| Perfect-rally recall after later-contact repair | **1,597 / 3,422 = 46.7%** | 1,596 / 3,965 = **40.3%** |
+| Before later-contact repair | 1,435 / 3,422 = **41.9%** | 1,433 / 3,965 = **36.1%** |
+| **After later-contact repair** | **1,597 / 3,422 = 46.7%** | **1,596 / 3,965 = 40.3%** |
 
-Against trusted GT at ±10, the new version repairs **178** rallies and breaks **16**, for a net gain of **162**.
+At ±10, it repairs **178** trusted-GT rallies and breaks **16**: **+162 overall**. It gains in 39 videos, ties in seven, and loses one rally in one video.
 
-The gain appears in 39 videos; seven tie; one loses one rally.
-
-It also improves individual contacts:
+## Contact-level effect
 
 | Contact task | Before P / R / F1 | After P / R / F1 |
 |---|---:|---:|
 | Timing only | 81.1 / 87.3 / 84.1% | **81.1 / 88.0 / 84.4%** |
 | Timing + correct player | 75.0 / 80.8 / 77.8% | **78.3 / 85.0 / 81.5%** |
 
-The player-aware jump is much larger than the timing-only jump. A lot of this stage's contact-level improvement comes from the final alternating-player assignment correcting player labels at timestamps that were already present.
+The player-aware gain is much larger. Much of it comes from alternating player assignment fixing labels at timestamps that were already present.
 
-![Later-contact repair helps longer rallies most. Trusted GT only.](figures/later_by_length.svg)
+## Where the contact comes from
 
-## Where the new contact comes from
+No new vision model was run. The detector already had unselected contact candidates, and the sequence model was allowed to add one of up to **six plausible later candidates**.
 
-No new vision model was run.
+## The 0.05 edit rule
 
-The detector had already saved plausible contact timestamps that were not selected. The final-sequence model was allowed to add one of up to six plausible later candidates.
-
-## The 0.05 rule matters
-
-Always taking the new model's favourite sequence caused unnecessary changes.
-
-On development data:
+On development data, always taking the model's new favourite caused too much churn:
 
 | Rule | Perfect at ±10, trusted GT | Repairs / losses |
 |---|---:|---:|
 | Previous detector | 991 | — |
-| Always take the new model's favourite | 1,096 | 147 / 42 |
-| **Only change if the new sequence scores ≥0.05 higher** | **1,095** | **112 / 8** |
+| Always take new favourite | 1,096 | 147 / 42 |
+| **Only change if new score is ≥0.05 higher** | **1,095** | **112 / 8** |
 
-The 0.05 rule gives up one successful rally and avoids **34 losses**.
+The guard gives up one success but avoids **34 losses**. That is the version carried forward.
 
-That is the version carried forward.
-
-## What the 178 repairs are
+## What the repairs were
 
 Of the 178 repaired rallies:
 
 - **150** use a newly inserted contact;
-- **147** of those insertions match a genuinely later labelled contact;
-- the other 28 repairs come from changing one of the existing first-contact/removal decisions.
+- **147** of those match a genuinely later labelled contact;
+- **28** come from changing an existing serve/removal decision.
 
-The gain is strongest on longer rallies:
+The gain is concentrated in longer rallies:
 
-| Contacts in the rally | Perfect before | Perfect after | Net gain |
+| Contacts in rally | Perfect before | Perfect after | Net gain |
 |---|---:|---:|---:|
 | 1–5 | 462 | 465 | +3 |
 | 6–10 | 441 | 480 | +39 |
 | 11–20 | 394 | 462 | +68 |
 | 21+ | 138 | 190 | **+52** |
 
-There is no length rule in the detector. This is just where the repairs happened.
+There is no rally-length rule in the detector; this only shows where the repairs happened.
 
-## It still makes unwanted local edits
+![The later-contact stage helps longer rallies most.](figures/later_by_length.svg)
+
+## What was still noisy
 
 Among 471 changed proposals that can be compared cleanly with one trusted rally:
 
@@ -74,16 +81,14 @@ Among 471 changed proposals that can be compared cleanly with one trusted rally:
 - 84 unmatched predictions are added;
 - 92 unmatched predictions are removed.
 
-So the rally-level gain is strong, but the insertion decision itself is still noisy.
-
-That motivates the next experiment: give the final model a separate score for whether the proposed inserted contact itself looks useful.
+The rally-level gain is strong, but the insertion choice is still noisy. That motivates the next step: keep the whole-rally score, but also judge the proposed added contact on its own.
 
 ## Cost
 
-The added saved-output work took about **26.9 minutes across 47 videos**, roughly 34 seconds per video.
+The saved-output work took about **26.9 minutes across 47 videos**, roughly 34 seconds per video.
 
 ## Decision
 
-Keep one later-contact insertion with the 0.05 minimum improvement rule.
+Keep one later-contact insertion with the **0.05 minimum-improvement rule**.
 
 Next: [followup_comparison.md](followup_comparison.md).

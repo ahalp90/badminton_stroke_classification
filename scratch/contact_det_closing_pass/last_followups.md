@@ -1,32 +1,46 @@
-# Last contact-detector follow-ups
+# Closing checks after the recommended detector
 
-Keep the existing detector: the local chooser followed by fixed-membership
-padding. Independent edge padding produced no complete-rally gains. Correcting
-the chooser's training targets gave a small development improvement, then lost
-more rallies than it repaired on the 47 broader videos. It also broke two
-currently correct selected clips and repaired none.
+These were the last cheap checks after the detector was already chosen. None justified changing it.
 
-These are scripts-only experiments. A complete rally contains the whole labelled
-contact sequence, matches each contact once, and assigns the correct players.
-The main timing allowance is ±10 frames on a 30 fps clock; ±5 is a secondary
-check. Both allowances scale to each video’s frame rate. Automatic approval
-remains off, and production wiring stays unchanged.
+Keep the existing chooser plus `fixed_membership` padding. Independent edge padding did nothing. Correcting the chooser targets helped on development data but regressed on the 47-video replay. A label-guided small-edit census found real headroom, but no safe way to use it yet.
 
-The chooser selects a candidate contact sequence for each proposed clip.
-Fixed-membership padding extends the clip while keeping its predicted contacts.
-Trusted-label scoring uses the existing cleaned population; all-source scoring
-restores the excluded rallies. Unknown means the labels do not settle correctness.
+Automatic exact approval stays off. Production wiring stays unchanged.
 
-## Independent edge padding
+![The three closing checks: no gain, rejected refit, and remaining headroom.](figures/closing_checks.svg)
 
-The existing boundary rule cancels both extensions when padding would admit an
-outside predicted contact. The alternative keeps the available space at each
-edge. It uses the same padding allowance and neighbouring-clip limits, so
-contact timestamps and player evidence are unchanged.
+**Contents**  
+[Common setup](#common-setup)  
+[1. Independent edge padding](#1-independent-edge-padding)  
+[2. Correct chooser targets after padding](#2-correct-chooser-targets-after-padding)  
+[3. Small repairs inside selected clips](#3-small-repairs-inside-selected-clips)  
+[Why the earlier deletion model stayed out](#why-the-earlier-deletion-model-stayed-out)  
+[Reproduce the chooser experiments](#reproducing-the-chooser-experiments)  
+[Checks](#checks)  
+[Bottom line](#bottom-line)
 
-The replay used saved final chooser outputs from the previously examined 47
-ShuttleSet22 videos. They contain 3,982 proposed clips, so this is not a new
-untouched test.
+## Common setup
+
+A fully correct rally contains the whole labelled sequence, matches every contact once, and assigns every player correctly.
+
+- Main timing allowance: **±10 frames on a 30 fps clock**.
+- Secondary check: **±5 frames**.
+- Both scale with video frame rate.
+- Trusted GT uses the cleaned population; all-source scoring restores excluded rallies.
+- `unknown` means the labels cannot settle correctness.
+
+The chooser picks a contact sequence. `fixed_membership` then extends the clip without changing which predicted contacts belong to it.
+
+---
+
+# 1. Independent edge padding
+
+## Question
+
+The existing rule cancels **both** boundary extensions if padding would admit an outside predicted contact. Would it help to keep the safe space independently at each edge?
+
+## Result
+
+The replay uses the same padding allowance, neighbouring-clip limits and saved final chooser outputs for all **3,982 proposed clips**.
 
 | Labels | Timing allowance | Existing rule | Independent edges | Repairs | Losses |
 |---|---|---:|---:|---:|---:|
@@ -35,25 +49,20 @@ untouched test.
 | All source: 3,965 rallies | ±10 | 1,763 | 1,763 | 0 | 0 |
 | All source: 3,965 rallies | ±5 | 1,429 | 1,429 | 0 | 0 |
 
-Only two proposed clips changed. One started three frames earlier but still had
-an extra predicted contact. The other started one frame earlier and contained
-the whole labelled rally, but still missed a contact. Neither became fully
-correct.
+Only two clips change. One starts three frames earlier but still has an extra contact. The other starts one frame earlier and contains the whole rally but still misses a contact. Neither becomes fully correct.
 
-The same 784 selected clips were rescored. At ±10, the trusted-label result
-stayed at 616 correct, 124 wrong and 44 unknown. With all source labels, it
-stayed at 615 correct, 140 wrong and 29 unknown. Selection results at ±5 also
-stayed unchanged.
+The same 784 high-confidence clips also score exactly the same: trusted GT stays **616 correct / 124 wrong / 44 unknown**; all-source stays **615 / 140 / 29**. ±5 is unchanged too.
 
-The proposed rule behaves as intended, but its opportunity is too small on these
-saved outputs to justify replacing the existing rule. No contact model was
-fitted for this check.
+## Decision
 
-Evidence: [saved recount](results/last_followups/edge_padding.json.gz),
-[replay script](scripts/replay_edge_padding.py).
+Keep the existing rule. The alternative works as designed but has almost no opportunity here.
 
-From the repository root, use the project environment and a fresh output
-filename:
+Evidence:
+
+- `results/last_followups/edge_padding.json.gz`
+- `scripts/replay_edge_padding.py`
+
+Reproduce:
 
 ```bash
 PYTHONPATH="$PWD/src:$PWD" python -m \
@@ -62,22 +71,23 @@ PYTHONPATH="$PWD/src:$PWD" python -m \
   --output /tmp/edge_padding.json.gz
 ```
 
-The replay checks that the existing trusted-label result is 1,763 before it
-records the comparison.
+The replay first checks that the existing trusted-GT result is 1,763.
 
-## Chooser targets after padding
+---
 
-The chooser learns whether an alternative is correct before the final boundary
-operation. Some alternatives already have the right contact sequence, but their
-clip starts just after the labelled serve. Padding fixes that containment issue
-after the chooser decides.
+# 2. Correct chooser targets after padding
 
-The census used 942,471 saved alternatives from 32 development videos in groups
-A–D. Each alternative was placed into the same prediction-based reference
-stream for its video. Existing padding then ran on the complete stream. Labels
-scored the resulting answer; they did not determine the bounds.
+## Why the targets looked wrong
 
-| Development group | Answers changed from negative to positive | Proposals affected | Currently wrong proposals affected |
+The chooser is trained on whether an alternative is correct **before** the final boundary operation. Some sequences have the right contacts but start just after the labelled serve; padding fixes that only after the target has already been assigned.
+
+That is a real mismatch, so we measured it.
+
+## 2a. How often does padding change the target?
+
+The census covers **942,471 saved alternatives** from 32 development videos. Each alternative is inserted into the normal prediction stream, then existing padding runs. Labels score the result; they do not choose the bounds.
+
+| Development group | Negative → positive answers | Proposals affected | Currently wrong proposals affected |
 |---|---:|---:|---:|
 | A | 246 | 75 | 39 |
 | B | 242 | 70 | 33 |
@@ -85,53 +95,40 @@ scored the resulting answer; they did not determine the bounds.
 | D | 127 | 40 | 17 |
 | **Total** | **806** | **244** | **116** |
 
-No positive answer became negative. All 59,757 excluded answers remained
-excluded. Positive alternatives rose from 6,834 to 7,640, and 154 proposals
-gained their first positive alternative. Changes occurred in 27 of the 32
-videos.
+No positive becomes negative. All **59,757 excluded answers** stay excluded. Positive alternatives rise **6,834 → 7,640**; **154 proposals** gain their first positive alternative. Changes occur in **27 of 32 videos**.
 
-The 806 changed alternatives are not 806 new complete rallies: several belong
-to the same proposal, and some affected proposals were already correct after
-padding. The 116 currently wrong proposals make this a useful target correction
-to test with the existing chooser.
+The 806 changed alternatives are not 806 new correct rallies: several belong to the same proposal, and some proposals were already correct. The important number is the **116 currently wrong proposals** that gain a positive alternative.
 
-For example, one 25 fps clip starts at frame 55,914 while its labelled serve is
-at 55,912. Its candidate matches all 20 contacts with the correct voted
-players. Existing padding moves the start to 55,906 and makes that candidate
-complete. Three changed examples were inspected; one succeeds at ±10 but still
-fails at ±5.
+Example: a 25 fps clip starts at frame 55,914 while the labelled serve is 55,912. Its candidate already matches all 20 contacts and players. Existing padding moves the start to 55,906 and makes it complete. Three examples were inspected; one works at ±10 but not ±5.
 
-Evidence: [complete target count](results/last_followups/padded_targets.json.gz),
-[census script](scripts/run_padded_target_census.py).
+Evidence:
 
-### Controlled fit
+- `results/last_followups/padded_targets.json.gz`
+- `scripts/run_padded_target_census.py`
 
-The fit kept the same alternatives, features, opening and local models, and the
-0.05 edit rule. Each development group was predicted by a chooser trained on
-the other three groups. Old and corrected outputs received the same existing
-padding before comparison. Cached upstream detector scores still have
-cross-group dependence, so this is a development comparison rather than a
-fully independent estimate.
+## 2b. Controlled development fit
+
+The refit keeps the same alternatives, features, opening/local models and 0.05 edit guard. Each development group is predicted by a chooser trained on the other three. Both old and corrected outputs get the same padding before comparison.
+
+Cached upstream scores still cross group boundaries, so treat this as development evidence rather than a clean independent estimate.
 
 | Timing allowance | Existing chooser | Corrected targets | Repairs | Losses |
 |---|---:|---:|---:|---:|
 | ±10 | 1,209 | 1,218 | 22 | 13 |
 | ±5 | 958 | 965 | 14 | 7 |
 
-These counts cover 2,691 labelled rallies and 2,850 proposals. The primary net
-changes by group were A +8, B −1, C +4 and D −2. The correction improves the
-total slightly, but the losses and uneven groups warrant caution. The broader
-comparison does not support adopting the refit.
+These counts cover **2,691 labelled rallies and 2,850 proposals**. Net changes by group at ±10 are A +8, B −1, C +4, D −2.
 
-Evidence: [development comparison](results/last_followups/padded_fit_development.json.gz),
-[fit script](scripts/run_padded_target_fit.py).
+So the corrected targets do help a little on development data. The broader replay decides whether that matters.
 
-### Broader finished outputs
+Evidence:
 
-The final fitted chooser was replayed on the same previously examined 47
-videos. The original choice reference and edit rule stayed fixed. Both choosers
-then received existing padding, and source labels were read only after
-prediction.
+- `results/last_followups/padded_fit_development.json.gz`
+- `scripts/run_padded_target_fit.py`
+
+## 2c. Broader replay
+
+On the same 47 previously examined videos:
 
 | Labels | Timing allowance | Existing chooser | Corrected targets | Repairs | Losses |
 |---|---|---:|---:|---:|---:|
@@ -140,12 +137,9 @@ prediction.
 | All source: 3,965 rallies | ±10 | 1,763 | 1,761 | 21 | 23 |
 | All source: 3,965 rallies | ±5 | 1,429 | 1,423 | 13 | 19 |
 
-The chooser changed 211 of 3,982 proposals. Primary repairs occurred in 17
-videos and losses in 18; seven videos had both. The saved comparison includes
-each rally identity and per-video count. The aggregate trade-off is slightly
-worse, despite the genuine training-target mismatch.
+The chooser changes **211 of 3,982 proposals**. Repairs occur in 17 videos, losses in 18, with both in seven.
 
-The same 784 clips remained selected throughout:
+The same 784 clips remain above the confidence threshold:
 
 | Labels | Allowance | Correct before → after | Wrong before → after | Unknown | Repairs / losses |
 |---|---|---:|---:|---:|---:|
@@ -154,16 +148,9 @@ The same 784 clips remained selected throughout:
 | All source | ±10 | 615 → 613 | 140 → 142 | 29 | 0 / 2 |
 | All source | ±5 | 549 → 547 | 207 → 209 | 28 | 0 / 2 |
 
-At the primary allowance, trusted-label precision among judgeable selections
-falls from 616/740 (83.24%) to 614/740 (82.97%). With all source labels, it
-falls from 615/755 (81.46%) to 613/755 (81.19%). Crediting only verified
-correct clips among all 784 selections gives 615/784 (78.44%) to 613/784
-(78.19%). Unknown clips remain in the accounting.
+Trusted-GT precision among the **740 judgeable** high-confidence clips falls **616/740 = 83.24% → 614/740 = 82.97%**. Among the 755 source-labelled selections it falls **615/755 = 81.46% → 613/755 = 81.19%**; the conservative 784-clip read falls **615/784 = 78.44% → 613/784 = 78.19%**.
 
-Contact-level changes are small. Percentages below are existing → corrected.
-Timing precision counts matched predictions, and recall counts recovered
-labels. F1 is the harmonic mean of precision and recall. The player-aware score
-also requires the correct player after sequence voting.
+### Contact-level changes
 
 | Labels | Allowance | Timing precision | Timing recall | Timing F1 | Player-aware F1 |
 |---|---|---:|---:|---:|---:|
@@ -172,43 +159,46 @@ also requires the correct player after sequence voting.
 | All source | ±10 | 90.10 → 90.03 | 86.85 → 86.89 | 88.45 → 88.43 | 85.58 → 85.59 |
 | All source | ±5 | 88.10 → 88.04 | 84.93 → 84.97 | 86.49 → 86.48 | 83.92 → 83.94 |
 
-Predictions rose from 41,605 to 41,652. Trusted timing matches rose from 33,716
-to 33,726 out of 38,218 labels. Matched trusted serves rose from 2,781 to
-2,790 out of 3,422. These small contact gains do not compensate for lost
-complete rallies and correct selected clips.
+Predictions rise **41,605 → 41,652**. Trusted timing matches rise **33,716 → 33,726 / 38,218**; matched trusted serves rise **2,781 → 2,790 / 3,422**. Those small contact gains do not make up for the lost complete rallies.
 
-The 23 primary losses have concrete sequence errors: 12 finish with too few
-contacts, seven with extras, and four with mistimed replacements. Replaying the
-saved sequences against the labels reproduced the reported outcomes. The
-selected losses are `47/set2:33`, where two contacts become one, and
-`48/set3:21`, where a required contact is removed. Repairs include
-missing-contact additions, extra-contact removals and timing corrections. This
-review checks labels and predicted sequences; it does not establish physical
-impact times from video.
+Of the 23 primary losses, 12 finish with too few contacts, seven with extras, and four with mistimed replacements. The two lost high-confidence clips are `47/set2:33` and `48/set3:21`. Replaying the saved sequences reproduces the outcomes; this checks predictions against labels, not physical impact times in video.
 
-Do not adopt the refit or tune another threshold to rescue it. The training
-correction was plausible and cheap enough to test once, but its finished outputs
-do not improve the intended result.
+## Decision
 
-Evidence: [broader comparison and changed sequences](results/last_followups/padded_fit_broader.json.gz),
-[finished-output scorer](scripts/score_padded_chooser.py). The inference runner
-now accepts a separate score directory so this experiment preserves the
-original model scores.
+Do **not** adopt the refit or tune a threshold to rescue it. The target correction is real, but the finished 47-video output is slightly worse.
 
-## Small repairs within selected clips
+Evidence:
 
-The final check used 570 development clips selected by the saved ranking rule:
-448 correct, 119 wrong and three unknown. Selection stayed fixed. All candidate
-timestamps came from the existing option pool. Each alternative was tested one
-proposal at a time in the current full-video choice map, then passed through the
-same padding and player vote. This is a fixed-context opportunity count, not
-model-performance evidence.
+- `results/last_followups/padded_fit_broader.json.gz`
+- `scripts/score_padded_chooser.py`
 
-Of the 119 wrong clips, 58 have a complete small-edit alternative. Labels
-identify those alternatives, so this is possible headroom with a label-guided
-choice, not achieved correction performance.
+The inference runner now accepts a separate score directory so this experiment preserves the original model scores.
 
-| Small edit | Wrong selected proposals that could be repaired |
+---
+
+# 3. Small repairs inside selected clips
+
+## Question
+
+How much exact-scoring headroom remains if a high-confidence clip is allowed **one small edit from the existing candidate pool**?
+
+## Setup
+
+The check uses **570 development clips** selected by the saved ranking rule:
+
+- 448 correct;
+- 119 wrong;
+- 3 unknown.
+
+Selection stays fixed. Every alternative comes from the existing candidate pool, is tested one proposal at a time in the full-video choice map, then gets the same padding and player vote.
+
+This is **label-guided opportunity**, not model performance.
+
+## Headroom
+
+Of the 119 wrong clips, **58** have a complete one-edit repair:
+
+| Small edit | Wrong selected proposals repairable with labels choosing |
 |---|---:|
 | Delete an event before the first label | 5 |
 | Delete an event after the last label | 17 |
@@ -216,77 +206,88 @@ choice, not achieved correction performance.
 | Replace one event with an existing candidate | 20 |
 | **Total unique proposals** | **58** |
 
-The affected proposals span all four development groups: A 20, B 11, C 22 and
-D 5. The other 61 wrong clips have no complete alternative within this
-small-edit count. All 448 currently correct clips also have at least one
-damaging edit available. That is exposure to a bad choice, not a claim that a
-correction model would necessarily break them. The three unknown clips receive
-no claimed repairs.
+The 58 span all development groups: A 20, B 11, C 22, D 5. The other 61 have no complete one-edit alternative in this census.
 
-The 20 replacements recover a label that the removed event could not match at
-the primary allowance. This describes the matching result; it does not
-distinguish a mistimed physical hit from a separate extra and missing hit. Saved
-examples include both timing allowances, but the exhaustive opportunity count
-targets ±10.
+All **448 correct clips** also have at least one damaging edit available. That does not mean a model would necessarily choose it; it means the search space contains plenty of ways to break good output.
 
-The proposed pre-serve cleanup accounts for only five possible repairs here.
-Tail deletion is the larger endpoint pattern, with 17. Those tail events are
-not separated by unusually long gaps: the final predicted gap ranges from
-13.2 to 46.0 frames on the 30 fps clock, with a median of 26.0. Among 447 currently
-correct clips with at least two predictions, the range is 7.2–68.4 and the
-median is 27.6. This overlap gives no simple long-pause rule for safely dropping
-the last event.
+The 20 replacements recover a label that the removed event could not match at ±10. This matching result does not tell us whether the physical error is one mistimed hit or a separate extra/missing pair.
 
-Stop before another correction fit. The count identifies specific cases but has
-not established prediction evidence that separates repairs from harmful edits.
-A future visual review could compare these 17 tail cases with correct rally
-endings. That is narrower than repeating the [earlier broad deletion
-experiment](serve_and_acceptance.md). No coverage expansion or additional model
-was run in this final check.
+## Tail-event lead
 
-Evidence: [selected repair count and examples](results/last_followups/selected_repairs.json.gz),
-[census script](scripts/count_selected_repairs.py).
+Only **5** possible repairs delete an event before the first label. **17** delete the final event.
 
-## What remains useful
+But the final gap is not a useful discriminator:
 
-Keep the existing detector for proposing rally clips and drafting contacts for
-review. These follow-ups do not justify automatic exact approval. Independent
-edge padding produced no gain, and the controlled chooser refit worsened the
-finished output. The remaining-error count leaves a concrete tail-event review
-lead without adding another model to the detector.
+- repairable wrong clips: **13.2–46.0 frames**, median **26.0**;
+- 447 correct clips with at least two predictions: **7.2–68.4**, median **27.6**.
 
-## Reproducing the chooser experiments
+There is no simple “long pause means delete” rule.
 
-Use the project Python environment from the repository root. These commands
-need the existing prepared option and feature caches. Choose a fresh output
-directory and supply the source annotation directory for the broader recount.
+## Decision
+
+Stop before another broad correction fit. We know the repair options exist; we do not yet know how to choose them safely.
+
+A visual/feature comparison of the **17 tail cases** against correct rally endings is a narrower next step than repeating the old deletion model.
+
+Evidence:
+
+- `results/last_followups/selected_repairs.json.gz`
+- `scripts/count_selected_repairs.py`
+
+---
+
+# Why the earlier deletion model stayed out
+
+The development diagnosis found **723 locally useful deletions across 479 proposals**, but the chooser already offered **675** of them. **637** still left another contact missing; only **16** would complete the rally on their own.
+
+The separate deletion model then gained eight complete rallies (**22 repairs / 14 losses**) and made **67 already-imperfect proposals worse**. That is a poor general cleanup strategy; the [narrower selected-clip question](promising_leads.md#1-safely-clean-up-right-rally-near-misses) still has a reason to exist.
+
+Evidence: `results/serve_followups/development_diagnosis.json.gz`, `results/serve_followups/deletion_development.json.gz`.
+
+---
+
+# Reproducing the chooser experiments
+
+These commands need the existing option/feature caches. Use fresh output paths and provide source annotations for the broader recount.
 
 ```bash
 export PYTHONPATH="$PWD/src:$PWD"
 followup_run=/path/to/fresh/contact-followup
+
 python -m scratch.contact_det_closing_pass.scripts.run_padded_target_census \
   --output-root "$followup_run/targets" --jobs 16
+
 python -m scratch.contact_det_closing_pass.scripts.run_padded_target_fit \
   --census "$followup_run/targets" --output-root "$followup_run/fit" --jobs 4
+
 python -m scratch.contact_det_closing_pass.scripts.run_insertion_broader \
   --variant local --models "$followup_run/fit/models.joblib" \
   --output-root "$followup_run/broader" --score-root "$followup_run/scores" --jobs 4
+
 python -m scratch.contact_det_closing_pass.scripts.score_padded_chooser \
   --predictions "$followup_run/broader/local_broader_predictions.json.gz" \
   --annotations /path/to/shuttleset22/annotations \
   --output "$followup_run/broader/padded_comparison.json.gz"
+
 python -m scratch.contact_det_closing_pass.scripts.count_selected_repairs \
   --output-root "$followup_run/selected_repairs" --jobs 16
 ```
 
-For a one-video smoke run, the target census accepts `--limit-fixtures 1`; the
-selected-repair census accepts `--limit-videos 1`. Use another fresh output
-directory for the full run. The broader runner uses separate smoke filenames.
+For smoke tests, the target census accepts `--limit-fixtures 1` and the selected-repair census accepts `--limit-videos 1`. Use a fresh output directory for the full run.
 
-## Checks
+# Checks
 
-The experiment smoke runs and full runs completed successfully (exit 0).
-Both sets of four focused tests passed, and scoped Ruff checks passed (exit 0).
-Serena/Pyrefly reported no diagnostics in the changed scripts. The whole-project
-Pyrefly check returned exit 1 with 11 missing-import errors in unchanged tests,
-helper scripts and optional video-language-model dependencies.
+Smoke and full runs completed with exit 0. Both focused four-test sets passed, as did scoped Ruff checks.
+
+Serena/Pyrefly found no diagnostics in the changed scripts. Whole-project Pyrefly still exits 1 on 11 missing imports in unchanged tests, helper scripts and optional VLM dependencies.
+
+# Bottom line
+
+The final checks strengthen the existing recommendation:
+
+- keep the current detector and confidence ranking;
+- keep exact auto-approval off;
+- keep `fixed_membership` rather than independent edge padding;
+- reject the corrected-target refit;
+- treat the 58 one-edit cases as **headroom**, not achieved performance;
+- if revisiting post-selection cleanup, start with the narrow tail-event question.

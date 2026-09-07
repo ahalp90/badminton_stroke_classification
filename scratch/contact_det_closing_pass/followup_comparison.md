@@ -1,79 +1,80 @@
 # Final detector refinements
 
-This experiment produced the final recommended detector.
+**Contents**  
+[Question](#question)  
+[Answer](#answer)  
+[Why contact metrics barely move](#why-contact-metrics-barely-move)  
+[Rally start/end correction](#rally-startend-correction)  
+[Independent added-contact evaluation](#independent-added-contact-evaluation)  
+[Why not widen the serve shortlist?](#why-not-widen-the-serve-shortlist)  
+[Other closed branches](#other-closed-branches)  
+[Final detector](#final-detector)
 
-The same predictions are scored against **3,422 trusted rallies** and **all 3,965 source rallies**.
+## Question
 
-## Result
+After the 1,597-rally detector, which late refinements are worth keeping?
+
+## Answer
+
+Two:
+
+1. independently evaluate the proposed added contact; and
+2. correct rally start/end bounds without changing which predicted contacts belong to the clip.
+
+Together they produce the recommended **1,763-rally** detector.
 
 | Version | Trusted GT only | All GT included | Repairs / losses vs 1,597 |
 |---|---:|---:|---:|
 | Starting point | 1,597 / 3,422 = **46.7%** | 1,596 / 3,965 = **40.3%** | — |
-| + local score for the inserted contact | 1,622 / 3,422 = **47.4%** | 1,621 / 3,965 = **40.9%** | 41 / 16 |
-| Fix rally start/end times only | 1,732 / 3,422 = **50.6%** | 1,732 / 3,965 = **43.7%** | **135 / 0** |
-| **Final detector: both** | **1,763 / 3,422 = 51.5%** | 1,763 / 3,965 = **44.5%** | **180 / 14** |
-| Also consider more possible serve timestamps | 1,767 / 3,422 = **51.6%** | 1,767 / 3,965 = **44.6%** | 194 / 24 |
+| + independent added-contact evaluation | 1,622 / 3,422 = **47.4%** | 1,621 / 3,965 = **40.9%** | 41 / 16 |
+| Rally start/end correction only | 1,732 / 3,422 = **50.6%** | 1,732 / 3,965 = **43.7%** | **135 / 0** |
+| **Final detector: both** | **1,763 / 3,422 = 51.5%** | **1,763 / 3,965 = 44.5%** | **180 / 14** |
+| Wider serve shortlist | 1,767 / 3,422 = **51.6%** | 1,767 / 3,965 = **44.6%** | 194 / 24 |
 
-![What each final change contributed, under both label sets.](figures/final_followup.svg)
+![What each final refinement contributed.](figures/final_followup.svg)
 
-Against trusted GT, the final detector reaches **81.0% precision / 88.2% recall / 84.5% F1** for timing. Requiring the correct player gives **78.5% / 85.5% / 81.8%**. The detector entering this follow-up was already at **81.1% / 88.0% / 84.4%** for timing and **78.3% / 85.0% / 81.5%** with the player.
+## Why contact metrics barely move
 
-That small contact-level change is important context for the much larger whole-rally gain below: most of the final improvement comes from fixing rally boundaries, not finding many more contacts.
+Trusted-GT contact timing ends at **81.0 / 88.2 / 84.5%** P/R/F1, or **78.5 / 85.5 / 81.8%** with the correct player.
 
-## The biggest late gain was not new contact detection
+Before these refinements it was already **81.1 / 88.0 / 84.4%** and **78.3 / 85.0 / 81.5%** respectively.
 
-Fixing the proposed rally's start and end times raises **1,597 → 1,732** by itself.
+So the large whole-rally gain is not mainly new contact discovery.
 
-It repairs **135 rallies and loses none at ±10**.
+## Rally start/end correction
 
-It does not move contact timestamps, change player assignments, or add/remove contacts. It only expands the video interval when that can be done without changing which predicted contacts belong to the proposal.
+Boundary correction alone moves **1,597 → 1,732**, with **135 repairs and no observed losses at ±10**.
 
-So those 135 failures were basically **segmentation errors**: the contact sequence was useful, but the proposed clip was cut too tightly.
+It does not move contacts, change players, or add/remove events. It simply expands a proposed clip when doing so leaves the predicted contact membership unchanged.
 
-This is one of the strongest practical findings in the closing pass.
+Those 135 failures were basically **segmentation errors**: the contact sequence was good, but the clip was cut too tightly.
 
-## The local inserted-contact score helps modestly
+## Independent added-contact evaluation
 
-The later-contact model sometimes inserts a plausible candidate for the wrong reason.
+The whole-rally chooser can prefer an edited sequence even when the inserted event itself is dubious. This extra signal asks whether that proposed contact looks like a genuine distinct hit rather than a duplicate or extra event.
 
-The extra score asks a narrow question:
+By itself it raises **1,597 → 1,622**. Combined with boundary correction, the detector reaches **1,763**.
 
-**Does this one proposed inserted contact look like a useful distinct hit, rather than a duplicate or extra event?**
+## Why not widen the serve shortlist?
 
-That score raises **1,597 → 1,622** by itself.
+The wider search reaches **1,767**, only four more perfect rallies than the recommendation. Getting those four costs **19 repairs and 15 losses** relative to the 1,763 detector.
 
-Combined with the boundary fix, the final result reaches **1,763**.
+It also finds only three extra serves at ±10 and is slightly worse at ±5. Keep it as a saved alternative, not the recommendation.
 
-## Why not use more possible serve timestamps?
+## Other closed branches
 
-The wider search reaches **1,767**, only four more perfect rallies than the recommendation.
+### Two later contacts
 
-Against the final 1,763 version it repairs **19** rallies and breaks **15**.
+There is real headroom for two insertions, but the learned versions do not beat the simpler one-insertion detector cleanly enough to justify the extra complexity.
 
-That is too much churn for four net successes.
+### Direct-answer visual-language-model veto
 
-The serve results agree: the wider search finds only three more serves at ±10 and is slightly worse at ±5.
-
-## Adding two later contacts did not earn its complexity
-
-There are examples where two insertions could theoretically repair a rally.
-
-But the trained two-insertion versions did not beat the simpler one-insertion detector by enough to matter.
-
-Close that branch.
-
-## The vision-language-model veto was far too aggressive
-
-A small visual check was tested as a way to reject unsafe automatic approvals.
-
-On the cases sent to it at ±10:
+On routed development cases at ±10:
 
 - ranking model alone: **45 correct, 12 wrong**;
-- after the visual veto: **6 correct, 1 wrong**.
+- after the veto: **6 correct, 1 wrong**.
 
-It removes 11 mistakes and throws away 39 correct rallies.
-
-Close that branch.
+It catches 11 mistakes and throws away 39 correct outputs. That direct-answer veto is closed. A separate reasoning-enabled Qwen3.8 retry remains in [promising_leads.md](promising_leads.md).
 
 ## Final detector
 
@@ -81,9 +82,11 @@ Keep:
 
 - whole-sequence selection;
 - one later-contact insertion;
-- the 0.05 minimum improvement rule;
-- the local inserted-contact score;
-- conservative correction of rally start/end times;
-- the alternating player-assignment rule.
+- the 0.05 minimum-improvement rule;
+- independent evaluation of the proposed added contact;
+- conservative `fixed_membership` rally-boundary correction;
+- alternating player assignment.
 
-The final serve and automatic-use results are in [serve_and_acceptance.md](serve_and_acceptance.md).
+Final serve, ranking and selected-clip results: [serve_and_acceptance.md](serve_and_acceptance.md).
+
+Experiments run **after** this recommendation are in [last_followups.md](last_followups.md); none displaced it.
