@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from scratch.contact_det.scripts.score_contact_rallies import RallyReference
 from scratch.contact_det_full_ds_fit.scripts import rally_start_model as model
 from scratch.contact_det_full_ds_fit.scripts.rally_start_model_config import (
@@ -10,6 +12,21 @@ from scratch.contact_det_full_ds_fit.scripts.rally_start_model_config import (
 )
 
 CONFIG_PATH = Path(__file__).parents[1] / "records/rally_start_model_runs.json"
+
+
+def test_wider_candidate_pool_requires_explicit_opt_in() -> None:
+    video = _saved_video()
+    original = model.build_candidate_rows([video], default_group="V")
+    candidates = video["candidate_lists"][0]["candidates"]
+    candidates.extend({
+        "frame": frame, "contact_score": 0.5, "is_fixed_contact": False,
+        "kept": False, "predicted_side": "Top",
+    } for frame in (100, 110))
+    with pytest.raises(ValueError, match="candidate-list size"):
+        model.build_candidate_rows([video], default_group="V")
+    expanded = model.build_candidate_rows([video], default_group="V", max_earlier_candidates=4)
+    assert len(expanded) == 4
+    assert expanded[:2] == original
 
 
 def _saved_video(fixture: str = "sset_01", group: str = "A") -> dict[str, object]:

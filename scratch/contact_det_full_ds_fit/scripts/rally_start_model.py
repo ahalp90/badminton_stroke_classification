@@ -190,8 +190,12 @@ def build_candidate_rows(
     videos: Sequence[Mapping[str, Any]],
     *,
     default_group: str,
+    max_earlier_candidates: int = 2,
 ) -> tuple[CandidateRow, ...]:
-    """Build the nine fixed model inputs without reading labels."""
+    """Build nine model inputs, retaining the historical two-candidate default.
+
+    A larger experimental shortlist requires an explicit opt-in.
+    """
     rows: list[CandidateRow] = []
     candidate_identities: set[CandidateIdentity] = set()
     candidate_frames: set[tuple[str, int]] = set()
@@ -267,7 +271,7 @@ def build_candidate_rows(
                 )
             previous_span_id = span_id
             raw_candidates = candidate_list.get("candidates")
-            if not isinstance(raw_candidates, list) or len(raw_candidates) != 3:
+            if not isinstance(raw_candidates, list) or not 3 <= len(raw_candidates) <= max_earlier_candidates + 1:
                 raise ValueError(f"{fixture}/{span_id}: candidate-list size differs")
             fixed = _mapping(raw_candidates[0], f"{fixture}/{span_id}: fixed contact")
             if (
