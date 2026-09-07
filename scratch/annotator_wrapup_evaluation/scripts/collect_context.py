@@ -1,6 +1,7 @@
 """Collect upstream context around the frozen recommended proposals."""
 
-# ruff: noqa: I001
+# Direct execution needs the path setup before project imports.
+# ruff: noqa: E402, I001
 
 from __future__ import annotations
 
