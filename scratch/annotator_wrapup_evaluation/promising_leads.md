@@ -1,6 +1,6 @@
 # Promising leads: what remains to investigate
 
-This is the live backlog. Closed detector ideas are in [last_followups.md](last_followups.md); the full investigation history is in [experiment_lineage.md](experiment_lineage.md).
+This is the live backlog. Closed detector ideas are in [last_followups.md](last_followups.md); the full investigation history is in [methods and reproduction](evaluation_reproduction.md#investigation-sequence).
 
 **Contents**  
 [Priority map](#priority-map)  

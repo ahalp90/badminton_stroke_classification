@@ -1,8 +1,9 @@
-# Annotator evaluation: saved evidence and reproduction
+# Evaluation methods, evidence and commands
 
-Rerun the saved evaluation or trace a published number here. Commands use the repository root and the project's existing Python environment unless stated otherwise.
+Use this reference to check how the investigation was done, trace a published number or rerun a check. Commands use the repository root and the project's existing Python environment unless stated otherwise.
 
 **Contents**  
+[Investigation sequence](#investigation-sequence)  
 [Canonical saved inputs](#canonical-saved-inputs)  
 [Environment variables](#environment-variables)  
 [Result inventory](#result-inventory)  
@@ -16,7 +17,108 @@ Rerun the saved evaluation or trace a published number here. Commands use the re
 [Summary figures](#summary-figures)  
 [Later direct hit judgements](#later-direct-hit-judgements)  
 [Original-ShuttleSet recount](#original-shuttleset-recount)  
-[Completed detector experiments](#completed-detector-experiments)  
+[Completed detector experiments](#completed-detector-experiments)
+
+## Investigation sequence
+
+| Question | How it was checked |
+|---|---|
+| Which parts of the annotation are wrong? | Counted missed and extra hits, wrong players and incomplete rallies; compared clips kept and discarded by selection. |
+| Do the labels refer to the action on screen? | Checked the game and score, then inspected individual hits and players in sampled footage. |
+| Were court and player inputs available when contacts were missed? | Compared saved inputs at matched and missed contact times, then inspected failures and successful controls. |
+| Can a bad court outline cause these failures? | Replayed the court and player decisions, then changed only the outline in the checked cases. |
+| What did the learned contact work improve? | Scored the ordinary heuristic against the same labels and compared their errors. |
+| How much do videos 15 and 53 affect the totals? | Recounted the same outputs with each video exclusion. |
+
+The counts show where errors occur. Footage checks test whether the labels and pipeline decisions agree with visible play. Changing only the court outline tests its effect on the checked decisions; it does not measure how many full rallies a repaired pipeline would recover.
+
+The detector stayed fixed during the investigation. Production wiring and automatic exact approval stayed unchanged. Earlier rejected detector experiments are recorded in [last_followups.md](last_followups.md).
+
+### 2. Recount all 47 ShuttleSet22 videos
+
+The evaluator rescored the saved output over 47 previously examined ShuttleSet22 videos with cleaned/all-source labels and ±10/±5-frame tolerances. It reproduced the previous headline totals.
+
+Historical ±10 result: **1,763 / 3,422** cleaned rallies fully correct; **33,716 / 38,218** cleaned contacts timing-matched.
+
+That 47-video aggregate is now historical because video 15 is known-bad ground truth.
+
+### 3. Check videos 15 and 53 against the footage
+
+An eight-window pilot targeted the two worst-looking videos: five windows in video 15 and three in video 53.
+
+Video 15 immediately showed a label/footage mismatch. Video 53 showed ordinary badminton and needed another explanation.
+
+Five more video-15 windows were then chosen for strong timing matches. All five still showed the wrong game or score, including both rallies where every cleaned label had a nearby detected hit.
+
+Result: **exclude video 15; keep investigating video 53.**
+
+### 4. Sample upstream failures and controls
+
+Seed `20260906` selected eight missed middle contacts outside video 15:
+
+- four from court-rejected scenes;
+- two from accepted scenes with a missing player pick;
+- two from accepted scenes with both players.
+
+Each miss was paired with a successful control from the same video, chosen by nearest rally length and then time. Random IDs hid the detector state from the visual reader. Each request showed nine frames at half-second intervals across ±2 seconds.
+
+All 16 centre frames showed the whole court and both players. The four deliberately sampled court-rejected failures showed ongoing exchanges.
+
+This proves false court rejection exists; it does not estimate its prevalence. One successful control also exposed a weakness in the saved scene cuts: the camera visibly changes within the four-second window even though the nearest saved cut is 11.6 seconds away.
+
+### 5. Replay the court and player logic
+
+Three checks isolated geometry rather than retraining anything.
+
+**Court votes:** original two-player vote arrays were reproduced exactly in four rejected scenes and four controls. Replacing only the outline with the existing same-video shared outline made videos 12, 20 and 53 pass the 50% threshold; video 21 rose to 48.9% and still failed.
+
+**Video 17 player replay:** the original sequential tracker reproduced both saved player-validity fields at all 91,970 saved feature rows. In two failures, replacing only the undersized shared outline with the scene's own outline restored the far-player pick while keeping incoming state fixed.
+
+**Video 53 corner replay:** rerunning the neural-net court model reproduced the saved OpenCV fallback within 0.02 pixels. The top-right neural-net corner still failed the confidence threshold.
+
+Result: two court-geometry failure mechanisms are confirmed. No repaired end-to-end pipeline has been run yet.
+
+### 6. Compare the ordinary heuristic
+
+Saved ordinary heuristic outputs were rescored over the same videos without rerunning vision.
+
+At ±10, the heuristic has **4** fully correct cleaned rallies; the learned output has **1,763**. Outside video 15, the learned path finds **5,200** labels the heuristic misses and loses **660** that the heuristic finds.
+
+Result: keep the learned path. Its improvements make the shared upstream court problem much more prominent in the remaining error.
+
+### 7. Recount exclusions and inspect weak videos
+
+Saved outputs were recounted for:
+
+- all 47 videos;
+- 46 without video 15;
+- 45 without videos 15 and 53.
+
+A later 53-window review covered 19 videos, including 24 random misses, seven weak videos, extra video 53 checks and successful controls.
+
+Removing video 15 gives the useful 46-video read. Removing video 53 raises percentages but also removes valid successful output, so it remains a sensitivity check only.
+
+The game/score review found no second large wrong-rally mismatch outside video 15.
+
+### 8. Publish the follow-up decisions
+
+Commit [`8a8562e`](https://github.com/ahalp90/badminton_cv_annotator/commit/8a8562e26a9286ad491c3935f3860db66b91b020) published:
+
+- [#147 — exclude ShuttleSet22 video 15 and check both datasets for bad labels](https://github.com/ahalp90/badminton_cv_annotator/issues/147)
+- [#148 — fix court corrections that make the outline worse](https://github.com/ahalp90/badminton_cv_annotator/issues/148)
+
+Issue #147 later added direct hit/player judgements for the random missed-contact sample:
+
+- 16 agree with the visible hit and player;
+- three clear footage disagreements, all video 15;
+- one mistimed label in video 12;
+- four unclear.
+
+Four random video 53 misses also agree with the labels.
+
+Those direct judgements supersede the earlier game/score-only status for the same cases. The saved detector metrics did not change.
+
+The same follow-up recounted the final output on 32 original-ShuttleSet development videos. It reproduced 1,209 / 2,691 fully correct rallies at ±10 frames. [Video checks](video_checks.md#original-shuttleset) summarises the result and the eight videos still awaiting final-chooser inputs.
 
 ## Canonical saved inputs
 
@@ -24,7 +126,7 @@ Paths are relative to the repository root.
 
 | Record | Role |
 |---|---|
-| `scratch/contact_det_closing_pass/results/followups/local_boundary_broader_predictions_fixed_membership.json.gz` | Final learned contact choices plus fixed-membership clip padding |
+| `scratch/contact_det_closing_pass/results/followups/local_boundary_broader_predictions_fixed_membership.json.gz` | Final local chooser output plus fixed-membership clip padding |
 | `scratch/contact_det_closing_pass/results/serve_followups/chosen_acceptance_broader.json.gz` | Unchanged 784-clip selection; threshold `0.7570784853533734` |
 | `scratch/contact_det_closing_pass/results/metric_summary.json.gz` | Earlier headline counts reproduced by the recount |
 | `scratch/contact_det_closing_pass/results/selected_clip_review.csv` | Earlier broad review of the 44 historical unknown selections |
@@ -270,7 +372,7 @@ python -m scratch.annotator_wrapup_evaluation.scripts.build_video_view
 
 The generated `VIDEO_BREAKDOWN.html` embeds its data and does not need a network connection. It shows the 47 videos under the two saved output methods using cleaned labels and ±10 frames.
 
-The standalone bundle does not copy the generated HTML blob. It links to the canonical generator and results instead, so the viewer does not become a second stale artifact.
+Open [VIDEO_BREAKDOWN.html](VIDEO_BREAKDOWN.html) locally. It includes labelled far/near player against predicted far/near, missing-player and missing-hit outcomes. Unmatched predictions are separate. It also shows contact, serve and whole-rally scores, court/player availability, and correct, wrong and unjudgeable selected clips.
 
 ## Validation already completed
 

@@ -13,7 +13,7 @@ Exclusion plots are **cumulative**: all 47 historical videos, then remove known-
 
 ## Exploring the results
 
-These plots show the spread and kinds of errors behind the headline scores. They are embedded in [output errors](../output_errors.md) and the [visual overview](../visual_overview.md).
+These plots show the spread and kinds of errors behind the headline scores. They are embedded in the [main report](../README.md).
 
 | Figure | What it shows | Videos |
 |---|---|---:|
@@ -43,7 +43,7 @@ Removing a video changes the denominator. It does not repair saved output. The v
 - [contact_sample_results.png](contact_sample_results.png) — direct hit/player checks of 24 randomly sampled missed contacts.
 - [original_comparison.png](original_comparison.png) — 32 original-ShuttleSet development videos compared with the historical 47-video ShuttleSet22 result.
 
-These are unchanged copies of the local worklog figures, produced by `worklog/plot_followup_results.py` in the evaluation directory. The [follow-up records](../evaluation_reproduction.md#later-direct-hit-judgements) describe their evidence and reproduction. They are included here so the [visual overview](../visual_overview.md) can use them without the ignored worklog directory.
+These are unchanged copies of the local worklog figures, produced by `worklog/plot_followup_results.py` in the evaluation directory. The [follow-up records](../evaluation_reproduction.md#later-direct-hit-judgements) describe their evidence and reproduction. They are included here so the [main report](../README.md) can use them without the ignored worklog directory.
 
 ## Source-frame evidence
 

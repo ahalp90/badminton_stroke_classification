@@ -1,205 +1,134 @@
 # Where the annotator succeeds and fails
 
-This branch ran a set of checks on the finished badminton annotator to work out where it succeeds, where it fails, and what needs fixing next. It covered individual hits, player assignments, whole rallies and the clips selected for review.
+This branch investigated where the finished badminton annotator succeeds and fails: across videos, individual hits, player assignments, whole rallies and the clips selected for review. It compared saved outputs with labels and court/player inputs, inspected footage, and replayed court decisions. The detector stayed fixed.
 
-The detector improvements and benchmark are recorded in [PR #149](https://github.com/ahalp90/badminton_cv_annotator/pull/149). This investigation breaks those outputs down: which videos work well, which errors occur together, what selection leaves behind, and where the pipeline loses usable play.
+[PR #149](https://github.com/ahalp90/badminton_cv_annotator/pull/149) records the detector improvements and benchmark. This investigation explains the patterns behind those scores. **The clearest next step is to fix the court stage**, but the breakdown also shows different failure patterns across videos, overlapping contact errors and useful clips discarded by selection.
 
-The main investigation used saved outputs from 47 ShuttleSet22 videos, keeping the detector fixed. It compared annotation errors with the court and player inputs available at the time. Footage checks tested the labels and looked at successful and failed cases. Replays then tested whether changing a court outline changed the pipeline's decisions. [What was checked, and why](experiment_lineage.md) follows those experiments.
-
-For the same work in pictures, see the [visual overview](visual_overview.md).
-
-**The main finding: fix the court stage before fitting another contact model.**
-
-The footage checks found that video 15's labels point to the wrong parts of the match. Excluding it leaves 46 videos and 3,633 missed labelled contacts. **2,374 of those misses (65.3%)** fall in court-rejected scenes. Usable live play was being blocked before normal contact scoring. Two failures were reproduced: OpenCV wrecks a court outline in video 53, while the shared outline loses a visible player in video 17.
-
-The learned output still provides useful clips for review and fixup. Keep video 53 in the evaluation: its checked labels support fixing the court handling. Drop video 15 and its derived release records rather than trying to repair its labels.
-
-The numbers below describe the saved run. Rerun them after #147 removes video 15 from the release and #148 changes the court stage.
+The main results cover **46 ShuttleSet22 videos**, after excluding video 15's misaligned labels. Scores use cleaned labels and **±10 frames at 30 fps**. These videos had already been examined during earlier work.
 
 **Contents**  
-[How the results vary](#how-the-results-vary)  
-[Results at a glance](#results-at-a-glance)  
-[Video 15 and the next benchmark](#video-15-and-the-next-benchmark)  
-[Why court handling comes first](#why-court-handling-comes-first)  
-[What the learned path improved](#what-the-learned-path-improved)  
-[What still fails](#what-still-fails)  
-[Dead ends](#dead-ends)  
-[What remains](#what-remains)  
-[Reading guide](#reading-guide)  
-[Limits](#limits)
+[How much does it vary between videos?](#how-much-does-it-vary-between-videos)  
+[Does every rally get a complete clip?](#does-every-rally-get-a-complete-clip)  
+[What does selection leave behind?](#what-does-selection-leave-behind)  
+[What kinds of errors occur together?](#what-kinds-of-errors-occur-together)  
+[Are hits mistimed, or missing?](#are-hits-mistimed-or-missing)  
+[What inputs were available?](#what-inputs-were-available)  
+[Do the labels agree with the footage?](#do-the-labels-agree-with-the-footage)  
+[Can the court failures be reproduced?](#can-the-court-failures-be-reproduced)  
+[What useful output is left for review?](#what-useful-output-is-left-for-review)  
+[What did the learned detector improve?](#what-did-the-learned-detector-improve)  
+[What about original ShuttleSet?](#what-about-original-shuttleset)  
+[What next?](#what-next)  
+[Details and evidence](#details-and-evidence)
 
-## How the results vary
+## How much does it vary between videos?
 
-A high hit-matching score can still leave many rallies with errors. A fully correct rally fits in one clip, with every labelled hit matched once, no extra hits and the right player for each.
+A fully correct rally fits in one clip: every labelled hit matched once, the right players, and no extra hits.
 
-![Each video's contact timing-match rate against its fully correct rally rate, across the original 47 videos.](figures/video_variation.png)
+![Contact timing recovery against fully correct rally rate, one point per video.](figures/video_variation.png)
 
-This is the original **47-video** view. “Trusted” in older plots means cleaned labels. Video 15's labels turned out to point to the wrong footage, so its score is not a valid measure of detector quality.
+Most videos match a high share of hits, but whole-rally success varies widely. This plot and the next two show the original **47 videos**, including video 15's invalid label comparison. “Trusted” in older plots means cleaned labels.
 
-The spread matters beyond the two outliers. Video 41 has 59/77 fully correct rallies (76.6%); video 17 has 17/73 (23.3%) despite matching 842/976 contacts. Different weak videos need different explanations: most of video 53's missed hits fall in court-rejected scenes, while video 17 mostly fails later.
+![Contact outcomes for the first 24 videos, ordered by fully correct rally rate.](figures/video_outcome_breakdown_1.png)
 
-The investigation also found:
+![Contact outcomes for the remaining 23 videos. Video 17 has many player errors; video 53 has many misses.](figures/video_outcome_breakdown_2.png)
 
-- **Selection leaves useful output behind.** Of 1,763 fully correct rallies, 616 reach the review queue. The fixed threshold was not retuned here.
-- **Errors overlap.** In the historical 124 wrong selected clips, 92 have extra contacts and 74 have misses. Every clip with a wrong matched player also has another error.
-- **Starts and finishes are harder.** Even in court-accepted frames outside video 15, miss rates are 9.0% for serves and 11.2% for final contacts, against 2.3% in the middle.
-- **Matched hits are usually close.** Outside video 15, 98.0% of timing matches are within five frames. Missing events remain a separate problem.
+The bars count labelled hits. The scores alongside count fully correct rallies. Video 17 has many wrong-player matches; most of video 53's missed hits fall in court-rejected scenes. Footage checks below distinguish these from video 15's bad labels. Extra predictions are separate in the [interactive video breakdown](VIDEO_BREAKDOWN.html), which also shows player confusion and input conditions. Open it locally to explore each video.
 
-See the [per-video outcome charts](output_errors.md#video-to-video-variation) for the full spread, or open the [interactive video breakdown](VIDEO_BREAKDOWN.html) locally for contact/player confusion matrices and input conditions. The [visual overview](visual_overview.md) puts these plots together with the footage checks.
+## Does every rally get a complete clip?
 
-## Results at a glance
+![Best available clip for each of the 3,422 labelled rallies across the original 47 videos.](figures/rally_coverage.png)
 
-The table starts with all 47 videos, then removes video 15, then video 53 as well for comparison. The 46-video column is the main result. Removing a video changes what is counted; the saved detector output stays the same.
+Even before selection, some rallies are only partly reached or missed entirely. After excluding video 15, **225 rallies** still have no labelled contact reached by a clip.
 
-| Saved learned output, cleaned labels, ±10 frames | All 47: historical | Without video 15 | Without videos 15 and 53: sensitivity |
-|---|---:|---:|---:|
-| Labelled rallies | 3,422 | **3,327** | 3,251 |
-| Labelled contacts | 38,218 | **37,184** | 36,247 |
-| Exact whole-rally contact sequence | 1,777 (51.9%) | **1,777 (53.4%)** | 1,770 (54.4%) |
-| Fully correct rally, including players | 1,763 (51.5%) | **1,763 (53.0%)** | 1,756 (54.0%) |
-| Contact timing match | 33,716 (88.2%) | **33,551 (90.2%)** | 33,356 (92.0%) |
-| Contact timing + correct player | 32,667 (85.5%) | **32,586 (87.6%)** | 32,392 (89.4%) |
-| Serve timing + correct player | 2,647 (77.4%) | **2,642 (79.4%)** | 2,628 (80.8%) |
+## What does selection leave behind?
 
-Keep video 53 in the main read. Removing it is only a sensitivity check: it removes seven fully correct rallies as well as many failures.
+![The fixed selection keeps 616 correct clips and leaves 1,147 correct clips behind, across all 47 videos.](figures/selection.png)
 
-![Fully correct rally rates across the cumulative video exclusions.](figures/rally_correctness.png)
+Selection makes the review queue cleaner, but discards many correct clips too. Excluding video 15 leaves the same 616 correct selected clips: none came from that video. The threshold stayed fixed during this investigation.
 
-![Contact recovery across the same cumulative video exclusions.](figures/contact_correctness.png)
+## What kinds of errors occur together?
 
-The fixed selection rule leaves this 46-video review queue:
+![Missing contacts, extra contacts, wrong players and cut-off rallies within the 124 known-wrong selected clips.](figures/selected_errors.png)
 
-| Selected clips | Count |
-|---|---:|
-| Known correct | **616** |
-| Known wrong | 114 |
-| Labels cannot judge | 17 |
-| **Total** | **747** |
+Missing and extra hits often occur together. Every selected clip with a wrong matched player also has another error. This breakdown includes **all 47 videos**, including video 15.
 
-Among the 730 judgeable clips, exact-annotation precision is **616 / 730 = 84.4%**. Recall is **616 / 3,327 = 18.5%**, giving **30.4% F1**. Counting the 17 unknown clips as not proven correct gives **616 / 747 = 82.5%**.
+Outside video 15, the 114 wrong selected clips contain 85 extra events and 67 missed labels. Of the extras, 52 come after the final label. That position alone does not prove a physical hit is false; earlier deletion experiments could not distinguish them reliably.
 
-The selected clips still need review before use as ground truth.
+## Are hits mistimed, or missing?
 
-![Correct, wrong and unjudgeable clips in the saved review queue.](figures/review_queue.png)
+![Timing offsets for matched contacts across the 46 videos outside video 15.](figures/timing_offsets.png)
 
-Compact tables and definitions: [evaluation_tables.md](evaluation_tables.md).
+**98.0% of matches are within five frames.** The 3,633 missing contacts are outside this plot.
 
-## Video 15 and the next benchmark
+![Miss rates for serves, middle and final contacts across all 47 videos, at two timing tolerances.](figures/contact_position.png)
 
-ShuttleSet22 video 15 is not usable for evaluation. Its first labelled serve lands on opening graphics; later labels name a different game or score from the footage. Even its two complete timing matches show another rally on screen.
+Starts and finishes are harder. That pattern remains after removing video 15 and restricting to court-accepted frames: **9.0%** missed serves, **2.3%** middles, **11.2%** finals.
 
-The decision is to exclude the video and its derived release records. [Issue #147](https://github.com/ahalp90/badminton_cv_annotator/issues/147) tracks that removal and the wider search for similar source failures.
+## What inputs were available?
 
-A later direct review of 24 randomly sampled missed labels found:
+![Court and player availability among missed and matched contacts, across the 46 videos outside video 15.](figures/upstream_context.png)
 
-- 16 where the visible hit and player agree with the label;
-- three clear footage disagreements, all in video 15;
-- one wrong-timing label in video 12;
-- four unclear cases.
+Of 3,633 misses, **2,374 (65.3%)** fall in court-rejected scenes, 96 have a missing player pick, and 1,163 have both players available. Almost all timing matches have both players available.
 
-All four directly checked video 53 misses support the labelled hit and player. A poor detector score by itself is not a reason to exclude a video.
+These are input states within each outcome group. For miss rates among contacts with each kind of input, see the [input-state table](evaluation_tables.md#where-misses-occur). Footage and replays test what caused particular failures.
 
-The release is also larger than this evaluation. The detector work covers 47 ShuttleSet22 videos; [issue #133](https://github.com/ahalp90/badminton_cv_annotator/issues/133) lists **40 original ShuttleSet videos and 58 ShuttleSet22 videos** for release. Original ShuttleSet already has first-stroke timing concerns in [issue #77](https://github.com/ahalp90/badminton_cv_annotator/issues/77).
+## Do the labels agree with the footage?
 
-## Why court handling comes first
+![Video 15 labels call for a serve during opening graphics and a later rally while the visible game is still at 0–0.](figures/label_alignment.png)
 
-Outside video 15, the learned output misses **3,633** labelled contacts:
+Video 15's labels refer to the wrong parts of the match. The decision is to exclude it and its derived clips.
 
-| State at the labelled frame | Missed contacts |
-|---|---:|
-| Court rejected the scene | **2,374** |
-| Court accepted; at least one player pick missing | 96 |
-| Court accepted; both players picked | 1,163 |
+![Direct checks of 24 randomly sampled missed contacts: 16 supported, three contradicted, one mistimed and four unclear, split by court acceptance.](figures/contact_sample_results.png)
 
-![Where the 3,633 misses outside video 15 occur.](figures/misses_by_input_state.png)
+These 24 cases were sampled from **misses across all 47 videos**. All three clear contradictions are from video 15. This is not a collection-wide label-error rate. The wider game/score checks found no second large wrong-rally mismatch in the sampled footage. [Label and video checks](video_checks.md) gives the cases, sampling methods and limits.
 
-Two failures were reproduced:
+## Can the court failures be reproduced?
 
-- **Video 53:** OpenCV replaces a plausible low-confidence corner with a point near the wrong end of the image. The broken outline fails the two-player check, so the scene never reaches normal player tracking or contact scoring.
-- **Video 17:** the scene's own neural-net outline is usable, but the later shared outline is too small for that camera view. It moves the far player beyond the picker's allowed distance. Changing only the outline restores the player in both checked failures.
+![Video 53: OpenCV replaces a plausible neural-net corner with a point near the bottom of the image, breaking the court outline.](figures/video53_nn_to_opencv.png)
 
-We have not yet run a fixed court pipeline end to end, so we do not know how many contacts or full rallies #148 will recover. See [court_failures.md](court_failures.md).
+![Video 17: a shared outline replaces a better scene outline and causes the player picker to lose the visible far player.](figures/video17_nn_to_shared.png)
 
-## What the learned path improved
+Changing only the outline changed the court/player decisions in the checked cases. A full rerun is still needed to measure recovered contacts and rallies. [Court failures](court_failures.md) explains both mechanisms and the replay evidence.
 
-The ordinary heuristic finds many plausible contacts but almost never gets a whole rally exactly right. Removing video 15 changes only its denominator:
+## What useful output is left for review?
 
-- ordinary heuristic: **4 / 3,327 = 0.12%** fully correct rallies;
-- learned output: **1,763 / 3,327 = 53.0%**.
+![Selected clips across the three video populations; the main 46-video queue contains 616 correct, 114 wrong and 17 unjudgeable clips.](figures/review_queue.png)
 
-![Fully correct rallies from the ordinary heuristic and learned output.](figures/heuristic_vs_learned.png)
+The 46-video queue is **84.4% correct among its 730 judgeable clips**. Another 17 clips remain unjudgeable. These clips still need review before use as ground truth.
 
-Outside video 15, the two outputs overlap but are not nested:
+## What did the learned detector improve?
 
-| Same labelled contact | Contacts |
-|---|---:|
-| Both outputs find it | 28,351 |
-| Learned output only | 5,200 |
-| Ordinary heuristic only | 660 |
-| Neither | 2,973 |
+![Fully correct rallies: four from the ordinary heuristic and 1,763 from the learned output, across 3,327 labelled rallies.](figures/heuristic_vs_learned.png)
 
-The learned path removes a lot of error once usable inputs exist. That leaves the shared court stage as a much larger fraction of the remaining misses. See [heuristic_comparison.md](heuristic_comparison.md).
+![Contact timing and player recovery across all 47 videos, then without video 15, then without videos 15 and 53.](figures/contact_correctness.png)
 
-## What still fails
+The middle column is the main result. The last column tests how much video 53 affects the totals; its labels support keeping it.
 
-Court handling is the biggest upstream problem, not the only one.
+The two methods find overlapping sets of contacts. Outside video 15, the learned output matches 5,200 labels the heuristic misses, while the heuristic matches 660 the learned output misses. These are matches to labels, not individually footage-verified gains. The [heuristic comparison](heuristic_comparison.md) follows the differences through filtering, player assignment and input conditions.
 
-There are still **1,163 missed contacts** outside video 15 where the court is accepted and both players are available. Across all court-accepted contacts, including cases with a missing player pick:
+## What about original ShuttleSet?
 
-- serves: 253 / 2,804 missed (9.0%);
-- middle contacts: 663 / 28,704 missed (2.3%);
-- final contacts: 343 / 3,062 missed (11.2%).
+![Saved final outputs on 32 original-ShuttleSet development videos compared with the historical 47-video ShuttleSet22 results.](figures/original_comparison.png)
 
-The 114 known-wrong selected clips contain 85 extra events and 67 missed labelled events. More than half of the extras come after the final label, but earlier deletion experiments showed that position alone is not enough to decide whether a physical hit is false.
+The 32 original videos were **development data**. This comparison uses the historical 47-video ShuttleSet22 totals. Eight more original videos still need inputs prepared for the final chooser. [The original-ShuttleSet checks](video_checks.md#original-shuttleset) explain the remaining coverage and label concerns.
 
-Matched contacts are usually close: outside video 15, 83.6% are within two frames and 98.0% within five. The main residual problem is therefore missing or structurally wrong events, not a broad timing shift.
+## What next?
 
-See [output_errors.md](output_errors.md) and [video_checks.md](video_checks.md).
+- **Fix the court stage and rerun.** The two reproduced failures give concrete cases to check.
+- **Exclude video 15; keep video 53.** Check the wider release for other bad video/label pairings.
+- **Then inspect the remaining contact errors with usable court and player inputs.** Use the new results to decide what the detector needs next.
 
-## Dead ends
+The earlier cheap detector tweaks found no further gain. Independent edge padding repaired no rallies, and correcting chooser targets changed the historical fully correct count from 1,763 to 1,761. The [completed experiments](last_followups.md) preserve those tests and the ideas set aside. The [backlog](promising_leads.md) gives the follow-up checks in more detail.
 
-The final cheap detector tweaks did not improve the finished system:
+## Details and evidence
 
-- **Independent edge padding:** changed two of 3,982 proposals and repaired none.
-- **Correcting chooser targets for post-padding success:** improved development output but changed the 47-video result **1,763 → 1,761**, with 21 repairs and 23 losses. It also broke two selected clips and repaired none there.
-- **Label-guided one-edit repairs:** 58 of 119 wrong selected development clips have a complete one-edit alternative, but labels choose those repairs after the fact and every correct clip also has damaging alternatives.
-- **Broad endpoint deletion:** no reliable signal separates false tail events from real contacts.
-- **Repairing video 15:** abandoned in favour of exclusion.
-
-Details and receipts: [last_followups.md](last_followups.md).
-
-## What remains
-
-1. **Fix #148 and rerun.** Use the reproduced video 53 and video 17 failures as regression cases, then measure contacts, serves, full rallies and review-queue quality across the evaluation.
-2. **Apply #147 and check the release for other bad pairings.** Reuse saved frames and labels; stop once each video's keep/exclude decision is clear.
-3. **Cover the full release inventory.** Original ShuttleSet still needs direct checks, and eight original videos need final chooser input preparation if a like-for-like detector comparison is still useful.
-4. **Then return to the 1,163 good-input misses.** Work out whether the remaining errors come from missing candidates, bad sequence choices, boundaries or labels before fitting another model.
-
-Noise-aware training can wait until there is a small directly checked contact set to judge it against.
-
-Live backlog: [promising_leads.md](promising_leads.md).
-
-## Reading guide
-
-This README gives the overall result. Pick a question for more detail:
-
-| Question | Where to look |
+| To inspect… | Read… |
 |---|---|
-| What was tested, and why? | [The investigation](experiment_lineage.md) |
-| How do outcomes differ across videos? | [Video variation and outcome charts](output_errors.md#video-to-video-variation), [interactive breakdown](VIDEO_BREAKDOWN.html) |
-| What kinds of errors remain? | [Contacts, rallies and selected clips](output_errors.md) |
-| Is the pipeline blocking usable play? | [Court and player checks](court_failures.md) |
-| Do the labels agree with the footage? | [Video checks](video_checks.md), including the original-ShuttleSet results |
-| What did the learned detector improve? | [Heuristic comparison](heuristic_comparison.md) |
-| Which detector ideas were tried and set aside? | [Last follow-ups](last_followups.md) |
-| What should happen next? | [Remaining work](promising_leads.md) |
-| Where are the exact numbers and definitions? | [Evaluation tables](evaluation_tables.md) and [label accounting](label_accounting.md) |
-| Where is the evidence, and how do I rerun a check? | [Saved files and commands](evaluation_reproduction.md) |
+| Exact counts, error tables and scoring definitions | [Evaluation numbers](evaluation_tables.md) |
+| Why court outlines reject play or lose a player | [Court failures](court_failures.md) |
+| Whether the labels agree with the footage | [Label and video checks](video_checks.md) |
+| How the learned output differs from the ordinary heuristic | [Heuristic comparison](heuristic_comparison.md) |
+| Sampling, investigation sequence, saved files and rerun commands | [Methods and reproduction](evaluation_reproduction.md) |
 
-## Limits
-
-These are saved outputs on footage that had already been examined, not an untouched test of new matches.
-
-The footage checks are samples. Scoreboard agreement can rule out a gross wrong-rally mismatch but cannot prove exact hit timing or player identity. The 24-contact direct review is stronger for those events, but it was sampled from misses rather than the whole collection.
-
-The court substitutions prove the two mechanisms on the checked cases. Only an end-to-end rerun can show how much #148 improves the final annotator.
+These results describe previously examined footage. The sampled checks establish particular label and pipeline failures; only an end-to-end rerun can measure the benefit of the proposed fixes.

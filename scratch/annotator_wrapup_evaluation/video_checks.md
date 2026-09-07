@@ -11,7 +11,6 @@ An apparent detector error can also be a label problem. Game and score checks te
 [Random missed-contact sample](#random-missed-contact-sample)  
 [What the 53-window review tells us](#what-the-53-window-review-tells-us)  
 [Original ShuttleSet](#original-shuttleset)  
-[Noisy labels and the HGB models](#noisy-labels-and-the-hgb-models)  
 [Evidence](#evidence)
 
 ## Video 15: exclude it
@@ -159,24 +158,6 @@ Eight more original-ShuttleSet videos have earlier detector outputs and saved fe
 That detector work is not needed for the label-quality sweep. Reuse existing labels, frames and prior evidence first. [#77](https://github.com/ahalp90/badminton_cv_annotator/issues/77) already notes that some first-stroke timestamps do not mark the actual serve contact.
 
 Earlier visual work covered a small named set including `sset_01`, `sset_15` and `sset_21`; it was not collection-wide, and those IDs are unrelated to ShuttleSet22 video numbers.
-
-## Noisy labels and the HGB models
-
-The two histogram-gradient-boosting models use ordinary regularisation, not a special noisy-label method:
-
-| Setting | Main contact model | Later chooser |
-|---|---:|---:|
-| Learning rate | 0.06 | 0.05 |
-| Maximum leaves | 31 | 15 |
-| Minimum examples per leaf | 40 | 20 |
-| L2 penalty | 1.0 | 1.0 |
-| Early stopping | Automatic | Disabled |
-
-Both leave `max_features=1.0`. Targets are hard yes/no labels; unjudgeable examples are omitted. There is no dropout, label smoothing or per-example reliability weighting.
-
-Regularisation can reduce overfitting. It cannot move a label to the right rally or restore a candidate removed by the court gate.
-
-A previous target-definition change was tested and rejected on broader finished outputs; see [last_followups.md](last_followups.md). Any future noise-handling experiment should be judged against a small set of manually verified contacts.
 
 ## Evidence
 

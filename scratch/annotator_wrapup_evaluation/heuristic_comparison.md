@@ -96,7 +96,7 @@ Outside video 15, using the full outputs across all upstream states:
 | Middle | 20.2% | 8.2% |
 | Final | 21.8% | 17.3% |
 
-This is a method comparison, not the court-accepted subset in [output_errors.md](output_errors.md).
+This is a method comparison, not the court-accepted subset in [the rally-position table](evaluation_tables.md#rally-position).
 
 The heuristic is also more sensitive to the timing tolerance. On the historical 47 videos, tightening ±10 to ±5 removes 1,740 heuristic matches (29,206 → 27,466), versus 744 learned matches (33,716 → 32,972).
 

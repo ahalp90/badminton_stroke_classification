@@ -129,8 +129,20 @@ Early on, a timestamp shift or label repair was still conceivable. Later checks 
 
 ## Noise-aware training
 
-The HGB models use ordinary regularisation but no label smoothing, dropout or per-example reliability weights.
+The two histogram-gradient-boosting models use ordinary regularisation, not a special noisy-label method:
 
-That does not make noisy-label training the next experiment. Right now there is known bad source data in video 15 and a court gate removing most remaining learned-output misses. Without manually checked targets, a noisy-label gain would be hard to interpret.
+| Setting | Main contact model | Later chooser |
+|---|---:|---:|
+| Learning rate | 0.06 | 0.05 |
+| Maximum leaves | 31 | 15 |
+| Minimum examples per leaf | 40 | 20 |
+| L2 penalty | 1.0 | 1.0 |
+| Early stopping | Automatic | Disabled |
 
-**Decision:** defer until the court bottleneck is fixed and a small verified contact set exists.
+Both leave `max_features=1.0`. Targets are hard yes/no labels; unjudgeable examples are omitted. There is no dropout, label smoothing or per-example reliability weighting.
+
+Regularisation can reduce overfitting. It cannot move a label to the right rally or restore a candidate removed by the court gate.
+
+The [corrected-target experiment](#correct-chooser-targets-after-padding) above was rejected on broader finished outputs. Any future noise-handling experiment should be judged against a small set of manually verified contacts.
+
+**Decision:** defer until the court bottleneck is fixed and a small verified contact set exists. Without manually checked targets, a noisy-label gain would be hard to interpret.
